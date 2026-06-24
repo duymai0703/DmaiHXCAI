@@ -25,13 +25,16 @@ ENV PORT=8080
 ENV PIKAFISH_ENGINE=/app/src/pikafish
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 \
+  && apt-get install -y --no-install-recommends ca-certificates libc6 libstdc++6 libgcc-s1 libgomp1 libatomic1 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
 COPY analysis-app ./analysis-app
 COPY --from=engine-downloader /engine/pikafish /app/src/pikafish
 COPY --from=engine-downloader /engine/pikafish.nnue /app/src/pikafish.nnue
+
+RUN chmod +x /app/src/pikafish \
+  && printf "uci\nquit\n" | /app/src/pikafish
 
 EXPOSE 8080
 

@@ -66,6 +66,7 @@ class UciEngine {
     this.enginePath = enginePath;
     this.proc = null;
     this.buffer = "";
+    this.recentOutput = "";
     this.waiters = [];
     this.searching = false;
     this.ready = false;
@@ -85,6 +86,7 @@ class UciEngine {
       this.proc = proc;
       this.ready = false;
       this.buffer = "";
+      this.recentOutput = "";
       this.waiters = [];
 
       const failBoot = (message) => {
@@ -127,6 +129,7 @@ class UciEngine {
   }
 
   onData(chunk) {
+    this.recentOutput = `${this.recentOutput}${chunk}`.slice(-4000);
     this.buffer += chunk;
     const lines = this.buffer.split(/\r?\n/);
     this.buffer = lines.pop() || "";
