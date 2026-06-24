@@ -10,7 +10,7 @@ COPY scripts ./scripts
 COPY src ./src
 
 WORKDIR /app/src
-RUN make -j"$(nproc)" build ARCH=x86-64 COMP=gcc
+RUN make -j2 build ARCH=x86-64 COMP=gcc
 
 FROM node:22-bookworm-slim
 

@@ -3,6 +3,8 @@ services:
     name: dmaihxcai
     runtime: docker
     plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/status
     autoDeploy: true
     envVars:
       - key: NODE_ENV
