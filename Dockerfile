@@ -25,7 +25,7 @@ ENV PORT=8080
 ENV PIKAFISH_ENGINE=/app/src/pikafish
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
