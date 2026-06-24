@@ -10,7 +10,8 @@ COPY scripts ./scripts
 COPY src ./src
 
 WORKDIR /app/src
-RUN make -j2 build ARCH=x86-64 COMP=gcc
+RUN make -j1 build ARCH=general-64 COMP=gcc optimize=no debug=no \
+  && strip pikafish
 
 FROM node:22-bookworm-slim
 
