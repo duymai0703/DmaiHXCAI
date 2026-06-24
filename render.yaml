@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dmaihxcai
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: PIKAFISH_ENGINE
+        value: /app/src/pikafish

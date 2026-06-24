@@ -1,0 +1,8 @@
+[build]
+  publish = "analysis-app/public"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+

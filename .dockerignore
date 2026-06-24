@@ -1,0 +1,11 @@
+.git
+.github
+analysis-app/.engine-build
+node_modules
+npm-debug.log
+src/*.exe
+src/*.o
+src/.depend
+src/pikafish
+src/pikafish.nnue
+src/temp_builds

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "start": "node analysis-app/server.js",
+    "app": "node analysis-app/server.js",
+    "build:engine:win": "node analysis-app/build-engine-win.js"
+  },
+  "dependencies": {}
+}

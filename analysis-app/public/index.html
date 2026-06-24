@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DmaiHXCAI</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark">D</span>
+        <div>
+          <strong>DmaiHXCAI</strong>
+          <small>Phân tích cờ tướng</small>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="board-zone">
+        <div class="topbar">
+          <div>
+            <h1>DmaiHXCAI</h1>
+          </div>
+          <button id="flipBtn" title="Lật bàn cờ">↕</button>
+        </div>
+        <div id="board" class="board" aria-label="Bàn cờ tướng">
+          <canvas id="boardCanvas"></canvas>
+          <canvas id="arrowCanvas"></canvas>
+          <div id="pieces"></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="group primary-actions">
+          <button id="analyzeBtn" class="analyze-button"><span aria-hidden="true">⌕</span> Phân tích</button>
+          <div id="analysis" class="analysis score-slot">
+            <div class="score-banner equal"><span>Đánh giá</span><strong>0</strong><small>Cân bằng</small></div>
+          </div>
+        </div>
+
+        <div class="group move-controls">
+          <button id="undoBtn">Hoàn tác</button>
+          <button id="redoBtn">Làm lại</button>
+          <button id="resetBtn">Đặt lại</button>
+        </div>
+
+        <div class="group sliders">
+          <label>Độ sâu <output id="depthOut">12</output></label>
+          <input id="depth" type="range" min="1" max="24" value="12">
+        </div>
+
+        <div class="group">
+          <label>AI tự chơi</label>
+          <div class="toggles">
+            <label><input id="aiRed" type="checkbox"> Đỏ</label>
+            <label><input id="aiBlack" type="checkbox"> Đen</label>
+            <button id="autoBtn">Bắt đầu</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Cơ sở dữ liệu đám mây</h2>
+          <div id="cloudBook" class="cloud-book">Đang tải dữ liệu...</div>
+        </div>
+
+        <div class="group">
+          <h2>Lịch sử</h2>
+          <ol id="history" class="history"></ol>
+        </div>
+      </aside>
+    </main>
+    <script src="/config.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

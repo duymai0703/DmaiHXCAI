@@ -1,0 +1,1 @@
+window.DMAIHXCAI_API_BASE = window.DMAIHXCAI_API_BASE || "";
