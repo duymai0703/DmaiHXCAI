@@ -1,17 +1,20 @@
-FROM node:22-bookworm AS engine-builder
+FROM node:22-bookworm AS engine-downloader
 
-WORKDIR /app
+WORKDIR /tmp/pikafish
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential ca-certificates curl make \
+  && apt-get install -y --no-install-recommends ca-certificates curl p7zip-full \
   && rm -rf /var/lib/apt/lists/*
 
-COPY scripts ./scripts
-COPY src ./src
+ARG PIKAFISH_RELEASE_URL=https://github.com/official-pikafish/Pikafish/releases/download/Pikafish-2026-01-02/Pikafish.2026-01-02.7z
 
-WORKDIR /app/src
-RUN make -j1 build ARCH=general-64 COMP=gcc optimize=no debug=no \
-  && strip pikafish
+RUN set -eux; \
+  curl -fL "$PIKAFISH_RELEASE_URL" -o pikafish.7z; \
+  7z x pikafish.7z Linux/pikafish-sse41-popcnt pikafish.nnue; \
+  mkdir -p /engine; \
+  cp Linux/pikafish-sse41-popcnt /engine/pikafish; \
+  cp pikafish.nnue /engine/pikafish.nnue; \
+  chmod +x /engine/pikafish
 
 FROM node:22-bookworm-slim
 
@@ -27,10 +30,8 @@ RUN apt-get update \
 
 COPY package.json ./
 COPY analysis-app ./analysis-app
-COPY --from=engine-builder /app/src/pikafish /app/src/pikafish
-COPY --from=engine-builder /app/src/pikafish.nnue /app/src/pikafish.nnue
-
-RUN chmod +x /app/src/pikafish
+COPY --from=engine-downloader /engine/pikafish /app/src/pikafish
+COPY --from=engine-downloader /engine/pikafish.nnue /app/src/pikafish.nnue
 
 EXPOSE 8080
 
