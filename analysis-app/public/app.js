@@ -177,25 +177,33 @@ async function runAnalysis({ activateMode = false } = {}) {
   const requestId = ++state.analysisRequest;
   const boardBefore = cloneBoard(state.board);
   const sideBefore = state.side;
+  const fenBefore = `${boardToCloudFen(boardBefore, sideBefore)} - - 0 1`;
+  const targetDepth = Math.max(1, Number(depthEl.value) || 13);
   analysisEl.textContent = "Đang phân tích...";
   state.bestMove = "";
   state.suggestions = [];
   clearArrow();
 
   try {
-    const result = await api("/api/analyze", {
-      fen: `${boardToCloudFen(state.board, state.side)} - - 0 1`,
-      moves: [],
-      depth: Number(depthEl.value),
-      multipv: 3
-    });
-    if (requestId !== state.analysisRequest) return result;
-    state.bestMove = result.bestMove || "";
-    state.suggestions = buildSuggestions(result, boardBefore);
-    state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
-    renderAnalysis(result, boardBefore, sideBefore);
-    draw();
-    return result;
+    let latestResult = null;
+    for (let depth = 1; depth <= targetDepth; depth++) {
+      if (requestId !== state.analysisRequest) return latestResult;
+      analysisEl.textContent = `Đang phân tích độ sâu ${depth}/${targetDepth}...`;
+      const result = await api("/api/analyze", {
+        fen: fenBefore,
+        moves: [],
+        depth,
+        multipv: 3
+      });
+      if (requestId !== state.analysisRequest) return latestResult || result;
+      latestResult = result;
+      state.bestMove = result.bestMove || "";
+      state.suggestions = buildSuggestions(result, boardBefore);
+      state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
+      renderAnalysis(result, boardBefore, sideBefore);
+      draw();
+    }
+    return latestResult;
   } catch (err) {
     if (requestId === state.analysisRequest) analysisEl.textContent = err.message;
     throw err;
