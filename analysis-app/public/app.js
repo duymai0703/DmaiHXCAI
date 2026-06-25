@@ -604,6 +604,58 @@ function scoreFromCloud(score) {
   return scaleAdvantageScore(oriented, 1.65, 1500);
 }
 
+function cloudPlaceholderRows(count) {
+  return Array.from({ length: Math.max(0, count) }, () => (
+    `<div class="cloud-row cloud-placeholder" aria-hidden="true">
+      <span class="cloud-move">&nbsp;</span>
+      <span class="cloud-score">&nbsp;</span>
+      <span class="cloud-rank">&nbsp;</span>
+    </div>`
+  )).join("");
+}
+
+function renderCloudPlaceholders() {
+  if (!cloudBookEl) return;
+  cloudBookEl.innerHTML = cloudPlaceholderRows(7);
+}
+
+function renderCloudBook(result) {
+  if (!cloudBookEl) return;
+  const entries = Array.isArray(result?.moves) ? result.moves.slice(0, 7) : [];
+  if (!entries.length) {
+    renderCloudPlaceholders();
+    return;
+  }
+  const replay = cloneBoard(state.board);
+  const side = state.side;
+  const rows = entries.map((entry) => {
+    const score = scoreFromCloud(entry.score);
+    return `<button class="cloud-row" data-move="${entry.move}">
+      <span class="cloud-move">${formatMove(entry.move, replay, side)}</span>
+      <span class="cloud-score ${scoreClass(score)}">${formatEval(score)}</span>
+      <span class="cloud-rank">${escapeHtml(entry.rank || "")}</span>
+    </button>`;
+  }).join("") + cloudPlaceholderRows(7 - entries.length);
+  cloudBookEl.innerHTML = rows;
+  cloudBookEl.querySelectorAll("button.cloud-row").forEach((row) => {
+    row.addEventListener("click", () => makeMove(row.dataset.move));
+  });
+}
+
+async function refreshCloudBook() {
+  if (!cloudBookEl) return;
+  const requestId = ++state.cloudRequest;
+  const fen = boardToCloudFen(state.board, state.side);
+  renderCloudPlaceholders();
+  try {
+    const result = await api(`/api/cloud?board=${encodeURIComponent(fen)}`);
+    if (requestId !== state.cloudRequest) return;
+    renderCloudBook(result);
+  } catch {
+    if (requestId === state.cloudRequest) renderCloudPlaceholders();
+  }
+}
+
 function boardToCloudFen(board, side) {
   const rows = [];
   for (let y = 9; y >= 0; y--) {
