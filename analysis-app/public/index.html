@@ -60,9 +60,16 @@
           </select>
         </div>
 
-        <div class="group sliders">
-          <label>Độ sâu <output id="depthOut">12</output></label>
-          <input id="depth" type="range" min="1" max="24" value="12">
+        <div class="group strength-control">
+          <label>Sức mạnh AI</label>
+          <div id="strengthButtons" class="strength-buttons">
+            <button type="button" data-depth="5">Yếu</button>
+            <button type="button" data-depth="10">Khá</button>
+            <button type="button" data-depth="13" class="active">Mạnh</button>
+            <button type="button" data-depth="16">Rất mạnh</button>
+          </div>
+          <input id="depth" type="hidden" value="13">
+          <div class="strength-note">AI càng mạnh load sẽ càng chậm!</div>
         </div>
 
         <div class="group">

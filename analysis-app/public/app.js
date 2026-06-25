@@ -55,7 +55,7 @@ const engineStatusEl = document.getElementById("engineStatus");
 const networkStatusEl = document.getElementById("networkStatus");
 const enginePathEl = document.getElementById("enginePath");
 const depthEl = document.getElementById("depth");
-const depthOut = document.getElementById("depthOut");
+const strengthButtonsEl = document.getElementById("strengthButtons");
 const delayEl = document.getElementById("delay");
 const delayOut = document.getElementById("delayOut");
 const piecePaletteEl = document.getElementById("piecePalette");
@@ -82,7 +82,7 @@ document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("redoBtn").addEventListener("click", redo);
 document.getElementById("resetBtn").addEventListener("click", reset);
 document.getElementById("autoBtn").addEventListener("click", toggleAuto);
-depthEl.addEventListener("input", () => depthOut.value = depthEl.value);
+if (strengthButtonsEl) strengthButtonsEl.addEventListener("click", onStrengthClick);
 if (delayEl && delayOut) delayEl.addEventListener("input", () => delayOut.value = `${delayEl.value}ms`);
 if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
@@ -97,6 +97,18 @@ function bindClick(id, handler) {
 
 function autoDelay() {
   return delayEl ? Number(delayEl.value) : 700;
+}
+
+function onStrengthClick(event) {
+  const button = event.target.closest("button[data-depth]");
+  if (!button || !strengthButtonsEl) return;
+  depthEl.value = button.dataset.depth;
+  [...strengthButtonsEl.querySelectorAll("button[data-depth]")].forEach((item) => {
+    item.classList.toggle("active", item === button);
+  });
+  if (state.analysisMode) {
+    runAnalysis({ activateMode: true }).catch(() => {});
+  }
 }
 
 async function init() {
