@@ -316,26 +316,20 @@ input:not([type]) {
   outline-offset: 4px;
 }
 
-.tool-row,
-.image-recognition {
+.tool-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-items: center;
 }
 
-.board-tools select,
-.board-tools input[type="file"] {
+.board-tools select {
   width: 100%;
   min-height: 38px;
   border: 1px solid #b9a98f;
   border-radius: 6px;
   background: #fffaf0;
   color: var(--ink);
-}
-
-.board-tools input[type="file"] {
-  padding: 7px;
 }
 
 .board-tools button.active {
@@ -655,8 +649,7 @@ input:not([type]) {
     gap: 6px;
   }
 
-  .tool-row,
-  .image-recognition {
+  .tool-row {
     grid-template-columns: 1fr;
   }
 

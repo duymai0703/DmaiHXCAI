@@ -62,9 +62,6 @@ const piecePaletteEl = document.getElementById("piecePalette");
 const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
-const boardImageInput = document.getElementById("boardImageInput");
-const recognizeBoardBtn = document.getElementById("recognizeBoardBtn");
-const recognitionStatusEl = document.getElementById("recognitionStatus");
 
 window.addEventListener("resize", draw);
 boardEl.addEventListener("click", onBoardClick);
@@ -90,10 +87,6 @@ if (delayEl && delayOut) delayEl.addEventListener("input", () => delayOut.value 
 if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
-if (recognizeBoardBtn) recognizeBoardBtn.addEventListener("click", recognizeBoardFromImage);
-if (boardImageInput) boardImageInput.addEventListener("change", () => {
-  if (boardImageInput.files?.[0]) recognizeBoardFromImage();
-});
 
 init();
 
@@ -515,71 +508,6 @@ function isEditorPieceAllowed(piece, square) {
     }
   }
   return true;
-}
-
-async function recognizeBoardFromImage() {
-  const file = boardImageInput?.files?.[0];
-  if (!file) {
-    setRecognitionStatus("Chưa chọn ảnh bàn cờ.");
-    return;
-  }
-  if (!file.type.startsWith("image/")) {
-    setRecognitionStatus("File được chọn không phải ảnh.");
-    return;
-  }
-  setRecognitionStatus("Đang gửi ảnh cho AI nhận diện...");
-  if (recognizeBoardBtn) recognizeBoardBtn.disabled = true;
-  try {
-    const image = await readFileAsDataUrl(file);
-    const result = await api("/api/recognize-board", { image });
-    applyRecognizedBoard(result);
-    const count = result.pieces?.length || 0;
-    setRecognitionStatus(`Đã nhận diện ${count} quân. Có thể bật Sửa bàn để chỉnh tay nếu cần.`);
-  } catch (err) {
-    setRecognitionStatus(err.message || "Nhận diện thất bại.");
-  } finally {
-    if (recognizeBoardBtn) recognizeBoardBtn.disabled = false;
-  }
-}
-
-function applyRecognizedBoard(result) {
-  const next = emptyBoard();
-  const pieces = Array.isArray(result.pieces) ? result.pieces : [];
-  pieces.forEach((item) => {
-    const piece = String(item.piece || "");
-    const x = Number(item.x);
-    const y = Number(item.y);
-    if (!PIECE_IMAGES[piece] || !inside(x, y)) return;
-    if (piece.toLowerCase() === "k" && next.some((row) => row.includes(piece))) return;
-    next[y][x] = piece;
-  });
-  state.board = next;
-  state.side = result.side === "b" ? "b" : "w";
-  state.moves = [];
-  state.cursor = 0;
-  state.selected = null;
-  state.hints = [];
-  state.bestMove = "";
-  state.suggestions = [];
-  state.lastAnalysis = null;
-  state.analysisRequest++;
-  state.gameOver = evaluateGameOver();
-  updateEditorUi();
-  draw();
-  refreshCloudBook();
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Không đọc được ảnh."));
-    reader.readAsDataURL(file);
-  });
-}
-
-function setRecognitionStatus(message) {
-  if (recognitionStatusEl) recognitionStatusEl.textContent = message;
 }
 
 function rebuildPosition() {
