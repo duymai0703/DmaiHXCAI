@@ -396,13 +396,17 @@ function parseCloudBook(text) {
       note: entry.note || entry.winrate || "",
       raw: part
     };
-  }).filter(isReliableCloudEntry);
-  return { ok: true, status: "ok", moves };
+  }).filter((entry) => /^[a-i][0-9][a-i][0-9]$/.test(entry.move) && Number.isFinite(entry.score));
+  return { ok: true, status: "ok", moves: isZeroOnlyCloudNoise(moves) ? [] : moves };
 }
 
-function isReliableCloudEntry(entry) {
-  if (!entry || !/^[a-i][0-9][a-i][0-9]$/.test(entry.move)) return false;
-  return Number.isFinite(entry.score) && entry.score !== 0;
+function isZeroOnlyCloudNoise(moves) {
+  if (!moves.length) return false;
+  return moves.every((entry) => {
+    const rank = Number(String(entry.rank || "").trim());
+    const note = String(entry.note || "").trim();
+    return entry.score === 0 && (!entry.rank || rank === 0) && (!note || note === "0" || note === "0%");
+  });
 }
 
 function trimNull(text) {

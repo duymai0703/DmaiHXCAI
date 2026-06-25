@@ -303,7 +303,6 @@ function animateScoreBanner(banner, finalScore) {
   }
   const startedAt = performance.now();
   const duration = 3000;
-  let shownOption = -1;
   state.scoreAnimation = setInterval(() => {
     const elapsed = performance.now() - startedAt;
     if (elapsed >= duration) {
@@ -316,16 +315,7 @@ function animateScoreBanner(banner, finalScore) {
     const next = Math.round(min + Math.random() * (max - min));
     banner.className = `score-banner ${scoreClass(next)}`;
     strong.textContent = formatEval(next);
-    const options = state.suggestionOptions.length;
-    if (options > 1) {
-      const phase = elapsed % 1200;
-      const nextOption = phase > 920 ? -1 : Math.floor(elapsed / 1200) % Math.min(2, options);
-      if (nextOption !== shownOption) {
-        shownOption = nextOption;
-        showSuggestionOption(nextOption);
-      }
-    }
-  }, 240);
+  }, 420);
 }
 
 function stopScoreAnimation() {
@@ -868,8 +858,7 @@ function renderCloudBook(result) {
 
 function isReliableCloudMove(entry) {
   if (!entry || !/^[a-i][0-9][a-i][0-9]$/.test(String(entry.move || ""))) return false;
-  const score = Number(entry.score);
-  return Number.isFinite(score) && score !== 0;
+  return Number.isFinite(Number(entry.score));
 }
 
 async function refreshCloudBook() {
@@ -907,7 +896,7 @@ function boardToCloudFen(board, side) {
 }
 
 function buildSuggestionOptions(result, board) {
-  const lines = Array.isArray(result.lines) ? result.lines.slice(0, 2) : [];
+  const lines = Array.isArray(result.lines) ? result.lines.slice(0, 1) : [];
   const options = lines.map((line, index) => {
     const pv = Array.isArray(line.pv) ? line.pv : [];
     const fallback = index === 0 && result.ponder ? [result.bestMove, result.ponder] : [];
