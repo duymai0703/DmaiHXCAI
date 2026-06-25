@@ -21,6 +21,7 @@ const PIECE_IMAGES = {
   p: "assets/pieces/black-pawn.png"
 };
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
+const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
 
 const state = {
   board: parseFen(START_FEN),
@@ -38,7 +39,9 @@ const state = {
   lastAnalysis: null,
   auto: false,
   autoTimer: null,
-  gameOver: false
+  gameOver: false,
+  editMode: false,
+  editorPiece: "R"
 };
 
 const boardEl = document.getElementById("board");
@@ -55,6 +58,13 @@ const depthEl = document.getElementById("depth");
 const depthOut = document.getElementById("depthOut");
 const delayEl = document.getElementById("delay");
 const delayOut = document.getElementById("delayOut");
+const piecePaletteEl = document.getElementById("piecePalette");
+const editBoardBtn = document.getElementById("editBoardBtn");
+const clearBoardBtn = document.getElementById("clearBoardBtn");
+const sideToMoveEl = document.getElementById("sideToMove");
+const boardImageInput = document.getElementById("boardImageInput");
+const recognizeBoardBtn = document.getElementById("recognizeBoardBtn");
+const recognitionStatusEl = document.getElementById("recognitionStatus");
 
 window.addEventListener("resize", draw);
 boardEl.addEventListener("click", onBoardClick);
@@ -77,6 +87,10 @@ document.getElementById("resetBtn").addEventListener("click", reset);
 document.getElementById("autoBtn").addEventListener("click", toggleAuto);
 depthEl.addEventListener("input", () => depthOut.value = depthEl.value);
 if (delayEl && delayOut) delayEl.addEventListener("input", () => delayOut.value = `${delayEl.value}ms`);
+if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
+if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
+if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
+if (recognizeBoardBtn) recognizeBoardBtn.addEventListener("click", recognizeBoardFromImage);
 
 init();
 
@@ -90,6 +104,8 @@ function autoDelay() {
 }
 
 async function init() {
+  renderPiecePalette();
+  updateEditorUi();
   await refreshStatus();
   draw();
   refreshCloudBook();
@@ -160,7 +176,8 @@ async function runAnalysis({ activateMode = false } = {}) {
 
   try {
     const result = await api("/api/analyze", {
-      moves: state.moves.slice(0, state.cursor),
+      fen: `${boardToCloudFen(state.board, state.side)} - - 0 1`,
+      moves: [],
       depth: Number(depthEl.value),
       multipv: 3
     });
@@ -317,9 +334,13 @@ function escapeHtml(value) {
 }
 
 function onBoardClick(event) {
-  if (state.gameOver) return;
   const square = eventToSquare(event);
   if (!square) return;
+  if (state.editMode) {
+    editBoardSquare(square);
+    return;
+  }
+  if (state.gameOver) return;
   const piece = getPiece(square);
   if (state.selected) {
     const move = squareToUci(state.selected) + squareToUci(square);
@@ -359,7 +380,7 @@ function makeMove(move, { manual = true } = {}) {
   state.moves.push(move);
   state.cursor = state.moves.length;
   state.side = state.side === "w" ? "b" : "w";
-  state.gameOver = isCheckmate(state.side);
+  state.gameOver = evaluateGameOver();
   if (state.gameOver) stopAutoPlay();
   state.selected = null;
   state.hints = [];
@@ -388,6 +409,176 @@ function reset() {
   rebuildPosition();
 }
 
+function renderPiecePalette() {
+  if (!piecePaletteEl) return;
+  piecePaletteEl.innerHTML = "";
+  EDITOR_PIECES.forEach((piece) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "palette-piece";
+    button.dataset.piece = piece;
+    button.title = piece ? (PIECE_NAMES[piece] || piece) : "Xóa quân";
+    if (piece) {
+      button.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+      button.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+    } else {
+      button.classList.add("eraser");
+      button.textContent = "×";
+      button.setAttribute("aria-label", "Xóa quân");
+    }
+    button.addEventListener("click", () => {
+      state.editorPiece = piece;
+      updateEditorUi();
+    });
+    piecePaletteEl.appendChild(button);
+  });
+}
+
+function updateEditorUi() {
+  boardEl.classList.toggle("editing", state.editMode);
+  if (editBoardBtn) {
+    editBoardBtn.classList.toggle("active", state.editMode);
+    editBoardBtn.textContent = state.editMode ? "Đang sửa bàn" : "Sửa bàn cờ";
+  }
+  if (sideToMoveEl) sideToMoveEl.value = state.side;
+  if (piecePaletteEl) {
+    [...piecePaletteEl.querySelectorAll(".palette-piece")].forEach((button) => {
+      button.classList.toggle("active", button.dataset.piece === state.editorPiece);
+    });
+  }
+}
+
+function toggleEditMode() {
+  state.editMode = !state.editMode;
+  stopAutoPlay();
+  state.selected = null;
+  state.hints = [];
+  state.suggestions = [];
+  clearArrow();
+  updateEditorUi();
+  draw();
+}
+
+function clearBoard() {
+  stopAutoPlay();
+  state.board = emptyBoard();
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = false;
+  draw();
+  refreshCloudBook();
+}
+
+function setSideToMove() {
+  if (!sideToMoveEl) return;
+  state.side = sideToMoveEl.value === "b" ? "b" : "w";
+  state.moves = [];
+  state.cursor = 0;
+  state.gameOver = false;
+  state.analysisRequest++;
+  draw();
+  refreshCloudBook();
+}
+
+function editBoardSquare(square) {
+  const piece = state.editorPiece;
+  if (piece && !isEditorPieceAllowed(piece, square)) return;
+  state.board[square.y][square.x] = piece || "";
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = evaluateGameOver();
+  draw();
+  refreshCloudBook();
+}
+
+function isEditorPieceAllowed(piece, square) {
+  if (piece.toLowerCase() !== "k") return true;
+  const oppositeKing = piece === "K" ? "k" : "K";
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      if (state.board[y][x] === oppositeKing && x === square.x) return false;
+    }
+  }
+  return true;
+}
+
+async function recognizeBoardFromImage() {
+  const file = boardImageInput?.files?.[0];
+  if (!file) {
+    setRecognitionStatus("Chưa chọn ảnh bàn cờ.");
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    setRecognitionStatus("File được chọn không phải ảnh.");
+    return;
+  }
+  setRecognitionStatus("Đang gửi ảnh cho AI nhận diện...");
+  if (recognizeBoardBtn) recognizeBoardBtn.disabled = true;
+  try {
+    const image = await readFileAsDataUrl(file);
+    const result = await api("/api/recognize-board", { image });
+    applyRecognizedBoard(result);
+    const count = result.pieces?.length || 0;
+    setRecognitionStatus(`Đã nhận diện ${count} quân. Có thể bật Sửa bàn để chỉnh tay nếu cần.`);
+  } catch (err) {
+    setRecognitionStatus(err.message || "Nhận diện thất bại.");
+  } finally {
+    if (recognizeBoardBtn) recognizeBoardBtn.disabled = false;
+  }
+}
+
+function applyRecognizedBoard(result) {
+  const next = emptyBoard();
+  const pieces = Array.isArray(result.pieces) ? result.pieces : [];
+  pieces.forEach((item) => {
+    const piece = String(item.piece || "");
+    const x = Number(item.x);
+    const y = Number(item.y);
+    if (!PIECE_IMAGES[piece] || !inside(x, y)) return;
+    if (piece.toLowerCase() === "k" && next.some((row) => row.includes(piece))) return;
+    next[y][x] = piece;
+  });
+  state.board = next;
+  state.side = result.side === "b" ? "b" : "w";
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = evaluateGameOver();
+  updateEditorUi();
+  draw();
+  refreshCloudBook();
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Không đọc được ảnh."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function setRecognitionStatus(message) {
+  if (recognitionStatusEl) recognitionStatusEl.textContent = message;
+}
+
 function rebuildPosition() {
   state.board = parseFen(START_FEN);
   state.side = "w";
@@ -401,7 +592,7 @@ function rebuildPosition() {
   state.suggestions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
-  state.gameOver = isCheckmate(state.side);
+  state.gameOver = evaluateGameOver();
   draw();
   refreshCloudBook();
   if (state.analysisMode) {
@@ -411,6 +602,7 @@ function rebuildPosition() {
 
 function draw() {
   boardEl.classList.toggle("flipped", state.flipped);
+  updateEditorUi();
   drawBoard();
   drawPieces();
   renderHistory();
@@ -888,6 +1080,11 @@ function isCheckmate(side) {
   return isKingInCheck(state.board, side) && !hasLegalMoves(side);
 }
 
+function evaluateGameOver() {
+  if (!findKing(state.board, "w") || !findKing(state.board, "b")) return false;
+  return isCheckmate(state.side);
+}
+
 function hasLegalMoves(side) {
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
@@ -1038,6 +1235,10 @@ function parseFen(fen) {
 
 function cloneBoard(board) {
   return board.map((row) => [...row]);
+}
+
+function emptyBoard() {
+  return Array.from({ length: 10 }, () => Array(9).fill(""));
 }
 
 function applyMoveToBoard(board, move) {

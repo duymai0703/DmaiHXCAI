@@ -45,7 +45,7 @@ function readBody(req) {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 1024 * 1024) {
+      if (body.length > 12 * 1024 * 1024) {
         reject(new Error("Request body is too large"));
         req.destroy();
       }
@@ -58,6 +58,44 @@ function readBody(req) {
       }
     });
     req.on("error", reject);
+  });
+}
+
+function postJson(url, payload, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const body = JSON.stringify(payload);
+    const request = https.request({
+      method: "POST",
+      hostname: target.hostname,
+      path: `${target.pathname}${target.search}`,
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        ...headers
+      }
+    }, (response) => {
+      let text = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        text += chunk;
+        if (text.length > 4 * 1024 * 1024) response.destroy(new Error("Response is too large"));
+      });
+      response.on("end", () => {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          try {
+            resolve(text ? JSON.parse(text) : {});
+          } catch {
+            reject(new Error("AI response is not valid JSON"));
+          }
+        } else {
+          reject(new Error(`AI service returned HTTP ${response.statusCode}: ${text.slice(0, 240)}`));
+        }
+      });
+    });
+    request.on("error", reject);
+    request.write(body);
+    request.end();
   });
 }
 
@@ -176,18 +214,19 @@ class UciEngine {
     return queued;
   }
 
-  async runAnalyze({ moves = [], depth = 12, movetime = 0, multipv = 3 }) {
+  async runAnalyze({ fen = "", moves = [], depth = 12, movetime = 0, multipv = 3 }) {
     await this.ensureStarted();
     if (this.searching) throw new Error("Engine đang phân tích, thử lại sau một nhịp.");
     this.searching = true;
     try {
       const safeMoves = moves.filter((move) => /^[a-i][0-9][a-i][0-9]$/.test(move));
+      const safeFen = sanitizeFen(fen);
       const safeDepth = Math.max(1, Math.min(30, Number(depth) || 12));
       const safeTime = Math.max(0, Math.min(60000, Number(movetime) || 0));
       const safeMultiPv = Math.max(1, Math.min(5, Number(multipv) || 3));
       this.write(`setoption name MultiPV value ${safeMultiPv}`);
       await this.command("isready", (line) => line === "readyok", 8000);
-      this.write(`position startpos${safeMoves.length ? ` moves ${safeMoves.join(" ")}` : ""}`);
+      this.write(safeFen ? `position fen ${safeFen}` : `position startpos${safeMoves.length ? ` moves ${safeMoves.join(" ")}` : ""}`);
       const go = safeTime > 0 ? `go movetime ${safeTime}` : `go depth ${safeDepth}`;
       const lines = await this.command(go, (line) => line.startsWith("bestmove "), Math.max(15000, safeTime + 5000), true);
       return parseSearch(lines);
@@ -201,6 +240,15 @@ class UciEngine {
       this.write("quit");
     }
   }
+}
+
+function sanitizeFen(fen) {
+  const value = String(fen || "").trim();
+  if (!value) return "";
+  if (!/^[1-9kabnrcpKABNRCP/]+ [wb](?: [-a-zA-Z0-9]+){4}$/.test(value)) {
+    throw new Error("Invalid analysis FEN");
+  }
+  return value;
 }
 
 function parseSearch(lines) {
@@ -395,6 +443,96 @@ function trimNull(text) {
   return index >= 0 ? text.slice(0, index) : text;
 }
 
+async function recognizeBoardImage(image) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Chưa cấu hình OPENAI_API_KEY trên server nên chưa thể nhận diện bàn cờ bằng AI.");
+  }
+  if (!/^data:image\/(png|jpe?g|webp);base64,/i.test(String(image || ""))) {
+    throw new Error("Ảnh nhận diện không hợp lệ.");
+  }
+  const model = process.env.OPENAI_VISION_MODEL || "gpt-5.5";
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      side: { type: "string", enum: ["w", "b"] },
+      pieces: {
+        type: "array",
+        maxItems: 32,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            piece: { type: "string", enum: ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p"] },
+            x: { type: "integer", minimum: 0, maximum: 8 },
+            y: { type: "integer", minimum: 0, maximum: 9 }
+          },
+          required: ["piece", "x", "y"]
+        }
+      }
+    },
+    required: ["side", "pieces"]
+  };
+  const prompt = [
+    "Nhận diện bàn cờ tướng trong ảnh.",
+    "Trả về JSON duy nhất theo schema.",
+    "Tọa độ dùng hệ của app: x từ 0 đến 8 từ trái sang phải theo góc nhìn Đỏ ở dưới; y từ 0 đến 9 từ đáy bàn Đỏ lên phía Đen.",
+    "Quân Đỏ dùng chữ hoa: K tướng, A sĩ, B tượng, N mã, R xe, C pháo, P tốt.",
+    "Quân Đen dùng chữ thường: k tướng, a sĩ, b tượng, n mã, r xe, c pháo, p tốt.",
+    "Nếu không chắc bên đi thì đặt side là w. Không đoán quân nếu vị trí quá mờ."
+  ].join(" ");
+  const response = await postJson("https://api.openai.com/v1/responses", {
+    model,
+    input: [{
+      role: "user",
+      content: [
+        { type: "input_text", text: prompt },
+        { type: "input_image", image_url: image }
+      ]
+    }],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "xiangqi_board",
+        strict: true,
+        schema
+      }
+    }
+  }, {
+    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+  });
+  const text = extractResponseText(response);
+  const parsed = JSON.parse(text);
+  return sanitizeRecognizedBoard(parsed);
+}
+
+function extractResponseText(response) {
+  if (typeof response.output_text === "string") return response.output_text;
+  for (const item of response.output || []) {
+    for (const content of item.content || []) {
+      if (typeof content.text === "string") return content.text;
+    }
+  }
+  throw new Error("AI không trả về dữ liệu bàn cờ.");
+}
+
+function sanitizeRecognizedBoard(result) {
+  const seen = new Set();
+  const pieces = [];
+  for (const item of Array.isArray(result.pieces) ? result.pieces : []) {
+    const piece = String(item.piece || "");
+    const x = Number(item.x);
+    const y = Number(item.y);
+    if (!/^[KABNRCPkabnrcp]$/.test(piece) || !Number.isInteger(x) || !Number.isInteger(y)) continue;
+    if (x < 0 || x > 8 || y < 0 || y > 9) continue;
+    const key = `${x},${y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pieces.push({ piece, x, y });
+  }
+  return { ok: true, side: result.side === "b" ? "b" : "w", pieces };
+}
+
 async function downloadNetwork() {
   if (downloadJob) return downloadJob;
   const target = path.join(SRC_DIR(), "pikafish.nnue");
@@ -492,6 +630,12 @@ const server = http.createServer(async (req, res) => {
       syncEngineInstance();
       const body = await readBody(req);
       const result = await engine.analyze(body);
+      json(res, 200, result);
+      return;
+    }
+    if (url.pathname === "/api/recognize-board" && req.method === "POST") {
+      const body = await readBody(req);
+      const result = await recognizeBoardImage(body.image || "");
       json(res, 200, result);
       return;
     }

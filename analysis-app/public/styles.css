@@ -309,6 +309,65 @@ input:not([type]) {
   gap: 8px;
 }
 
+.board.editing {
+  outline: 3px solid rgba(29, 105, 175, 0.38);
+  outline-offset: 4px;
+}
+
+.tool-row,
+.image-recognition {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.board-tools select,
+.board-tools input[type="file"] {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #b9a98f;
+  border-radius: 6px;
+  background: #fffaf0;
+  color: var(--ink);
+}
+
+.board-tools input[type="file"] {
+  padding: 7px;
+}
+
+.board-tools button.active {
+  background: #1d69af;
+  border-color: #174f85;
+  color: #fff;
+}
+
+.piece-palette {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.palette-piece {
+  min-height: 42px;
+  padding: 0;
+  background: rgba(255, 250, 240, 0.78) var(--piece-image) center / 34px 34px no-repeat;
+}
+
+.palette-piece.eraser {
+  display: grid;
+  place-items: center;
+  color: #8f1f2f;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.palette-piece.active {
+  border-color: #1d69af;
+  box-shadow: 0 0 0 2px rgba(29, 105, 175, 0.22);
+}
+
 .sliders input {
   width: 100%;
 }
@@ -592,6 +651,15 @@ input:not([type]) {
 
   .move-controls {
     gap: 6px;
+  }
+
+  .tool-row,
+  .image-recognition {
+    grid-template-columns: 1fr;
+  }
+
+  .piece-palette {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   button {
