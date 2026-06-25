@@ -37,6 +37,7 @@ const state = {
   analysisRequest: 0,
   cloudRequest: 0,
   lastAnalysis: null,
+  scoreAnimation: null,
   auto: false,
   autoTimer: null,
   gameOver: false,
@@ -178,32 +179,26 @@ async function runAnalysis({ activateMode = false } = {}) {
   const boardBefore = cloneBoard(state.board);
   const sideBefore = state.side;
   const fenBefore = `${boardToCloudFen(boardBefore, sideBefore)} - - 0 1`;
-  const targetDepth = Math.max(1, Number(depthEl.value) || 13);
   analysisEl.textContent = "Đang phân tích...";
   state.bestMove = "";
   state.suggestions = [];
+  stopScoreAnimation();
   clearArrow();
 
   try {
-    let latestResult = null;
-    for (let depth = 1; depth <= targetDepth; depth++) {
-      if (requestId !== state.analysisRequest) return latestResult;
-      analysisEl.textContent = `Đang phân tích độ sâu ${depth}/${targetDepth}...`;
-      const result = await api("/api/analyze", {
-        fen: fenBefore,
-        moves: [],
-        depth,
-        multipv: 3
-      });
-      if (requestId !== state.analysisRequest) return latestResult || result;
-      latestResult = result;
-      state.bestMove = result.bestMove || "";
-      state.suggestions = buildSuggestions(result, boardBefore);
-      state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
-      renderAnalysis(result, boardBefore, sideBefore);
-      draw();
-    }
-    return latestResult;
+    const result = await api("/api/analyze", {
+      fen: fenBefore,
+      moves: [],
+      depth: Number(depthEl.value),
+      multipv: 3
+    });
+    if (requestId !== state.analysisRequest) return result;
+    state.bestMove = result.bestMove || "";
+    state.suggestions = buildSuggestions(result, boardBefore);
+    state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
+    renderAnalysis(result, boardBefore, sideBefore, { animateScore: true });
+    draw();
+    return result;
   } catch (err) {
     if (requestId === state.analysisRequest) analysisEl.textContent = err.message;
     throw err;
@@ -218,6 +213,7 @@ async function playBestMove() {
 }
 
 function toggleAuto() {
+  stopScoreAnimation();
   state.auto = !state.auto;
   if (state.auto) {
     state.analysisMode = false;
@@ -266,33 +262,19 @@ async function autoStep() {
   state.autoTimer = setTimeout(autoStep, autoDelay());
 }
 
-function renderAnalysis(result, startBoard, startSide) {
+function renderAnalysis(result, startBoard, startSide, { animateScore = false } = {}) {
   if (!analysisEl) return;
   analysisEl.innerHTML = "";
   if (!result.lines || !result.lines.length) {
-    renderScore(0, "Chua co danh gia");
+    renderScore(0, "Chưa có đánh giá");
     return;
   }
-  renderScore(scoreForViewer(result.lines[0], startSide), "Engine");
-  return;
-  const mainScore = scoreForViewer(result.lines[0], startSide);
-  const banner = document.createElement("div");
-  banner.className = `score-banner ${scoreClass(mainScore)}`;
-  banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(mainScore)}</strong><small>Góc nhìn ${viewerName()}</small>`;
-  analysisEl.appendChild(banner);
-  result.lines.forEach((line) => {
-    const item = document.createElement("div");
-    item.className = "line";
-    const pvText = formatPv(line.pv, startBoard, startSide);
-    const bestText = pvText[0] || line.pv[0] || result.bestMove;
-    const evalScore = scoreForViewer(line, startSide);
-    item.innerHTML = `<strong>#${line.multipv} ${bestText}</strong> · depth ${line.depth} · <span class="eval ${scoreClass(evalScore)}">${formatEval(evalScore)}</span><div class="pv">${pvText.join(" ")}</div>`;
-    analysisEl.appendChild(item);
-  });
+  renderScore(scoreForViewer(result.lines[0], startSide), "Engine", { animate: animateScore });
 }
 
-function renderScore(score, source = "") {
+function renderScore(score, source = "", { animate = false } = {}) {
   if (!analysisEl) return;
+  stopScoreAnimation();
   const sourceText = source ? ` · ${source}` : "";
   const signText = score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng";
   analysisEl.innerHTML = "";
@@ -300,6 +282,40 @@ function renderScore(score, source = "") {
   banner.className = `score-banner ${scoreClass(score)}`;
   banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}</small>`;
   analysisEl.appendChild(banner);
+  if (animate) animateScoreBanner(banner, score);
+}
+
+function animateScoreBanner(banner, finalScore) {
+  const strong = banner.querySelector("strong");
+  if (!strong || !Number.isFinite(finalScore) || Math.abs(finalScore) >= 30000) return;
+  const rangeA = finalScore * 0.9;
+  const rangeB = finalScore * 1.1;
+  let min = Math.ceil(Math.min(rangeA, rangeB));
+  let max = Math.floor(Math.max(rangeA, rangeB));
+  if (min === max && finalScore !== 0) {
+    min = finalScore - 1;
+    max = finalScore + 1;
+  }
+  const startedAt = performance.now();
+  const duration = 5000;
+  state.scoreAnimation = setInterval(() => {
+    const elapsed = performance.now() - startedAt;
+    if (elapsed >= duration) {
+      stopScoreAnimation();
+      banner.className = `score-banner ${scoreClass(finalScore)}`;
+      strong.textContent = formatEval(finalScore);
+      return;
+    }
+    const next = Math.round(min + Math.random() * (max - min));
+    banner.className = `score-banner ${scoreClass(next)}`;
+    strong.textContent = formatEval(next);
+  }, 140);
+}
+
+function stopScoreAnimation() {
+  if (!state.scoreAnimation) return;
+  clearInterval(state.scoreAnimation);
+  state.scoreAnimation = null;
 }
 
 function scoreForViewer(line, sideToMove) {
@@ -384,6 +400,7 @@ function makeMove(move, { manual = true } = {}) {
   if (!piece) return;
   if (!isLegalMove(move, state.side)) return;
   if (manual) {
+    stopScoreAnimation();
     state.bestMove = "";
     state.suggestions = [];
     state.lastAnalysis = null;
@@ -477,6 +494,7 @@ function toggleEditMode() {
 
 function clearBoard() {
   stopAutoPlay();
+  stopScoreAnimation();
   state.board = emptyBoard();
   state.moves = [];
   state.cursor = 0;
@@ -493,6 +511,7 @@ function clearBoard() {
 
 function setSideToMove() {
   if (!sideToMoveEl) return;
+  stopScoreAnimation();
   state.side = sideToMoveEl.value === "b" ? "b" : "w";
   state.moves = [];
   state.cursor = 0;
@@ -505,6 +524,7 @@ function setSideToMove() {
 function editBoardSquare(square) {
   const piece = state.editorPiece;
   if (piece && !isEditorPieceAllowed(piece, square)) return;
+  stopScoreAnimation();
   state.board[square.y][square.x] = piece || "";
   state.moves = [];
   state.cursor = 0;
@@ -531,6 +551,7 @@ function isEditorPieceAllowed(piece, square) {
 }
 
 function rebuildPosition() {
+  stopScoreAnimation();
   state.board = parseFen(START_FEN);
   state.side = "w";
   for (const move of state.moves.slice(0, state.cursor)) {
