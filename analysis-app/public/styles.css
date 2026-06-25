@@ -210,6 +210,15 @@ h2 {
   background: #191919;
 }
 
+.piece.image-piece {
+  background: transparent var(--piece-image) center / contain no-repeat;
+  border: 0;
+  box-shadow: none;
+  color: transparent;
+  font-size: 0;
+  text-shadow: none;
+}
+
 .piece.selected {
   outline: 4px solid rgba(23, 126, 137, 0.45);
 }
@@ -543,6 +552,11 @@ input:not([type]) {
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.05),
       0 2px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .piece.image-piece {
+    box-shadow: none;
+    font-size: 0;
   }
 
   .hint {

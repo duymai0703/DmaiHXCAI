@@ -4,6 +4,22 @@ const PIECE_NAMES = {
   R: "\u8eca", N: "\u99ac", B: "\u76f8", A: "\u4ed5", K: "\u5e25", C: "\u70ae", P: "\u5175",
   r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
 };
+const PIECE_IMAGES = {
+  R: "assets/pieces/red-rook.png",
+  N: "assets/pieces/red-knight.png",
+  B: "assets/pieces/red-elephant.png",
+  A: "assets/pieces/red-advisor.png",
+  K: "assets/pieces/red-king.png",
+  C: "assets/pieces/red-cannon.png",
+  P: "assets/pieces/red-pawn.png",
+  r: "assets/pieces/black-rook.png",
+  n: "assets/pieces/black-knight.png",
+  b: "assets/pieces/black-elephant.png",
+  a: "assets/pieces/black-advisor.png",
+  k: "assets/pieces/black-king.png",
+  c: "assets/pieces/black-cannon.png",
+  p: "assets/pieces/black-pawn.png"
+};
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 
 const state = {
@@ -440,9 +456,10 @@ function drawPieces() {
       if (!piece) continue;
       const pos = squareToPixel({ x, y });
       const el = document.createElement("div");
-      el.className = `piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
+      el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
       if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
-      el.textContent = PIECE_NAMES[piece] || piece;
+      el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+      el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
       el.style.left = `${pos.x}px`;
       el.style.top = `${pos.y}px`;
       piecesEl.appendChild(el);
