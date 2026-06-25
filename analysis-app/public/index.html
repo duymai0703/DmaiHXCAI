@@ -3,8 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#8e232a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DmaiHXCAI">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>DmaiHXCAI</title>
-    <link rel="stylesheet" href="/styles.css?v=20260626-fen-tools">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+    <link rel="stylesheet" href="/styles.css?v=20260626-pwa">
   </head>
   <body>
     <header class="app-header">
@@ -97,6 +105,13 @@
       </aside>
     </main>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260626-fen-tools"></script>
+    <script src="/app.js?v=20260626-pwa"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

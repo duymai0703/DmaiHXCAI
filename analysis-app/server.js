@@ -451,7 +451,9 @@ function serveStatic(req, res) {
     const type = {
       ".html": "text/html; charset=utf-8",
       ".css": "text/css; charset=utf-8",
-      ".js": "text/javascript; charset=utf-8"
+      ".js": "text/javascript; charset=utf-8",
+      ".webmanifest": "application/manifest+json; charset=utf-8",
+      ".png": "image/png"
     }[ext] || "application/octet-stream";
     res.writeHead(200, { "Content-Type": type });
     res.end(content);
