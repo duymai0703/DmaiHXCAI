@@ -530,7 +530,7 @@ input:not([type]) {
   }
 
   .board {
-    --piece-size: 10.2%;
+    --piece-size: 9.4%;
     width: min(94vw, 430px);
     min-width: 0;
     border-width: 3px;
@@ -540,7 +540,7 @@ input:not([type]) {
   }
 
   .piece {
-    font-size: clamp(21px, 7.4vw, 34px);
+    font-size: clamp(19px, 6.7vw, 31px);
   }
 
   .hint {
