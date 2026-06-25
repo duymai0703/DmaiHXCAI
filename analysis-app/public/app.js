@@ -33,6 +33,7 @@ const state = {
   flipped: false,
   bestMove: "",
   suggestions: [],
+  suggestionOptions: [],
   analysisMode: false,
   analysisRequest: 0,
   cloudRequest: 0,
@@ -183,6 +184,7 @@ async function runAnalysis({ activateMode = false } = {}) {
   analysisEl.textContent = "Đang phân tích...";
   state.bestMove = "";
   state.suggestions = [];
+  state.suggestionOptions = [];
   stopScoreAnimation();
   clearArrow();
 
@@ -195,7 +197,8 @@ async function runAnalysis({ activateMode = false } = {}) {
     });
     if (requestId !== state.analysisRequest) return result;
     state.bestMove = result.bestMove || "";
-    state.suggestions = buildSuggestions(result, boardBefore);
+    state.suggestionOptions = buildSuggestionOptions(result, boardBefore);
+    state.suggestions = state.suggestionOptions[0] || [];
     state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
     renderAnalysis(result, boardBefore, sideBefore, { animateScore: true });
     draw();
@@ -219,6 +222,7 @@ function toggleAuto() {
   if (state.auto) {
     state.analysisMode = false;
     state.suggestions = [];
+    state.suggestionOptions = [];
     state.bestMove = "";
     state.lastAnalysis = null;
   }
@@ -299,17 +303,28 @@ function animateScoreBanner(banner, finalScore) {
   }
   const startedAt = performance.now();
   const duration = 3000;
+  let shownOption = -1;
   state.scoreAnimation = setInterval(() => {
     const elapsed = performance.now() - startedAt;
     if (elapsed >= duration) {
       stopScoreAnimation();
       banner.className = `score-banner ${scoreClass(finalScore)}`;
       strong.textContent = formatEval(finalScore);
+      showSuggestionOption(0);
       return;
     }
     const next = Math.round(min + Math.random() * (max - min));
     banner.className = `score-banner ${scoreClass(next)}`;
     strong.textContent = formatEval(next);
+    const options = state.suggestionOptions.length;
+    if (options > 1) {
+      const phase = elapsed % 1200;
+      const nextOption = phase > 920 ? -1 : Math.floor(elapsed / 1200) % Math.min(2, options);
+      if (nextOption !== shownOption) {
+        shownOption = nextOption;
+        showSuggestionOption(nextOption);
+      }
+    }
   }, 240);
 }
 
@@ -317,6 +332,18 @@ function stopScoreAnimation() {
   if (!state.scoreAnimation) return;
   clearInterval(state.scoreAnimation);
   state.scoreAnimation = null;
+}
+
+function showSuggestionOption(index) {
+  if (index < 0) {
+    state.suggestions = [];
+    clearArrow();
+    return;
+  }
+  const option = state.suggestionOptions[index] || state.suggestionOptions[0] || [];
+  state.suggestions = option;
+  clearArrow();
+  drawArrows(state.suggestions);
 }
 
 function scoreForViewer(line, sideToMove) {
@@ -404,6 +431,7 @@ function makeMove(move, { manual = true } = {}) {
     stopScoreAnimation();
     state.bestMove = "";
     state.suggestions = [];
+    state.suggestionOptions = [];
     state.lastAnalysis = null;
     state.analysisRequest++;
     clearArrow();
@@ -489,6 +517,7 @@ function toggleEditMode() {
   state.selected = null;
   state.hints = [];
   state.suggestions = [];
+  state.suggestionOptions = [];
   clearArrow();
   updateEditorUi();
   draw();
@@ -504,6 +533,7 @@ function clearBoard() {
   state.hints = [];
   state.bestMove = "";
   state.suggestions = [];
+  state.suggestionOptions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
   state.gameOver = false;
@@ -536,6 +566,7 @@ function editBoardSquare(square) {
   state.hints = [];
   state.bestMove = "";
   state.suggestions = [];
+  state.suggestionOptions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
   state.checkmatedSide = getCheckmatedSide();
@@ -567,6 +598,7 @@ function rebuildPosition() {
   state.hints = [];
   state.bestMove = "";
   state.suggestions = [];
+  state.suggestionOptions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
   state.checkmatedSide = getCheckmatedSide();
@@ -841,8 +873,15 @@ function isReliableCloudMove(entry) {
   const rankText = String(entry.rank || "").trim();
   const rankNumber = Number(rankText);
   const hasRank = rankText && (!Number.isFinite(rankNumber) || rankNumber > 0);
-  const hasBookMeta = hasRank || Boolean(String(entry.note || entry.winrate || "").trim());
+  const hasBookMeta = hasRank || hasMeaningfulCloudText(entry.note) || hasMeaningfulCloudText(entry.winrate);
   return hasScore || hasBookMeta;
+}
+
+function hasMeaningfulCloudText(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  const number = Number(text.replace("%", ""));
+  return !Number.isFinite(number) || number !== 0;
 }
 
 async function refreshCloudBook() {
@@ -879,17 +918,33 @@ function boardToCloudFen(board, side) {
   return `${rows.join("/")} ${side}`;
 }
 
-function buildSuggestions(result, board) {
-  const pv = result.lines?.[0]?.pv || [];
-  const arrowMoves = pv.length > 1 ? pv.slice(0, 2) : (result.ponder ? [result.bestMove, result.ponder] : pv.slice(0, 1));
+function buildSuggestionOptions(result, board) {
+  const lines = Array.isArray(result.lines) ? result.lines.slice(0, 2) : [];
+  const options = lines.map((line, index) => {
+    const pv = Array.isArray(line.pv) ? line.pv : [];
+    const fallback = index === 0 && result.ponder ? [result.bestMove, result.ponder] : [];
+    const arrowMoves = (pv.length > 1 ? pv.slice(0, 2) : fallback).filter(Boolean);
+    return buildSuggestionGroup(arrowMoves, board);
+  }).filter((option) => option.length);
+  if (!options.length) {
+    const fallbackPv = result.ponder ? [result.bestMove, result.ponder] : [result.bestMove].filter(Boolean);
+    const fallback = buildSuggestionGroup(fallbackPv, board);
+    if (fallback.length) options.push(fallback);
+  }
+  return options;
+}
+
+function buildSuggestionGroup(arrowMoves, board) {
   const replay = cloneBoard(board);
   return arrowMoves.map((move) => {
+    if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
     const from = uciToSquare(move.slice(0, 2));
     const piece = replay[from.y]?.[from.x] || "";
+    if (!piece) return null;
     const color = pieceColor(piece) === "w" ? "rgba(200, 26, 191, 0.94)" : "rgba(36, 93, 210, 0.92)";
     applyMoveToBoard(replay, move);
     return { move, color };
-  }).filter((item) => /^[a-i][0-9][a-i][0-9]$/.test(item.move));
+  }).filter(Boolean);
 }
 
 function formatPv(pv, startBoard, startSide) {

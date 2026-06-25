@@ -406,8 +406,15 @@ function isReliableCloudEntry(entry) {
   const rankText = String(entry.rank || "").trim();
   const rankNumber = Number(rankText);
   const hasRank = rankText && (!Number.isFinite(rankNumber) || rankNumber > 0);
-  const hasBookMeta = hasRank || Boolean(String(entry.note || "").trim());
+  const hasBookMeta = hasRank || hasMeaningfulCloudText(entry.note);
   return hasScore || hasBookMeta;
+}
+
+function hasMeaningfulCloudText(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  const number = Number(text.replace("%", ""));
+  return !Number.isFinite(number) || number !== 0;
 }
 
 function trimNull(text) {
