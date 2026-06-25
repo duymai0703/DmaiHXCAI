@@ -396,8 +396,18 @@ function parseCloudBook(text) {
       note: entry.note || entry.winrate || "",
       raw: part
     };
-  }).filter((entry) => /^[a-i][0-9][a-i][0-9]$/.test(entry.move));
+  }).filter(isReliableCloudEntry);
   return { ok: true, status: "ok", moves };
+}
+
+function isReliableCloudEntry(entry) {
+  if (!entry || !/^[a-i][0-9][a-i][0-9]$/.test(entry.move)) return false;
+  const hasScore = Number.isFinite(entry.score) && entry.score !== 0;
+  const rankText = String(entry.rank || "").trim();
+  const rankNumber = Number(rankText);
+  const hasRank = rankText && (!Number.isFinite(rankNumber) || rankNumber > 0);
+  const hasBookMeta = hasRank || Boolean(String(entry.note || "").trim());
+  return hasScore || hasBookMeta;
 }
 
 function trimNull(text) {

@@ -57,6 +57,7 @@ button.active {
 .shell {
   display: grid;
   grid-template-columns: minmax(420px, 1fr) 380px;
+  align-items: start;
   gap: 18px;
   width: min(1280px, 100%);
   min-height: calc(100vh - 62px);
@@ -223,6 +224,18 @@ h2 {
 
 .piece.selected {
   outline: 4px solid rgba(23, 126, 137, 0.45);
+}
+
+.piece.checkmated::after {
+  content: "";
+  position: absolute;
+  inset: -7%;
+  border: max(3px, 0.32vw) solid rgba(229, 28, 35, 0.92);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(255, 238, 218, 0.72),
+    0 0 18px rgba(229, 28, 35, 0.42);
+  pointer-events: none;
 }
 
 .hint {
@@ -565,6 +578,24 @@ input:not([type]) {
 .move-cell.current {
   background: rgba(23, 126, 137, 0.14);
   font-weight: 700;
+}
+
+@media (min-width: 921px) {
+  .board {
+    width: min(100%, 780px, calc((100vh - 122px) * 0.96));
+  }
+}
+
+@media (max-width: 1120px) and (min-width: 921px) {
+  .shell {
+    grid-template-columns: minmax(360px, 1fr) minmax(320px, 360px);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
 }
 
 @media (max-width: 920px) {

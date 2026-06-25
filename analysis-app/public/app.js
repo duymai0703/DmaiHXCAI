@@ -41,6 +41,7 @@ const state = {
   auto: false,
   autoTimer: null,
   gameOver: false,
+  checkmatedSide: null,
   editMode: false,
   editorPiece: "R"
 };
@@ -297,7 +298,7 @@ function animateScoreBanner(banner, finalScore) {
     max = finalScore + 1;
   }
   const startedAt = performance.now();
-  const duration = 5000;
+  const duration = 3000;
   state.scoreAnimation = setInterval(() => {
     const elapsed = performance.now() - startedAt;
     if (elapsed >= duration) {
@@ -309,7 +310,7 @@ function animateScoreBanner(banner, finalScore) {
     const next = Math.round(min + Math.random() * (max - min));
     banner.className = `score-banner ${scoreClass(next)}`;
     strong.textContent = formatEval(next);
-  }, 140);
+  }, 240);
 }
 
 function stopScoreAnimation() {
@@ -413,7 +414,8 @@ function makeMove(move, { manual = true } = {}) {
   state.moves.push(move);
   state.cursor = state.moves.length;
   state.side = state.side === "w" ? "b" : "w";
-  state.gameOver = evaluateGameOver();
+  state.checkmatedSide = getCheckmatedSide();
+  state.gameOver = Boolean(state.checkmatedSide);
   if (state.gameOver) stopAutoPlay();
   state.selected = null;
   state.hints = [];
@@ -505,6 +507,7 @@ function clearBoard() {
   state.lastAnalysis = null;
   state.analysisRequest++;
   state.gameOver = false;
+  state.checkmatedSide = null;
   draw();
   refreshCloudBook();
 }
@@ -516,6 +519,7 @@ function setSideToMove() {
   state.moves = [];
   state.cursor = 0;
   state.gameOver = false;
+  state.checkmatedSide = null;
   state.analysisRequest++;
   draw();
   refreshCloudBook();
@@ -534,7 +538,8 @@ function editBoardSquare(square) {
   state.suggestions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
-  state.gameOver = evaluateGameOver();
+  state.checkmatedSide = getCheckmatedSide();
+  state.gameOver = Boolean(state.checkmatedSide);
   draw();
   refreshCloudBook();
 }
@@ -564,7 +569,8 @@ function rebuildPosition() {
   state.suggestions = [];
   state.lastAnalysis = null;
   state.analysisRequest++;
-  state.gameOver = evaluateGameOver();
+  state.checkmatedSide = getCheckmatedSide();
+  state.gameOver = Boolean(state.checkmatedSide);
   draw();
   refreshCloudBook();
   if (state.analysisMode) {
@@ -621,6 +627,9 @@ function drawPieces() {
       const pos = squareToPixel({ x, y });
       const el = document.createElement("div");
       el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
+      if (piece.toLowerCase() === "k" && pieceColor(piece) === state.checkmatedSide) {
+        el.classList.add("checkmated");
+      }
       if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
       el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
       el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
@@ -804,7 +813,7 @@ function renderCloudPlaceholders() {
 
 function renderCloudBook(result) {
   if (!cloudBookEl) return;
-  const entries = Array.isArray(result?.moves) ? result.moves.slice(0, 7) : [];
+  const entries = Array.isArray(result?.moves) ? result.moves.filter(isReliableCloudMove).slice(0, 7) : [];
   if (!entries.length) {
     renderCloudPlaceholders();
     return;
@@ -823,6 +832,17 @@ function renderCloudBook(result) {
   cloudBookEl.querySelectorAll("button.cloud-row").forEach((row) => {
     row.addEventListener("click", () => makeMove(row.dataset.move));
   });
+}
+
+function isReliableCloudMove(entry) {
+  if (!entry || !/^[a-i][0-9][a-i][0-9]$/.test(String(entry.move || ""))) return false;
+  const score = Number(entry.score);
+  const hasScore = Number.isFinite(score) && score !== 0;
+  const rankText = String(entry.rank || "").trim();
+  const rankNumber = Number(rankText);
+  const hasRank = rankText && (!Number.isFinite(rankNumber) || rankNumber > 0);
+  const hasBookMeta = hasRank || Boolean(String(entry.note || entry.winrate || "").trim());
+  return hasScore || hasBookMeta;
 }
 
 async function refreshCloudBook() {
@@ -1052,9 +1072,13 @@ function isCheckmate(side) {
   return isKingInCheck(state.board, side) && !hasLegalMoves(side);
 }
 
-function evaluateGameOver() {
+function getCheckmatedSide() {
   if (!findKing(state.board, "w") || !findKing(state.board, "b")) return false;
-  return isCheckmate(state.side);
+  return isCheckmate(state.side) ? state.side : null;
+}
+
+function evaluateGameOver() {
+  return Boolean(getCheckmatedSide());
 }
 
 function hasLegalMoves(side) {
