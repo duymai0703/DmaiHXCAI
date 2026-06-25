@@ -258,7 +258,7 @@ function scoreForViewer(line, sideToMove) {
   const viewerSide = state.flipped ? "b" : "w";
   const multiplier = sideToMove === viewerSide ? 1 : -1;
   if (raw.kind === "mate") return Math.sign(raw.value || 1) * multiplier * 31999;
-  return scaleAdvantageScore(raw.value * multiplier);
+  return scaleAdvantageScore(raw.value * multiplier, 2.25, 2000);
 }
 
 function parseEngineScore(score) {
@@ -273,11 +273,11 @@ function formatEval(value) {
   return String(value);
 }
 
-function scaleAdvantageScore(value) {
+function scaleAdvantageScore(value, sensitivity = 1.65, limit = 1500) {
   if (!Number.isFinite(value) || value === 0) return 0;
   const sign = Math.sign(value);
-  const scaled = Math.round(Math.abs(value) * 1.65);
-  return sign * Math.min(1500, scaled);
+  const scaled = Math.round(Math.abs(value) * sensitivity);
+  return sign * Math.min(limit, scaled);
 }
 
 function scoreClass(value) {
@@ -558,8 +558,6 @@ function renderCloudBook(result) {
   }
   const replay = cloneBoard(state.board);
   const side = state.side;
-  const topScore = scoreFromCloud(result.moves[0].score);
-  renderScore(topScore, "ChessDB");
   const rows = result.moves.slice(0, 7).map((entry) => {
     const score = scoreFromCloud(entry.score);
     return `<button class="cloud-row" data-move="${entry.move}">
@@ -603,7 +601,7 @@ function scoreFromCloud(score) {
   const value = Number.isFinite(score) ? score : 0;
   const viewerSide = state.flipped ? "b" : "w";
   const oriented = state.side === viewerSide ? value : -value;
-  return scaleAdvantageScore(oriented);
+  return scaleAdvantageScore(oriented, 1.65, 1500);
 }
 
 function boardToCloudFen(board, side) {
