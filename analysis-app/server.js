@@ -402,19 +402,7 @@ function parseCloudBook(text) {
 
 function isReliableCloudEntry(entry) {
   if (!entry || !/^[a-i][0-9][a-i][0-9]$/.test(entry.move)) return false;
-  const hasScore = Number.isFinite(entry.score) && entry.score !== 0;
-  const rankText = String(entry.rank || "").trim();
-  const rankNumber = Number(rankText);
-  const hasRank = rankText && (!Number.isFinite(rankNumber) || rankNumber > 0);
-  const hasBookMeta = hasRank || hasMeaningfulCloudText(entry.note);
-  return hasScore || hasBookMeta;
-}
-
-function hasMeaningfulCloudText(value) {
-  const text = String(value || "").trim();
-  if (!text) return false;
-  const number = Number(text.replace("%", ""));
-  return !Number.isFinite(number) || number !== 0;
+  return Number.isFinite(entry.score) && entry.score !== 0;
 }
 
 function trimNull(text) {
