@@ -136,6 +136,7 @@ h2 {
 }
 
 .board {
+  --piece-size: 8.6%;
   position: relative;
   width: min(100%, 780px);
   aspect-ratio: 9 / 10;
@@ -174,7 +175,7 @@ h2 {
   position: absolute;
   display: grid;
   place-items: center;
-  width: 8.6%;
+  width: var(--piece-size);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.45);
@@ -529,8 +530,21 @@ input:not([type]) {
   }
 
   .board {
-    width: min(100%, calc(100vh - 360px));
-    min-width: min(100%, 330px);
+    --piece-size: 10.2%;
+    width: min(94vw, 430px);
+    min-width: 0;
+    border-width: 3px;
+    box-shadow:
+      inset 0 0 0 2px rgba(80, 64, 42, 0.25),
+      0 12px 28px rgba(55, 37, 18, 0.26);
+  }
+
+  .piece {
+    font-size: clamp(21px, 7.4vw, 34px);
+  }
+
+  .hint {
+    width: 4.3%;
   }
 
   .panel {
