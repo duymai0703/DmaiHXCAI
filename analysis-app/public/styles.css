@@ -136,7 +136,7 @@ h2 {
 }
 
 .board {
-  --piece-size: 11.1%;
+  --piece-size: 10.9%;
   position: relative;
   width: min(100%, 780px);
   aspect-ratio: 9 / 10;
@@ -538,7 +538,7 @@ input:not([type]) {
   }
 
   .board {
-    --piece-size: 11.1%;
+    --piece-size: 10.9%;
     width: min(100vw, 460px);
     min-width: 0;
     border-width: 2px;
