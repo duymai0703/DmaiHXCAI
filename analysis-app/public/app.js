@@ -62,6 +62,8 @@ const strengthButtonsEl = document.getElementById("strengthButtons");
 const delayEl = document.getElementById("delay");
 const delayOut = document.getElementById("delayOut");
 const piecePaletteEl = document.getElementById("piecePalette");
+const loadFenBtn = document.getElementById("loadFenBtn");
+const copyFenBtn = document.getElementById("copyFenBtn");
 const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
@@ -87,6 +89,8 @@ document.getElementById("resetBtn").addEventListener("click", reset);
 document.getElementById("autoBtn").addEventListener("click", toggleAuto);
 if (strengthButtonsEl) strengthButtonsEl.addEventListener("click", onStrengthClick);
 if (delayEl && delayOut) delayEl.addEventListener("input", () => delayOut.value = `${delayEl.value}ms`);
+if (loadFenBtn) loadFenBtn.addEventListener("click", loadFenFromPrompt);
+if (copyFenBtn) copyFenBtn.addEventListener("click", copyFenToClipboard);
 if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
@@ -532,6 +536,55 @@ function clearBoard() {
   refreshCloudBook();
 }
 
+function loadFenFromPrompt() {
+  const currentFen = currentFenString();
+  const input = window.prompt("Nhập FEN cờ tướng:", currentFen);
+  if (input === null) return;
+  try {
+    const parsed = parseFenInput(input);
+    stopAutoPlay();
+    stopScoreAnimation();
+    state.board = parsed.board;
+    state.side = parsed.side;
+    state.moves = [];
+    state.cursor = 0;
+    state.selected = null;
+    state.hints = [];
+    state.bestMove = "";
+    state.suggestions = [];
+    state.suggestionOptions = [];
+    state.lastAnalysis = null;
+    state.analysisRequest++;
+    state.checkmatedSide = getCheckmatedSide();
+    state.gameOver = Boolean(state.checkmatedSide);
+    if (sideToMoveEl) sideToMoveEl.value = state.side;
+    draw();
+    refreshCloudBook();
+    if (state.analysisMode) {
+      setTimeout(() => runAnalysis({ activateMode: true }).catch(() => {}), 0);
+    }
+  } catch (err) {
+    window.alert(err.message || "FEN không hợp lệ.");
+  }
+}
+
+async function copyFenToClipboard() {
+  const fen = currentFenString();
+  try {
+    await navigator.clipboard.writeText(fen);
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = fen;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    input.remove();
+  }
+}
+
 function setSideToMove() {
   if (!sideToMoveEl) return;
   stopScoreAnimation();
@@ -893,6 +946,10 @@ function boardToCloudFen(board, side) {
     rows.push(row);
   }
   return `${rows.join("/")} ${side}`;
+}
+
+function currentFenString() {
+  return `${boardToCloudFen(state.board, state.side)} - - 0 1`;
 }
 
 function buildSuggestionOptions(result, board) {
@@ -1259,6 +1316,32 @@ function parseFen(fen) {
     }
   });
   return board;
+}
+
+function parseFenInput(fen) {
+  const parts = String(fen || "").trim().split(/\s+/);
+  const boardPart = parts[0] || "";
+  const side = parts[1] === "b" ? "b" : "w";
+  const rows = boardPart.split("/");
+  if (rows.length !== 10) throw new Error("FEN phải có đúng 10 hàng.");
+  const board = Array.from({ length: 10 }, () => Array(9).fill(""));
+  const validPieces = /^[kabnrcpKABNRCP]$/;
+  rows.forEach((row, rowIndex) => {
+    let x = 0;
+    const y = 9 - rowIndex;
+    for (const char of row) {
+      if (/[1-9]/.test(char)) {
+        x += Number(char);
+      } else if (validPieces.test(char)) {
+        if (x >= 9) throw new Error("FEN có hàng dài quá 9 cột.");
+        board[y][x++] = char;
+      } else {
+        throw new Error(`FEN có ký tự không hợp lệ: ${char}`);
+      }
+    }
+    if (x !== 9) throw new Error("Mỗi hàng FEN phải đủ 9 cột.");
+  });
+  return { board, side };
 }
 
 function cloneBoard(board) {
