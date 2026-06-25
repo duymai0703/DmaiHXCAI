@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8">
@@ -23,7 +23,7 @@
           <div>
             <h1>DmaiHXCAI</h1>
           </div>
-          <button id="flipBtn" title="Lật bàn cờ">↕</button>
+          <button id="flipBtn" title="Lật bàn cờ">↔</button>
         </div>
         <div id="board" class="board" aria-label="Bàn cờ tướng">
           <canvas id="boardCanvas"></canvas>
@@ -48,22 +48,22 @@
 
         <div class="group board-tools">
           <div class="tool-row">
-            <button id="editBoardBtn" type="button">Sá»­a bÃ n cá»</button>
-            <button id="clearBoardBtn" type="button">XÃ³a bÃ n cá»</button>
+            <button id="editBoardBtn" type="button">Sửa bàn cờ</button>
+            <button id="clearBoardBtn" type="button">Xóa bàn cờ</button>
           </div>
-          <label>QuÃ¢n Ä‘áº·t lÃªn bÃ n</label>
+          <label>Quân đặt lên bàn</label>
           <div id="piecePalette" class="piece-palette"></div>
-          <label>BÃªn Ä‘i</label>
+          <label>Bên đi</label>
           <select id="sideToMove">
-            <option value="w">Äá»</option>
-            <option value="b">Äen</option>
+            <option value="w">Đỏ</option>
+            <option value="b">Đen</option>
           </select>
-          <label>Nháº­n diá»‡n bÃ n cá» tá»« áº£nh</label>
+          <label>Nhận diện bàn cờ từ ảnh</label>
           <div class="image-recognition">
             <input id="boardImageInput" type="file" accept="image/*">
-            <button id="recognizeBoardBtn" type="button">Nháº­n diá»‡n AI</button>
+            <button id="recognizeBoardBtn" type="button">Nhận diện AI</button>
           </div>
-          <div id="recognitionStatus" class="mini-status">Táº£i áº£nh bÃ n cá» rá»“i báº¥m nháº­n diá»‡n.</div>
+          <div id="recognitionStatus" class="mini-status">Chọn ảnh để AI nhận diện ngay.</div>
         </div>
 
         <div class="group sliders">

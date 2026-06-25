@@ -91,6 +91,9 @@ if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
 if (recognizeBoardBtn) recognizeBoardBtn.addEventListener("click", recognizeBoardFromImage);
+if (boardImageInput) boardImageInput.addEventListener("change", () => {
+  if (boardImageInput.files?.[0]) recognizeBoardFromImage();
+});
 
 init();
 
