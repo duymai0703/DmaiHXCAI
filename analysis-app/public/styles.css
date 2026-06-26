@@ -46,12 +46,36 @@ button {
 }
 
 button:hover {
-  border-color: var(--accent);
+  background: #f6a23c;
+  border-color: #c87016;
+  color: #20130a;
 }
 
 button.active {
   background: var(--accent);
   color: white;
+}
+
+.toast-message {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 50;
+  padding: 10px 14px;
+  border-radius: 7px;
+  background: rgba(34, 27, 20, 0.94);
+  color: #ffe0a6;
+  border: 1px solid rgba(246, 162, 60, 0.55);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+  transform: translate(-50%, 18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast-message.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .shell {

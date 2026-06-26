@@ -1,9 +1,9 @@
-const CACHE_NAME = "dmaihxcai-shell-v3";
+const CACHE_NAME = "dmaihxcai-shell-v4";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260626-hxc-logo",
-  "/app.js?v=20260626-hxc-logo",
+  "/styles.css?v=20260626-fen-toast-hover",
+  "/app.js?v=20260626-fen-toast-hover",
   "/config.js",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",

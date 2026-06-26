@@ -583,6 +583,20 @@ async function copyFenToClipboard() {
     document.execCommand("copy");
     input.remove();
   }
+  showToast("Đã copy FEN");
+}
+
+function showToast(message) {
+  let toast = document.querySelector(".toast-message");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "toast-message";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
 }
 
 function setSideToMove() {
@@ -1319,9 +1333,12 @@ function parseFen(fen) {
 }
 
 function parseFenInput(fen) {
-  const parts = String(fen || "").trim().split(/\s+/);
-  const boardPart = parts[0] || "";
-  const side = parts[1] === "b" ? "b" : "w";
+  const parts = normalizeFenText(fen).split(/\s+/);
+  const boardIndex = parts.findIndex((part) => part.includes("/"));
+  if (boardIndex < 0) throw new Error("Không tìm thấy phần bàn cờ trong FEN.");
+  const boardPart = parts[boardIndex] || "";
+  const sideText = String(parts[boardIndex + 1] || "w").toLowerCase();
+  const side = sideText === "b" || sideText === "black" || sideText === "đen" || sideText === "den" ? "b" : "w";
   const rows = boardPart.split("/");
   if (rows.length !== 10) throw new Error("FEN phải có đúng 10 hàng.");
   const board = Array.from({ length: 10 }, () => Array(9).fill(""));
@@ -1332,6 +1349,7 @@ function parseFenInput(fen) {
     for (const char of row) {
       if (/[1-9]/.test(char)) {
         x += Number(char);
+        if (x > 9) throw new Error("FEN có hàng dài quá 9 cột.");
       } else if (validPieces.test(char)) {
         if (x >= 9) throw new Error("FEN có hàng dài quá 9 cột.");
         board[y][x++] = char;
@@ -1342,6 +1360,16 @@ function parseFenInput(fen) {
     if (x !== 9) throw new Error("Mỗi hàng FEN phải đủ 9 cột.");
   });
   return { board, side };
+}
+
+function normalizeFenText(fen) {
+  return String(fen || "")
+    .trim()
+    .replace(/^position\s+fen\s+/i, "")
+    .replace(/^fen\s+/i, "")
+    .replace(/[“”"]/g, "")
+    .replace(/[，；;]/g, " ")
+    .replace(/\s+/g, " ");
 }
 
 function cloneBoard(board) {
