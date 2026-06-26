@@ -1,4 +1,4 @@
-const CACHE_NAME = "dmaihxcai-shell-v1";
+const CACHE_NAME = "dmaihxcai-shell-v2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
