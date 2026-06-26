@@ -18,6 +18,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-y: scroll;
   font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   color: var(--ink);
   background:
@@ -130,6 +131,10 @@ button.active {
 .board-zone,
 .panel {
   min-width: 0;
+}
+
+.board-zone {
+  align-self: start;
 }
 
 .topbar {
@@ -278,6 +283,7 @@ h2 {
   border-radius: 8px;
   padding: 16px;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .group {
@@ -320,6 +326,7 @@ input:not([type]) {
   grid-template-columns: 1fr 150px;
   gap: 10px;
   align-items: stretch;
+  min-height: 72px;
 }
 
 .analyze-button {
@@ -446,6 +453,14 @@ input:not([type]) {
   color: var(--muted);
 }
 
+.score-slot {
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
 .cloud-book {
   display: grid;
   gap: 6px;
@@ -511,12 +526,18 @@ input:not([type]) {
   border: 1px solid #d4c2a4;
   border-radius: 6px;
   background: rgba(255, 250, 240, 0.9);
-  min-height: 52px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .score-banner span,
 .score-banner small {
   color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .score-banner strong {
