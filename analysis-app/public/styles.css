@@ -266,8 +266,8 @@ h2 {
   padding: 16px;
   overflow: auto;
   scrollbar-gutter: stable;
-  align-self: stretch;
-  height: auto;
+  align-self: start;
+  height: min(758px, calc(100vh - 110px));
   min-height: 0;
 }
 
