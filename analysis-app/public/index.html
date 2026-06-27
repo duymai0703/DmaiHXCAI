@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260628-lobby-v7">
+    <link rel="stylesheet" href="/portal.css?v=20260628-guest-v2">
   </head>
   <body>
     <header class="portal-header">
@@ -26,68 +26,33 @@
         </div>
       </div>
 
-      <div id="headerProfile" class="header-profile hidden">
+      <div id="headerProfile" class="header-profile">
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
         <button id="profileButton" class="profile-button" type="button">
-          <span id="profileAvatar" class="avatar">D</span>
+          <span id="profileAvatar" class="avatar">K</span>
           <span class="profile-text">
-            <strong id="profileName">Kỳ thủ</strong>
-            <small id="profileUsername">@guest</small>
+            <strong id="profileName">Khách</strong>
+            <small id="profileUsername">Khách</small>
           </span>
         </button>
       </div>
     </header>
 
     <main class="portal-main">
-      <section id="authView" class="view auth-view">
-        <div class="auth-shell">
-          <div class="auth-hero">
-            <div class="hero-badge">DmaiHXCAI</div>
-            <h1>Đăng nhập để vào sảnh đấu và công cụ phân tích</h1>
-            <p>Một tài khoản dùng cho phòng đấu, người xem, chat và lịch sử những ván gần nhất.</p>
-            <div class="hero-points">
-              <span>Phòng đấu bằng Key</span>
-              <span>Người xem và chat trực tiếp</span>
-              <span>Mở nhanh phần mềm phân tích</span>
-            </div>
-          </div>
-
-          <div class="auth-card">
-            <div class="auth-tabs">
-              <button id="loginTab" class="active" type="button">Đăng nhập</button>
-              <button id="registerTab" type="button">Đăng ký</button>
-            </div>
-
-            <form id="loginForm" class="auth-form">
-              <label>
-                <span>Email hoặc tên đăng nhập</span>
-                <input id="loginAccount" type="text" autocomplete="username" required>
-              </label>
-              <label>
-                <span>Mật khẩu</span>
-                <input id="loginPassword" type="password" autocomplete="current-password" required minlength="6">
-              </label>
-              <button class="primary-button" type="submit">Vào DmaiHXCAI</button>
-            </form>
-
-            <form id="registerForm" class="auth-form hidden">
-              <label>
-                <span>Email</span>
-                <input id="registerEmail" type="email" autocomplete="email" required>
-              </label>
-              <label>
-                <span>Tên đăng nhập</span>
-                <input id="registerUsername" type="text" autocomplete="username" required minlength="3">
-              </label>
-              <label>
-                <span>Mật khẩu</span>
-                <input id="registerPassword" type="password" autocomplete="new-password" required minlength="6">
-              </label>
-              <button class="primary-button" type="submit">Tạo tài khoản</button>
-            </form>
-
-            <p id="authMessage" class="form-message" aria-live="polite"></p>
-          </div>
+      <section id="authView" class="view auth-view hidden" aria-hidden="true">
+        <div class="hidden">
+          <button id="loginTab" type="button">Đăng nhập</button>
+          <button id="registerTab" type="button">Đăng ký</button>
+          <form id="loginForm">
+            <input id="loginAccount" type="text">
+            <input id="loginPassword" type="password">
+          </form>
+          <form id="registerForm">
+            <input id="registerEmail" type="email">
+            <input id="registerUsername" type="text">
+            <input id="registerPassword" type="password">
+          </form>
+          <p id="authMessage"></p>
         </div>
       </section>
 
@@ -96,7 +61,7 @@
           <button id="openMatchHub" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/xeposter.png')" type="button">
             <span class="card-eyebrow">Khu 1</span>
             <strong>Phòng đấu</strong>
-            <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra.</small>
+            <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra với tên khách của bạn.</small>
           </button>
 
           <button id="openAnalysisBtn" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/phaoposter.png')" type="button">
@@ -107,8 +72,8 @@
 
           <button id="openLibraryBtn" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/maposter.png')" type="button">
             <span class="card-eyebrow">Khu 3</span>
-            <strong>Thư viện cá nhân</strong>
-            <small>Giữ chỗ giao diện để chúng ta phát triển tiếp ở bước sau.</small>
+            <strong>Lịch sử ván đấu</strong>
+            <small>Xem lại các ván gần nhất trên thiết bị này và mở phân tích sau ván.</small>
           </button>
         </div>
       </section>
@@ -119,7 +84,7 @@
             <div class="panel-heading">
               <div>
                 <h2>Phòng đấu</h2>
-                <p>Chọn cách bạn muốn vào ván cờ.</p>
+                <p>Nhập tên trước khi tạo phòng, vào phòng hoặc xem ván đấu.</p>
               </div>
             </div>
 
@@ -130,6 +95,10 @@
 
             <form id="joinRoomForm" class="subpanel">
               <label>
+                <span>Tên của bạn</span>
+                <input id="joinDisplayName" type="text" maxlength="26" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+              </label>
+              <label>
                 <span>Nhập Key phòng</span>
                 <input id="joinRoomKey" type="text" placeholder="Ví dụ: AB3K9Q" maxlength="12" autocomplete="off" required>
               </label>
@@ -137,10 +106,32 @@
             </form>
 
             <form id="createRoomForm" class="subpanel hidden">
+              <label>
+                <span>Tên của bạn</span>
+                <input id="createDisplayName" type="text" maxlength="26" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+              </label>
+
               <label class="range-field">
-                <span>Thời gian mỗi bên</span>
-                <input id="timeRange" type="range" min="1" max="20" value="10">
-                <strong id="timeRangeValue">10 phút</strong>
+                <span>Thời gian bên ta</span>
+                <input id="yourTimeRange" type="range" min="1" max="20" value="10">
+                <strong id="yourTimeRangeValue">10 phút</strong>
+              </label>
+
+              <label class="range-field">
+                <span>Thời gian bên địch</span>
+                <input id="opponentTimeRange" type="range" min="1" max="20" value="10">
+                <strong id="opponentTimeRangeValue">10 phút</strong>
+              </label>
+
+              <label>
+                <span>Tích lũy sau mỗi nước</span>
+                <select id="incrementSelect">
+                  <option value="0">0 giây</option>
+                  <option value="1">1 giây</option>
+                  <option value="2">2 giây</option>
+                  <option value="3" selected>3 giây</option>
+                  <option value="5">5 giây</option>
+                </select>
               </label>
 
               <div class="side-pick">
@@ -164,10 +155,11 @@
           <section class="panel-card match-panel">
             <div class="panel-heading">
               <div>
-                <h2>Thư viện cá nhân</h2>
-                <p>Phần này đã giữ chỗ xong. Khi bạn chốt yêu cầu cụ thể, tôi nối tiếp ngay trên khung này.</p>
+                <h2>Lịch sử ván đấu</h2>
+                <p>Tối đa 20 ván gần nhất. Bấm vào mỗi ván để tua lại và phân tích sau ván.</p>
               </div>
             </div>
+            <div id="libraryHistoryList" class="history-list"></div>
           </section>
         </div>
       </section>
@@ -346,13 +338,13 @@
     <div id="profileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
       <div class="modal-card profile-modal-card">
         <div class="modal-head">
-          <h3 id="profileTitle">Hồ sơ cá nhân</h3>
+          <h3 id="profileTitle">Khách</h3>
           <button id="closeProfileBtn" class="ghost-button square-button" type="button" aria-label="Đóng">×</button>
         </div>
 
         <div class="profile-modal-body">
           <div class="profile-editor">
-            <span id="profileAvatarLarge" class="avatar avatar-large">D</span>
+            <span id="profileAvatarLarge" class="avatar avatar-large">K</span>
             <div class="profile-fields">
               <label>
                 <span>Tên hiển thị</span>
@@ -362,7 +354,7 @@
                 <span>Link ảnh avatar</span>
                 <input id="avatarUrlInput" type="url" placeholder="https://...">
               </label>
-              <label>
+              <label class="hidden">
                 <span>Tên đăng nhập</span>
                 <input id="readonlyUsername" type="text" readonly>
               </label>
@@ -372,7 +364,7 @@
           <div class="profile-actions">
             <button id="saveProfileBtn" class="primary-button" type="button">Lưu hồ sơ</button>
             <button id="openAdminBtn" class="ghost-button hidden" type="button">Quản trị thành viên</button>
-            <button id="logoutBtn" class="ghost-button" type="button">Đăng xuất</button>
+            <button id="logoutBtn" class="ghost-button hidden" type="button">Đăng xuất</button>
           </div>
           <p id="profileMessage" class="form-message" aria-live="polite"></p>
 
@@ -401,7 +393,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-lobby-v7"></script>
+    <script src="/portal.js?v=20260628-guest-v2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

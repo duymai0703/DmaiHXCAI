@@ -1,10 +1,10 @@
-const CACHE_NAME = "dmaihxcai-shell-v19";
+const CACHE_NAME = "dmaihxcai-shell-v20";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260628-lobby-v7",
-  "/portal.js?v=20260628-lobby-v7",
+  "/portal.css?v=20260628-guest-v2",
+  "/portal.js?v=20260628-guest-v2",
   "/styles.css?v=20260627-room-fix-v2",
   "/app.js?v=20260627-room-fix-v2",
   "/config.js",
@@ -16,6 +16,10 @@ const STATIC_ASSETS = [
   "/assets/posters/xeposter.png",
   "/assets/posters/phaoposter.png",
   "/assets/posters/maposter.png",
+  "/assets/review-badges/sao.png",
+  "/assets/review-badges/like.png",
+  "/assets/review-badges/bang.png",
+  "/assets/review-badges/x.png",
   "/assets/pieces/black-advisor.png",
   "/assets/pieces/black-cannon.png",
   "/assets/pieces/black-elephant.png",

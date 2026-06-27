@@ -1066,12 +1066,24 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   min-height: 24px;
-  padding: 0 8px;
+  padding: 4px 8px 4px 6px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.review-grade-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff center / cover no-repeat;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.88),
+    0 3px 8px rgba(0, 0, 0, 0.18);
+  flex: 0 0 auto;
 }
 
 .review-grade.bad {
@@ -1122,43 +1134,45 @@ a {
   border-radius: 50%;
 }
 
-.piece.review-badge::before {
-  content: attr(data-review-badge);
+.piece.review-badge {
+  overflow: visible;
+}
+
+.review-badge-icon {
   position: absolute;
   top: -18%;
   left: 50%;
-  transform: translateX(-50%);
-  display: inline-grid;
-  place-items: center;
-  min-width: 34%;
-  min-height: 24%;
-  padding: 0 5px;
-  border-radius: 999px;
-  font-size: clamp(10px, 1vw, 15px);
-  font-weight: 900;
-  line-height: 1;
+  transform: translate(-50%, -12%);
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff center / cover no-repeat;
   border: 1px solid rgba(255, 255, 255, 0.82);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 
-.piece.review-grade-brilliant::before {
-  background: rgba(255, 247, 224, 0.98);
-  color: #f09d1f;
+.piece.review-grade-brilliant .review-badge-icon {
+  box-shadow:
+    0 0 0 1px rgba(252, 215, 96, 0.86),
+    0 4px 12px rgba(208, 146, 23, 0.3);
 }
 
-.piece.review-grade-good::before {
-  background: rgba(231, 249, 240, 0.98);
-  color: #1d7a4c;
+.piece.review-grade-good .review-badge-icon {
+  box-shadow:
+    0 0 0 1px rgba(67, 147, 231, 0.82),
+    0 4px 12px rgba(35, 98, 178, 0.24);
 }
 
-.piece.review-grade-okay::before {
-  background: rgba(245, 239, 228, 0.98);
-  color: #695c48;
+.piece.review-grade-okay .review-badge-icon {
+  box-shadow:
+    0 0 0 1px rgba(132, 132, 132, 0.62),
+    0 4px 12px rgba(79, 79, 79, 0.18);
 }
 
-.piece.review-grade-bad::before {
-  background: rgba(255, 237, 235, 0.98);
-  color: #b03027;
+.piece.review-grade-bad .review-badge-icon {
+  box-shadow:
+    0 0 0 1px rgba(226, 78, 78, 0.82),
+    0 4px 12px rgba(168, 42, 42, 0.24);
 }
 
 .piece.selected {
