@@ -69,6 +69,8 @@
     reviewAnalyzing: false,
     reviewLastBoardFrame: "",
     reviewLastPieceFrame: "",
+    reviewPieceSlots: null,
+    reviewSlotLayoutKey: "",
     adminUsers: [],
     adminSelectedUserId: "",
     adminLoading: false,
@@ -149,13 +151,18 @@
     roomBoardCanvas: byId("roomBoardCanvas"),
     roomMarks: byId("roomMarks"),
     roomPieces: byId("roomPieces"),
+    roomBoardOverlay: byId("roomBoardOverlay"),
+    roomOverlayTitle: byId("roomOverlayTitle"),
+    roomOverlayText: byId("roomOverlayText"),
+    roomOverlayActions: byId("roomOverlayActions"),
     undoRequestBtn: byId("undoRequestBtn"),
     drawRequestBtn: byId("drawRequestBtn"),
     resignBtn: byId("resignBtn"),
+    roomReadyBtn: byId("roomReadyBtn"),
+    leaveRoomBtn: byId("leaveRoomBtn"),
     undoCount: byId("undoCount"),
     drawCount: byId("drawCount"),
     requestState: byId("requestState"),
-    resultState: byId("resultState"),
     viewerSummary: byId("viewerSummary"),
     viewerList: byId("viewerList"),
     chatList: byId("chatList"),
@@ -242,6 +249,8 @@
     dom.undoRequestBtn.addEventListener("click", () => requestRoomAction("undo"));
     dom.drawRequestBtn.addEventListener("click", () => requestRoomAction("draw"));
     dom.resignBtn.addEventListener("click", confirmResign);
+    dom.roomReadyBtn.addEventListener("click", onRoomReadyClick);
+    dom.leaveRoomBtn.addEventListener("click", onLeaveRoomClick);
     dom.roomBoard.addEventListener("pointerdown", onBoardPointerDown);
     dom.reviewPrevBtn.addEventListener("click", () => stepReview(-1));
     dom.reviewNextBtn.addEventListener("click", () => stepReview(1));
@@ -454,10 +463,15 @@
     state.reviewSideToMove = "w";
     state.selectedSquare = null;
     state.hints = [];
+    state.roomPieceSlots = null;
+    state.roomHintSlots = null;
+    state.roomSlotLayoutKey = "";
     state.lastBoardFrame = "";
     state.lastPieceFrame = "";
     state.reviewLastBoardFrame = "";
     state.reviewLastPieceFrame = "";
+    state.reviewPieceSlots = null;
+    state.reviewSlotLayoutKey = "";
     state.adminUsers = [];
     state.adminSelectedUserId = "";
     state.adminLoading = false;
@@ -699,6 +713,8 @@
     state.reviewAnalyzing = false;
     state.reviewLastBoardFrame = "";
     state.reviewLastPieceFrame = "";
+    state.reviewPieceSlots = null;
+    state.reviewSlotLayoutKey = "";
     rebuildReviewBoard();
     closeProfileModal();
     goRoute("review");
@@ -1044,13 +1060,27 @@
   }
 
   function renderRoomState({ forceBoard = false } = {}) {
+    materializeLocalRoomPhase();
     renderRoomMeta();
     renderRequestState();
-    renderResultState();
     renderViewerList();
     renderChat();
     renderMoveList();
+    renderRoomOverlay();
     drawRoomScene(forceBoard);
+  }
+
+  function materializeLocalRoomPhase() {
+    const room = state.room;
+    if (!room) return;
+    const countdownEndsAt = Number(room.countdownEndsAt || 0);
+    if (room.status === "starting" && countdownEndsAt > 0 && Date.now() >= countdownEndsAt) {
+      room.status = "active";
+      room.sideToMove = "w";
+      room.countdownEndsAt = 0;
+      room.yourTurn = room.role === "player" && room.yourSide === "w";
+      state.roomSyncedAt = countdownEndsAt;
+    }
   }
 
   function renderRoomMeta() {
@@ -1061,6 +1091,11 @@
       dom.roomSummary.textContent = "Phòng đang được chuẩn bị.";
       dom.undoCount.textContent = "0";
       dom.drawCount.textContent = "0";
+      dom.requestState.innerHTML = "";
+      dom.requestState.classList.add("hidden");
+      dom.roomReadyBtn.classList.add("hidden");
+      dom.roomReadyBtn.disabled = true;
+      dom.leaveRoomBtn.disabled = true;
       paintAvatar(dom.topPlayerAvatar, null, "?");
       paintAvatar(dom.bottomPlayerAvatar, null, "?");
       dom.topPlayerName.textContent = "Đang chờ đối thủ";
@@ -1097,37 +1132,36 @@
     dom.drawRequestBtn.disabled = !canAct || Number(room.allowances?.drawRemaining || 0) <= 0 || Boolean(room.pendingRequest);
     dom.resignBtn.disabled = !canAct;
 
+    const showReadyButton = room.role === "player" && (room.status === "ready" || room.status === "finished");
+    dom.roomReadyBtn.classList.toggle("hidden", !showReadyButton);
+    if (room.status === "finished") {
+      dom.roomReadyBtn.textContent = room.rematchReady?.you ? "Đã sẵn sàng ván mới" : "Sẵn sàng ván mới";
+      dom.roomReadyBtn.disabled = !!state.roomActionBusy;
+    } else {
+      dom.roomReadyBtn.textContent = room.startReady?.you ? "Đã sẵn sàng" : "Sẵn sàng";
+      dom.roomReadyBtn.disabled = !!state.roomActionBusy || !room.bothPlayersJoined;
+    }
+    dom.leaveRoomBtn.disabled = !!state.roomActionBusy;
+
     renderRoomClocks();
   }
 
   function renderRequestState() {
     const room = state.room;
     dom.requestState.innerHTML = "";
-    if (!room) return;
-
-    if (room.waitingForOpponent) {
-      dom.requestState.appendChild(makeNotice("Đang chờ đối thủ", "Bàn cờ đã sẵn sàng. Khi đối thủ nhập đúng Key, ván đấu sẽ tự bắt đầu."));
-      return;
-    }
-
-    if (room.role === "spectator") {
-      if (room.pendingRequest) {
-        dom.requestState.appendChild(makeNotice(
-          room.pendingRequest.type === "undo" ? "Người chơi đang xin đi lại" : "Người chơi đang cầu hòa",
-          "Bạn đang ở chế độ người xem nên chỉ có thể quan sát và chat."
-        ));
-      } else {
-        dom.requestState.appendChild(makeNotice("Chế độ người xem", "Bạn đang theo dõi ván cờ. Hãy dùng khung chat để trò chuyện."));
-      }
+    if (!room) {
+      dom.requestState.classList.add("hidden");
       return;
     }
 
     if (room.pendingRequest?.fromYou) {
+      dom.requestState.classList.remove("hidden");
       dom.requestState.appendChild(makeNotice("Đang chờ đối thủ xác nhận...", room.pendingRequest.type === "undo" ? "Yêu cầu đi lại đã được gửi." : "Yêu cầu hòa đã được gửi."));
       return;
     }
 
     if (room.pendingRequest?.toYou) {
+      dom.requestState.classList.remove("hidden");
       const notice = makeNotice(
         room.pendingRequest.type === "undo" ? "Đối thủ yêu cầu đi lại" : "Đối thủ yêu cầu hòa",
         room.pendingRequest.type === "undo" ? "Nếu đồng ý, nước cờ gần nhất sẽ được thực hiện lại." : "Nếu đồng ý, ván cờ sẽ được xử hòa."
@@ -1150,36 +1184,48 @@
       return;
     }
 
-    dom.requestState.appendChild(makeNotice(
-      room.yourTurn ? "Đến lượt bạn" : "Đến lượt đối thủ",
-      room.yourTurn ? "Bạn chỉ có thể đi quân thuộc bên mình." : "Đồng hồ bên đối thủ đang chạy."
-    ));
+    dom.requestState.classList.add("hidden");
   }
 
-  function renderResultState() {
+  function renderRoomOverlay() {
     const room = state.room;
-    dom.resultState.innerHTML = "";
-    dom.resultState.classList.toggle("hidden", !room?.result);
-    if (!room?.result) return;
+    dom.roomOverlayActions.innerHTML = "";
+    dom.roomOverlayTitle.textContent = "";
+    dom.roomOverlayText.textContent = "";
+    dom.roomBoardOverlay.classList.add("hidden");
+    if (!room) return;
 
-    const notice = makeNotice(resultTitle(room), resultDetail(room));
+    if (room.status === "starting") {
+      dom.roomOverlayTitle.textContent = "Bắt đầu!";
+      dom.roomOverlayText.textContent = "Đỏ đi trước. Đồng hồ sẽ chạy ngay sau khi bảng này biến mất.";
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
+    if (!room.result) return;
+
+    dom.roomOverlayTitle.textContent = resultTitle(room);
+    dom.roomOverlayText.textContent = resultDetail(room);
+
     if (room.role === "player") {
       const ready = document.createElement("button");
       ready.className = room.rematchReady?.you ? "primary-button" : "secondary-button";
       ready.type = "button";
       ready.textContent = room.rematchReady?.you ? "Đã sẵn sàng ván mới" : "Sẵn sàng ván mới";
-      ready.disabled = state.roomActionBusy;
+      ready.disabled = !!state.roomActionBusy;
       ready.addEventListener("click", toggleRematch);
-      notice.appendChild(ready);
-      if (room.rematchReady?.opponent) {
-        const detail = document.createElement("div");
-        detail.style.marginTop = "8px";
-        detail.style.color = "var(--muted)";
-        detail.textContent = "Đối thủ đã sẵn sàng.";
-        notice.appendChild(detail);
-      }
+      dom.roomOverlayActions.appendChild(ready);
     }
-    dom.resultState.appendChild(notice);
+
+    const leave = document.createElement("button");
+    leave.className = "ghost-button";
+    leave.type = "button";
+    leave.textContent = "Out phòng";
+    leave.disabled = !!state.roomActionBusy;
+    leave.addEventListener("click", onLeaveRoomClick);
+    dom.roomOverlayActions.appendChild(leave);
+
+    dom.roomBoardOverlay.classList.remove("hidden");
   }
 
   function renderViewerList() {
@@ -1348,6 +1394,35 @@
     drawReviewArrow();
   }
 
+  function ensureReviewSlots() {
+    if (dom.reviewView.classList.contains("hidden")) return [];
+    const rect = dom.reviewBoard.getBoundingClientRect();
+    if (!rect.width || !rect.height) return [];
+    const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${reviewViewSide()}`;
+    if (state.reviewPieceSlots && state.reviewPieceSlots.length === 90 && state.reviewSlotLayoutKey === layoutKey) {
+      return state.reviewPieceSlots;
+    }
+
+    state.reviewSlotLayoutKey = layoutKey;
+    state.reviewPieceSlots = [];
+    const fragment = document.createDocumentFragment();
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const pixel = reviewSquareToPixel({ x, y });
+        const piece = document.createElement("div");
+        piece.className = "piece image-piece";
+        piece.style.left = `${pixel.x}px`;
+        piece.style.top = `${pixel.y}px`;
+        piece.style.display = "none";
+        piece.setAttribute("aria-hidden", "true");
+        fragment.appendChild(piece);
+        state.reviewPieceSlots.push(piece);
+      }
+    }
+    dom.reviewPieces.replaceChildren(fragment);
+    return state.reviewPieceSlots;
+  }
+
   function drawRoomBoard(force) {
     if (dom.roomView.classList.contains("hidden")) return;
     const rect = dom.roomBoard.getBoundingClientRect();
@@ -1484,18 +1559,30 @@
     const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.reviewLastPieceFrame) return;
     state.reviewLastPieceFrame = signature;
-
-    const fragment = document.createDocumentFragment();
+    const slots = ensureReviewSlots();
+    if (!slots.length) return;
     const movedSquare = state.reviewLastMoveSquare;
     const badge = reviewBadgeForGrade(currentAnalysis?.grade || "");
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
+        const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
-        if (!piece) continue;
-        const pixel = reviewSquareToPixel({ x, y });
-        const el = document.createElement("div");
+        const el = slots[index];
+        if (!piece) {
+          el.style.display = "none";
+          el.className = "piece image-piece";
+          el.style.removeProperty("--piece-image");
+          el.removeAttribute("aria-label");
+          el.replaceChildren();
+          continue;
+        }
+
+        el.style.display = "";
         el.className = "piece image-piece";
+        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+        el.setAttribute("aria-label", piece);
+        el.replaceChildren();
         if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
           el.classList.add("in-check");
         }
@@ -1507,14 +1594,8 @@
             if (badgeIcon) el.appendChild(badgeIcon);
           }
         }
-        el.style.left = `${pixel.x}px`;
-        el.style.top = `${pixel.y}px`;
-        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-        fragment.appendChild(el);
       }
     }
-
-    dom.reviewPieces.replaceChildren(fragment);
   }
 
   function drawReviewArrow() {
@@ -1600,20 +1681,59 @@
   }
 
   async function sendMove(move) {
+    if (!state.room) return;
+    const side = state.room.yourSide;
+    const previousRoom = cloneJsonValue(state.room);
+    const previousBoard = state.roomBoard.map((row) => row.slice());
+    const previousSyncedAt = state.roomSyncedAt;
+    const localBoard = state.roomBoard.map((row) => row.slice());
+    const notation = XiangqiCore.formatMoveNotation(move, state.roomBoard, side);
+    const remaining = liveClockFor(side);
+    XiangqiCore.applyMoveToBoard(localBoard, move);
+    const localGameState = XiangqiCore.determineGameState(localBoard, oppositeSide(side));
+    state.selectedSquare = null;
+    state.hints = [];
+    state.roomBoard = localBoard;
+    state.room.boardFen = XiangqiCore.boardToFen(localBoard, oppositeSide(side));
+    state.room.sideToMove = oppositeSide(side);
+    state.room.yourTurn = false;
+    state.room.pendingRequest = null;
+    state.room.rematchReady = { you: false, opponent: false };
+    state.room.clocks = {
+      ...(state.room.clocks || {}),
+      [side]: remaining + Number(state.room.incrementSeconds || 0) * 1000
+    };
+    state.room.moves = [...(state.room.moves || []), { side, move, notation }];
+    if (localGameState.finished) {
+      state.room.status = "finished";
+      state.room.result = {
+        winnerSide: localGameState.winnerSide || null,
+        loserSide: localGameState.loserSide || null,
+        reason: localGameState.reason || "draw",
+        endedAt: new Date().toISOString()
+      };
+    } else {
+      state.room.status = "active";
+      state.room.result = null;
+    }
+    state.roomSyncedAt = Date.now();
     state.roomActionBusy = true;
-    renderRoomMeta();
+    renderRoomState({ forceBoard: false, keepSelection: false });
     try {
       const payload = await api("/api/rooms/move", {
         method: "POST",
         body: { key: state.room.key, move }
       });
-      state.selectedSquare = null;
-      state.hints = [];
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: false });
     } catch (error) {
+      state.room = previousRoom;
+      state.roomBoard = previousBoard;
+      state.roomSyncedAt = previousSyncedAt;
+      state.selectedSquare = null;
+      state.hints = [];
       state.roomActionBusy = false;
-      renderRoomMeta();
+      renderRoomState({ forceBoard: true, keepSelection: false });
       showToast(error.message || "Không thể đi nước này.");
     }
   }
@@ -1683,6 +1803,36 @@
     }
   }
 
+  function onRoomReadyClick() {
+    if (!state.room || state.roomActionBusy) return;
+    if (state.room.status === "finished") {
+      void toggleRematch();
+      return;
+    }
+    if (state.room.status === "ready") {
+      void toggleRoomReady();
+    }
+  }
+
+  async function toggleRoomReady() {
+    if (!state.room || state.roomActionBusy) return;
+    state.roomActionBusy = true;
+    renderRoomMeta();
+    try {
+      const payload = await api("/api/rooms/ready", {
+        method: "POST",
+        body: { key: state.room.key, ready: !state.room.startReady?.you }
+      });
+      state.roomActionBusy = false;
+      applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
+      showToast(payload.room.status === "starting" || payload.room.status === "active" ? "Hai bên đã sẵn sàng." : "Đã cập nhật trạng thái sẵn sàng.");
+    } catch (error) {
+      state.roomActionBusy = false;
+      renderRoomMeta();
+      showToast(error.message || "Không thể đổi trạng thái sẵn sàng.");
+    }
+  }
+
   async function toggleRematch() {
     if (!state.room || state.roomActionBusy) return;
     state.roomActionBusy = true;
@@ -1694,11 +1844,54 @@
       });
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
-      showToast(payload.room.status === "active" ? "Ván mới đã bắt đầu." : "Đã cập nhật trạng thái sẵn sàng.");
+      showToast(payload.room.status === "starting" || payload.room.status === "active" ? "Ván mới đang bắt đầu." : "Đã cập nhật trạng thái sẵn sàng.");
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
       showToast(error.message || "Không thể đổi trạng thái sẵn sàng.");
+    }
+  }
+
+  function onLeaveRoomClick() {
+    if (!state.room || state.roomActionBusy) return;
+    if (state.room.status === "active" && state.room.role === "player") {
+      openModal({
+        title: "Rời phòng?",
+        text: "Nếu rời phòng giữa ván, hệ thống sẽ xử thua cho bạn ngay lập tức.",
+        confirmText: "Rời phòng",
+        onConfirm: leaveRoomNow
+      });
+      return;
+    }
+    void leaveRoomNow();
+  }
+
+  async function leaveRoomNow() {
+    if (!state.room || state.roomActionBusy) return;
+    const room = state.room;
+    if (room.status === "finished") {
+      applyRoomState(null, { forceBoard: true, keepSelection: false });
+      await refreshHistory();
+      goRoute("match", true);
+      showToast("Đã rời phòng.");
+      return;
+    }
+    state.roomActionBusy = true;
+    renderRoomMeta();
+    try {
+      await api("/api/rooms/leave", {
+        method: "POST",
+        body: { key: room.key }
+      });
+      state.roomActionBusy = false;
+      applyRoomState(null, { forceBoard: true, keepSelection: false });
+      await refreshHistory();
+      goRoute("match", true);
+      showToast("Đã rời phòng.");
+    } catch (error) {
+      state.roomActionBusy = false;
+      renderRoomMeta();
+      showToast(error.message || "Không thể rời phòng.");
     }
   }
 
@@ -1722,8 +1915,8 @@
     if (state.roomPollTimer) return;
     state.roomPollTimer = window.setInterval(() => {
       void pollRoomState();
-    }, 1200);
-    state.roomClockTimer = window.setInterval(renderRoomClocks, 500);
+    }, 600);
+    state.roomClockTimer = window.setInterval(renderRoomClocks, 250);
     void pollRoomState();
   }
 
@@ -1884,6 +2077,8 @@
 
   function roomStatusText(room) {
     if (room.status === "waiting") return "Đang chờ đối thủ";
+    if (room.status === "ready") return "Chờ sẵn sàng";
+    if (room.status === "starting") return "Bắt đầu";
     if (room.status === "finished") return "Ván cờ kết thúc";
     if (room.role === "spectator") return "Bạn đang xem";
     return room.yourTurn ? "Tới lượt bạn" : "Tới lượt đối thủ";
@@ -1900,8 +2095,21 @@
     if (room.status === "waiting") {
       return `Bên ta ${formatClockSetup(yourClockMs)}, bên địch ${formatClockSetup(opponentClockMs)}${incrementLabel}. Hệ thống đang chờ đủ hai người chơi.`;
     }
+    if (room.status === "ready") {
+      if (room.role === "spectator") {
+        return `Hai người chơi đã vào phòng. Ván cờ sẽ bắt đầu khi cả hai cùng bấm Sẵn sàng.`;
+      }
+      return room.startReady?.you
+        ? "Bạn đã sẵn sàng. Chờ đối thủ xác nhận để bắt đầu ván cờ."
+        : "Hai người chơi đã vào phòng. Hãy bấm Sẵn sàng để bắt đầu ván cờ.";
+    }
+    if (room.status === "starting") {
+      return "Bảng bắt đầu đang hiển thị. Khi hết 2 giây, đồng hồ bên Đỏ sẽ chạy.";
+    }
     if (room.status === "finished") {
-      return resultDetail(room);
+      return room.role === "player"
+        ? "Ván cờ đã kết thúc. Bạn có thể sẵn sàng ván mới hoặc out phòng."
+        : "Ván cờ đã kết thúc.";
     }
     if (room.role === "spectator") {
       return `Bạn đang ở chế độ người xem. Đồng hồ hai bên là ${formatClockSetup(Number(room.clockSetupMs?.w || 0))} và ${formatClockSetup(Number(room.clockSetupMs?.b || 0))}${incrementLabel}.`;
@@ -1924,10 +2132,10 @@
   function resultDetail(room) {
     if (!room?.result) return "";
     return {
-      checkmate: "Chiếu bí tướng.",
-      "no-moves": "Bên thua không còn nước đi hợp lệ.",
-      timeout: "Một bên đã hết giờ.",
-      resign: "Có người xin thua.",
+      checkmate: "Chiếu hết.",
+      "no-moves": "Không còn nước đi hợp lệ.",
+      timeout: "Hết thời gian.",
+      resign: "Xin thua.",
       draw: "Hai bên chấp nhận hòa."
     }[room.result.reason] || "Ván cờ đã kết thúc.";
   }
@@ -2281,6 +2489,17 @@
     const seed = `${deviceId}|${Date.now().toString(36)}|${performance.now().toString(36)}|${navigator.userAgent}|${randomToken(8)}`;
     const index = Math.abs(hashCode(seed)) % DEVICE_AVATARS.length;
     return DEVICE_AVATARS[index] || DEVICE_AVATARS[randomIndex(DEVICE_AVATARS.length)] || "";
+  }
+
+  function cloneJsonValue(value, fallback = null) {
+    try {
+      if (typeof structuredClone === "function") return structuredClone(value);
+    } catch {}
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return fallback;
+    }
   }
 
   function formatDate(dateText) {

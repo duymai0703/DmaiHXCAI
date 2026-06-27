@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260628-theme-v5">
+    <link rel="stylesheet" href="/portal.css?v=20260628-room-v6">
   </head>
   <body>
     <header class="portal-header">
@@ -212,6 +212,13 @@
                 <canvas id="roomBoardCanvas"></canvas>
                 <div id="roomMarks"></div>
                 <div id="roomPieces"></div>
+                <div id="roomBoardOverlay" class="room-board-overlay hidden">
+                  <div class="room-overlay-card">
+                    <strong id="roomOverlayTitle"></strong>
+                    <p id="roomOverlayText"></p>
+                    <div id="roomOverlayActions" class="room-overlay-actions"></div>
+                  </div>
+                </div>
               </div>
 
               <div id="selfBadge" class="board-badge self">
@@ -242,8 +249,12 @@
                 <button id="resignBtn" class="danger-button" type="button">Xin thua</button>
               </div>
 
-              <div id="requestState" class="request-state"></div>
-              <div id="resultState" class="result-state hidden"></div>
+              <div class="room-utility-buttons">
+                <button id="roomReadyBtn" class="primary-button hidden" type="button">Sẵn sàng</button>
+                <button id="leaveRoomBtn" class="ghost-button" type="button">Out phòng</button>
+              </div>
+
+              <div id="requestState" class="request-state hidden"></div>
             </section>
 
             <section class="panel-card room-panel">
@@ -362,7 +373,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-theme-v5"></script>
+    <script src="/portal.js?v=20260628-room-v6"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

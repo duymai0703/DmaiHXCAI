@@ -30,6 +30,7 @@ const MAX_HISTORY_ITEMS = 20;
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
+const ROOM_START_DELAY_MS = 2000;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "admin");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
@@ -323,6 +324,8 @@ function loadRooms() {
     if (age > MAX_ROOM_AGE_MS) return;
     room.pendingRequest = room.pendingRequest || null;
     room.rematchReady = room.rematchReady || { w: false, b: false };
+    room.startReady = room.startReady || { w: false, b: false };
+    room.countdownEndsAt = Number(room.countdownEndsAt || 0);
     room.allowances = room.allowances || {
       w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
       b: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT }
@@ -342,6 +345,15 @@ function loadRooms() {
       b: room.players?.b ? Number(room.playerTimeMs[room.players.b] || room.timeControlMs || 0) : Number(room.pendingOpponentTimeMs || room.timeControlMs || 0)
     };
     room.initialClocks = room.initialClocks || { ...room.clocks };
+    room.playerProfiles = room.playerProfiles && typeof room.playerProfiles === "object"
+      ? {
+          w: room.playerProfiles.w || roomPlayerSnapshot(room.players?.w),
+          b: room.playerProfiles.b || roomPlayerSnapshot(room.players?.b)
+        }
+      : {
+          w: roomPlayerSnapshot(room.players?.w),
+          b: roomPlayerSnapshot(room.players?.b)
+        };
     room.boardFen = room.boardFen || XiangqiCore.START_FEN;
     room.sideToMove = room.sideToMove === "b" ? "b" : "w";
     room.status = room.status || "waiting";
@@ -722,6 +734,31 @@ function roomPlayerSnapshot(userId) {
   };
 }
 
+function syncRoomPlayerProfile(room, side, userOrId = room?.players?.[side]) {
+  if (!room || !side) return null;
+  room.playerProfiles = room.playerProfiles && typeof room.playerProfiles === "object"
+    ? room.playerProfiles
+    : { w: null, b: null };
+  if (!userOrId) {
+    room.playerProfiles[side] = null;
+    return null;
+  }
+  const snapshot = typeof userOrId === "string" ? roomPlayerSnapshot(userOrId) : {
+    id: userOrId.id,
+    username: userOrId.username,
+    displayName: userOrId.displayName,
+    avatarSeed: userOrId.avatarSeed,
+    avatarUrl: userOrId.avatarUrl || ""
+  };
+  room.playerProfiles[side] = snapshot || null;
+  return room.playerProfiles[side];
+}
+
+function roomPlayerState(room, side) {
+  if (!room || !side) return null;
+  return cloneJsonValue(room.playerProfiles?.[side] || roomPlayerSnapshot(room.players?.[side]));
+}
+
 function uniqueGuestIdentity() {
   while (true) {
     const token = randomBase36(8).toLowerCase();
@@ -857,6 +894,12 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
     },
     pendingRequest: null,
     result: null,
+    startReady: { w: false, b: false },
+    countdownEndsAt: 0,
+    playerProfiles: {
+      w: color === "w" ? roomPlayerSnapshot(user.id) : null,
+      b: color === "b" ? roomPlayerSnapshot(user.id) : null
+    },
     rematchReady: { w: false, b: false },
     historySaved: false
   };
@@ -909,6 +952,19 @@ function addSpectator(room, userId) {
 }
 
 function materializeRoomClock(room) {
+  if (room.status === "starting") {
+    const now = Date.now();
+    if (Number(room.countdownEndsAt || 0) > 0 && now >= Number(room.countdownEndsAt || 0)) {
+      room.status = "active";
+      room.activeSide = "w";
+      room.sideToMove = "w";
+      room.lastTickAt = now;
+      room.countdownEndsAt = 0;
+      room.updatedAt = now;
+      saveRooms();
+    }
+    return;
+  }
   if (room.status !== "active" || !room.activeSide || room.result) return;
   const now = Date.now();
   const elapsed = Math.max(0, now - Number(room.lastTickAt || now));
@@ -925,9 +981,9 @@ function resetRoomForGame(room) {
   room.startFen = XiangqiCore.START_FEN;
   room.gameStartedAt = nowIso();
   room.sideToMove = "w";
-  room.activeSide = "w";
-  room.lastTickAt = Date.now();
-  room.status = "active";
+  room.activeSide = null;
+  room.lastTickAt = null;
+  room.status = "starting";
   room.moves = [];
   room.clocks = {
     w: startingClockMsForSide(room, "w"),
@@ -940,6 +996,8 @@ function resetRoomForGame(room) {
   };
   room.pendingRequest = null;
   room.result = null;
+  room.startReady = { w: false, b: false };
+  room.countdownEndsAt = Date.now() + ROOM_START_DELAY_MS;
   room.rematchReady = { w: false, b: false };
   room.historySaved = false;
   room.updatedAt = Date.now();
@@ -947,7 +1005,17 @@ function resetRoomForGame(room) {
 
 function maybeStartRoom(room) {
   if (room.players?.w && room.players?.b && room.status === "waiting") {
-    resetRoomForGame(room);
+    room.status = "ready";
+    room.startReady = { w: false, b: false };
+    room.countdownEndsAt = 0;
+    room.pendingRequest = null;
+    room.result = null;
+    room.clocks = {
+      w: startingClockMsForSide(room, "w"),
+      b: startingClockMsForSide(room, "b")
+    };
+    room.initialClocks = { ...room.clocks };
+    room.updatedAt = Date.now();
     saveRooms();
   }
 }
@@ -992,6 +1060,7 @@ function buildHistoryEntry(room, side, opponent) {
   let outcome = "Hòa";
   if (winnerSide === side) outcome = "Thắng";
   if (winnerSide && winnerSide !== side) outcome = "Thua";
+  const opponentProfile = room.playerProfiles?.[oppositeSide(side)] || null;
   return {
     id: randomId(10),
     roomKey: room.key,
@@ -999,7 +1068,7 @@ function buildHistoryEntry(room, side, opponent) {
     endedAt: room.result?.endedAt || nowIso(),
     side: side === "w" ? "Đỏ" : "Đen",
     sideCode: side,
-    opponent: opponent?.displayName || opponent?.username || "Đang chờ",
+    opponent: opponentProfile?.displayName || opponentProfile?.username || opponent?.displayName || opponent?.username || "Đối thủ",
     result: outcome,
     reason: formatResultReason(room.result?.reason || "draw"),
     startFen: room.startFen || XiangqiCore.START_FEN,
@@ -1021,9 +1090,9 @@ function appendHistory(user, entry) {
 
 function formatResultReason(reason) {
   return {
-    checkmate: "Chiếu bí",
-    "no-moves": "Hết nước",
-    timeout: "Hết giờ",
+    checkmate: "Chiếu hết",
+    "no-moves": "Hết nước hợp lệ",
+    timeout: "Hết thời gian",
     resign: "Xin thua",
     draw: "Hòa"
   }[reason] || reason;
@@ -1035,6 +1104,7 @@ function joinRoom(user, key) {
   const access = roomAccessForUser(room, user.id);
   if (access.role) {
     touchPresence(room, user.id, access.role);
+    if (access.role === "player" && access.side) syncRoomPlayerProfile(room, access.side, user);
     saveRooms();
     return room;
   }
@@ -1052,6 +1122,7 @@ function joinRoom(user, key) {
   else room.players.b = user.id;
   room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
   room.playerTimeMs[user.id] = Number(room.pendingOpponentTimeMs || room.timeControlMs || 0);
+  syncRoomPlayerProfile(room, room.players.w === user.id ? "w" : "b", user);
   room.clocks = {
     w: startingClockMsForSide(room, "w"),
     b: startingClockMsForSide(room, "b")
@@ -1068,6 +1139,7 @@ function roomStateForUser(room, user) {
   materializeRoomClock(room);
   const access = ensureRoomAccess(room, user.id);
   const yourSide = access.side;
+  const bothPlayersJoined = Boolean(room.players?.w && room.players?.b);
   const waitingForOpponent = room.status === "waiting";
   const viewerRequest = room.pendingRequest
     ? {
@@ -1092,11 +1164,12 @@ function roomStateForUser(room, user) {
     role: access.role,
     yourSide,
     viewSide: access.role === "player" ? yourSide : "w",
+    bothPlayersJoined,
     waitingForOpponent,
     yourTurn: access.role === "player" && room.status === "active" && room.sideToMove === yourSide,
     players: {
-      w: roomPlayerSnapshot(room.players.w),
-      b: roomPlayerSnapshot(room.players.b)
+      w: roomPlayerState(room, "w"),
+      b: roomPlayerState(room, "b")
     },
     spectators,
     viewerCount: spectators.length,
@@ -1105,6 +1178,11 @@ function roomStateForUser(room, user) {
       ? room.allowances[yourSide] || { undoRemaining: 0, drawRemaining: 0 }
       : { undoRemaining: 0, drawRemaining: 0 },
     pendingRequest: viewerRequest,
+    startReady: {
+      you: access.role === "player" ? Boolean(room.startReady?.[yourSide]) : false,
+      opponent: access.role === "player" ? Boolean(room.startReady?.[oppositeSide(yourSide)]) : false
+    },
+    countdownEndsAt: Number(room.countdownEndsAt || 0),
     rematchReady: {
       you: access.role === "player" ? Boolean(room.rematchReady?.[yourSide]) : false,
       opponent: access.role === "player" ? Boolean(room.rematchReady?.[oppositeSide(yourSide)]) : false
@@ -1243,8 +1321,79 @@ function setRematchReady(room, side, ready) {
   room.updatedAt = Date.now();
   if (room.rematchReady.w && room.rematchReady.b) {
     const nextPlayers = { w: room.players.b, b: room.players.w };
+    const nextProfiles = {
+      w: cloneJsonValue(room.playerProfiles?.b || roomPlayerSnapshot(room.players?.b)),
+      b: cloneJsonValue(room.playerProfiles?.w || roomPlayerSnapshot(room.players?.w))
+    };
     room.players = nextPlayers;
+    room.playerProfiles = nextProfiles;
     resetRoomForGame(room);
+  }
+  saveRooms();
+}
+
+function setStartReady(room, side, ready) {
+  if (room.status !== "ready") throw new Error("ROOM_NOT_READY");
+  if (!room.players?.w || !room.players?.b) throw new Error("ROOM_NOT_FULL");
+  room.startReady = room.startReady || { w: false, b: false };
+  room.startReady[side] = Boolean(ready);
+  room.updatedAt = Date.now();
+  if (room.startReady.w && room.startReady.b) {
+    resetRoomForGame(room);
+  }
+  saveRooms();
+}
+
+function leaveRoom(room, userId) {
+  const access = roomAccessForUser(room, userId);
+  if (!access.role) return;
+
+  delete room.presence?.[userId];
+
+  if (access.role === "spectator") {
+    room.spectators = Array.isArray(room.spectators) ? room.spectators.filter((id) => id !== userId) : [];
+    room.updatedAt = Date.now();
+    saveRooms();
+    return;
+  }
+
+  const side = access.side;
+  if (!side) return;
+
+  if (room.status === "active") {
+    finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "resign" });
+    return;
+  }
+
+  if (room.status === "finished") {
+    room.updatedAt = Date.now();
+    saveRooms();
+    return;
+  }
+
+  room.players[side] = null;
+  syncRoomPlayerProfile(room, side, null);
+  if (room.playerTimeMs && typeof room.playerTimeMs === "object") delete room.playerTimeMs[userId];
+  room.startReady = { w: false, b: false };
+  room.rematchReady = { w: false, b: false };
+  room.countdownEndsAt = 0;
+  room.pendingRequest = null;
+  room.result = null;
+  room.activeSide = null;
+  room.lastTickAt = null;
+  room.sideToMove = "w";
+  room.boardFen = XiangqiCore.START_FEN;
+  room.clocks = {
+    w: startingClockMsForSide(room, "w"),
+    b: startingClockMsForSide(room, "b")
+  };
+  room.initialClocks = { ...room.clocks };
+
+  if (!room.players?.w && !room.players?.b) {
+    rooms.delete(room.key);
+  } else {
+    room.status = room.players?.w && room.players?.b ? "ready" : "waiting";
+    room.updatedAt = Date.now();
   }
   saveRooms();
 }
@@ -2130,12 +2279,30 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/rooms/ready" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
+      setStartReady(room, side, Boolean(body.ready));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
     if (url.pathname === "/api/rooms/rematch" && req.method === "POST") {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
       setRematchReady(room, side, Boolean(body.ready));
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/leave" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room } = requireRoomAndUser(req, body.key);
+      leaveRoom(room, user.id);
+      await flushUserPersistence();
+      json(res, 200, { ok: true });
       return;
     }
 
@@ -2164,6 +2331,8 @@ const server = http.createServer(async (req, res) => {
       ROOM_NOT_ACTIVE: 400,
       ROOM_FINISHED: 400,
       ROOM_NOT_FINISHED: 400,
+      ROOM_NOT_READY: 400,
+      ROOM_NOT_FULL: 400,
       NO_PENDING_REQUEST: 400,
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
@@ -2188,10 +2357,12 @@ function friendlyErrorVi(code) {
     NOT_YOUR_TURN: "Chưa tới lượt bạn.",
     REQUEST_LIMIT_REACHED: "Bạn đã dùng hết lượt yêu cầu.",
     REQUEST_PENDING: "Đang có yêu cầu chờ đối thủ xác nhận.",
-    ROOM_NOT_ACTIVE: "Phòng chưa sẵn sàng thi đấu.",
-    ROOM_FINISHED: "Ván cờ đã kết thúc.",
-    ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
-    NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
+      ROOM_NOT_ACTIVE: "Phòng chưa sẵn sàng thi đấu.",
+      ROOM_FINISHED: "Ván cờ đã kết thúc.",
+      ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
+      ROOM_NOT_READY: "Hai bên chưa ở trạng thái sẵn sàng bắt đầu.",
+      ROOM_NOT_FULL: "Phòng chưa đủ hai người chơi.",
+      NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
     NO_MOVE_TO_UNDO: "Chưa có nước nào để đi lại.",
     SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",
     INVALID_REQUEST: "Yêu cầu không hợp lệ.",

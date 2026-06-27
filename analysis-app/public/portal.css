@@ -693,9 +693,11 @@ a {
     inset 0 0 0 2px rgba(80, 64, 42, 0.25),
     0 18px 42px rgba(55, 37, 18, 0.28);
   touch-action: manipulation;
-  contain: layout style;
+  contain: layout style paint;
   overflow: hidden;
   isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 #roomBoardCanvas,
@@ -705,6 +707,10 @@ a {
   inset: 0;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #roomBoardCanvas {
@@ -720,6 +726,48 @@ a {
   z-index: 3;
 }
 
+.room-board-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 28px);
+  background: rgba(20, 14, 9, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.room-overlay-card {
+  width: min(100%, 320px);
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(70, 52, 36, 0.97), rgba(46, 34, 24, 0.98));
+  border: 1px solid rgba(216, 174, 89, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 222, 158, 0.08),
+    0 22px 40px rgba(0, 0, 0, 0.34);
+}
+
+.room-overlay-card strong {
+  display: block;
+  font-size: clamp(24px, 4vw, 32px);
+  color: #fff0cb;
+  margin-bottom: 8px;
+}
+
+.room-overlay-card p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.room-overlay-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
 #reviewBoardCanvas,
 #reviewArrowCanvas,
 #reviewPieces {
@@ -727,6 +775,10 @@ a {
   inset: 0;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #reviewBoardCanvas {
@@ -861,6 +913,13 @@ a {
 .request-buttons,
 .profile-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.room-utility-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .count-chip {
@@ -1113,13 +1172,14 @@ a {
   width: var(--piece-size);
   height: var(--piece-size);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%);
+  transform: translate3d(-50%, -50%, 0);
   border-radius: 50%;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  will-change: left, top, transform;
 }
 
 .piece.image-piece {
