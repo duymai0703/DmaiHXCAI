@@ -3,6 +3,7 @@
 
   const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
   const STORAGE_TOKEN = "dmaihxcai-auth-token";
+  const STORAGE_USER = "dmaihxcai-auth-user";
   const STORAGE_ROOM = "dmaihxcai-room-key";
   const START_FEN = XiangqiCore.START_FEN;
   const PIECE_IMAGES = {
@@ -22,9 +23,10 @@
     p: "assets/pieces/black-pawn.png"
   };
 
+  const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const state = {
-    token: localStorage.getItem(STORAGE_TOKEN) || "",
-    user: null,
+    token: initialToken,
+    user: initialToken ? readStoredUser() : null,
     history: [],
     route: "auth",
     lobbyMode: "join",
@@ -42,6 +44,9 @@
     reviewAnalyzing: false,
     reviewLastBoardFrame: "",
     reviewLastPieceFrame: "",
+    adminUsers: [],
+    adminSelectedUserId: "",
+    adminLoading: false,
     selectedSquare: null,
     hints: [],
     roomSyncedAt: 0,
@@ -63,6 +68,7 @@
     homeView: byId("homeView"),
     matchHubView: byId("matchHubView"),
     libraryView: byId("libraryView"),
+    adminView: byId("adminView"),
     roomView: byId("roomView"),
     reviewView: byId("reviewView"),
     headerProfile: byId("headerProfile"),
@@ -143,9 +149,16 @@
     avatarUrlInput: byId("avatarUrlInput"),
     readonlyUsername: byId("readonlyUsername"),
     saveProfileBtn: byId("saveProfileBtn"),
+    openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
     profileMessage: byId("profileMessage"),
     historyList: byId("historyList"),
+    adminRefreshBtn: byId("adminRefreshBtn"),
+    adminUsersMeta: byId("adminUsersMeta"),
+    adminUsersList: byId("adminUsersList"),
+    adminSelectedTitle: byId("adminSelectedTitle"),
+    adminSelectedMeta: byId("adminSelectedMeta"),
+    adminHistoryList: byId("adminHistoryList"),
     modal: byId("modal"),
     modalTitle: byId("modalTitle"),
     modalText: byId("modalText"),
@@ -193,7 +206,11 @@
     dom.profileButton.addEventListener("click", openProfileModal);
     dom.closeProfileBtn.addEventListener("click", closeProfileModal);
     dom.saveProfileBtn.addEventListener("click", saveProfile);
+    dom.openAdminBtn.addEventListener("click", openAdminPanel);
     dom.logoutBtn.addEventListener("click", logout);
+    dom.adminRefreshBtn.addEventListener("click", () => {
+      void loadAdminUsers(true);
+    });
     dom.copyRoomKeyBtn.addEventListener("click", () => copyText(state.room?.key || ""));
     dom.undoRequestBtn.addEventListener("click", () => requestRoomAction("undo"));
     dom.drawRequestBtn.addEventListener("click", () => requestRoomAction("draw"));
@@ -219,6 +236,8 @@
 
   async function bootstrap() {
     if (!state.token) {
+      state.user = null;
+      localStorage.removeItem(STORAGE_USER);
       syncRoute(true);
       return;
     }
@@ -229,13 +248,17 @@
         api("/api/history"),
         api("/api/rooms/current")
       ]);
-      applySession(session.user);
+      applySession(session.user, session.token);
       state.history = normalizeHistoryList(historyPayload.history);
       renderHistory();
       if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
       syncRoute(true);
     } catch (error) {
-      clearSession();
+      if (!/UNAUTHORIZED/i.test(String(error?.message || ""))) {
+        setMessage(dom.authMessage, "Đang kết nối lại với máy chủ để khôi phục phiên đăng nhập.", "info");
+        syncRoute(true);
+        return;
+      }
       setMessage(dom.authMessage, error.message || "Không thể khôi phục phiên đăng nhập.");
       syncRoute(true);
     }
@@ -272,7 +295,7 @@
 
   function normalizeRoute(hash) {
     const value = String(hash || location.hash || "").replace(/^#/, "").trim().toLowerCase();
-    if (["auth", "home", "match", "library", "room", "review"].includes(value)) return value;
+    if (["auth", "home", "match", "library", "admin", "room", "review"].includes(value)) return value;
     return state.user ? "home" : "auth";
   }
 
@@ -295,6 +318,7 @@
     if (!state.user) route = "auth";
     else if (route === "auth") route = state.room ? "room" : "home";
     else if (route === "room" && !state.room) route = "match";
+    else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "home";
 
     state.route = route;
@@ -306,6 +330,7 @@
     dom.homeView.classList.toggle("hidden", route !== "home");
     dom.matchHubView.classList.toggle("hidden", route !== "match");
     dom.libraryView.classList.toggle("hidden", route !== "library");
+    dom.adminView.classList.toggle("hidden", route !== "admin");
     dom.roomView.classList.toggle("hidden", route !== "room");
     dom.reviewView.classList.toggle("hidden", route !== "review");
     dom.headerProfile.classList.toggle("hidden", !state.user);
@@ -319,6 +344,12 @@
 
     if (route === "review") {
       renderReviewState(true);
+    }
+    if (route === "admin") {
+      renderAdminState();
+      if (isAdmin() && !state.adminUsers.length && !state.adminLoading) {
+        void loadAdminUsers();
+      }
     }
 
     updateResumeButton();
@@ -396,6 +427,7 @@
       state.token = token;
       localStorage.setItem(STORAGE_TOKEN, token);
     }
+    persistStoredUser(user);
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
   }
@@ -447,11 +479,16 @@
     state.lastPieceFrame = "";
     state.reviewLastBoardFrame = "";
     state.reviewLastPieceFrame = "";
+    state.adminUsers = [];
+    state.adminSelectedUserId = "";
+    state.adminLoading = false;
     state.lastChatSignature = "";
     localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_ROOM);
     closeProfileModal();
     renderHistory();
+    renderAdminState();
     renderProfile();
   }
 
@@ -472,6 +509,13 @@
     dom.profileModal.classList.add("hidden");
   }
 
+  async function openAdminPanel() {
+    if (!isAdmin()) return;
+    closeProfileModal();
+    goRoute("admin");
+    await loadAdminUsers(true);
+  }
+
   async function saveProfile() {
     const displayName = dom.displayNameInput.value.trim();
     const avatarUrl = dom.avatarUrlInput.value.trim();
@@ -482,6 +526,7 @@
         body: { displayName, avatarUrl }
       });
       state.user = data.user;
+      persistStoredUser(data.user);
       patchLocalUserIntoRoom();
       renderProfile();
       if (state.room) renderRoomMeta();
@@ -510,6 +555,7 @@
       dom.displayNameInput.value = "";
       dom.avatarUrlInput.value = "";
       dom.readonlyUsername.value = "";
+      dom.openAdminBtn.classList.add("hidden");
       return;
     }
 
@@ -518,56 +564,158 @@
     dom.displayNameInput.value = state.user.displayName || "";
     dom.avatarUrlInput.value = state.user.avatarUrl || "";
     dom.readonlyUsername.value = state.user.username || "";
+    dom.openAdminBtn.classList.toggle("hidden", !isAdmin());
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
   }
 
   function renderHistory() {
-    dom.historyList.innerHTML = "";
-    if (!state.history.length) {
-      const empty = document.createElement("div");
-      empty.className = "history-empty";
-      empty.textContent = "Chưa có ván nào được lưu.";
-      dom.historyList.appendChild(empty);
+    renderHistoryCollection(dom.historyList, state.history, {
+      emptyText: "Chưa có ván nào được lưu.",
+      onOpen: openHistoryReview
+    });
+  }
+
+  async function loadAdminUsers(force = false) {
+    if (!isAdmin()) return;
+    if (state.adminLoading && !force) return;
+    state.adminLoading = true;
+    renderAdminState();
+    try {
+      const payload = await api("/api/admin/users");
+      state.adminUsers = Array.isArray(payload.users) ? payload.users.map((user) => ({
+        ...user,
+        history: normalizeHistoryList(user.history)
+      })) : [];
+      if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
+        state.adminSelectedUserId = state.adminUsers[0]?.id || "";
+      }
+    } catch (error) {
+      showToast(error.message || "Không thể tải danh sách thành viên.");
+    } finally {
+      state.adminLoading = false;
+      renderAdminState();
+    }
+  }
+
+  function renderAdminState() {
+    if (!dom.adminUsersList || !dom.adminHistoryList) return;
+    if (!isAdmin()) {
+      dom.adminUsersMeta.textContent = "Chỉ tài khoản quản trị mới xem được khu này.";
+      dom.adminSelectedTitle.textContent = "Lịch sử thành viên";
+      dom.adminSelectedMeta.textContent = "Bạn không có quyền truy cập.";
+      dom.adminUsersList.innerHTML = "";
+      dom.adminHistoryList.innerHTML = "";
       return;
     }
 
-    state.history.slice(0, 20).forEach((entry) => {
-      const item = document.createElement("article");
-      item.className = "history-item";
-      item.tabIndex = 0;
-      const header = document.createElement("header");
-      const title = document.createElement("strong");
-      title.textContent = `${entry.side || "Đỏ"} vs ${entry.opponent || "Đối thủ"}`;
-      const pill = document.createElement("span");
-      const resultText = String(entry.result || "");
-      pill.className = `result-pill ${
-        resultText === "Thắng" ? "win" : resultText === "Thua" ? "loss" : "draw"
-      }`;
-      pill.textContent = resultText || "Hòa";
-      header.append(title, pill);
+    dom.adminRefreshBtn.disabled = state.adminLoading;
+    dom.adminRefreshBtn.textContent = state.adminLoading ? "Đang tải..." : "Làm mới";
+    dom.adminUsersMeta.textContent = state.adminUsers.length
+      ? `${state.adminUsers.length} tài khoản đã đăng ký.`
+      : state.adminLoading
+        ? "Đang tải danh sách tài khoản đã đăng ký."
+        : "Chưa có tài khoản nào.";
 
-      const detail = document.createElement("div");
-      detail.style.color = "var(--muted)";
-      detail.style.fontSize = "13px";
-      const timeLabel = entry.startedAt ? formatDate(entry.startedAt) : formatDate(entry.endedAt);
-      detail.textContent = `${entry.reason || "Kết thúc"} • ${timeLabel}`;
+    dom.adminUsersList.innerHTML = "";
+    if (!state.adminUsers.length) {
+      const emptyUsers = document.createElement("div");
+      emptyUsers.className = "history-empty";
+      emptyUsers.textContent = state.adminLoading ? "Đang tải..." : "Chưa có tài khoản nào.";
+      dom.adminUsersList.appendChild(emptyUsers);
+    } else {
+      state.adminUsers.forEach((user) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `admin-user-card ${state.adminSelectedUserId === user.id ? "active" : ""}`;
+        button.addEventListener("click", () => {
+          state.adminSelectedUserId = user.id;
+          renderAdminState();
+        });
 
-      const moves = document.createElement("div");
-      moves.style.marginTop = "8px";
-      moves.style.fontSize = "13px";
-      moves.textContent = Array.isArray(entry.moves) && entry.moves.length ? entry.moves.slice(0, 4).join(" • ") : "Không có biên bản.";
+        const avatar = document.createElement("span");
+        avatar.className = "avatar";
+        paintAvatar(avatar, user, "U");
 
-      item.append(header, detail, moves);
-      item.addEventListener("click", () => openHistoryReview(entry));
-      item.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openHistoryReview(entry);
-        }
+        const meta = document.createElement("div");
+        meta.className = "admin-user-meta";
+        const name = document.createElement("strong");
+        name.textContent = user.displayName || user.username;
+        const username = document.createElement("small");
+        username.textContent = `@${user.username}`;
+        const detail = document.createElement("span");
+        const roleLabel = user.role === "admin" ? " • Quản trị" : "";
+        detail.textContent = `${user.historyCount || 0} ván${roleLabel}`;
+        meta.append(name, username, detail);
+        button.append(avatar, meta);
+        dom.adminUsersList.appendChild(button);
       });
-      dom.historyList.appendChild(item);
+    }
+
+    const selected = state.adminUsers.find((user) => user.id === state.adminSelectedUserId) || null;
+    dom.adminSelectedTitle.textContent = selected
+      ? `Lịch sử của ${selected.displayName || selected.username}`
+      : "Lịch sử thành viên";
+    dom.adminSelectedMeta.textContent = selected
+      ? `${selected.email || `@${selected.username}`} • Tham gia ${formatDate(selected.createdAt)}`
+      : "Chọn một tài khoản để xem các ván đã lưu.";
+    renderHistoryCollection(dom.adminHistoryList, selected?.history || [], {
+      emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
+      onOpen: openHistoryReview
     });
+  }
+
+  function renderHistoryCollection(container, entries, { emptyText, onOpen }) {
+    container.innerHTML = "";
+    const list = Array.isArray(entries) ? entries.slice(0, 20) : [];
+    if (!list.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = emptyText;
+      container.appendChild(empty);
+      return;
+    }
+
+    list.forEach((entry) => {
+      container.appendChild(buildHistoryItem(entry, onOpen));
+    });
+  }
+
+  function buildHistoryItem(entry, onOpen) {
+    const item = document.createElement("article");
+    item.className = "history-item";
+    item.tabIndex = 0;
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = `${entry.side || "Đỏ"} vs ${entry.opponent || "Đối thủ"}`;
+    const pill = document.createElement("span");
+    const resultText = String(entry.result || "");
+    pill.className = `result-pill ${
+      resultText === "Thắng" ? "win" : resultText === "Thua" ? "loss" : "draw"
+    }`;
+    pill.textContent = resultText || "Hòa";
+    header.append(title, pill);
+
+    const detail = document.createElement("div");
+    detail.style.color = "var(--muted)";
+    detail.style.fontSize = "13px";
+    const timeLabel = entry.startedAt ? formatDate(entry.startedAt) : formatDate(entry.endedAt);
+    detail.textContent = `${entry.reason || "Kết thúc"} • ${timeLabel}`;
+
+    const moves = document.createElement("div");
+    moves.style.marginTop = "8px";
+    moves.style.fontSize = "13px";
+    moves.textContent = Array.isArray(entry.moves) && entry.moves.length ? entry.moves.slice(0, 4).join(" • ") : "Không có biên bản.";
+
+    item.append(header, detail, moves);
+    item.addEventListener("click", () => onOpen(entry));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onOpen(entry);
+      }
+    });
+    return item;
   }
 
   function openHistoryReview(entry) {
@@ -709,7 +857,7 @@
 
     const currentIndex = state.reviewCursor - 1;
     if (currentIndex < 0) {
-      dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Làm lại để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
+      dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Tiếp theo để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
       return;
     }
 
@@ -1587,6 +1735,37 @@
   function renderProfileAfterApiFailure() {
     renderProfile();
     if (state.room) renderRoomMeta();
+  }
+
+  function readStoredUser() {
+    try {
+      const raw = localStorage.getItem(STORAGE_USER);
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      if (!user || typeof user !== "object" || !user.id || !user.username) return null;
+      return user;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistStoredUser(user) {
+    if (!user) {
+      localStorage.removeItem(STORAGE_USER);
+      return;
+    }
+    localStorage.setItem(STORAGE_USER, JSON.stringify({
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarSeed: user.avatarSeed,
+      avatarUrl: user.avatarUrl || "",
+      role: user.role || "user"
+    }));
+  }
+
+  function isAdmin() {
+    return state.user?.role === "admin";
   }
 
   function roomStatusText(room) {

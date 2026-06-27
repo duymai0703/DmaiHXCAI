@@ -17,12 +17,16 @@ const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const DATABASE_FILE = resolveDatabaseFile();
 const PORT = Number(process.env.PORT || 5174);
 const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
-const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 365 * 5;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
+const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
+const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "admin");
+const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
+const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "DmaiHXCAI Admin");
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -50,6 +54,7 @@ let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.exis
 let buildJob = null;
 let downloadJob = null;
 let users = loadUsers();
+ensureAdminUser();
 let rooms = loadRooms();
 
 function cpuCount() {
@@ -304,6 +309,7 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       id: String(user.id || randomId(12)),
       email,
       username,
+      role: user.role === "admin" ? "admin" : "user",
       displayName: sanitizeDisplayName(user.displayName || user.username || generateDisplayName()),
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
@@ -374,6 +380,49 @@ function sanitizeAvatarUrl(value) {
   return "";
 }
 
+function ensureAdminUser() {
+  const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.username === ADMIN_USERNAME);
+  if (existing) {
+    let changed = false;
+    if (existing.role !== "admin") {
+      existing.role = "admin";
+      changed = true;
+    }
+    if (!existing.displayName) {
+      existing.displayName = ADMIN_DISPLAY_NAME;
+      changed = true;
+    }
+    if (!existing.avatarSeed) {
+      existing.avatarSeed = randomBase36(4);
+      changed = true;
+    }
+    if (!existing.createdAt) {
+      existing.createdAt = nowIso();
+      changed = true;
+    }
+    if (changed) saveUsers();
+    return existing;
+  }
+
+  const passwordInfo = hashPassword(ADMIN_PASSWORD);
+  const adminUser = {
+    id: randomId(12),
+    email: ADMIN_EMAIL,
+    username: ADMIN_USERNAME,
+    passwordSalt: passwordInfo.salt,
+    passwordHash: passwordInfo.hash,
+    role: "admin",
+    displayName: ADMIN_DISPLAY_NAME,
+    avatarSeed: randomBase36(4),
+    avatarUrl: "",
+    history: [],
+    createdAt: nowIso()
+  };
+  users.push(adminUser);
+  saveUsers();
+  return adminUser;
+}
+
 function createAuthToken(userId) {
   const payload = {
     uid: userId,
@@ -417,15 +466,41 @@ function requireUser(req) {
   return user;
 }
 
+function isAdminUser(user) {
+  return user?.role === "admin";
+}
+
+function requireAdmin(req) {
+  const user = requireUser(req);
+  if (!isAdminUser(user)) throw new Error("FORBIDDEN_ADMIN");
+  return user;
+}
+
 function publicUser(user) {
   return {
     id: user.id,
     email: user.email,
     username: user.username,
+    role: user.role === "admin" ? "admin" : "user",
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
+  };
+}
+
+function adminUserSummary(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role === "admin" ? "admin" : "user",
+    displayName: user.displayName,
+    avatarSeed: user.avatarSeed,
+    avatarUrl: user.avatarUrl || "",
+    createdAt: user.createdAt || nowIso(),
+    history: normalizeHistoryEntries(user.history),
+    historyCount: Array.isArray(user.history) ? user.history.length : 0
   };
 }
 
@@ -1534,6 +1609,7 @@ const server = http.createServer(async (req, res) => {
         username,
         passwordSalt: passwordInfo.salt,
         passwordHash: passwordInfo.hash,
+        role: "user",
         displayName: generateDisplayName(),
         avatarSeed: randomBase36(4),
         avatarUrl: "",
@@ -1573,7 +1649,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { ok: false, error: "UNAUTHORIZED" });
         return;
       }
-      json(res, 200, { ok: true, user: publicUser(user) });
+      json(res, 200, { ok: true, token: createAuthToken(user.id), user: publicUser(user) });
       return;
     }
 
@@ -1590,6 +1666,19 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/history") {
       const user = requireUser(req);
       json(res, 200, { ok: true, history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [] });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/users") {
+      requireAdmin(req);
+      const list = users
+        .map((user) => adminUserSummary(user))
+        .sort((left, right) => {
+          const adminScore = (right.role === "admin") - (left.role === "admin");
+          if (adminScore) return adminScore;
+          return (Date.parse(right.createdAt || 0) || 0) - (Date.parse(left.createdAt || 0) || 0);
+        });
+      json(res, 200, { ok: true, users: list });
       return;
     }
 
@@ -1721,6 +1810,7 @@ const server = http.createServer(async (req, res) => {
       ROOM_FULL: 400,
       ROOM_CLOSED: 400,
       FORBIDDEN_ROOM: 403,
+      FORBIDDEN_ADMIN: 403,
       INVALID_MOVE: 400,
       NOT_YOUR_TURN: 400,
       REQUEST_LIMIT_REACHED: 400,
@@ -1747,6 +1837,7 @@ function friendlyErrorVi(code) {
     ROOM_FULL: "Ph?ng ?? ?? ng??i.",
     ROOM_CLOSED: "Ph?ng n?y kh?ng th? tham gia n?a.",
     FORBIDDEN_ROOM: "B?n kh?ng thu?c ph?ng ??u n?y.",
+    FORBIDDEN_ADMIN: "B?n kh?ng c? quy?n qu?n tr?.",
     INVALID_MOVE: "N??c ?i kh?ng h?p l?.",
     NOT_YOUR_TURN: "Ch?a t?i l??t b?n.",
     REQUEST_LIMIT_REACHED: "B?n ?? d?ng h?t l??t y?u c?u.",

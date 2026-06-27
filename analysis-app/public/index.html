@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260627-lobby-v6">
+    <link rel="stylesheet" href="/portal.css?v=20260628-lobby-v7">
   </head>
   <body>
     <header class="portal-header">
@@ -93,19 +93,19 @@
 
       <section id="homeView" class="view launcher-view hidden">
         <div class="launcher-grid">
-          <button id="openMatchHub" class="launcher-card" type="button">
+          <button id="openMatchHub" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/xeposter.png')" type="button">
             <span class="card-eyebrow">Khu 1</span>
             <strong>Phòng đấu</strong>
             <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra.</small>
           </button>
 
-          <button id="openAnalysisBtn" class="launcher-card" type="button">
+          <button id="openAnalysisBtn" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/phaoposter.png')" type="button">
             <span class="card-eyebrow">Khu 2</span>
             <strong>Phần mềm phân tích</strong>
             <small>Mở bàn phân tích hiện tại với Pikafish và cơ sở dữ liệu đám mây.</small>
           </button>
 
-          <button id="openLibraryBtn" class="launcher-card" type="button">
+          <button id="openLibraryBtn" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/maposter.png')" type="button">
             <span class="card-eyebrow">Khu 3</span>
             <strong>Thư viện cá nhân</strong>
             <small>Giữ chỗ giao diện để chúng ta phát triển tiếp ở bước sau.</small>
@@ -168,6 +168,31 @@
                 <p>Phần này đã giữ chỗ xong. Khi bạn chốt yêu cầu cụ thể, tôi nối tiếp ngay trên khung này.</p>
               </div>
             </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="adminView" class="view hidden">
+        <div class="admin-shell">
+          <section class="panel-card admin-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Thành viên</h2>
+                <p id="adminUsersMeta">Đang tải danh sách tài khoản đã đăng ký.</p>
+              </div>
+              <button id="adminRefreshBtn" class="ghost-button" type="button">Làm mới</button>
+            </div>
+            <div id="adminUsersList" class="admin-users-list"></div>
+          </section>
+
+          <section class="panel-card admin-panel">
+            <div class="panel-heading">
+              <div>
+                <h2 id="adminSelectedTitle">Lịch sử thành viên</h2>
+                <p id="adminSelectedMeta">Chọn một tài khoản để xem các ván đã lưu.</p>
+              </div>
+            </div>
+            <div id="adminHistoryList" class="history-list"></div>
           </section>
         </div>
       </section>
@@ -286,7 +311,7 @@
 
             <div class="review-controls">
               <button id="reviewPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
-              <button id="reviewNextBtn" class="secondary-button" type="button">Làm lại</button>
+              <button id="reviewNextBtn" class="secondary-button" type="button">Tiếp theo</button>
               <button id="reviewAnalyzeBtn" class="primary-button" type="button">Phân tích</button>
             </div>
 
@@ -346,6 +371,7 @@
 
           <div class="profile-actions">
             <button id="saveProfileBtn" class="primary-button" type="button">Lưu hồ sơ</button>
+            <button id="openAdminBtn" class="ghost-button hidden" type="button">Quản trị thành viên</button>
             <button id="logoutBtn" class="ghost-button" type="button">Đăng xuất</button>
           </div>
           <p id="profileMessage" class="form-message" aria-live="polite"></p>
@@ -375,7 +401,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260627-lobby-v6"></script>
+    <script src="/portal.js?v=20260628-lobby-v7"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
