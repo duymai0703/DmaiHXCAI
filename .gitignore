@@ -20,3 +20,4 @@ tests/syzygy
 tests/bench_tmp.epd
 analysis-app/data/*.sqlite
 analysis-app/data/*.sqlite-*
+node_modules/

@@ -28,7 +28,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates libc6 libstdc++6 libgcc-s1 libgomp1 libatomic1 \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package.json ./
+COPY package*.json ./
+RUN npm ci --omit=dev
 COPY analysis-app ./analysis-app
 COPY --from=engine-downloader /engine/pikafish /app/src/pikafish
 COPY --from=engine-downloader /engine/pikafish.nnue /app/src/pikafish.nnue

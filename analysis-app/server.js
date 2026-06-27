@@ -6,6 +6,10 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { DatabaseSync } = require("node:sqlite");
+let MongoClient = null;
+try {
+  ({ MongoClient } = require("mongodb"));
+} catch {}
 
 const XiangqiCore = require("./public/xiangqi-core.js");
 
@@ -15,6 +19,9 @@ const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const DATABASE_FILE = resolveDatabaseFile();
+const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
+const MONGODB_DB_NAME = String(process.env.MONGODB_DB_NAME || inferMongoDatabaseName(MONGODB_URI) || "dmaihxcai").trim() || "dmaihxcai";
+const MONGODB_COLLECTION = String(process.env.MONGODB_COLLECTION || "app_state").trim() || "app_state";
 const PORT = Number(process.env.PORT || 5174);
 const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 365 * 5;
@@ -45,6 +52,8 @@ ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
 
 const stateStore = createStateStore();
+const mongoStateStore = createMongoStateStore();
+let pendingUserPersistence = Promise.resolve();
 
 if (process.env.RENDER && !isPersistentStoragePath(DATABASE_FILE)) {
   console.warn(`Render is using ephemeral storage for SQLite at ${DATABASE_FILE}. Mount a disk and point DMAIHXCAI_DB_PATH to it if you want accounts and rooms to survive redeploys.`);
@@ -72,6 +81,16 @@ function clampOptionNumber(value, fallback, min, max) {
   const number = Number(value);
   const safe = Number.isFinite(number) ? number : fallback;
   return Math.max(min, Math.min(max, Math.round(safe)));
+}
+
+function inferMongoDatabaseName(uri) {
+  if (!uri) return "";
+  try {
+    const parsed = new URL(uri);
+    return String(parsed.pathname || "").replace(/^\/+/, "").trim();
+  } catch {
+    return "";
+  }
 }
 
 function ensureDataFile(filePath, fallback) {
@@ -167,6 +186,100 @@ function createStateStore() {
   };
 }
 
+function createMongoStateStore() {
+  const state = {
+    enabled: Boolean(MONGODB_URI),
+    ready: false,
+    client: null,
+    collection: null,
+    lastError: "",
+    dbName: MONGODB_DB_NAME,
+    collectionName: MONGODB_COLLECTION
+  };
+
+  return {
+    get enabled() {
+      return state.enabled;
+    },
+    get ready() {
+      return state.ready;
+    },
+    get lastError() {
+      return state.lastError;
+    },
+    get dbName() {
+      return state.dbName;
+    },
+    get collectionName() {
+      return state.collectionName;
+    },
+    noteError(message) {
+      state.lastError = String(message || "");
+    },
+    async init() {
+      if (!state.enabled) return false;
+      if (state.ready && state.collection) return true;
+      if (!MongoClient) {
+        state.lastError = "mongodb package is not installed";
+        console.warn("MongoDB is configured but the mongodb package is unavailable. Falling back to local persistence.");
+        return false;
+      }
+      try {
+        state.client = new MongoClient(MONGODB_URI, {
+          maxPoolSize: 8,
+          minPoolSize: 0,
+          serverSelectionTimeoutMS: 8000
+        });
+        await state.client.connect();
+        const db = state.client.db(state.dbName);
+        state.collection = db.collection(state.collectionName);
+        await state.collection.createIndex({ key: 1 }, { unique: true });
+        state.ready = true;
+        state.lastError = "";
+        console.log(`MongoDB persistence ready: ${state.dbName}.${state.collectionName}`);
+        return true;
+      } catch (error) {
+        state.ready = false;
+        state.collection = null;
+        state.lastError = String(error?.message || error);
+        console.warn(`MongoDB persistence unavailable. Falling back to local storage. ${state.lastError}`);
+        try {
+          await state.client?.close();
+        } catch {}
+        state.client = null;
+        return false;
+      }
+    },
+    async read(key) {
+      if (!state.ready || !state.collection) return null;
+      const doc = await state.collection.findOne({ key: String(key) });
+      return doc?.value ?? null;
+    },
+    async write(key, value) {
+      if (!state.ready || !state.collection) return false;
+      await state.collection.updateOne(
+        { key: String(key) },
+        {
+          $set: {
+            value: cloneJsonValue(value, value),
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true }
+      );
+      return true;
+    },
+    async close() {
+      try {
+        await state.client?.close();
+      } catch {}
+      state.client = null;
+      state.collection = null;
+      state.ready = false;
+    }
+  };
+}
+
 function loadUsers() {
   const stateData = stateStore.read("users", { users: [] }, USERS_FILE);
   const legacyData = readJsonFile(USERS_FILE, { users: [] });
@@ -215,14 +328,65 @@ function loadRooms() {
 }
 
 function saveUsers() {
-  stateStore.write("users", { users });
-  writeJsonFile(USERS_FILE, { users });
+  persistUsersLocally();
+  const snapshot = cloneJsonValue({ users }, { users: [] });
+  if (!mongoStateStore.ready) return Promise.resolve(false);
+  pendingUserPersistence = pendingUserPersistence
+    .catch(() => false)
+    .then(() => mongoStateStore.write("users", snapshot))
+    .catch((error) => {
+      mongoStateStore.noteError(error?.message || error);
+      console.warn(`MongoDB user persistence failed. Local copy is still saved. ${mongoStateStore.lastError}`);
+      return false;
+    });
+  return pendingUserPersistence;
 }
 
 function saveRooms() {
   const serialized = [...rooms.values()];
   stateStore.write("rooms", { rooms: serialized });
   writeJsonFile(ROOMS_FILE, { rooms: serialized });
+}
+
+function persistUsersLocally() {
+  stateStore.write("users", { users });
+  writeJsonFile(USERS_FILE, { users });
+}
+
+function cloneJsonValue(value, fallback = null) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return fallback;
+  }
+}
+
+async function flushUserPersistence() {
+  try {
+    await pendingUserPersistence;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function hydrateUsersFromMongo() {
+  const ready = await mongoStateStore.init();
+  if (!ready) return false;
+  try {
+    const remote = await mongoStateStore.read("users");
+    const remoteUsers = Array.isArray(remote?.users) ? remote.users : [];
+    if (remoteUsers.length) {
+      users = mergeUsers(remoteUsers, users);
+    }
+    persistUsersLocally();
+    await mongoStateStore.write("users", { users: cloneJsonValue(users, []) });
+    return true;
+  } catch (error) {
+    mongoStateStore.noteError(error?.message || error);
+    console.warn(`MongoDB bootstrap sync failed. Keeping local users. ${mongoStateStore.lastError}`);
+    return false;
+  }
 }
 
 function nowIso() {
@@ -1540,7 +1704,12 @@ const server = http.createServer(async (req, res) => {
         networkExists: fs.existsSync(path.join(SRC_DIR(), "pikafish.nnue")),
         buildRunning: Boolean(buildJob),
         downloadRunning: Boolean(downloadJob),
-        candidates: DEFAULT_ENGINE_CANDIDATES
+        candidates: DEFAULT_ENGINE_CANDIDATES,
+        mongoEnabled: mongoStateStore.enabled,
+        mongoReady: mongoStateStore.ready,
+        mongoDatabase: mongoStateStore.dbName,
+        mongoCollection: mongoStateStore.collectionName,
+        mongoError: mongoStateStore.lastError || ""
       });
       return;
     }
@@ -1617,7 +1786,7 @@ const server = http.createServer(async (req, res) => {
         createdAt: nowIso()
       };
       users.push(user);
-      saveUsers();
+      await saveUsers();
       json(res, 200, {
         ok: true,
         token: createAuthToken(user.id),
@@ -1658,7 +1827,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       user.displayName = sanitizeDisplayName(body.displayName);
       user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
-      saveUsers();
+      await saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });
       return;
     }
@@ -1753,6 +1922,7 @@ const server = http.createServer(async (req, res) => {
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
       applyMoveInRoom(room, side, String(body.move || ""));
+      await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -1771,6 +1941,7 @@ const server = http.createServer(async (req, res) => {
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
       answerRoomRequest(room, side, Boolean(body.accept));
+      await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -1780,6 +1951,7 @@ const server = http.createServer(async (req, res) => {
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
       resignRoom(room, side);
+      await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -1855,14 +2027,26 @@ function friendlyErrorVi(code) {
   }[code] || code;
 }
 
-server.listen(PORT, () => {
-  console.log(`Pikafish analysis app: http://localhost:${PORT}`);
-  if (!configuredEnginePath) {
-    console.log("No engine binary found. Set PIKAFISH_ENGINE or configure it in the UI.");
-  }
+async function startServer() {
+  await hydrateUsersFromMongo();
+  await flushUserPersistence();
+  server.listen(PORT, () => {
+    console.log(`Pikafish analysis app: http://localhost:${PORT}`);
+    if (!configuredEnginePath) {
+      console.log("No engine binary found. Set PIKAFISH_ENGINE or configure it in the UI.");
+    }
+  });
+}
+
+startServer().catch((error) => {
+  console.error(`Server bootstrap failed: ${error?.stack || error}`);
+  process.exit(1);
 });
 
-process.on("SIGINT", () => {
+function shutdownServer() {
   engine.stop();
-  process.exit(0);
-});
+  Promise.resolve(mongoStateStore.close()).finally(() => process.exit(0));
+}
+
+process.on("SIGINT", shutdownServer);
+process.on("SIGTERM", shutdownServer);

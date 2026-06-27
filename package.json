@@ -7,5 +7,7 @@
     "app": "node analysis-app/server.js",
     "build:engine:win": "node analysis-app/build-engine-win.js"
   },
-  "dependencies": {}
+  "dependencies": {
+    "mongodb": "^6.18.0"
+  }
 }

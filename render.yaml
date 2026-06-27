@@ -13,3 +13,9 @@ services:
         value: 8080
       - key: PIKAFISH_ENGINE
         value: /app/src/pikafish
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: dmaihxcai
+      - key: MONGODB_COLLECTION
+        value: app_state
