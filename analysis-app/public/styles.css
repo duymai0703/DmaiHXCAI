@@ -266,7 +266,9 @@ h2 {
   padding: 16px;
   overflow: auto;
   scrollbar-gutter: stable;
-  height: min(758px, calc(100vh - 118px));
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
 }
 
 .panel-shell {
