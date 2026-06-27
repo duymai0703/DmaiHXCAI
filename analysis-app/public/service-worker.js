@@ -1,9 +1,9 @@
-const CACHE_NAME = "dmaihxcai-shell-v5";
+const CACHE_NAME = "dmaihxcai-shell-v6";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=20260626-fixed-analysis",
-  "/app.js?v=20260626-fixed-analysis",
+  "/styles.css?v=20260627-render-wake-fix",
+  "/app.js?v=20260627-render-wake-fix",
   "/config.js",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
