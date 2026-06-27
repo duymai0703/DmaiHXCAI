@@ -173,10 +173,9 @@ h2 {
     inset 0 0 0 2px rgba(80, 64, 42, 0.25),
     0 18px 42px rgba(55, 37, 18, 0.28);
   touch-action: manipulation;
-  contain: layout paint style;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  contain: layout style;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 #boardCanvas,
@@ -186,9 +185,6 @@ h2 {
   inset: 0;
   width: 100%;
   height: 100%;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 #arrowCanvas {
@@ -866,13 +862,21 @@ body {
   box-shadow: none;
   font-size: 0;
   color: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
 }
 
 .nav-back:hover,
-.nav-back:active {
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible {
   background-color: transparent;
-  border-color: transparent;
+  background-image: url("/assets/icons/back.png");
+  border: 0;
   color: transparent;
+  box-shadow: none;
+  outline: none;
   transform: scale(1.03);
   filter: brightness(1.04) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.32));
 }
@@ -931,6 +935,7 @@ select {
 
 .brand strong {
   color: #fff0cb;
+  margin-top: 4px;
 }
 
 .board {
@@ -1020,6 +1025,21 @@ select {
   background: linear-gradient(180deg, rgba(79, 58, 40, 0.98), rgba(53, 39, 28, 0.98));
   border-color: rgba(223, 179, 96, 0.18);
   color: var(--ink);
+}
+
+.palette-piece:not(.eraser) {
+  background:
+    var(--piece-image) center / 34px 34px no-repeat,
+    linear-gradient(180deg, rgba(79, 58, 40, 0.98), rgba(53, 39, 28, 0.98));
+}
+
+.palette-piece:hover:not(.eraser),
+.palette-piece:active:not(.eraser),
+.palette-piece.active:not(.eraser) {
+  background:
+    var(--piece-image) center / 34px 34px no-repeat,
+    linear-gradient(180deg, #f2b554, #bf7720);
+  color: #24160b;
 }
 
 .cloud-placeholder {

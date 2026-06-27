@@ -52,7 +52,10 @@ const state = {
   editMode: false,
   editorPiece: "R",
   resizeTimer: null,
-  lastBoardSizeKey: ""
+  lastBoardSizeKey: "",
+  pieceSlots: null,
+  hintSlots: null,
+  slotLayoutKey: ""
 };
 
 const boardEl = document.getElementById("board");
@@ -840,36 +843,85 @@ function drawBoard() {
   ctx.fillText("\u6f22\u754c", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
 }
 
-function drawPieces() {
+function ensureBoardSlots() {
+  const rect = boardEl.getBoundingClientRect();
+  const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${state.flipped ? "b" : "w"}`;
+  if (
+    state.pieceSlots &&
+    state.hintSlots &&
+    state.pieceSlots.length === 90 &&
+    state.hintSlots.length === 90 &&
+    state.slotLayoutKey === layoutKey
+  ) {
+    return { pieceSlots: state.pieceSlots, hintSlots: state.hintSlots };
+  }
+
+  state.slotLayoutKey = layoutKey;
+  state.pieceSlots = [];
+  state.hintSlots = [];
+
   const fragment = document.createDocumentFragment();
-  const checkedSides = getCheckedSides();
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
-      const piece = state.board[y][x];
-      if (!piece) continue;
       const pos = squareToPixel({ x, y });
-      const el = document.createElement("div");
-      el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
-      if (piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]) {
-        el.classList.add("in-check");
-      }
-      if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
-      el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-      el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
-      el.style.left = `${pos.x}px`;
-      el.style.top = `${pos.y}px`;
-      fragment.appendChild(el);
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.style.left = `${pos.x}px`;
+      hint.style.top = `${pos.y}px`;
+      hint.style.display = "none";
+      fragment.appendChild(hint);
+      state.hintSlots.push(hint);
     }
   }
-  state.hints.forEach((hint) => {
-    const pos = squareToPixel(hint);
-    const el = document.createElement("div");
-    el.className = "hint";
-    el.style.left = `${pos.x}px`;
-    el.style.top = `${pos.y}px`;
-    fragment.appendChild(el);
-  });
+
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      const pos = squareToPixel({ x, y });
+      const piece = document.createElement("div");
+      piece.className = "piece image-piece";
+      piece.style.left = `${pos.x}px`;
+      piece.style.top = `${pos.y}px`;
+      piece.style.display = "none";
+      piece.setAttribute("aria-hidden", "true");
+      fragment.appendChild(piece);
+      state.pieceSlots.push(piece);
+    }
+  }
+
   piecesEl.replaceChildren(fragment);
+  return { pieceSlots: state.pieceSlots, hintSlots: state.hintSlots };
+}
+
+function drawPieces() {
+  const { pieceSlots, hintSlots } = ensureBoardSlots();
+  if (!pieceSlots.length || !hintSlots.length) return;
+  const checkedSides = getCheckedSides();
+  const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      const index = y * 9 + x;
+      const piece = state.board[y][x];
+      const el = pieceSlots[index];
+      if (!piece) {
+        el.style.display = "none";
+        el.className = "piece image-piece";
+        el.style.removeProperty("--piece-image");
+        el.removeAttribute("aria-label");
+      } else {
+        el.style.display = "";
+        el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
+        if (piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]) {
+          el.classList.add("in-check");
+        }
+        if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
+        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+        el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+      }
+
+      const hintEl = hintSlots[index];
+      hintEl.style.display = hintIndexes.has(index) ? "" : "none";
+    }
+  }
 }
 
 function drawArrows(suggestions) {

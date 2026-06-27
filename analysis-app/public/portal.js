@@ -7,7 +7,9 @@
   const STORAGE_ROOM = "dmaihxcai-room-key";
   const STORAGE_DEVICE_ID = "dmaihxcai-device-id";
   const STORAGE_DEVICE_AVATAR = "dmaihxcai-device-avatar";
+  const STORAGE_DEVICE_AVATAR_VERSION = "dmaihxcai-device-avatar-version";
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
+  const DEVICE_AVATAR_VERSION = "20260628-v2";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
     "/assets/device-avatars/goku.png",
@@ -43,7 +45,7 @@
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
-  const initialDeviceAvatar = readOrCreateDeviceAvatar();
+  const initialDeviceAvatar = readOrCreateDeviceAvatar(initialDeviceId);
   const state = {
     token: initialToken,
     user: initialToken ? readStoredUser() : null,
@@ -80,6 +82,9 @@
     modalConfirm: null,
     lastBoardFrame: "",
     lastPieceFrame: "",
+    roomPieceSlots: null,
+    roomHintSlots: null,
+    roomSlotLayoutKey: "",
     lastChatSignature: "",
     resizeTimer: null,
     lastBoardSizeKey: ""
@@ -1005,6 +1010,9 @@
       state.selectedSquare = null;
       state.hints = [];
       state.roomBoard = XiangqiCore.parseFenState(START_FEN).board;
+      state.roomPieceSlots = null;
+      state.roomHintSlots = null;
+      state.roomSlotLayoutKey = "";
       renderRoomState({ forceBoard: true, keepSelection: false });
       updateResumeButton();
       return;
@@ -1285,6 +1293,55 @@
     drawRoomPieces(forceBoard);
   }
 
+  function ensureRoomSlots() {
+    if (dom.roomView.classList.contains("hidden")) return { pieceSlots: [], hintSlots: [] };
+    const rect = dom.roomBoard.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { pieceSlots: [], hintSlots: [] };
+    const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
+    if (
+      state.roomPieceSlots &&
+      state.roomHintSlots &&
+      state.roomPieceSlots.length === 90 &&
+      state.roomHintSlots.length === 90 &&
+      state.roomSlotLayoutKey === layoutKey
+    ) {
+      return { pieceSlots: state.roomPieceSlots, hintSlots: state.roomHintSlots };
+    }
+
+    state.roomSlotLayoutKey = layoutKey;
+    state.roomPieceSlots = [];
+    state.roomHintSlots = [];
+
+    const pieceFragment = document.createDocumentFragment();
+    const hintFragment = document.createDocumentFragment();
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const pixel = squareToPixel({ x, y });
+
+        const hint = document.createElement("div");
+        hint.className = "hint";
+        hint.style.left = `${pixel.x}px`;
+        hint.style.top = `${pixel.y}px`;
+        hint.style.display = "none";
+        hintFragment.appendChild(hint);
+        state.roomHintSlots.push(hint);
+
+        const piece = document.createElement("div");
+        piece.className = "piece image-piece";
+        piece.style.left = `${pixel.x}px`;
+        piece.style.top = `${pixel.y}px`;
+        piece.style.display = "none";
+        piece.setAttribute("aria-hidden", "true");
+        pieceFragment.appendChild(piece);
+        state.roomPieceSlots.push(piece);
+      }
+    }
+
+    dom.roomMarks.replaceChildren(hintFragment);
+    dom.roomPieces.replaceChildren(pieceFragment);
+    return { pieceSlots: state.roomPieceSlots, hintSlots: state.roomHintSlots };
+  }
+
   function drawReviewScene(forceBoard) {
     drawReviewBoard(forceBoard);
     drawReviewPieces(forceBoard);
@@ -1341,40 +1398,37 @@
     const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${selectionKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.lastPieceFrame) return;
     state.lastPieceFrame = signature;
-    const pieceFragment = document.createDocumentFragment();
-    const markFragment = document.createDocumentFragment();
+    const { pieceSlots, hintSlots } = ensureRoomSlots();
+    if (!pieceSlots.length || !hintSlots.length) return;
+    const hintIndexes = new Set(state.hints.map((square) => square.y * 9 + square.x));
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
+        const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
-        if (!piece) continue;
-        const pixel = squareToPixel({ x, y });
-        const el = document.createElement("div");
-        el.className = "piece image-piece";
-        if (state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y) {
-          el.classList.add("selected");
+        const el = pieceSlots[index];
+        if (!piece) {
+          el.style.display = "none";
+          el.className = "piece image-piece";
+          el.style.removeProperty("--piece-image");
+          el.removeAttribute("aria-label");
+        } else {
+          el.style.display = "";
+          el.className = "piece image-piece";
+          if (state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y) {
+            el.classList.add("selected");
+          }
+          if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
+            el.classList.add("in-check");
+          }
+          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+          el.setAttribute("aria-label", piece);
         }
-        if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
-          el.classList.add("in-check");
-        }
-        el.style.left = `${pixel.x}px`;
-        el.style.top = `${pixel.y}px`;
-        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-        pieceFragment.appendChild(el);
+
+        const mark = hintSlots[index];
+        mark.style.display = hintIndexes.has(index) ? "" : "none";
       }
     }
-
-    state.hints.forEach((square) => {
-      const pixel = squareToPixel(square);
-      const mark = document.createElement("div");
-      mark.className = "hint";
-      mark.style.left = `${pixel.x}px`;
-      mark.style.top = `${pixel.y}px`;
-      markFragment.appendChild(mark);
-    });
-
-    dom.roomPieces.replaceChildren(pieceFragment);
-    dom.roomMarks.replaceChildren(markFragment);
   }
 
   function drawReviewBoard(force) {
@@ -1669,7 +1723,7 @@
     state.roomPollTimer = window.setInterval(() => {
       void pollRoomState();
     }, 1200);
-    state.roomClockTimer = window.setInterval(renderRoomClocks, 250);
+    state.roomClockTimer = window.setInterval(renderRoomClocks, 500);
     void pollRoomState();
   }
 
@@ -1703,6 +1757,12 @@
     if (!room) {
       dom.topClock.textContent = "10:00";
       dom.bottomClock.textContent = "10:00";
+      dom.topClock.dataset.clockLabel = "10:00";
+      dom.bottomClock.dataset.clockLabel = "10:00";
+      dom.topClock.dataset.clockActive = "0";
+      dom.bottomClock.dataset.clockActive = "0";
+      dom.topClock.dataset.clockLow = "0";
+      dom.bottomClock.dataset.clockLow = "0";
       dom.topClock.classList.remove("active", "low");
       dom.bottomClock.classList.remove("active", "low");
       return;
@@ -1715,9 +1775,21 @@
 
   function paintClock(element, milliseconds, active) {
     const ms = Math.max(0, milliseconds);
-    element.textContent = formatClock(ms);
-    element.classList.toggle("active", !!active);
-    element.classList.toggle("low", ms <= 60000);
+    const label = formatClock(ms);
+    if (element.dataset.clockLabel !== label) {
+      element.dataset.clockLabel = label;
+      element.textContent = label;
+    }
+    const activeFlag = active ? "1" : "0";
+    const lowFlag = ms <= 60000 ? "1" : "0";
+    if (element.dataset.clockActive !== activeFlag) {
+      element.dataset.clockActive = activeFlag;
+      element.classList.toggle("active", !!active);
+    }
+    if (element.dataset.clockLow !== lowFlag) {
+      element.dataset.clockLow = lowFlag;
+      element.classList.toggle("low", ms <= 60000);
+    }
   }
 
   function liveClockFor(side) {
@@ -1735,27 +1807,21 @@
   }
 
   function readOrCreateDeviceId() {
-    try {
-      const existing = String(localStorage.getItem(STORAGE_DEVICE_ID) || "").trim();
-      if (/^[a-zA-Z0-9:_-]{8,120}$/.test(existing)) return existing;
-      const next = `device-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-      localStorage.setItem(STORAGE_DEVICE_ID, next);
-      return next;
-    } catch {
-      return `device-${Date.now().toString(36)}`;
-    }
+    const existing = String(readPersistentValue(STORAGE_DEVICE_ID) || "").trim();
+    if (/^[a-zA-Z0-9:_-]{8,120}$/.test(existing)) return existing;
+    const next = `device-${randomToken(10)}${Date.now().toString(36)}`;
+    writePersistentValue(STORAGE_DEVICE_ID, next);
+    return next;
   }
 
-  function readOrCreateDeviceAvatar() {
-    try {
-      const existing = String(localStorage.getItem(STORAGE_DEVICE_AVATAR) || "");
-      if (DEVICE_AVATARS.includes(existing)) return existing;
-      const next = DEVICE_AVATARS[Math.floor(Math.random() * DEVICE_AVATARS.length)];
-      localStorage.setItem(STORAGE_DEVICE_AVATAR, next);
-      return next;
-    } catch {
-      return DEVICE_AVATARS[0];
-    }
+  function readOrCreateDeviceAvatar(deviceId) {
+    const existing = String(readPersistentValue(STORAGE_DEVICE_AVATAR) || "");
+    const version = String(readPersistentValue(STORAGE_DEVICE_AVATAR_VERSION) || "");
+    if (version === DEVICE_AVATAR_VERSION && DEVICE_AVATARS.includes(existing)) return existing;
+    const next = pickRandomDeviceAvatar(deviceId || readOrCreateDeviceId());
+    writePersistentValue(STORAGE_DEVICE_AVATAR, next);
+    writePersistentValue(STORAGE_DEVICE_AVATAR_VERSION, DEVICE_AVATAR_VERSION);
+    return next;
   }
 
   function readStoredHistory() {
@@ -2152,6 +2218,69 @@
 
   function formatClockSetup(milliseconds) {
     return formatClock(milliseconds || 0).replace(/^0/, "");
+  }
+
+  function readPersistentValue(key) {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) return String(value);
+    } catch {}
+    return readCookieValue(key);
+  }
+
+  function writePersistentValue(key, value, days = 3650) {
+    const normalized = String(value || "");
+    try {
+      if (normalized) localStorage.setItem(key, normalized);
+      else localStorage.removeItem(key);
+    } catch {}
+    writeCookieValue(key, normalized, days);
+  }
+
+  function readCookieValue(key) {
+    const encodedKey = `${encodeURIComponent(key)}=`;
+    const match = String(document.cookie || "")
+      .split("; ")
+      .find((item) => item.startsWith(encodedKey));
+    return match ? decodeURIComponent(match.slice(encodedKey.length)) : "";
+  }
+
+  function writeCookieValue(key, value, days = 3650) {
+    const encodedKey = encodeURIComponent(key);
+    if (!value) {
+      document.cookie = `${encodedKey}=; Max-Age=0; path=/; SameSite=Lax`;
+      return;
+    }
+    const maxAge = Math.max(86400, Math.floor(days * 86400));
+    document.cookie = `${encodedKey}=${encodeURIComponent(value)}; Max-Age=${maxAge}; path=/; SameSite=Lax`;
+  }
+
+  function randomIndex(max) {
+    if (!Number.isFinite(max) || max <= 1) return 0;
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return values[0] % max;
+    }
+    return Math.floor(Math.random() * max);
+  }
+
+  function randomToken(length = 8) {
+    const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+    if (window.crypto?.getRandomValues) {
+      const values = new Uint8Array(length);
+      window.crypto.getRandomValues(values);
+      return Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
+    }
+    let token = "";
+    while (token.length < length) token += Math.random().toString(36).slice(2);
+    return token.slice(0, length);
+  }
+
+  function pickRandomDeviceAvatar(deviceId) {
+    const seed = `${deviceId}|${Date.now().toString(36)}|${performance.now().toString(36)}|${navigator.userAgent}|${randomToken(8)}`;
+    const index = Math.abs(hashCode(seed)) % DEVICE_AVATARS.length;
+    return DEVICE_AVATARS[index] || DEVICE_AVATARS[randomIndex(DEVICE_AVATARS.length)] || "";
   }
 
   function formatDate(dateText) {
