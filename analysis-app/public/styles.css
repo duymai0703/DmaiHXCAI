@@ -81,10 +81,10 @@ button.active {
 
 .shell {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(300px, 0.86fr) minmax(560px, 1.14fr);
   align-items: start;
   gap: 18px;
-  width: min(1280px, 100%);
+  width: min(1500px, 100%);
   min-height: calc(100vh - 62px);
   margin: 0 auto;
   padding: 18px;
@@ -96,7 +96,7 @@ button.active {
   align-items: center;
   justify-content: flex-start;
   gap: 18px;
-  padding: 0 max(18px, calc((100vw - 1280px) / 2 + 18px));
+  padding: 0 max(18px, calc((100vw - 1500px) / 2 + 18px));
   background: #231d18;
   color: #f2d092;
   border-bottom: 3px solid #8c6a37;
@@ -169,7 +169,7 @@ h2 {
 .board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 780px);
+  width: min(100%, 700px);
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background: #f4cf91;
@@ -286,9 +286,32 @@ h2 {
   scrollbar-gutter: stable;
 }
 
+.panel-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(250px, 0.94fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.panel-main-col,
+.panel-side-col {
+  min-width: 0;
+}
+
 .group {
   padding: 14px 0;
   border-bottom: 1px solid #d7c8ae;
+}
+
+.panel-main-col > .group:first-child,
+.panel-side-col > .group:first-child {
+  padding-top: 0;
+}
+
+.panel-main-col > .group:last-child,
+.panel-side-col > .group:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .group label {
@@ -560,7 +583,7 @@ input:not([type]) {
 .history {
   margin: 0;
   padding-left: 0;
-  max-height: 210px;
+  max-height: 420px;
   overflow: auto;
   font-family: Consolas, monospace;
   list-style: none;
@@ -601,19 +624,24 @@ input:not([type]) {
 
 @media (min-width: 921px) {
   .board {
-    width: min(100%, 780px, calc((100vh - 122px) * 0.9));
+    width: min(100%, 700px, calc((100vh - 126px) * 0.84));
   }
 }
 
 @media (max-width: 1120px) and (min-width: 801px) {
   .shell {
-    grid-template-columns: minmax(300px, 1fr) minmax(280px, 340px);
+    grid-template-columns: minmax(300px, 0.92fr) minmax(360px, 1.08fr);
     gap: 12px;
     padding: 12px;
   }
 
   .panel {
     padding: 12px;
+  }
+
+  .panel-shell {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }
 
@@ -627,6 +655,11 @@ input:not([type]) {
   .panel {
     border-left: 1px solid #b8a17c;
     border-top: 1px solid #cdbb9d;
+  }
+
+  .panel-shell {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .app-header {
