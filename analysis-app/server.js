@@ -1,6 +1,7 @@
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -14,10 +15,29 @@ const DEFAULT_ENGINE_CANDIDATES = [
   path.join(ROOT, "pikafish.exe"),
   path.join(ROOT, "pikafish")
 ].filter(Boolean);
+const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(2, cpuCount())), 1, 16);
+const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
 
 let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
 let buildJob = null;
 let downloadJob = null;
+
+function cpuCount() {
+  try {
+    if (typeof os.availableParallelism === "function") return os.availableParallelism();
+  } catch {}
+  try {
+    return os.cpus()?.length || 1;
+  } catch {
+    return 1;
+  }
+}
+
+function clampOptionNumber(value, fallback, min, max) {
+  const number = Number(value);
+  const safe = Number.isFinite(number) ? number : fallback;
+  return Math.max(min, Math.min(max, Math.round(safe)));
+}
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -107,7 +127,11 @@ class UciEngine {
       });
 
       this.waitFor((line) => line === "uciok", 8000)
-        .then(() => this.command("isready", (line) => line === "readyok", 8000))
+        .then(() => {
+          this.write(`setoption name Threads value ${DEFAULT_ENGINE_THREADS}`);
+          this.write(`setoption name Hash value ${DEFAULT_ENGINE_HASH_MB}`);
+          return this.command("isready", (line) => line === "readyok", 8000);
+        })
         .then(() => {
           this.ready = true;
           this.bootPromise = null;

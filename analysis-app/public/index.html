@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css?v=20260627-render-wake-fix">
+    <link rel="stylesheet" href="/styles.css?v=20260627-progressive-analysis">
   </head>
   <body>
     <header class="app-header">
@@ -72,18 +72,6 @@
           </select>
         </div>
 
-        <div class="group strength-control">
-          <label>Sức mạnh AI</label>
-          <div id="strengthButtons" class="strength-buttons">
-            <button type="button" data-depth="5">Yếu</button>
-            <button type="button" data-depth="10">Khá</button>
-            <button type="button" data-depth="13" class="active">Mạnh</button>
-            <button type="button" data-depth="16">Rất mạnh</button>
-          </div>
-          <input id="depth" type="hidden" value="13">
-          <div class="strength-note">AI càng mạnh load sẽ càng chậm!</div>
-        </div>
-
         <div class="group">
           <label>AI tự chơi</label>
           <div class="toggles">
@@ -105,7 +93,7 @@
       </aside>
     </main>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260627-render-wake-fix"></script>
+    <script src="/app.js?v=20260627-progressive-analysis"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

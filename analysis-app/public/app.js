@@ -23,6 +23,9 @@ const PIECE_IMAGES = {
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
 const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
+const AUTO_ANALYSIS_STAGES = [220, 380, 650];
+const ANALYSIS_MAX_MS = 10000;
 let wakePromise = null;
 
 const state = {
@@ -41,6 +44,7 @@ const state = {
   cloudRequest: 0,
   lastAnalysis: null,
   scoreAnimation: null,
+  shownScore: null,
   auto: false,
   autoTimer: null,
   gameOver: false,
@@ -59,8 +63,6 @@ const historyEl = document.getElementById("history");
 const engineStatusEl = document.getElementById("engineStatus");
 const networkStatusEl = document.getElementById("networkStatus");
 const enginePathEl = document.getElementById("enginePath");
-const depthEl = document.getElementById("depth");
-const strengthButtonsEl = document.getElementById("strengthButtons");
 const delayEl = document.getElementById("delay");
 const delayOut = document.getElementById("delayOut");
 const piecePaletteEl = document.getElementById("piecePalette");
@@ -89,7 +91,6 @@ document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("redoBtn").addEventListener("click", redo);
 document.getElementById("resetBtn").addEventListener("click", reset);
 document.getElementById("autoBtn").addEventListener("click", toggleAuto);
-if (strengthButtonsEl) strengthButtonsEl.addEventListener("click", onStrengthClick);
 if (delayEl && delayOut) delayEl.addEventListener("input", () => delayOut.value = `${delayEl.value}ms`);
 if (loadFenBtn) loadFenBtn.addEventListener("click", loadFenFromPrompt);
 if (copyFenBtn) copyFenBtn.addEventListener("click", copyFenToClipboard);
@@ -106,18 +107,6 @@ function bindClick(id, handler) {
 
 function autoDelay() {
   return delayEl ? Number(delayEl.value) : 700;
-}
-
-function onStrengthClick(event) {
-  const button = event.target.closest("button[data-depth]");
-  if (!button || !strengthButtonsEl) return;
-  depthEl.value = button.dataset.depth;
-  [...strengthButtonsEl.querySelectorAll("button[data-depth]")].forEach((item) => {
-    item.classList.toggle("active", item === button);
-  });
-  if (state.analysisMode) {
-    runAnalysis({ activateMode: true }).catch(() => {});
-  }
 }
 
 async function init() {
@@ -179,37 +168,58 @@ async function downloadNetwork() {
 async function startManualAnalysis() {
   stopAutoPlay(true);
   state.analysisMode = true;
-  return runAnalysis({ activateMode: true });
+  return runAnalysis({ activateMode: true, autoPlay: false });
 }
 
-async function runAnalysis({ activateMode = false } = {}) {
+async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
   if (activateMode) state.analysisMode = true;
   const requestId = ++state.analysisRequest;
   const boardBefore = cloneBoard(state.board);
   const sideBefore = state.side;
   const fenBefore = `${boardToCloudFen(boardBefore, sideBefore)} - - 0 1`;
   analysisEl.textContent = "Đang phân tích...";
+  renderPendingAnalysis();
   state.bestMove = "";
   state.suggestions = [];
   state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.shownScore = null;
   stopScoreAnimation();
   clearArrow();
 
   try {
-    const result = await api("/api/analyze", {
-      fen: fenBefore,
-      moves: [],
-      depth: Number(depthEl.value),
-      multipv: 3
-    });
-    if (requestId !== state.analysisRequest) return result;
-    state.bestMove = result.bestMove || "";
-    state.suggestionOptions = buildSuggestionOptions(result, boardBefore);
-    state.suggestions = state.suggestionOptions[0] || [];
-    state.lastAnalysis = { result, board: boardBefore, side: sideBefore };
-    renderAnalysis(result, boardBefore, sideBefore, { animateScore: true });
-    draw();
-    return result;
+    const schedule = autoPlay ? AUTO_ANALYSIS_STAGES : MANUAL_ANALYSIS_STAGES;
+    const startedAt = performance.now();
+    let latestResult = null;
+
+    for (const stageMs of schedule) {
+      if (requestId !== state.analysisRequest) return latestResult;
+      const elapsed = performance.now() - startedAt;
+      const remainingBudget = ANALYSIS_MAX_MS - elapsed;
+      if (remainingBudget < 140) break;
+      const movetime = Math.max(120, Math.min(stageMs, Math.floor(remainingBudget)));
+      const result = await api("/api/analyze", {
+        fen: fenBefore,
+        moves: [],
+        movetime,
+        multipv: 1
+      });
+      latestResult = result;
+      if (requestId !== state.analysisRequest) return latestResult;
+      if (hasAnalysisLine(result)) {
+        applyAnalysisSnapshot(result, boardBefore, sideBefore, { pending: true });
+      }
+      if ((performance.now() - startedAt) >= ANALYSIS_MAX_MS) break;
+    }
+
+    if (!latestResult || !hasAnalysisLine(latestResult)) {
+      if (requestId === state.analysisRequest) renderAnalysis(latestResult || {}, boardBefore, sideBefore, { pending: false });
+      return latestResult;
+    }
+
+    if (requestId !== state.analysisRequest) return latestResult;
+    applyAnalysisSnapshot(latestResult, boardBefore, sideBefore, { pending: false });
+    return latestResult;
   } catch (err) {
     if (requestId === state.analysisRequest) analysisEl.textContent = err.message;
     throw err;
@@ -218,7 +228,7 @@ async function runAnalysis({ activateMode = false } = {}) {
 
 async function playBestMove() {
   const result = state.bestMove ? { bestMove: state.bestMove } : await runAnalysis({ activateMode: state.analysisMode });
-  if (result.bestMove && result.bestMove !== "(none)" && result.bestMove !== "0000") {
+  if (result?.bestMove && result.bestMove !== "(none)" && result.bestMove !== "0000") {
     makeMove(result.bestMove);
   }
 }
@@ -265,8 +275,8 @@ async function autoStep() {
     return;
   }
   try {
-    const result = await runAnalysis();
-    if (result.bestMove && result.bestMove !== "(none)") makeMove(result.bestMove, { manual: false });
+    const result = await runAnalysis({ autoPlay: true });
+    if (result?.bestMove && result.bestMove !== "(none)") makeMove(result.bestMove, { manual: false });
   } catch {
     stopAutoPlay();
     return;
@@ -341,6 +351,89 @@ function showSuggestionOption(index) {
   state.suggestions = option;
   clearArrow();
   drawArrows(state.suggestions);
+}
+
+function hasAnalysisLine(result) {
+  return Boolean(result?.lines?.length);
+}
+
+function renderPendingAnalysis() {
+  if (!analysisEl) return;
+  analysisEl.innerHTML = "";
+  const banner = document.createElement("div");
+  banner.className = "score-banner equal";
+  banner.innerHTML = `<span>Đánh giá</span><strong>...</strong><small>Engine đang phân tích · Góc nhìn ${viewerName()}</small>`;
+  analysisEl.appendChild(banner);
+}
+
+function applyAnalysisSnapshot(result, board, side, { pending = false } = {}) {
+  state.bestMove = result.bestMove || "";
+  state.suggestionOptions = buildSuggestionOptions(result, board);
+  state.suggestions = state.suggestionOptions[0] || [];
+  state.lastAnalysis = { result, board, side };
+  renderAnalysis(result, board, side, { pending });
+  draw();
+}
+
+function renderAnalysis(result, startBoard, startSide, { pending = false } = {}) {
+  if (!analysisEl) return;
+  analysisEl.innerHTML = "";
+  if (!result.lines || !result.lines.length) {
+    state.shownScore = 0;
+    renderScore(0, "Engine", { pending: false });
+    return;
+  }
+  renderScore(scoreForViewer(result.lines[0], startSide), "Engine", { pending });
+}
+
+function renderScore(score, source = "", { pending = false } = {}) {
+  if (!analysisEl) return;
+  stopScoreAnimation();
+  const previousScore = Number.isFinite(state.shownScore) ? state.shownScore : null;
+  const sourceText = source ? ` · ${source}` : "";
+  const signText = score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng";
+  analysisEl.innerHTML = "";
+  const banner = document.createElement("div");
+  banner.className = `score-banner ${scoreClass(score)}`;
+  banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(previousScore ?? score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}${pending ? " · đang đào sâu" : ""}</small>`;
+  analysisEl.appendChild(banner);
+  if (previousScore === null || previousScore === score) {
+    state.shownScore = score;
+    return;
+  }
+  tweenScoreBanner(banner, previousScore, score);
+}
+
+function stopScoreAnimation() {
+  if (!state.scoreAnimation) return;
+  cancelAnimationFrame(state.scoreAnimation);
+  state.scoreAnimation = null;
+}
+
+function tweenScoreBanner(banner, fromScore, toScore) {
+  const strong = banner.querySelector("strong");
+  if (!strong) {
+    state.shownScore = toScore;
+    return;
+  }
+  const startedAt = performance.now();
+  const duration = 320;
+  const step = () => {
+    const progress = Math.min(1, (performance.now() - startedAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(fromScore + (toScore - fromScore) * eased);
+    banner.className = `score-banner ${scoreClass(current)}`;
+    strong.textContent = formatEval(current);
+    if (progress < 1) {
+      state.scoreAnimation = requestAnimationFrame(step);
+      return;
+    }
+    state.scoreAnimation = null;
+    state.shownScore = toScore;
+    banner.className = `score-banner ${scoreClass(toScore)}`;
+    strong.textContent = formatEval(toScore);
+  };
+  state.scoreAnimation = requestAnimationFrame(step);
 }
 
 function scoreForViewer(line, sideToMove) {
