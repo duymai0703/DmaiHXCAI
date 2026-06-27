@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
-const DATABASE_FILE = process.env.DMAIHXCAI_DB_PATH || path.join(DATA_DIR, "dmaihxcai.sqlite");
+const DATABASE_FILE = resolveDatabaseFile();
 const PORT = Number(process.env.PORT || 5174);
 const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -42,8 +42,8 @@ ensureDataFile(ROOMS_FILE, { rooms: [] });
 
 const stateStore = createStateStore();
 
-if (process.env.RENDER && !process.env.DMAIHXCAI_DB_PATH) {
-  console.warn("Render is using ephemeral storage for SQLite. Set DMAIHXCAI_DB_PATH to a mounted disk path if you want accounts and rooms to survive redeploys.");
+if (process.env.RENDER && !isPersistentStoragePath(DATABASE_FILE)) {
+  console.warn(`Render is using ephemeral storage for SQLite at ${DATABASE_FILE}. Mount a disk and point DMAIHXCAI_DB_PATH to it if you want accounts and rooms to survive redeploys.`);
 }
 
 let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
@@ -76,6 +76,37 @@ function ensureDataFile(filePath, fallback) {
   }
 }
 
+function resolveDatabaseFile() {
+  const explicit = String(process.env.DMAIHXCAI_DB_PATH || "").trim();
+  if (explicit) return path.resolve(explicit);
+
+  const persistentCandidates = [
+    process.env.RENDER_DISK_PATH,
+    process.env.DMAIHXCAI_PERSIST_DIR,
+    process.env.RENDER ? "/var/data" : ""
+  ].filter(Boolean);
+
+  for (const directory of persistentCandidates) {
+    try {
+      if (fs.existsSync(directory)) {
+        return path.join(directory, "dmaihxcai.sqlite");
+      }
+    } catch {}
+  }
+
+  return path.join(DATA_DIR, "dmaihxcai.sqlite");
+}
+
+function isPersistentStoragePath(filePath) {
+  const normalized = path.resolve(String(filePath || ""));
+  const persistentRoots = [
+    process.env.RENDER_DISK_PATH,
+    process.env.DMAIHXCAI_PERSIST_DIR,
+    process.env.RENDER ? "/var/data" : ""
+  ].filter(Boolean).map((item) => path.resolve(item));
+  return persistentRoots.some((rootPath) => normalized.startsWith(rootPath));
+}
+
 function readJsonFile(filePath, fallback) {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -90,6 +121,7 @@ function writeJsonFile(filePath, value) {
 }
 
 function createStateStore() {
+  fs.mkdirSync(path.dirname(DATABASE_FILE), { recursive: true });
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const db = new DatabaseSync(DATABASE_FILE);
   db.exec(`
@@ -131,13 +163,24 @@ function createStateStore() {
 }
 
 function loadUsers() {
-  const data = stateStore.read("users", { users: [] }, USERS_FILE);
-  return Array.isArray(data.users) ? data.users : [];
+  const stateData = stateStore.read("users", { users: [] }, USERS_FILE);
+  const legacyData = readJsonFile(USERS_FILE, { users: [] });
+  const merged = mergeUsers(
+    Array.isArray(stateData.users) ? stateData.users : [],
+    Array.isArray(legacyData.users) ? legacyData.users : []
+  );
+  stateStore.write("users", { users: merged });
+  writeJsonFile(USERS_FILE, { users: merged });
+  return merged;
 }
 
 function loadRooms() {
-  const data = stateStore.read("rooms", { rooms: [] }, ROOMS_FILE);
-  const list = Array.isArray(data.rooms) ? data.rooms : [];
+  const stateData = stateStore.read("rooms", { rooms: [] }, ROOMS_FILE);
+  const legacyData = readJsonFile(ROOMS_FILE, { rooms: [] });
+  const list = mergeRooms(
+    Array.isArray(stateData.rooms) ? stateData.rooms : [],
+    Array.isArray(legacyData.rooms) ? legacyData.rooms : []
+  );
   const map = new Map();
   const now = Date.now();
   list.forEach((room) => {
@@ -160,15 +203,21 @@ function loadRooms() {
     room.status = room.status || "waiting";
     map.set(room.key, room);
   });
+  const mergedRooms = [...map.values()];
+  stateStore.write("rooms", { rooms: mergedRooms });
+  writeJsonFile(ROOMS_FILE, { rooms: mergedRooms });
   return map;
 }
 
 function saveUsers() {
   stateStore.write("users", { users });
+  writeJsonFile(USERS_FILE, { users });
 }
 
 function saveRooms() {
-  stateStore.write("rooms", { rooms: [...rooms.values()] });
+  const serialized = [...rooms.values()];
+  stateStore.write("rooms", { rooms: serialized });
+  writeJsonFile(ROOMS_FILE, { rooms: serialized });
 }
 
 function nowIso() {
@@ -205,6 +254,98 @@ function normalizeEmail(email) {
 
 function normalizeUsername(username) {
   return String(username || "").trim().toLowerCase();
+}
+
+function normalizeHistoryEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  const seen = new Set();
+  return entries
+    .filter((entry) => entry && typeof entry === "object")
+    .filter((entry) => {
+      const key = String(entry.id || `${entry.roomKey || ""}:${entry.endedAt || ""}:${entry.sideCode || entry.side || ""}`);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.endedAt || left.startedAt || 0) || 0;
+      const rightTime = Date.parse(right.endedAt || right.startedAt || 0) || 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, MAX_HISTORY_ITEMS);
+}
+
+function mergeHistoryEntries(existingEntries, nextEntries) {
+  return normalizeHistoryEntries([
+    ...(Array.isArray(nextEntries) ? nextEntries : []),
+    ...(Array.isArray(existingEntries) ? existingEntries : [])
+  ]);
+}
+
+function mergeUsers(primaryUsers, fallbackUsers) {
+  const merged = [];
+  const byId = new Map();
+  const byEmail = new Map();
+  const byUsername = new Map();
+
+  function remember(user, index) {
+    if (user.id) byId.set(user.id, index);
+    if (user.email) byEmail.set(user.email, index);
+    if (user.username) byUsername.set(user.username, index);
+  }
+
+  function normalizeLoadedUser(user) {
+    if (!user || typeof user !== "object") return null;
+    const email = normalizeEmail(user.email);
+    const username = normalizeUsername(user.username);
+    if (!email || !username || !user.passwordSalt || !user.passwordHash) return null;
+    return {
+      ...user,
+      id: String(user.id || randomId(12)),
+      email,
+      username,
+      displayName: sanitizeDisplayName(user.displayName || user.username || generateDisplayName()),
+      avatarSeed: String(user.avatarSeed || randomBase36(4)),
+      avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
+      history: normalizeHistoryEntries(user.history),
+      createdAt: user.createdAt || nowIso()
+    };
+  }
+
+  function upsert(sourceUser) {
+    const user = normalizeLoadedUser(sourceUser);
+    if (!user) return;
+    const knownIndex = [byId.get(user.id), byEmail.get(user.email), byUsername.get(user.username)]
+      .find((value) => Number.isInteger(value));
+    if (!Number.isInteger(knownIndex)) {
+      const index = merged.push(user) - 1;
+      remember(user, index);
+      return;
+    }
+    const existing = merged[knownIndex];
+    const combined = {
+      ...existing,
+      ...user,
+      history: mergeHistoryEntries(existing.history, user.history)
+    };
+    merged[knownIndex] = combined;
+    remember(combined, knownIndex);
+  }
+
+  fallbackUsers.forEach(upsert);
+  primaryUsers.forEach(upsert);
+  return merged;
+}
+
+function mergeRooms(primaryRooms, fallbackRooms) {
+  const merged = new Map();
+  fallbackRooms.forEach((room) => {
+    if (room?.key) merged.set(room.key, room);
+  });
+  primaryRooms.forEach((room) => {
+    if (room?.key) merged.set(room.key, room);
+  });
+  return [...merged.values()];
 }
 
 function slugSafe(value) {
@@ -1318,6 +1459,8 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         enginePath: configuredEnginePath,
         exists: Boolean(configuredEnginePath && fs.existsSync(configuredEnginePath)),
+        databaseFile: DATABASE_FILE,
+        persistentStorage: isPersistentStoragePath(DATABASE_FILE),
         networkPath: path.join(SRC_DIR(), "pikafish.nnue"),
         networkExists: fs.existsSync(path.join(SRC_DIR(), "pikafish.nnue")),
         buildRunning: Boolean(buildJob),

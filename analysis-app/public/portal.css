@@ -1018,21 +1018,50 @@ a {
   image-rendering: auto;
 }
 
-.piece.review-star::before {
-  content: "★";
+.piece.review-current {
+  box-shadow:
+    0 0 0 max(3px, 0.28vw) rgba(255, 246, 190, 0.98),
+    0 0 22px rgba(255, 198, 77, 0.5);
+  border-radius: 50%;
+}
+
+.piece.review-badge::before {
+  content: attr(data-review-badge);
   position: absolute;
-  top: -10%;
-  right: -6%;
+  top: -18%;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-grid;
   place-items: center;
-  width: 34%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgba(255, 247, 224, 0.98);
-  color: #f09d1f;
+  min-width: 34%;
+  min-height: 24%;
+  padding: 0 5px;
+  border-radius: 999px;
   font-size: clamp(10px, 1vw, 15px);
   font-weight: 900;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.82);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.piece.review-grade-brilliant::before {
+  background: rgba(255, 247, 224, 0.98);
+  color: #f09d1f;
+}
+
+.piece.review-grade-good::before {
+  background: rgba(231, 249, 240, 0.98);
+  color: #1d7a4c;
+}
+
+.piece.review-grade-okay::before {
+  background: rgba(245, 239, 228, 0.98);
+  color: #695c48;
+}
+
+.piece.review-grade-bad::before {
+  background: rgba(255, 237, 235, 0.98);
+  color: #b03027;
 }
 
 .piece.selected {

@@ -36,6 +36,7 @@
     reviewCursor: 0,
     reviewBoard: XiangqiCore.parseFenState(START_FEN).board,
     reviewContextBoard: XiangqiCore.parseFenState(START_FEN).board,
+    reviewLastMoveSquare: null,
     reviewSideToMove: "w",
     reviewAnalysis: [],
     reviewAnalyzing: false,
@@ -438,6 +439,7 @@
     state.reviewAnalyzing = false;
     state.reviewBoard = XiangqiCore.parseFenState(START_FEN).board;
     state.reviewContextBoard = XiangqiCore.parseFenState(START_FEN).board;
+    state.reviewLastMoveSquare = null;
     state.reviewSideToMove = "w";
     state.selectedSquare = null;
     state.hints = [];
@@ -605,6 +607,7 @@
       const parsedStart = XiangqiCore.parseFenState(START_FEN);
       state.reviewBoard = parsedStart.board;
       state.reviewContextBoard = parsedStart.board.map((row) => row.slice());
+      state.reviewLastMoveSquare = null;
       state.reviewSideToMove = "w";
       return;
     }
@@ -625,6 +628,7 @@
     }
     state.reviewBoard = board;
     state.reviewContextBoard = contextBoard;
+    state.reviewLastMoveSquare = limit > 0 ? uciToSquare(state.reviewGame.plies[limit - 1].move.slice(2, 4)) : null;
     state.reviewSideToMove = side;
   }
 
@@ -720,7 +724,8 @@
     const recommendText = analysis.grade === "brilliant"
       ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
       : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
-    dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} · ${analysis.gradeLabel}</strong><div>${recommendText}</div>`;
+    const badge = reviewBadgeForGrade(analysis.grade);
+    dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} · ${badge.icon} ${analysis.gradeLabel}</strong><div>${recommendText}</div>`;
   }
 
   function renderReviewMoveList() {
@@ -767,7 +772,8 @@
     if (analysis) {
       const badge = document.createElement("span");
       badge.className = `review-grade ${analysis.grade}`;
-      badge.textContent = analysis.gradeLabel;
+      const badgeInfo = reviewBadgeForGrade(analysis.grade);
+      badge.textContent = `${badgeInfo.icon} ${analysis.gradeLabel}`;
       button.appendChild(badge);
     }
 
@@ -1275,10 +1281,8 @@
     state.reviewLastPieceFrame = signature;
 
     const fragment = document.createDocumentFragment();
-    let starSquare = null;
-    if (currentAnalysis?.grade === "brilliant" && currentPly?.move) {
-      starSquare = uciToSquare(currentPly.move.slice(2, 4));
-    }
+    const movedSquare = state.reviewLastMoveSquare;
+    const badge = reviewBadgeForGrade(currentAnalysis?.grade || "");
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
@@ -1290,8 +1294,12 @@
         if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
           el.classList.add("in-check");
         }
-        if (starSquare && starSquare.x === x && starSquare.y === y) {
-          el.classList.add("review-star");
+        if (movedSquare && movedSquare.x === x && movedSquare.y === y) {
+          el.classList.add("review-current");
+          if (badge.icon) {
+            el.classList.add("review-badge", `review-grade-${badge.key}`);
+            el.setAttribute("data-review-badge", badge.icon);
+          }
         }
         el.style.left = `${pixel.x}px`;
         el.style.top = `${pixel.y}px`;
@@ -1784,6 +1792,14 @@
 
   function boardSignature(board) {
     return (board || []).map((row) => row.join("")).join("/");
+  }
+
+  function reviewBadgeForGrade(grade) {
+    if (grade === "brilliant") return { key: "brilliant", icon: "★" };
+    if (grade === "good") return { key: "good", icon: "👍" };
+    if (grade === "okay") return { key: "okay", icon: "=" };
+    if (grade === "bad") return { key: "bad", icon: "!?" };
+    return { key: "", icon: "" };
   }
 
   function eventToSquare(event) {
