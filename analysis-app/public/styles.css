@@ -81,10 +81,10 @@ button.active {
 
 .shell {
   display: grid;
-  grid-template-columns: minmax(300px, 0.86fr) minmax(560px, 1.14fr);
+  grid-template-columns: minmax(320px, 0.9fr) minmax(620px, 1.1fr);
   align-items: start;
-  gap: 18px;
-  width: min(1500px, 100%);
+  gap: 16px;
+  width: min(1460px, 100%);
   min-height: calc(100vh - 62px);
   margin: 0 auto;
   padding: 18px;
@@ -142,7 +142,8 @@ button.active {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
+  min-height: 56px;
+  margin-bottom: 10px;
 }
 
 h1,
@@ -169,7 +170,7 @@ h2 {
 .board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 700px);
+  width: min(100%, 690px);
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background: #f4cf91;
@@ -284,12 +285,13 @@ h2 {
   padding: 16px;
   overflow: auto;
   scrollbar-gutter: stable;
+  margin-top: 58px;
 }
 
 .panel-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(250px, 0.94fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 0.92fr);
+  gap: 16px;
   align-items: start;
 }
 
@@ -624,7 +626,7 @@ input:not([type]) {
 
 @media (min-width: 921px) {
   .board {
-    width: min(100%, 700px, calc((100vh - 126px) * 0.84));
+    width: min(100%, 690px, calc((100vh - 134px) * 0.83));
   }
 }
 
@@ -637,6 +639,7 @@ input:not([type]) {
 
   .panel {
     padding: 12px;
+    margin-top: 0;
   }
 
   .panel-shell {
@@ -655,6 +658,7 @@ input:not([type]) {
   .panel {
     border-left: 1px solid #b8a17c;
     border-top: 1px solid #cdbb9d;
+    margin-top: 0;
   }
 
   .panel-shell {
