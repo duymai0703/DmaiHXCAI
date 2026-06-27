@@ -50,7 +50,9 @@ const state = {
   gameOver: false,
   checkmatedSide: null,
   editMode: false,
-  editorPiece: "R"
+  editorPiece: "R",
+  resizeTimer: null,
+  lastBoardSizeKey: ""
 };
 
 const boardEl = document.getElementById("board");
@@ -72,7 +74,7 @@ const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
 
-window.addEventListener("resize", draw);
+window.addEventListener("resize", scheduleBoardDraw, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
 document.getElementById("flipBtn").addEventListener("click", () => {
   state.flipped = !state.flipped;
@@ -116,6 +118,18 @@ function preventDoubleTapZoom() {
     }
     lastTouchEnd = now;
   }, { passive: false });
+}
+
+function scheduleBoardDraw() {
+  if (state.resizeTimer) clearTimeout(state.resizeTimer);
+  state.resizeTimer = window.setTimeout(() => {
+    state.resizeTimer = null;
+    const rect = boardEl.getBoundingClientRect();
+    const sizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    if (sizeKey === state.lastBoardSizeKey) return;
+    state.lastBoardSizeKey = sizeKey;
+    draw();
+  }, 120);
 }
 
 function preloadPieceImages() {
@@ -797,6 +811,7 @@ function draw() {
 
 function drawBoard() {
   const rect = boardEl.getBoundingClientRect();
+  state.lastBoardSizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
   for (const canvas of [boardCanvas, arrowCanvas]) {
     canvas.width = Math.round(rect.width * devicePixelRatio);
     canvas.height = Math.round(rect.height * devicePixelRatio);
@@ -826,7 +841,7 @@ function drawBoard() {
 }
 
 function drawPieces() {
-  piecesEl.innerHTML = "";
+  const fragment = document.createDocumentFragment();
   const checkedSides = getCheckedSides();
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
@@ -843,7 +858,7 @@ function drawPieces() {
       el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
       el.style.left = `${pos.x}px`;
       el.style.top = `${pos.y}px`;
-      piecesEl.appendChild(el);
+      fragment.appendChild(el);
     }
   }
   state.hints.forEach((hint) => {
@@ -852,8 +867,9 @@ function drawPieces() {
     el.className = "hint";
     el.style.left = `${pos.x}px`;
     el.style.top = `${pos.y}px`;
-    piecesEl.appendChild(el);
+    fragment.appendChild(el);
   });
+  piecesEl.replaceChildren(fragment);
 }
 
 function drawArrows(suggestions) {

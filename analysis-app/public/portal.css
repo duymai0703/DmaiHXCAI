@@ -557,7 +557,7 @@ a {
   position: relative;
   width: min(100%, 660px);
   margin: 0 auto;
-  padding: 42px 0 48px;
+  padding: 88px 0 98px;
 }
 
 .room-board {
@@ -617,13 +617,13 @@ a {
 }
 
 .board-badge.opponent {
-  top: 0;
+  top: 6px;
   left: 0;
 }
 
 .board-badge.self {
   right: 0;
-  bottom: 0;
+  bottom: 6px;
   justify-content: flex-end;
   text-align: right;
 }

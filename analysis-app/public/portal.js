@@ -42,7 +42,9 @@
     modalConfirm: null,
     lastBoardFrame: "",
     lastPieceFrame: "",
-    lastChatSignature: ""
+    lastChatSignature: "",
+    resizeTimer: null,
+    lastBoardSizeKey: ""
   };
 
   const dom = {
@@ -141,7 +143,7 @@
   }
 
   function bindEvents() {
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", scheduleResizeRender, { passive: true });
     window.addEventListener("hashchange", () => syncRoute(false));
     dom.globalBackBtn.addEventListener("click", handleBack);
     dom.loginTab.addEventListener("click", () => setAuthMode("login"));
@@ -873,6 +875,7 @@
     if (dom.roomView.classList.contains("hidden")) return;
     const rect = dom.roomBoard.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    state.lastBoardSizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
     const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
     if (!force && signature === state.lastBoardFrame) return;
     state.lastBoardFrame = signature;
@@ -918,9 +921,8 @@
     const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${selectionKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.lastPieceFrame) return;
     state.lastPieceFrame = signature;
-
-    dom.roomPieces.innerHTML = "";
-    dom.roomMarks.innerHTML = "";
+    const pieceFragment = document.createDocumentFragment();
+    const markFragment = document.createDocumentFragment();
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
@@ -938,7 +940,7 @@
         el.style.left = `${pixel.x}px`;
         el.style.top = `${pixel.y}px`;
         el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-        dom.roomPieces.appendChild(el);
+        pieceFragment.appendChild(el);
       }
     }
 
@@ -948,8 +950,11 @@
       mark.className = "hint";
       mark.style.left = `${pixel.x}px`;
       mark.style.top = `${pixel.y}px`;
-      dom.roomMarks.appendChild(mark);
+      markFragment.appendChild(mark);
     });
+
+    dom.roomPieces.replaceChildren(pieceFragment);
+    dom.roomMarks.replaceChildren(markFragment);
   }
 
   function onBoardPointerDown(event) {
@@ -1003,6 +1008,7 @@
       });
       state.selectedSquare = null;
       state.hints = [];
+      state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: false });
     } catch (error) {
       state.roomActionBusy = false;
@@ -1020,6 +1026,7 @@
         method: "POST",
         body: { key: state.room.key, type }
       });
+      state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
       showToast(type === "undo" ? "Đã gửi yêu cầu đi lại." : "Đã gửi yêu cầu hòa.");
     } catch (error) {
@@ -1038,6 +1045,7 @@
         method: "POST",
         body: { key: state.room.key, accept }
       });
+      state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       showToast(accept ? "Đã xác nhận yêu cầu." : "Đã từ chối yêu cầu.");
     } catch (error) {
@@ -1065,6 +1073,7 @@
         method: "POST",
         body: { key: state.room.key }
       });
+      state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
     } catch (error) {
       state.roomActionBusy = false;
@@ -1082,6 +1091,7 @@
         method: "POST",
         body: { key: state.room.key, ready: !state.room.rematchReady?.you }
       });
+      state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       showToast(payload.room.status === "active" ? "Ván mới đã bắt đầu." : "Đã cập nhật trạng thái sẵn sàng.");
     } catch (error) {
@@ -1301,7 +1311,20 @@
     element.textContent = label.charAt(0).toUpperCase() || fallbackLetter || "D";
   }
 
+  function scheduleResizeRender() {
+    if (state.resizeTimer) clearTimeout(state.resizeTimer);
+    state.resizeTimer = window.setTimeout(() => {
+      state.resizeTimer = null;
+      onResize();
+    }, 120);
+  }
+
   function onResize() {
+    const targetBoard = dom.roomView.classList.contains("hidden") ? null : dom.roomBoard;
+    const rect = targetBoard ? targetBoard.getBoundingClientRect() : null;
+    const boardSizeKey = rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : "";
+    if (boardSizeKey && boardSizeKey === state.lastBoardSizeKey) return;
+    state.lastBoardSizeKey = boardSizeKey;
     state.lastBoardFrame = "";
     state.lastPieceFrame = "";
     if (!dom.roomView.classList.contains("hidden")) drawRoomScene(true);

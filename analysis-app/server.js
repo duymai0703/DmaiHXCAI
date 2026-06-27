@@ -5,6 +5,7 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
+const { DatabaseSync } = require("node:sqlite");
 
 const XiangqiCore = require("./public/xiangqi-core.js");
 
@@ -13,6 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
+const DATABASE_FILE = process.env.DMAIHXCAI_DB_PATH || path.join(DATA_DIR, "dmaihxcai.sqlite");
 const PORT = Number(process.env.PORT || 5174);
 const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -37,6 +39,12 @@ const RANDOM_NAME_SUFFIX = ["Thủ", "Sĩ", "Kỳ", "Tướng", "Vương", "Cụ
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
+
+const stateStore = createStateStore();
+
+if (process.env.RENDER && !process.env.DMAIHXCAI_DB_PATH) {
+  console.warn("Render is using ephemeral storage for SQLite. Set DMAIHXCAI_DB_PATH to a mounted disk path if you want accounts and rooms to survive redeploys.");
+}
 
 let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
 let buildJob = null;
@@ -81,13 +89,54 @@ function writeJsonFile(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
 }
 
+function createStateStore() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const db = new DatabaseSync(DATABASE_FILE);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+  const selectStatement = db.prepare("SELECT value FROM app_state WHERE key = ?");
+  const upsertStatement = db.prepare(`
+    INSERT INTO app_state (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `);
+
+  return {
+    read(key, fallback, legacyFile) {
+      const row = selectStatement.get(String(key));
+      if (row?.value) {
+        try {
+          return JSON.parse(row.value);
+        } catch {}
+      }
+      const legacy = readJsonFile(legacyFile, fallback);
+      try {
+        upsertStatement.run(String(key), JSON.stringify(legacy), Date.now());
+      } catch {}
+      return legacy;
+    },
+    write(key, value) {
+      upsertStatement.run(String(key), JSON.stringify(value), Date.now());
+    }
+  };
+}
+
 function loadUsers() {
-  const data = readJsonFile(USERS_FILE, { users: [] });
+  const data = stateStore.read("users", { users: [] }, USERS_FILE);
   return Array.isArray(data.users) ? data.users : [];
 }
 
 function loadRooms() {
-  const data = readJsonFile(ROOMS_FILE, { rooms: [] });
+  const data = stateStore.read("rooms", { rooms: [] }, ROOMS_FILE);
   const list = Array.isArray(data.rooms) ? data.rooms : [];
   const map = new Map();
   const now = Date.now();
@@ -115,11 +164,11 @@ function loadRooms() {
 }
 
 function saveUsers() {
-  writeJsonFile(USERS_FILE, { users });
+  stateStore.write("users", { users });
 }
 
 function saveRooms() {
-  writeJsonFile(ROOMS_FILE, { rooms: [...rooms.values()] });
+  stateStore.write("rooms", { rooms: [...rooms.values()] });
 }
 
 function nowIso() {

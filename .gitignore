@@ -18,3 +18,5 @@ tsan.supp
 __pycache__/
 tests/syzygy
 tests/bench_tmp.epd
+analysis-app/data/*.sqlite
+analysis-app/data/*.sqlite-*
