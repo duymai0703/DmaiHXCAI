@@ -1,8 +1,8 @@
 {
   "name": "DmaiHXCAI",
   "short_name": "DmaiHXCAI",
-  "description": "Phan tich co tuong voi Pikafish va ChessDB.",
-  "start_url": "/?source=pwa",
+  "description": "Sảnh đấu và phần mềm phân tích cờ tướng với Pikafish.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

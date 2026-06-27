@@ -1,0 +1,106 @@
+﻿<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#8e232a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DmaiHXCAI">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>DmaiHXCAI</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+    <link rel="stylesheet" href="/styles.css?v=20260627-panel-height-fix">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <img class="brand-mark" src="/assets/icons/header-logo.png" alt="HXC">
+        <div>
+          <strong>DmaiHXCAI</strong>
+          <small>Phân tích cờ tướng</small>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="board-zone">
+        <div id="board" class="board" aria-label="Bàn cờ tướng">
+          <canvas id="boardCanvas"></canvas>
+          <canvas id="arrowCanvas"></canvas>
+          <div id="pieces"></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-shell">
+          <div class="panel-main-col">
+            <div class="group primary-actions">
+              <button id="analyzeBtn" class="analyze-button"><span aria-hidden="true">⌕</span> Phân tích</button>
+              <div id="analysis" class="analysis score-slot">
+                <div class="score-banner equal"><span>Đánh giá</span><strong>0</strong><small>Cân bằng</small></div>
+              </div>
+            </div>
+
+            <div class="group move-controls">
+              <button id="undoBtn">Hoàn tác</button>
+              <button id="redoBtn">Làm lại</button>
+              <button id="resetBtn">Đặt lại</button>
+              <button id="flipBtn" type="button">Xoay bàn cờ</button>
+            </div>
+
+            <div class="group board-tools">
+              <div class="tool-row">
+                <button id="loadFenBtn" type="button">Tải FEN</button>
+                <button id="copyFenBtn" type="button">Copy FEN</button>
+              </div>
+              <div class="tool-row">
+                <button id="editBoardBtn" type="button">Sửa bàn cờ</button>
+                <button id="clearBoardBtn" type="button">Xóa bàn cờ</button>
+              </div>
+              <label>Quân đặt lên bàn</label>
+              <div id="piecePalette" class="piece-palette"></div>
+              <label>Bên đi</label>
+              <select id="sideToMove">
+                <option value="w">Đỏ</option>
+                <option value="b">Đen</option>
+              </select>
+            </div>
+
+            <div class="group auto-play-group">
+              <label>AI tự chơi</label>
+              <div class="toggles">
+                <label><input id="aiRed" type="checkbox"> Đỏ</label>
+                <label><input id="aiBlack" type="checkbox"> Đen</label>
+                <button id="autoBtn">Bắt đầu</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-side-col">
+            <div class="group cloud-group">
+              <h2>Cơ sở dữ liệu đám mây</h2>
+              <div id="cloudBook" class="cloud-book">Đang tải dữ liệu...</div>
+            </div>
+
+            <div class="group history-group">
+              <h2>Lịch sử</h2>
+              <ol id="history" class="history"></ol>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+    <script src="/config.js"></script>
+    <script src="/app.js?v=20260627-panel-height-fix"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

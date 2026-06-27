@@ -1,10 +1,14 @@
-const CACHE_NAME = "dmaihxcai-shell-v12";
+const CACHE_NAME = "dmaihxcai-shell-v13";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
+  "/analysis.html",
+  "/portal.css?v=20260627-lobby-v1",
+  "/portal.js?v=20260627-lobby-v1",
   "/styles.css?v=20260627-panel-height-fix",
   "/app.js?v=20260627-panel-height-fix",
   "/config.js",
+  "/xiangqi-core.js",
   "/manifest.webmanifest",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
@@ -42,17 +46,40 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  if (url.pathname.startsWith("/api/") || event.request.method !== "GET") return;
+  if (url.pathname.startsWith("/api/")) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-    })
-  );
+  const isHtml = event.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/";
+  if (isHtml) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    cache.put(request, response.clone());
+    return response;
+  } catch {
+    return (await cache.match(request)) || Response.error();
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) {
+    fetch(request).then((response) => {
+      cache.put(request, response.clone());
+    }).catch(() => {});
+    return cached;
+  }
+  const response = await fetch(request);
+  cache.put(request, response.clone());
+  return response;
+}

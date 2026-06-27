@@ -3,11 +3,23 @@ const https = require("https");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
 const { spawn } = require("child_process");
+
+const XiangqiCore = require("./public/xiangqi-core.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
+const DATA_DIR = path.join(__dirname, "data");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
+const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const PORT = Number(process.env.PORT || 5174);
+const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
+const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const ROOM_REQUEST_LIMIT = 2;
+const MAX_HISTORY_ITEMS = 20;
+const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
   path.join(ROOT, "src", "pikafish.exe"),
@@ -18,9 +30,17 @@ const DEFAULT_ENGINE_CANDIDATES = [
 const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(2, cpuCount())), 1, 16);
 const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
 
+const RANDOM_NAME_PREFIX = ["Kỳ", "Danh", "Long", "Mai", "Chiến", "Phong", "Hổ", "Hưng", "Phi", "Mộc"];
+const RANDOM_NAME_SUFFIX = ["Thủ", "Sĩ", "Kỳ", "Tướng", "Vương", "Cục", "Mãnh", "Quân", "Lực", "Minh"];
+
+ensureDataFile(USERS_FILE, { users: [] });
+ensureDataFile(ROOMS_FILE, { rooms: [] });
+
 let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
 let buildJob = null;
 let downloadJob = null;
+let users = loadUsers();
+let rooms = loadRooms();
 
 function cpuCount() {
   try {
@@ -39,46 +59,518 @@ function clampOptionNumber(value, fallback, min, max) {
   return Math.max(min, Math.min(max, Math.round(safe)));
 }
 
-function json(res, status, payload) {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Content-Length": Buffer.byteLength(body)
-  });
-  res.end(body);
+function ensureDataFile(filePath, fallback) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2));
+  }
 }
 
-function corsPreflight(res) {
-  res.writeHead(204, {
-    "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
-  });
-  res.end();
+function readJsonFile(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return fallback;
+  }
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > 12 * 1024 * 1024) {
-        reject(new Error("Request body is too large"));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch {
-        reject(new Error("Invalid JSON body"));
-      }
-    });
-    req.on("error", reject);
+function writeJsonFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function loadUsers() {
+  const data = readJsonFile(USERS_FILE, { users: [] });
+  return Array.isArray(data.users) ? data.users : [];
+}
+
+function loadRooms() {
+  const data = readJsonFile(ROOMS_FILE, { rooms: [] });
+  const list = Array.isArray(data.rooms) ? data.rooms : [];
+  const map = new Map();
+  const now = Date.now();
+  list.forEach((room) => {
+    if (!room || !room.key) return;
+    const age = now - Number(room.updatedAt || room.createdAt || now);
+    if (age > MAX_ROOM_AGE_MS) return;
+    room.pendingRequest = room.pendingRequest || null;
+    room.rematchReady = room.rematchReady || { w: false, b: false };
+    room.allowances = room.allowances || {
+      w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
+      b: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT }
+    };
+    room.moves = Array.isArray(room.moves) ? room.moves : [];
+    room.clocks = room.clocks || { w: room.timeControlMs || 0, b: room.timeControlMs || 0 };
+    room.boardFen = room.boardFen || XiangqiCore.START_FEN;
+    room.sideToMove = room.sideToMove === "b" ? "b" : "w";
+    room.status = room.status || "waiting";
+    map.set(room.key, room);
   });
+  return map;
+}
+
+function saveUsers() {
+  writeJsonFile(USERS_FILE, { users });
+}
+
+function saveRooms() {
+  writeJsonFile(ROOMS_FILE, { rooms: [...rooms.values()] });
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function randomId(bytes = 16) {
+  return crypto.randomBytes(bytes).toString("hex");
+}
+
+function randomBase36(size = 6) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < size; i += 1) {
+    result += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return result;
+}
+
+function hashPassword(password, salt = randomId(12)) {
+  const hash = crypto.pbkdf2Sync(password, salt, 120000, 32, "sha256").toString("hex");
+  return { salt, hash };
+}
+
+function verifyPassword(password, user) {
+  if (!user?.passwordSalt || !user?.passwordHash) return false;
+  const { hash } = hashPassword(password, user.passwordSalt);
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(user.passwordHash, "hex"));
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function normalizeUsername(username) {
+  return String(username || "").trim().toLowerCase();
+}
+
+function slugSafe(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9 _-]/g, "")
+    .trim();
+}
+
+function generateDisplayName() {
+  const left = RANDOM_NAME_PREFIX[Math.floor(Math.random() * RANDOM_NAME_PREFIX.length)];
+  const right = RANDOM_NAME_SUFFIX[Math.floor(Math.random() * RANDOM_NAME_SUFFIX.length)];
+  return `${left} ${right} ${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function sanitizeDisplayName(value) {
+  const cleaned = slugSafe(value).slice(0, 26);
+  return cleaned || generateDisplayName();
+}
+
+function createAuthToken(userId) {
+  const payload = {
+    uid: userId,
+    exp: Date.now() + TOKEN_TTL_MS,
+    nonce: randomId(8)
+  };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", TOKEN_SECRET).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token || !token.includes(".")) return null;
+  const [encoded, signature] = token.split(".");
+  const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(encoded).digest("base64url");
+  if (signature !== expected) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+    if (!payload?.uid || Number(payload.exp) < Date.now()) return null;
+    return payload.uid;
+  } catch {
+    return null;
+  }
+}
+
+function getAuthToken(req) {
+  const header = req.headers.authorization || "";
+  if (!header.toLowerCase().startsWith("bearer ")) return "";
+  return header.slice(7).trim();
+}
+
+function getAuthenticatedUser(req) {
+  const userId = verifyAuthToken(getAuthToken(req));
+  if (!userId) return null;
+  return users.find((item) => item.id === userId) || null;
+}
+
+function requireUser(req) {
+  const user = getAuthenticatedUser(req);
+  if (!user) throw new Error("UNAUTHORIZED");
+  return user;
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    displayName: user.displayName,
+    avatarSeed: user.avatarSeed,
+    history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
+  };
+}
+
+function roomPlayerSnapshot(userId) {
+  const user = users.find((item) => item.id === userId);
+  if (!user) return null;
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    avatarSeed: user.avatarSeed
+  };
+}
+
+function oppositeSide(side) {
+  return side === "w" ? "b" : "w";
+}
+
+function roomByKey(key) {
+  return rooms.get(String(key || "").trim().toUpperCase()) || null;
+}
+
+function uniqueRoomKey() {
+  for (let i = 0; i < 20; i += 1) {
+    const key = randomBase36(6);
+    if (!rooms.has(key)) return key;
+  }
+  return randomBase36(8);
+}
+
+function currentRoomForUser(userId) {
+  for (const room of rooms.values()) {
+    if ((room.players?.w === userId || room.players?.b === userId) && room.status !== "finished") return room;
+  }
+  return null;
+}
+
+function createRoom(user, minutes, side) {
+  const color = side === "b" ? "b" : "w";
+  const room = {
+    key: uniqueRoomKey(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    status: "waiting",
+    timeControlMs: minutes * 60 * 1000,
+    boardFen: XiangqiCore.START_FEN,
+    sideToMove: "w",
+    activeSide: null,
+    lastTickAt: null,
+    players: {
+      w: color === "w" ? user.id : null,
+      b: color === "b" ? user.id : null
+    },
+    moves: [],
+    clocks: { w: minutes * 60 * 1000, b: minutes * 60 * 1000 },
+    allowances: {
+      w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
+      b: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT }
+    },
+    pendingRequest: null,
+    result: null,
+    rematchReady: { w: false, b: false },
+    historySaved: false
+  };
+  rooms.set(room.key, room);
+  saveRooms();
+  return room;
+}
+
+function userSideInRoom(room, userId) {
+  if (room.players?.w === userId) return "w";
+  if (room.players?.b === userId) return "b";
+  return "";
+}
+
+function materializeRoomClock(room) {
+  if (room.status !== "active" || !room.activeSide || room.result) return;
+  const now = Date.now();
+  const elapsed = Math.max(0, now - Number(room.lastTickAt || now));
+  if (!elapsed) return;
+  room.clocks[room.activeSide] = Math.max(0, Number(room.clocks[room.activeSide] || 0) - elapsed);
+  room.lastTickAt = now;
+  if (room.clocks[room.activeSide] <= 0) {
+    finishRoom(room, { winnerSide: oppositeSide(room.activeSide), loserSide: room.activeSide, reason: "timeout" });
+  }
+}
+
+function resetRoomForGame(room) {
+  room.boardFen = XiangqiCore.START_FEN;
+  room.sideToMove = "w";
+  room.activeSide = "w";
+  room.lastTickAt = Date.now();
+  room.status = "active";
+  room.moves = [];
+  room.clocks = { w: room.timeControlMs, b: room.timeControlMs };
+  room.allowances = {
+    w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
+    b: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT }
+  };
+  room.pendingRequest = null;
+  room.result = null;
+  room.rematchReady = { w: false, b: false };
+  room.historySaved = false;
+  room.updatedAt = Date.now();
+}
+
+function maybeStartRoom(room) {
+  if (room.players?.w && room.players?.b && room.status === "waiting") {
+    resetRoomForGame(room);
+    saveRooms();
+  }
+}
+
+function ensureRoomAccess(room, userId) {
+  const side = userSideInRoom(room, userId);
+  if (!side) throw new Error("FORBIDDEN_ROOM");
+  return side;
+}
+
+function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw" } = {}) {
+  if (room.result) return;
+  room.status = "finished";
+  room.activeSide = null;
+  room.lastTickAt = Date.now();
+  room.pendingRequest = null;
+  room.result = {
+    winnerSide,
+    loserSide,
+    reason,
+    endedAt: nowIso()
+  };
+  if (!room.historySaved) {
+    recordRoomHistory(room);
+    room.historySaved = true;
+  }
+  room.updatedAt = Date.now();
+  saveRooms();
+}
+
+function recordRoomHistory(room) {
+  const red = room.players?.w ? users.find((item) => item.id === room.players.w) : null;
+  const black = room.players?.b ? users.find((item) => item.id === room.players.b) : null;
+  if (red) appendHistory(red, buildHistoryEntry(room, "w", black));
+  if (black) appendHistory(black, buildHistoryEntry(room, "b", red));
+  saveUsers();
+}
+
+function buildHistoryEntry(room, side, opponent) {
+  const winnerSide = room.result?.winnerSide || null;
+  let outcome = "Hòa";
+  if (winnerSide === side) outcome = "Thắng";
+  if (winnerSide && winnerSide !== side) outcome = "Thua";
+  return {
+    roomKey: room.key,
+    endedAt: room.result?.endedAt || nowIso(),
+    side: side === "w" ? "Đỏ" : "Đen",
+    opponent: opponent?.displayName || opponent?.username || "Đang chờ",
+    result: outcome,
+    reason: formatResultReason(room.result?.reason || "draw"),
+    moves: room.moves.map((move) => move.notation)
+  };
+}
+
+function appendHistory(user, entry) {
+  user.history = Array.isArray(user.history) ? user.history : [];
+  user.history.unshift(entry);
+  user.history = user.history.slice(0, MAX_HISTORY_ITEMS);
+}
+
+function formatResultReason(reason) {
+  return {
+    checkmate: "Chiếu bí",
+    "no-moves": "Hết nước",
+    timeout: "Hết giờ",
+    resign: "Xin thua",
+    draw: "Hòa"
+  }[reason] || reason;
+}
+
+function joinRoom(user, key) {
+  const room = roomByKey(key);
+  if (!room) throw new Error("ROOM_NOT_FOUND");
+  const side = userSideInRoom(room, user.id);
+  if (side) return room;
+  if (room.status === "finished" && (!room.players.w || !room.players.b)) {
+    throw new Error("ROOM_CLOSED");
+  }
+  if (room.players.w && room.players.b) throw new Error("ROOM_FULL");
+  if (!room.players.w) room.players.w = user.id;
+  else room.players.b = user.id;
+  room.updatedAt = Date.now();
+  maybeStartRoom(room);
+  saveRooms();
+  return room;
+}
+
+function roomStateForUser(room, user) {
+  materializeRoomClock(room);
+  const yourSide = ensureRoomAccess(room, user.id);
+  const waitingForOpponent = room.status === "waiting";
+  const viewerRequest = room.pendingRequest
+    ? {
+        type: room.pendingRequest.type,
+        fromYou: room.pendingRequest.fromSide === yourSide,
+        toYou: room.pendingRequest.fromSide !== yourSide
+      }
+    : null;
+  return {
+    key: room.key,
+    status: room.status,
+    timeControlMinutes: Math.round(room.timeControlMs / 60000),
+    boardFen: room.boardFen,
+    sideToMove: room.sideToMove,
+    yourSide,
+    waitingForOpponent,
+    yourTurn: room.status === "active" && room.sideToMove === yourSide,
+    players: {
+      w: roomPlayerSnapshot(room.players.w),
+      b: roomPlayerSnapshot(room.players.b)
+    },
+    clocks: room.clocks,
+    allowances: room.allowances[yourSide] || { undoRemaining: 0, drawRemaining: 0 },
+    pendingRequest: viewerRequest,
+    rematchReady: {
+      you: Boolean(room.rematchReady?.[yourSide]),
+      opponent: Boolean(room.rematchReady?.[oppositeSide(yourSide)])
+    },
+    result: room.result,
+    moves: room.moves.map((move) => ({
+      side: move.side,
+      move: move.move,
+      notation: move.notation
+    }))
+  };
+}
+
+function requireRoomAndUser(req, key) {
+  const user = requireUser(req);
+  const room = roomByKey(key);
+  if (!room) throw new Error("ROOM_NOT_FOUND");
+  return { user, room, side: ensureRoomAccess(room, user.id) };
+}
+
+function applyMoveInRoom(room, side, move) {
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
+  materializeRoomClock(room);
+  if (room.result) throw new Error("ROOM_FINISHED");
+  if (room.sideToMove !== side) throw new Error("NOT_YOUR_TURN");
+  const parsed = XiangqiCore.parseFenState(room.boardFen);
+  if (!XiangqiCore.isLegalMove(parsed.board, move, side)) throw new Error("INVALID_MOVE");
+  const beforeFen = room.boardFen;
+  const beforeClocks = { ...room.clocks };
+  const notation = XiangqiCore.formatMoveNotation(move, parsed.board, side);
+  XiangqiCore.applyMoveToBoard(parsed.board, move);
+  room.boardFen = XiangqiCore.boardToFen(parsed.board, oppositeSide(side));
+  room.moves.push({
+    side,
+    move,
+    notation,
+    beforeFen,
+    beforeSide: side,
+    beforeClocks
+  });
+  room.sideToMove = oppositeSide(side);
+  room.activeSide = room.sideToMove;
+  room.lastTickAt = Date.now();
+  room.pendingRequest = null;
+  room.rematchReady = { w: false, b: false };
+  const gameState = XiangqiCore.determineGameState(parsed.board, room.sideToMove);
+  room.updatedAt = Date.now();
+  if (gameState.finished) {
+    finishRoom(room, gameState);
+  } else {
+    saveRooms();
+  }
+}
+
+function sendRoomRequest(room, side, type) {
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
+  materializeRoomClock(room);
+  if (room.result) throw new Error("ROOM_FINISHED");
+  if (room.pendingRequest) throw new Error("REQUEST_PENDING");
+  if (!["undo", "draw"].includes(type)) throw new Error("INVALID_REQUEST");
+  if (type === "undo" && room.moves.length === 0) throw new Error("NO_MOVE_TO_UNDO");
+  const allowance = room.allowances?.[side];
+  if (!allowance) throw new Error("INVALID_SIDE");
+  const field = type === "undo" ? "undoRemaining" : "drawRemaining";
+  if (Number(allowance[field] || 0) <= 0) throw new Error("REQUEST_LIMIT_REACHED");
+  allowance[field] -= 1;
+  room.pendingRequest = {
+    type,
+    fromSide: side,
+    createdAt: Date.now()
+  };
+  room.updatedAt = Date.now();
+  saveRooms();
+}
+
+function answerRoomRequest(room, side, accept) {
+  if (!room.pendingRequest) throw new Error("NO_PENDING_REQUEST");
+  if (room.pendingRequest.fromSide === side) throw new Error("SELF_REQUEST");
+  const request = room.pendingRequest;
+  room.pendingRequest = null;
+
+  if (!accept) {
+    room.updatedAt = Date.now();
+    saveRooms();
+    return;
+  }
+
+  if (request.type === "undo") {
+    const lastMove = room.moves.pop();
+    if (!lastMove) {
+      room.updatedAt = Date.now();
+      saveRooms();
+      return;
+    }
+    room.boardFen = lastMove.beforeFen;
+    room.sideToMove = lastMove.beforeSide;
+    room.activeSide = room.sideToMove;
+    room.clocks = lastMove.beforeClocks;
+    room.lastTickAt = Date.now();
+    room.updatedAt = Date.now();
+    saveRooms();
+    return;
+  }
+
+  if (request.type === "draw") {
+    finishRoom(room, { winnerSide: null, loserSide: null, reason: "draw" });
+  }
+}
+
+function resignRoom(room, side) {
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
+  materializeRoomClock(room);
+  finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "resign" });
+}
+
+function setRematchReady(room, side, ready) {
+  if (room.status !== "finished") throw new Error("ROOM_NOT_FINISHED");
+  room.rematchReady[side] = Boolean(ready);
+  room.updatedAt = Date.now();
+  if (room.rematchReady.w && room.rematchReady.b) {
+    const nextPlayers = { w: room.players.b, b: room.players.w };
+    room.players = nextPlayers;
+    resetRoomForGame(room);
+  }
+  saveRooms();
 }
 
 class UciEngine {
@@ -456,9 +948,53 @@ function SRC_DIR() {
   return path.join(ROOT, "src");
 }
 
+function json(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Cache-Control": "no-store",
+    "Content-Length": Buffer.byteLength(body)
+  });
+  res.end(body);
+}
+
+function corsPreflight(res) {
+  res.writeHead(204, {
+    "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
+  });
+  res.end();
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 12 * 1024 * 1024) {
+        reject(new Error("Request body is too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error("Invalid JSON body"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const requested = url.pathname === "/" ? "/index.html" : url.pathname;
+  let requested = url.pathname === "/" ? "/index.html" : url.pathname;
+  if (requested === "/analysis") requested = "/analysis.html";
   const filePath = path.normalize(path.join(PUBLIC_DIR, requested));
   if (!filePath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403);
@@ -471,15 +1007,22 @@ function serveStatic(req, res) {
       res.end("Not found");
       return;
     }
-    const ext = path.extname(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const type = {
       ".html": "text/html; charset=utf-8",
       ".css": "text/css; charset=utf-8",
       ".js": "text/javascript; charset=utf-8",
       ".webmanifest": "application/manifest+json; charset=utf-8",
-      ".png": "image/png"
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".webp": "image/webp",
+      ".svg": "image/svg+xml"
     }[ext] || "application/octet-stream";
-    res.writeHead(200, { "Content-Type": type });
+    res.writeHead(200, {
+      "Content-Type": type,
+      "Cache-Control": ext === ".html" ? "no-store" : "public, max-age=3600"
+    });
     res.end(content);
   });
 }
@@ -491,6 +1034,7 @@ const server = http.createServer(async (req, res) => {
       corsPreflight(res);
       return;
     }
+
     if (url.pathname === "/api/status") {
       syncEngineInstance();
       json(res, 200, {
@@ -505,16 +1049,19 @@ const server = http.createServer(async (req, res) => {
       });
       return;
     }
+
     if (url.pathname === "/api/build-engine" && req.method === "POST") {
       const result = await buildEngine();
       json(res, result.ok ? 200 : 500, result);
       return;
     }
+
     if (url.pathname === "/api/download-network" && req.method === "POST") {
       const result = await downloadNetwork();
       json(res, result.ok ? 200 : 500, result);
       return;
     }
+
     if (url.pathname === "/api/cloud") {
       const board = url.searchParams.get("board") || "";
       if (!/^[1-9kabnrcpKABNRCP/]+ [wb]$/.test(board)) {
@@ -525,6 +1072,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ...result, source: "chessdb.vn/chessdb.cn", fen: board });
       return;
     }
+
     if (url.pathname === "/api/config" && req.method === "POST") {
       const body = await readBody(req);
       configuredEnginePath = path.resolve(String(body.enginePath || ""));
@@ -533,6 +1081,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true, enginePath: configuredEnginePath, exists: fs.existsSync(configuredEnginePath) });
       return;
     }
+
     if (url.pathname === "/api/analyze" && req.method === "POST") {
       syncEngineInstance();
       const body = await readBody(req);
@@ -540,11 +1089,227 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, result);
       return;
     }
+
+    if (url.pathname === "/api/auth/register" && req.method === "POST") {
+      const body = await readBody(req);
+      const email = normalizeEmail(body.email);
+      const username = normalizeUsername(body.username);
+      const password = String(body.password || "");
+      if (!email || !username || password.length < 6) {
+        json(res, 400, { ok: false, error: "Cần email, tên đăng nhập và mật khẩu từ 6 ký tự." });
+        return;
+      }
+      if (users.some((item) => item.email === email)) {
+        json(res, 400, { ok: false, error: "Email đã được sử dụng." });
+        return;
+      }
+      if (users.some((item) => item.username === username)) {
+        json(res, 400, { ok: false, error: "Tên đăng nhập đã tồn tại." });
+        return;
+      }
+      const passwordInfo = hashPassword(password);
+      const user = {
+        id: randomId(12),
+        email,
+        username,
+        passwordSalt: passwordInfo.salt,
+        passwordHash: passwordInfo.hash,
+        displayName: generateDisplayName(),
+        avatarSeed: randomBase36(4),
+        history: [],
+        createdAt: nowIso()
+      };
+      users.push(user);
+      saveUsers();
+      json(res, 200, {
+        ok: true,
+        token: createAuthToken(user.id),
+        user: publicUser(user)
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/login" && req.method === "POST") {
+      const body = await readBody(req);
+      const account = String(body.account || "").trim();
+      const password = String(body.password || "");
+      const user = users.find((item) => item.email === normalizeEmail(account) || item.username === normalizeUsername(account));
+      if (!user || !verifyPassword(password, user)) {
+        json(res, 401, { ok: false, error: "Sai thông tin đăng nhập." });
+        return;
+      }
+      json(res, 200, {
+        ok: true,
+        token: createAuthToken(user.id),
+        user: publicUser(user)
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/auth/me") {
+      const user = getAuthenticatedUser(req);
+      if (!user) {
+        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        return;
+      }
+      json(res, 200, { ok: true, user: publicUser(user) });
+      return;
+    }
+
+    if (url.pathname === "/api/profile" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      user.displayName = sanitizeDisplayName(body.displayName);
+      saveUsers();
+      json(res, 200, { ok: true, user: publicUser(user) });
+      return;
+    }
+
+    if (url.pathname === "/api/history") {
+      const user = requireUser(req);
+      json(res, 200, { ok: true, history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [] });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/current") {
+      const user = requireUser(req);
+      const room = currentRoomForUser(user.id);
+      json(res, 200, { ok: true, room: room ? roomStateForUser(room, user) : null });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/create" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      const minutes = Math.max(1, Math.min(20, Number(body.minutes) || 10));
+      const side = body.side === "b" ? "b" : "w";
+      const current = currentRoomForUser(user.id);
+      if (current && current.status !== "finished") {
+        json(res, 400, { ok: false, error: "Bạn đang ở trong một phòng khác." });
+        return;
+      }
+      const room = createRoom(user, minutes, side);
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/join" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      const key = String(body.key || "").trim().toUpperCase();
+      if (!key) {
+        json(res, 400, { ok: false, error: "Cần nhập mã phòng." });
+        return;
+      }
+      const current = currentRoomForUser(user.id);
+      if (current && current.key !== key && current.status !== "finished") {
+        json(res, 400, { ok: false, error: "Bạn đang ở trong một phòng khác." });
+        return;
+      }
+      const room = joinRoom(user, key);
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/state") {
+      const user = requireUser(req);
+      const key = String(url.searchParams.get("key") || "").trim().toUpperCase();
+      const room = roomByKey(key);
+      if (!room) {
+        json(res, 404, { ok: false, error: "ROOM_NOT_FOUND" });
+        return;
+      }
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/move" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, side } = requireRoomAndUser(req, body.key);
+      applyMoveInRoom(room, side, String(body.move || ""));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/request" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, side } = requireRoomAndUser(req, body.key);
+      sendRoomRequest(room, side, String(body.type || ""));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/respond" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, side } = requireRoomAndUser(req, body.key);
+      answerRoomRequest(room, side, Boolean(body.accept));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/resign" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, side } = requireRoomAndUser(req, body.key);
+      resignRoom(room, side);
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/rematch" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room, side } = requireRoomAndUser(req, body.key);
+      setRematchReady(room, side, Boolean(body.ready));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
     serveStatic(req, res);
   } catch (err) {
-    json(res, 500, { ok: false, error: err.message });
+    const message = String(err.message || err);
+    const status = {
+      UNAUTHORIZED: 401,
+      ROOM_NOT_FOUND: 404,
+      ROOM_FULL: 400,
+      ROOM_CLOSED: 400,
+      FORBIDDEN_ROOM: 403,
+      INVALID_MOVE: 400,
+      NOT_YOUR_TURN: 400,
+      REQUEST_LIMIT_REACHED: 400,
+      REQUEST_PENDING: 400,
+      ROOM_NOT_ACTIVE: 400,
+      ROOM_FINISHED: 400,
+      ROOM_NOT_FINISHED: 400,
+      NO_PENDING_REQUEST: 400,
+      NO_MOVE_TO_UNDO: 400,
+      SELF_REQUEST: 400,
+      INVALID_REQUEST: 400,
+      INVALID_SIDE: 400
+    }[message] || 500;
+    json(res, status, { ok: false, error: friendlyErrorVi(message) });
   }
 });
+
+function friendlyErrorVi(code) {
+  return {
+    UNAUTHORIZED: "B?n c?n ??ng nh?p.",
+    ROOM_NOT_FOUND: "Kh?ng t?m th?y ph?ng ??u.",
+    ROOM_FULL: "Ph?ng ?? ?? ng??i.",
+    ROOM_CLOSED: "Ph?ng n?y kh?ng th? tham gia n?a.",
+    FORBIDDEN_ROOM: "B?n kh?ng thu?c ph?ng ??u n?y.",
+    INVALID_MOVE: "N??c ?i kh?ng h?p l?.",
+    NOT_YOUR_TURN: "Ch?a t?i l??t b?n.",
+    REQUEST_LIMIT_REACHED: "B?n ?? d?ng h?t l??t y?u c?u.",
+    REQUEST_PENDING: "?ang c? y?u c?u ch? ??i th? x?c nh?n.",
+    ROOM_NOT_ACTIVE: "Ph?ng ch?a s?n s?ng thi ??u.",
+    ROOM_FINISHED: "V?n c? ?? k?t th?c.",
+    ROOM_NOT_FINISHED: "V?n c? ch?a k?t th?c.",
+    NO_PENDING_REQUEST: "Kh?ng c? y?u c?u ?ang ch?.",
+    NO_MOVE_TO_UNDO: "Ch?a c? n??c n?o ?? ?i l?i.",
+    SELF_REQUEST: "B?n kh?ng th? t? x?c nh?n y?u c?u c?a m?nh.",
+    INVALID_REQUEST: "Y?u c?u kh?ng h?p l?.",
+    INVALID_SIDE: "Ph?ng ??u ?ang l?i v? b?n c?m qu?n."
+  }[code] || code;
+}
 
 server.listen(PORT, () => {
   console.log(`Pikafish analysis app: http://localhost:${PORT}`);
