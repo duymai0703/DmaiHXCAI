@@ -97,12 +97,24 @@ if (copyFenBtn) copyFenBtn.addEventListener("click", copyFenToClipboard);
 if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
+preventDoubleTapZoom();
 
 init();
 
 function bindClick(id, handler) {
   const element = document.getElementById(id);
   if (element) element.addEventListener("click", handler);
+}
+
+function preventDoubleTapZoom() {
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd < 320) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
 }
 
 function autoDelay() {

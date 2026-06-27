@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#8e232a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css?v=20260627-aligned-desktop">
+    <link rel="stylesheet" href="/styles.css?v=20260627-tight-desktop-mobile-lock">
   </head>
   <body>
     <header class="app-header">
@@ -27,12 +27,6 @@
 
     <main class="shell">
       <section class="board-zone">
-        <div class="topbar">
-          <div>
-            <h1>DmaiHXCAI</h1>
-          </div>
-          <button id="flipBtn" title="Lật bàn cờ">↔</button>
-        </div>
         <div id="board" class="board" aria-label="Bàn cờ tướng">
           <canvas id="boardCanvas"></canvas>
           <canvas id="arrowCanvas"></canvas>
@@ -54,6 +48,7 @@
               <button id="undoBtn">Hoàn tác</button>
               <button id="redoBtn">Làm lại</button>
               <button id="resetBtn">Đặt lại</button>
+              <button id="flipBtn" type="button">Xoay bàn cờ</button>
             </div>
 
             <div class="group board-tools">
@@ -99,7 +94,7 @@
       </aside>
     </main>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260627-aligned-desktop"></script>
+    <script src="/app.js?v=20260627-tight-desktop-mobile-lock"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

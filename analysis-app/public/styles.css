@@ -81,10 +81,10 @@ button.active {
 
 .shell {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(620px, 1.1fr);
+  grid-template-columns: minmax(320px, 0.92fr) minmax(620px, 1.08fr);
   align-items: start;
-  gap: 16px;
-  width: min(1460px, 100%);
+  gap: 12px;
+  width: min(1420px, 100%);
   min-height: calc(100vh - 62px);
   margin: 0 auto;
   padding: 18px;
@@ -137,24 +137,10 @@ button.active {
   align-self: start;
 }
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  min-height: 56px;
-  margin-bottom: 10px;
-}
-
 h1,
 h2,
 p {
   margin: 0;
-}
-
-h1 {
-  font-size: clamp(24px, 4vw, 42px);
-  letter-spacing: 0;
 }
 
 h2 {
@@ -162,15 +148,10 @@ h2 {
   margin-bottom: 8px;
 }
 
-.topbar p {
-  color: var(--muted);
-  margin-top: 4px;
-}
-
 .board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 690px);
+  width: min(100%, 682px);
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background: #f4cf91;
@@ -285,14 +266,15 @@ h2 {
   padding: 16px;
   overflow: auto;
   scrollbar-gutter: stable;
-  margin-top: 58px;
+  height: min(758px, calc(100vh - 118px));
 }
 
 .panel-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(290px, 0.92fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(292px, 0.95fr);
+  gap: 14px;
   align-items: start;
+  min-height: 100%;
 }
 
 .panel-main-col,
@@ -375,8 +357,15 @@ input:not([type]) {
 
 .move-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.move-controls button {
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .board.editing {
@@ -585,7 +574,7 @@ input:not([type]) {
 .history {
   margin: 0;
   padding-left: 0;
-  max-height: 420px;
+  max-height: 470px;
   overflow: auto;
   font-family: Consolas, monospace;
   list-style: none;
@@ -626,7 +615,7 @@ input:not([type]) {
 
 @media (min-width: 921px) {
   .board {
-    width: min(100%, 690px, calc((100vh - 134px) * 0.83));
+    width: min(100%, 682px, calc((100vh - 110px) * 0.9));
   }
 }
 
@@ -639,7 +628,7 @@ input:not([type]) {
 
   .panel {
     padding: 12px;
-    margin-top: 0;
+    height: auto;
   }
 
   .panel-shell {
@@ -658,7 +647,7 @@ input:not([type]) {
   .panel {
     border-left: 1px solid #b8a17c;
     border-top: 1px solid #cdbb9d;
-    margin-top: 0;
+    height: auto;
   }
 
   .panel-shell {
@@ -726,14 +715,6 @@ input:not([type]) {
     font-size: 11px;
   }
 
-  .topbar {
-    margin-bottom: 8px;
-  }
-
-  h1 {
-    font-size: 24px;
-  }
-
   .board {
     --piece-size: 10.7%;
     width: min(100vw, 460px);
@@ -789,6 +770,10 @@ input:not([type]) {
 
   .move-controls {
     gap: 6px;
+  }
+
+  .move-controls button {
+    font-size: 12px;
   }
 
   .tool-row {
