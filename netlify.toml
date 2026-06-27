@@ -1,6 +1,12 @@
 [build]
   publish = "analysis-app/public"
 
+[[redirects]]
+  from = "/api/*"
+  to = "https://dmaihxcai.onrender.com/api/:splat"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]

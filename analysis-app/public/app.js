@@ -22,6 +22,8 @@ const PIECE_IMAGES = {
 };
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
+const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+let wakePromise = null;
 
 const state = {
   board: parseFen(START_FEN),
@@ -121,6 +123,7 @@ function onStrengthClick(event) {
 async function init() {
   renderPiecePalette();
   updateEditorUi();
+  wakeBackend();
   await refreshStatus();
   draw();
   refreshCloudBook();
@@ -1450,14 +1453,88 @@ function line(ctx, x1, y1, x2, y2) {
 }
 
 async function api(url, body) {
+  const target = apiTarget(url);
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      const response = await fetch(target, {
+        method: body ? "POST" : "GET",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const raw = await response.text();
+      let data = {};
+
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          if (looksLikeRenderWakePage(raw)) throw new Error("BACKEND_WAKING");
+          throw new Error(`Unexpected server response (${response.status})`);
+        }
+      }
+
+      if (!response.ok || data.ok === false) {
+        const message = data.error || `Request failed (${response.status})`;
+        if (attempt < 5 && isRetryableStatus(response.status, raw, message)) {
+          await wait(1200 + attempt * 900);
+          continue;
+        }
+        throw new Error(message);
+      }
+
+      return data;
+    } catch (err) {
+      lastError = err;
+      if (attempt < 5 && isRetryableError(err)) {
+        await wait(1200 + attempt * 900);
+        continue;
+      }
+      break;
+    }
+  }
+
+  throw friendlyApiError(lastError);
+}
+
+function apiTarget(url) {
   const base = String(window.DMAIHXCAI_API_BASE || "").replace(/\/$/, "");
-  const target = base && url.startsWith("/") ? `${base}${url}` : url;
-  const response = await fetch(target, {
-    method: body ? "POST" : "GET",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined
-  });
-  const data = await response.json();
-  if (!response.ok || data.ok === false) throw new Error(data.error || "Request failed");
-  return data;
+  return base && url.startsWith("/") ? `${base}${url}` : url;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function looksLikeRenderWakePage(text) {
+  const sample = String(text || "").toLowerCase();
+  return sample.includes("service waking up") || sample.includes("welcome to render") || sample.includes("render");
+}
+
+function isRetryableStatus(status, raw, message) {
+  return API_RETRYABLE_STATUS.has(status) || looksLikeRenderWakePage(raw) || /waking|temporarily unavailable|failed to fetch/i.test(message);
+}
+
+function isRetryableError(err) {
+  const message = String((err && err.message) || "");
+  return err && (err.name === "TypeError" || message === "BACKEND_WAKING" || /fetch|network|load failed|unexpected server response/i.test(message));
+}
+
+function friendlyApiError(err) {
+  const message = String((err && err.message) || "");
+  if (message === "BACKEND_WAKING" || /unexpected server response|fetch|network|load failed/i.test(message)) {
+    return new Error("Backend Render đang khởi động. Trang đã tự chờ và thử lại, nhưng backend vẫn chưa sẵn sàng. Đợi vài giây rồi thử lại.");
+  }
+  return err instanceof Error ? err : new Error("Request failed");
+}
+
+function wakeBackend() {
+  if (!window.DMAIHXCAI_API_BASE || wakePromise) return wakePromise;
+  wakePromise = fetch(apiTarget("/api/status"))
+    .catch(() => {})
+    .finally(() => {
+      wakePromise = null;
+    });
+  return wakePromise;
 }

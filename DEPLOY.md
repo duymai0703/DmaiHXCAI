@@ -35,30 +35,40 @@ Cloud Run sẽ build Docker image, chạy backend ở biến môi trường `POR
 /app/src/pikafish
 ```
 
-## Netlify frontend + Cloud Run backend
+## Netlify frontend + Render/Cloud Run backend
 
-Netlify chỉ nên dùng để host giao diện tĩnh. Pikafish vẫn phải chạy ở backend riêng như Google Cloud Run hoặc VPS.
+Đây là cách khuyến nghị nếu muốn tránh hẳn màn `Render waking up` ở frontend. Netlify chỉ host giao diện tĩnh, còn Pikafish chạy ở backend riêng như Render hoặc Google Cloud Run.
 
-1. Deploy backend trước bằng Cloud Run.
+Nếu frontend cũng chạy trực tiếp trên Render free web service thì lúc service đang ngủ, người dùng vẫn có thể thấy trang chờ của Render trước khi JavaScript của app kịp chạy. Tách frontend ra Netlify sẽ mượt hơn rõ rệt.
+
+1. Deploy backend trước bằng Render hoặc Cloud Run.
 2. Lấy URL backend, ví dụ:
 
 ```text
-https://dmaihxcai-xxxxx-uc.a.run.app
+https://dmaihxcai.onrender.com
 ```
 
-3. Trong `analysis-app/public/config.js`, đặt:
+3. `netlify.toml` đã có sẵn proxy:
 
-```js
-window.DMAIHXCAI_API_BASE = "https://dmaihxcai-xxxxx-uc.a.run.app";
+```toml
+[[redirects]]
+  from = "/api/*"
+  to = "https://dmaihxcai.onrender.com/api/:splat"
+  status = 200
+  force = true
 ```
 
-4. Deploy project lên Netlify. File `netlify.toml` đã trỏ publish folder tới:
+4. Trong `analysis-app/public/config.js`, frontend cũng tự nhận biết:
+- chạy local hoặc trên chính `*.onrender.com` thì gọi same-origin
+- chạy từ `file://` hay host tĩnh khác thì tự gọi `https://dmaihxcai.onrender.com`
+
+5. Deploy project lên Netlify. File `netlify.toml` đã trỏ publish folder tới:
 
 ```text
 analysis-app/public
 ```
 
-Khi đó mọi thiết bị mở URL Netlify sẽ dùng frontend trên Netlify, còn engine Pikafish và ChessDB proxy chạy qua backend Cloud Run.
+Khi đó mọi thiết bị mở URL Netlify sẽ dùng frontend trên Netlify, còn engine Pikafish và ChessDB proxy chạy qua backend Render/Cloud Run.
 
 ## Deploy VPS/Linux
 
