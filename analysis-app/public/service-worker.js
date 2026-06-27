@@ -1,10 +1,10 @@
-const CACHE_NAME = "dmaihxcai-shell-v20";
+const CACHE_NAME = "dmaihxcai-shell-v21";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260628-guest-v2",
-  "/portal.js?v=20260628-guest-v2",
+  "/portal.css?v=20260628-guest-v3",
+  "/portal.js?v=20260628-guest-v3",
   "/styles.css?v=20260627-room-fix-v2",
   "/app.js?v=20260627-room-fix-v2",
   "/config.js",
@@ -16,6 +16,13 @@ const STATIC_ASSETS = [
   "/assets/posters/xeposter.png",
   "/assets/posters/phaoposter.png",
   "/assets/posters/maposter.png",
+  "/assets/device-avatars/goku.png",
+  "/assets/device-avatars/vegeta.png",
+  "/assets/device-avatars/naruto.png",
+  "/assets/device-avatars/luffy.png",
+  "/assets/device-avatars/ichigo.png",
+  "/assets/device-avatars/gojo.png",
+  "/assets/device-avatars/sungjinwoo.png",
   "/assets/review-badges/sao.png",
   "/assets/review-badges/like.png",
   "/assets/review-badges/bang.png",

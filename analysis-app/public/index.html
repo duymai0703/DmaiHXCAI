@@ -12,11 +12,11 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260628-guest-v2">
+    <link rel="stylesheet" href="/portal.css?v=20260628-guest-v3">
   </head>
   <body>
     <header class="portal-header">
-      <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại">←</button>
+      <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại">&larr;</button>
 
       <div class="brand">
         <img class="brand-mark" src="/assets/icons/header-logo.png" alt="DmaiHXCAI">
@@ -29,10 +29,10 @@
       <div id="headerProfile" class="header-profile">
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
         <button id="profileButton" class="profile-button" type="button">
-          <span id="profileAvatar" class="avatar">K</span>
+          <span id="profileAvatar" class="avatar">D</span>
           <span class="profile-text">
-            <strong id="profileName">Khách</strong>
-            <small id="profileUsername">Khách</small>
+            <strong id="profileName">Thiết bị của bạn</strong>
+            <small id="profileUsername">Đã ghi nhớ trên thiết bị này</small>
           </span>
         </button>
       </div>
@@ -61,7 +61,7 @@
           <button id="openMatchHub" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/xeposter.png')" type="button">
             <span class="card-eyebrow">Khu 1</span>
             <strong>Phòng đấu</strong>
-            <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra với tên khách của bạn.</small>
+            <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra với tên bạn nhập khi tham gia.</small>
           </button>
 
           <button id="openAnalysisBtn" class="launcher-card has-poster" style="--poster-image:url('/assets/posters/phaoposter.png')" type="button">
@@ -338,35 +338,23 @@
     <div id="profileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
       <div class="modal-card profile-modal-card">
         <div class="modal-head">
-          <h3 id="profileTitle">Khách</h3>
-          <button id="closeProfileBtn" class="ghost-button square-button" type="button" aria-label="Đóng">×</button>
+          <h3 id="profileTitle">Thiết bị của bạn</h3>
+          <button id="closeProfileBtn" class="ghost-button square-button" type="button" aria-label="Đóng">&times;</button>
         </div>
 
         <div class="profile-modal-body">
-          <div class="profile-editor">
-            <span id="profileAvatarLarge" class="avatar avatar-large">K</span>
-            <div class="profile-fields">
-              <label>
-                <span>Tên hiển thị</span>
-                <input id="displayNameInput" type="text" maxlength="26">
-              </label>
-              <label>
-                <span>Link ảnh avatar</span>
-                <input id="avatarUrlInput" type="url" placeholder="https://...">
-              </label>
-              <label class="hidden">
-                <span>Tên đăng nhập</span>
-                <input id="readonlyUsername" type="text" readonly>
-              </label>
+          <div class="profile-editor profile-editor-static">
+            <span id="profileAvatarLarge" class="avatar avatar-large">D</span>
+            <div class="profile-summary">
+              <strong>Lịch sử và ảnh đại diện được ghi nhớ tự động</strong>
+              <p>Hệ thống sẽ tự cấp ngẫu nhiên một avatar cho thiết bị này và cố gắng giữ lịch sử ván đấu lâu nhất có thể trên trình duyệt hiện tại.</p>
             </div>
           </div>
 
           <div class="profile-actions">
-            <button id="saveProfileBtn" class="primary-button" type="button">Lưu hồ sơ</button>
             <button id="openAdminBtn" class="ghost-button hidden" type="button">Quản trị thành viên</button>
-            <button id="logoutBtn" class="ghost-button hidden" type="button">Đăng xuất</button>
+            <button id="logoutBtn" class="ghost-button hidden" type="button">Đổi phiên thiết bị</button>
           </div>
-          <p id="profileMessage" class="form-message" aria-live="polite"></p>
 
           <section class="history-panel">
             <div class="panel-heading compact">
@@ -393,7 +381,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-guest-v2"></script>
+    <script src="/portal.js?v=20260628-guest-v3"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -1319,6 +1319,16 @@ a {
   flex: 1 1 auto;
 }
 
+.profile-summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.profile-summary strong {
+  font-size: 18px;
+}
+
 .profile-actions {
   align-items: center;
 }

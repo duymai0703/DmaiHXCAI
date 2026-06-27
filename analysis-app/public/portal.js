@@ -1,11 +1,23 @@
-﻿(function () {
+(function () {
   "use strict";
 
   const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
   const STORAGE_TOKEN = "dmaihxcai-auth-token";
   const STORAGE_USER = "dmaihxcai-auth-user";
   const STORAGE_ROOM = "dmaihxcai-room-key";
+  const STORAGE_DEVICE_ID = "dmaihxcai-device-id";
+  const STORAGE_DEVICE_AVATAR = "dmaihxcai-device-avatar";
+  const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const START_FEN = XiangqiCore.START_FEN;
+  const DEVICE_AVATARS = [
+    "/assets/device-avatars/goku.png",
+    "/assets/device-avatars/vegeta.png",
+    "/assets/device-avatars/naruto.png",
+    "/assets/device-avatars/luffy.png",
+    "/assets/device-avatars/ichigo.png",
+    "/assets/device-avatars/gojo.png",
+    "/assets/device-avatars/sungjinwoo.png"
+  ];
   const PIECE_IMAGES = {
     R: "assets/pieces/red-rook.png",
     N: "assets/pieces/red-knight.png",
@@ -23,17 +35,21 @@
     p: "assets/pieces/black-pawn.png"
   };
   const REVIEW_BADGES = {
-    brilliant: { key: "brilliant", label: "Æ¯u viá»‡t", image: "/assets/review-badges/sao.png" },
-    good: { key: "good", label: "Tá»‘t", image: "/assets/review-badges/like.png" },
-    okay: { key: "okay", label: "Táº¡m", image: "/assets/review-badges/bang.png" },
-    bad: { key: "bad", label: "Tá»‡", image: "/assets/review-badges/x.png" }
+    brilliant: { key: "brilliant", label: "Ưu việt", image: "/assets/review-badges/sao.png" },
+    good: { key: "good", label: "Tốt", image: "/assets/review-badges/like.png" },
+    okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
+    bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
+  const initialDeviceId = readOrCreateDeviceId();
+  const initialDeviceAvatar = readOrCreateDeviceAvatar();
   const state = {
     token: initialToken,
     user: initialToken ? readStoredUser() : null,
-    history: [],
+    deviceId: initialDeviceId,
+    deviceAvatarUrl: initialDeviceAvatar,
+    history: readStoredHistory(),
     route: "home",
     booting: true,
     lobbyMode: "join",
@@ -157,13 +173,8 @@
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
     profileAvatarLarge: byId("profileAvatarLarge"),
-    displayNameInput: byId("displayNameInput"),
-    avatarUrlInput: byId("avatarUrlInput"),
-    readonlyUsername: byId("readonlyUsername"),
-    saveProfileBtn: byId("saveProfileBtn"),
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
-    profileMessage: byId("profileMessage"),
     historyList: byId("historyList"),
     libraryHistoryList: byId("libraryHistoryList"),
     adminRefreshBtn: byId("adminRefreshBtn"),
@@ -218,9 +229,8 @@
     });
     dom.profileButton.addEventListener("click", openProfileModal);
     dom.closeProfileBtn.addEventListener("click", closeProfileModal);
-    dom.saveProfileBtn.addEventListener("click", saveProfile);
-    dom.openAdminBtn.addEventListener("click", openAdminPanel);
-    dom.logoutBtn.addEventListener("click", logout);
+    if (dom.openAdminBtn) dom.openAdminBtn.addEventListener("click", openAdminPanel);
+    if (dom.logoutBtn) dom.logoutBtn.addEventListener("click", logout);
     dom.adminRefreshBtn.addEventListener("click", () => {
       void loadAdminUsers(true);
     });
@@ -258,7 +268,7 @@
         api("/api/rooms/current")
       ]);
       applySession(session.user, session.token);
-      state.history = normalizeHistoryList(historyPayload.history);
+      state.history = mergeHistoryLists(historyPayload.history, state.history);
       renderHistory();
       if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
     } catch (error) {
@@ -272,7 +282,7 @@
         api("/api/history"),
         api("/api/rooms/current")
       ]);
-      state.history = normalizeHistoryList(historyPayload.history);
+      state.history = mergeHistoryLists(historyPayload.history, state.history);
       renderHistory();
       if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
     }
@@ -281,7 +291,11 @@
   async function ensureGuestSession(displayName) {
     const payload = await api("/api/auth/guest", {
       method: "POST",
-      body: displayName ? { displayName } : {}
+      body: {
+        deviceId: state.deviceId,
+        avatarUrl: state.deviceAvatarUrl,
+        ...(displayName ? { displayName } : {})
+      }
     });
     applySession(payload.user, payload.token);
     return payload.user;
@@ -305,8 +319,8 @@
   function updateTimeLabels() {
     const yourMinutes = Number(dom.yourTimeRange.value || 10);
     const opponentMinutes = Number(dom.opponentTimeRange.value || 10);
-    dom.yourTimeRangeValue.textContent = `${yourMinutes} phÃºt`;
-    dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phÃºt`;
+    dom.yourTimeRangeValue.textContent = `${yourMinutes} phút`;
+    dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phút`;
   }
 
   function normalizeRoute(hash) {
@@ -380,12 +394,19 @@
   }
 
   function applySession(user, token) {
-    state.user = user;
+    state.user = user ? {
+      ...user,
+      avatarUrl: user.avatarUrl || state.deviceAvatarUrl
+    } : null;
     if (token) {
       state.token = token;
       localStorage.setItem(STORAGE_TOKEN, token);
     }
-    persistStoredUser(user);
+    if (state.user?.displayName) {
+      dom.joinDisplayName.value = state.user.displayName;
+      dom.createDisplayName.value = state.user.displayName;
+    }
+    persistStoredUser(state.user);
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
   }
@@ -420,7 +441,7 @@
     stopRoomPolling();
     state.user = null;
     state.token = "";
-    state.history = [];
+    state.history = readStoredHistory();
     state.room = null;
     state.roomKey = "";
     state.reviewGame = null;
@@ -456,7 +477,7 @@
       await ensureGuestSession("");
     } catch {}
     goRoute("home", true);
-    showToast("ÄÃ£ chuyá»ƒn sang khÃ¡ch má»›i.");
+    showToast("Đã chuyển sang phiên thiết bị mới.");
   }
 
   function openProfileModal() {
@@ -477,66 +498,45 @@
     await loadAdminUsers(true);
   }
 
-  async function saveProfile() {
-    const displayName = dom.displayNameInput.value.trim();
-    const avatarUrl = dom.avatarUrlInput.value.trim();
-    setMessage(dom.profileMessage, "Äang lÆ°u...", "info");
-    try {
-      const data = await api("/api/profile", {
-        method: "POST",
-        body: { displayName, avatarUrl }
-      });
-      state.user = data.user;
-      persistStoredUser(data.user);
-      patchLocalUserIntoRoom();
-      renderProfile();
-      if (state.room) renderRoomMeta();
-      setMessage(dom.profileMessage, "ÄÃ£ lÆ°u há»“ sÆ¡.", "success");
-      showToast("ÄÃ£ cáº­p nháº­t há»“ sÆ¡.");
-    } catch (error) {
-      setMessage(dom.profileMessage, error.message || "KhÃ´ng thá»ƒ lÆ°u há»“ sÆ¡.");
-    }
-  }
-
   async function refreshHistory() {
     if (!state.token) return;
     try {
       const payload = await api("/api/history");
-      state.history = normalizeHistoryList(payload.history);
+      state.history = mergeHistoryLists(payload.history, state.history);
       renderHistory();
     } catch {}
   }
 
   function renderProfile() {
     if (!state.user) {
-      dom.profileName.textContent = "KhÃ¡ch";
-      dom.profileUsername.textContent = "Cháº¡m Ä‘á»ƒ Ä‘áº·t tÃªn";
-      paintAvatar(dom.profileAvatar, null, "D");
-      paintAvatar(dom.profileAvatarLarge, null, "D");
-      dom.displayNameInput.value = "";
-      dom.avatarUrlInput.value = "";
-      dom.readonlyUsername.value = "";
-      dom.openAdminBtn.classList.add("hidden");
-      dom.logoutBtn.classList.add("hidden");
+      dom.profileName.textContent = "Thiết bị của bạn";
+      dom.profileUsername.textContent = "Đã ghi nhớ trên thiết bị này";
+      const deviceAvatar = {
+        displayName: "Thiết bị",
+        avatarSeed: state.deviceId,
+        avatarUrl: state.deviceAvatarUrl
+      };
+      paintAvatar(dom.profileAvatar, deviceAvatar, "D");
+      paintAvatar(dom.profileAvatarLarge, deviceAvatar, "D");
+      if (dom.openAdminBtn) dom.openAdminBtn.classList.add("hidden");
+      if (dom.logoutBtn) dom.logoutBtn.classList.add("hidden");
       return;
     }
 
-    const displayName = state.user.displayName || "KhÃ¡ch";
-    const subtitle = state.user.role === "admin" ? `@${state.user.username}` : "KhÃ¡ch";
+    const displayName = state.user.displayName || "Thiết bị của bạn";
+    const subtitle = state.user.role === "admin" ? `@${state.user.username}` : "Đã ghi nhớ trên thiết bị này";
     dom.profileName.textContent = displayName;
     dom.profileUsername.textContent = subtitle;
-    dom.displayNameInput.value = state.user.displayName || "";
-    dom.avatarUrlInput.value = state.user.avatarUrl || "";
-    dom.readonlyUsername.value = state.user.username || "";
-    dom.openAdminBtn.classList.toggle("hidden", !isAdmin());
-    dom.logoutBtn.classList.toggle("hidden", !isAdmin());
+    if (dom.openAdminBtn) dom.openAdminBtn.classList.toggle("hidden", !isAdmin());
+    if (dom.logoutBtn) dom.logoutBtn.classList.toggle("hidden", !isAdmin());
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
   }
 
   function renderHistory() {
+    persistStoredHistory(state.history);
     const options = {
-      emptyText: "ChÆ°a cÃ³ vÃ¡n nÃ o Ä‘Æ°á»£c lÆ°u.",
+      emptyText: "Chưa có ván nào được lưu.",
       onOpen: openHistoryReview
     };
     renderHistoryCollection(dom.historyList, state.history, options);
@@ -558,7 +558,7 @@
         state.adminSelectedUserId = state.adminUsers[0]?.id || "";
       }
     } catch (error) {
-      showToast(error.message || "KhÃ´ng thá»ƒ táº£i danh sÃ¡ch thÃ nh viÃªn.");
+      showToast(error.message || "Không thể tải danh sách thành viên.");
     } finally {
       state.adminLoading = false;
       renderAdminState();
@@ -568,27 +568,27 @@
   function renderAdminState() {
     if (!dom.adminUsersList || !dom.adminHistoryList) return;
     if (!isAdmin()) {
-      dom.adminUsersMeta.textContent = "Chá»‰ tÃ i khoáº£n quáº£n trá»‹ má»›i xem Ä‘Æ°á»£c khu nÃ y.";
-      dom.adminSelectedTitle.textContent = "Lá»‹ch sá»­ thÃ nh viÃªn";
-      dom.adminSelectedMeta.textContent = "Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p.";
+      dom.adminUsersMeta.textContent = "Chỉ tài khoản quản trị mới xem được khu này.";
+      dom.adminSelectedTitle.textContent = "Lịch sử thành viên";
+      dom.adminSelectedMeta.textContent = "Bạn không có quyền truy cập.";
       dom.adminUsersList.innerHTML = "";
       dom.adminHistoryList.innerHTML = "";
       return;
     }
 
     dom.adminRefreshBtn.disabled = state.adminLoading;
-    dom.adminRefreshBtn.textContent = state.adminLoading ? "Äang táº£i..." : "LÃ m má»›i";
+    dom.adminRefreshBtn.textContent = state.adminLoading ? "Đang tải..." : "Làm mới";
     dom.adminUsersMeta.textContent = state.adminUsers.length
-      ? `${state.adminUsers.length} tÃ i khoáº£n Ä‘Ã£ Ä‘Äƒng kÃ½.`
+      ? `${state.adminUsers.length} tài khoản đã đăng ký.`
       : state.adminLoading
-        ? "Äang táº£i danh sÃ¡ch tÃ i khoáº£n Ä‘Ã£ Ä‘Äƒng kÃ½."
-        : "ChÆ°a cÃ³ tÃ i khoáº£n nÃ o.";
+        ? "Đang tải danh sách tài khoản đã đăng ký."
+        : "Chưa có tài khoản nào.";
 
     dom.adminUsersList.innerHTML = "";
     if (!state.adminUsers.length) {
       const emptyUsers = document.createElement("div");
       emptyUsers.className = "history-empty";
-      emptyUsers.textContent = state.adminLoading ? "Äang táº£i..." : "ChÆ°a cÃ³ tÃ i khoáº£n nÃ o.";
+      emptyUsers.textContent = state.adminLoading ? "Đang tải..." : "Chưa có tài khoản nào.";
       dom.adminUsersList.appendChild(emptyUsers);
     } else {
       state.adminUsers.forEach((user) => {
@@ -611,8 +611,8 @@
         const username = document.createElement("small");
         username.textContent = `@${user.username}`;
         const detail = document.createElement("span");
-        const roleLabel = user.role === "admin" ? " â€¢ Quáº£n trá»‹" : "";
-        detail.textContent = `${user.historyCount || 0} vÃ¡n${roleLabel}`;
+        const roleLabel = user.role === "admin" ? " • Quản trị" : "";
+        detail.textContent = `${user.historyCount || 0} ván${roleLabel}`;
         meta.append(name, username, detail);
         button.append(avatar, meta);
         dom.adminUsersList.appendChild(button);
@@ -621,13 +621,13 @@
 
     const selected = state.adminUsers.find((user) => user.id === state.adminSelectedUserId) || null;
     dom.adminSelectedTitle.textContent = selected
-      ? `Lá»‹ch sá»­ cá»§a ${selected.displayName || selected.username}`
-      : "Lá»‹ch sá»­ thÃ nh viÃªn";
+      ? `Lịch sử của ${selected.displayName || selected.username}`
+      : "Lịch sử thành viên";
     dom.adminSelectedMeta.textContent = selected
-      ? `${selected.email || `@${selected.username}`} â€¢ Tham gia ${formatDate(selected.createdAt)}`
-      : "Chá»n má»™t tÃ i khoáº£n Ä‘á»ƒ xem cÃ¡c vÃ¡n Ä‘Ã£ lÆ°u.";
+      ? `${selected.email || `@${selected.username}`} • Tham gia ${formatDate(selected.createdAt)}`
+      : "Chọn một tài khoản để xem các ván đã lưu.";
     renderHistoryCollection(dom.adminHistoryList, selected?.history || [], {
-      emptyText: selected ? "TÃ i khoáº£n nÃ y chÆ°a cÃ³ vÃ¡n nÃ o Ä‘Æ°á»£c lÆ°u." : "Chá»n má»™t tÃ i khoáº£n Ä‘á»ƒ xem lá»‹ch sá»­ Ä‘áº¥u.",
+      emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
       onOpen: openHistoryReview
     });
   }
@@ -654,25 +654,25 @@
     item.tabIndex = 0;
     const header = document.createElement("header");
     const title = document.createElement("strong");
-    title.textContent = `${entry.side || "Äá»"} vs ${entry.opponent || "Äá»‘i thá»§"}`;
+    title.textContent = `${entry.side || "Đỏ"} vs ${entry.opponent || "Đối thủ"}`;
     const pill = document.createElement("span");
     const resultText = String(entry.result || "");
     pill.className = `result-pill ${
-      resultText === "Tháº¯ng" ? "win" : resultText === "Thua" ? "loss" : "draw"
+      resultText === "Thắng" ? "win" : resultText === "Thua" ? "loss" : "draw"
     }`;
-    pill.textContent = resultText || "HÃ²a";
+    pill.textContent = resultText || "Hòa";
     header.append(title, pill);
 
     const detail = document.createElement("div");
     detail.style.color = "var(--muted)";
     detail.style.fontSize = "13px";
     const timeLabel = entry.startedAt ? formatDate(entry.startedAt) : formatDate(entry.endedAt);
-    detail.textContent = `${entry.reason || "Káº¿t thÃºc"} â€¢ ${timeLabel}`;
+    detail.textContent = `${entry.reason || "Kết thúc"} • ${timeLabel}`;
 
     const moves = document.createElement("div");
     moves.style.marginTop = "8px";
     moves.style.fontSize = "13px";
-    moves.textContent = Array.isArray(entry.moves) && entry.moves.length ? entry.moves.slice(0, 4).join(" â€¢ ") : "KhÃ´ng cÃ³ biÃªn báº£n.";
+    moves.textContent = Array.isArray(entry.moves) && entry.moves.length ? entry.moves.slice(0, 4).join(" • ") : "Không có biên bản.";
 
     item.append(header, detail, moves);
     item.addEventListener("click", () => onOpen(entry));
@@ -688,7 +688,7 @@
   function openHistoryReview(entry) {
     const reviewEntry = normalizeHistoryEntry(entry);
     if (!reviewEntry.plies.length) {
-      showToast("VÃ¡n nÃ y chÆ°a cÃ³ Ä‘á»§ dá»¯ liá»‡u Ä‘á»ƒ xem láº¡i.");
+      showToast("Ván này chưa có đủ dữ liệu để xem lại.");
       return;
     }
     state.reviewGame = reviewEntry;
@@ -777,9 +777,9 @@
       });
       state.reviewAnalysis = Array.isArray(payload.items) ? payload.items : [];
       renderReviewState(true);
-      showToast("Pikafish Ä‘Ã£ phÃ¢n tÃ­ch xong vÃ¡n cá».");
+      showToast("Pikafish đã phân tích xong ván cờ.");
     } catch (error) {
-      showToast(error.message || "KhÃ´ng thá»ƒ phÃ¢n tÃ­ch vÃ¡n cá» nÃ y.");
+      showToast(error.message || "Không thể phân tích ván cờ này.");
     } finally {
       state.reviewAnalyzing = false;
       renderReviewState(true);
@@ -795,11 +795,11 @@
   function renderReviewMeta() {
     const game = state.reviewGame;
     if (!game) {
-      dom.reviewTitle.textContent = "Xem láº¡i vÃ¡n Ä‘áº¥u";
-      dom.reviewMeta.textContent = "Chá»n má»™t vÃ¡n trong lá»‹ch sá»­ Ä‘á»ƒ tua láº¡i.";
-      dom.reviewResultBadge.textContent = "Lá»‹ch sá»­";
-      dom.reviewMoveMeta.textContent = "Má»—i nÆ°á»›c sáº½ Ä‘Æ°á»£c gáº¯n nhÃ£n sau khi Pikafish quÃ©t toÃ n vÃ¡n.";
-      dom.reviewInsight.textContent = "Tua láº¡i tá»«ng nÆ°á»›c Ä‘á»ƒ xem diá»…n biáº¿n cá»§a vÃ¡n cá».";
+      dom.reviewTitle.textContent = "Xem lại ván đấu";
+      dom.reviewMeta.textContent = "Chọn một ván trong lịch sử để tua lại.";
+      dom.reviewResultBadge.textContent = "Lịch sử";
+      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
+      dom.reviewInsight.textContent = "Tua lại từng nước để xem diễn biến của ván cờ.";
       dom.reviewPrevBtn.disabled = true;
       dom.reviewNextBtn.disabled = true;
       dom.reviewAnalyzeBtn.disabled = true;
@@ -807,40 +807,40 @@
       return;
     }
 
-    dom.reviewTitle.textContent = `${game.side || "Äá»"} vs ${game.opponent || "Äá»‘i thá»§"}`;
-    dom.reviewMeta.textContent = `Báº¯t Ä‘áº§u: ${formatDate(game.startedAt || game.endedAt)} â€¢ Káº¿t thÃºc: ${formatDate(game.endedAt)}`;
-    dom.reviewResultBadge.textContent = game.result || "Lá»‹ch sá»­";
+    dom.reviewTitle.textContent = `${game.side || "Đỏ"} vs ${game.opponent || "Đối thủ"}`;
+    dom.reviewMeta.textContent = `Bắt đầu: ${formatDate(game.startedAt || game.endedAt)} • Kết thúc: ${formatDate(game.endedAt)}`;
+    dom.reviewResultBadge.textContent = game.result || "Lịch sử";
     dom.reviewMoveMeta.textContent = state.reviewAnalysis.length
-      ? "Báº¥m vÃ o tá»«ng nÆ°á»›c Ä‘á»ƒ xem nhÃ£n cháº¥t lÆ°á»£ng vÃ  gá»£i Ã½ tá»‘t hÆ¡n cá»§a Pikafish."
-      : "Má»—i nÆ°á»›c sáº½ Ä‘Æ°á»£c gáº¯n nhÃ£n sau khi Pikafish quÃ©t toÃ n vÃ¡n.";
+      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của Pikafish."
+      : "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
     dom.reviewPrevBtn.disabled = state.reviewCursor <= 0 || state.reviewAnalyzing;
     dom.reviewNextBtn.disabled = state.reviewCursor >= game.plies.length || state.reviewAnalyzing;
     dom.reviewAnalyzeBtn.disabled = state.reviewAnalyzing;
     dom.reviewAnalyzeBtn.textContent = state.reviewAnalyzing
-      ? "Äang phÃ¢n tÃ­ch..."
+      ? "Đang phân tích..."
       : state.reviewAnalysis.length
-        ? "PhÃ¢n tÃ­ch láº¡i"
-        : "PhÃ¢n tÃ­ch";
+        ? "Phân tích lại"
+        : "Phân tích";
 
     const currentIndex = state.reviewCursor - 1;
     if (currentIndex < 0) {
-      dom.reviewInsight.innerHTML = "<strong>Báº¯t Ä‘áº§u vÃ¡n cá»</strong><div>HÃ£y báº¥m Tiáº¿p theo Ä‘á»ƒ Ä‘i tá»«ng nÆ°á»›c, hoáº·c báº¥m PhÃ¢n tÃ­ch Ä‘á»ƒ Pikafish quÃ©t toÃ n bá»™ vÃ¡n.</div>";
+      dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Tiếp theo để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
       return;
     }
 
     const currentPly = game.plies[currentIndex];
     const analysis = state.reviewAnalysis[currentIndex] || null;
-    const moveTitle = currentPly?.notation || currentPly?.move || `NÆ°á»›c ${currentIndex + 1}`;
+    const moveTitle = currentPly?.notation || currentPly?.move || `Nước ${currentIndex + 1}`;
     if (!analysis) {
-      dom.reviewInsight.innerHTML = `<strong>NÆ°á»›c ${currentIndex + 1}: ${moveTitle}</strong><div>VÃ¡n Ä‘ang á»Ÿ sau nÆ°á»›c nÃ y. Báº¥m PhÃ¢n tÃ­ch Ä‘á»ƒ xem cháº¥t lÆ°á»£ng vÃ  nÆ°á»›c Ä‘á» xuáº¥t.</div>`;
+      dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle}</strong><div>Ván đang ở sau nước này. Bấm Phân tích để xem chất lượng và nước đề xuất.</div>`;
       return;
     }
 
     const recommendText = analysis.grade === "brilliant"
-      ? "NÆ°á»›c Ä‘i nÃ y gáº§n nhÆ° trÃ¹ng khá»›p vá»›i phÆ°Æ¡ng Ã¡n máº¡nh nháº¥t cá»§a Pikafish."
-      : `Pikafish Ä‘á» xuáº¥t: ${analysis.bestNotation || analysis.bestMove || "khÃ´ng rÃµ"}.`;
+      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
+      : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
     const badge = reviewBadgeForGrade(analysis.grade);
-    dom.reviewInsight.innerHTML = `<strong>NÆ°á»›c ${currentIndex + 1}: ${moveTitle} Â· ${analysis.gradeLabel || badge.label || "ÄÃ£ phÃ¢n tÃ­ch"}</strong><div>${recommendText}</div>`;
+    dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} - ${analysis.gradeLabel || badge.label || "Đã phân tích"}</strong><div>${recommendText}</div>`;
   }
 
   function renderReviewMoveList() {
@@ -848,7 +848,7 @@
     const plies = Array.isArray(state.reviewGame?.plies) ? state.reviewGame.plies : [];
     if (!plies.length) {
       const item = document.createElement("li");
-      item.innerHTML = '<span class="move-number">-</span><span class="move-cell red">ChÆ°a cÃ³ dá»¯ liá»‡u</span><span class="move-cell black"></span>';
+      item.innerHTML = '<span class="move-number">-</span><span class="move-cell red">Chưa có dữ liệu</span><span class="move-cell black"></span>';
       dom.reviewMoveList.appendChild(item);
       return;
     }
@@ -922,7 +922,7 @@
   async function onCreateRoom(event) {
     event.preventDefault();
     const displayName = dom.createDisplayName.value.trim();
-    setMessage(dom.matchHubMessage, "Äang táº¡o phÃ²ng...", "info");
+    setMessage(dom.matchHubMessage, "Đang tạo phòng...", "info");
     try {
       await ensureGuestSession(displayName);
       const payload = await api("/api/rooms/create", {
@@ -938,9 +938,9 @@
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
       setMessage(dom.matchHubMessage, "");
-      showToast("ÄÃ£ táº¡o phÃ²ng Ä‘áº¥u.");
+      showToast("Đã tạo phòng đấu.");
     } catch (error) {
-      setMessage(dom.matchHubMessage, error.message || "KhÃ´ng thá»ƒ táº¡o phÃ²ng.");
+      setMessage(dom.matchHubMessage, error.message || "Không thể tạo phòng.");
     }
   }
 
@@ -948,7 +948,7 @@
     event.preventDefault();
     const displayName = dom.joinDisplayName.value.trim();
     const key = dom.joinRoomKey.value.trim().toUpperCase();
-    setMessage(dom.matchHubMessage, "Äang vÃ o phÃ²ng...", "info");
+    setMessage(dom.matchHubMessage, "Đang vào phòng...", "info");
     try {
       await ensureGuestSession(displayName);
       const payload = await api("/api/rooms/join", {
@@ -960,9 +960,9 @@
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
       setMessage(dom.matchHubMessage, "");
-      showToast(payload.room.role === "spectator" ? "ÄÃ£ vÃ o phÃ²ng vá»›i vai trÃ² ngÆ°á»i xem." : "ÄÃ£ vÃ o phÃ²ng Ä‘áº¥u.");
+      showToast(payload.room.role === "spectator" ? "Đã vào phòng với vai trò người xem." : "Đã vào phòng đấu.");
     } catch (error) {
-      setMessage(dom.matchHubMessage, error.message || "KhÃ´ng thá»ƒ vÃ o phÃ²ng.");
+      setMessage(dom.matchHubMessage, error.message || "Không thể vào phòng.");
     }
   }
 
@@ -977,13 +977,13 @@
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
     } catch (error) {
-      if (/ROOM_NOT_FOUND|KhÃ´ng tÃ¬m tháº¥y phÃ²ng/i.test(error.message || "")) {
+      if (/ROOM_NOT_FOUND|Không tìm thấy phòng/i.test(error.message || "")) {
         state.room = null;
         state.roomKey = "";
         localStorage.removeItem(STORAGE_ROOM);
         updateResumeButton();
       } else {
-        setMessage(dom.matchHubMessage, error.message || "KhÃ´ng thá»ƒ khÃ´i phá»¥c phÃ²ng.");
+        setMessage(dom.matchHubMessage, error.message || "Không thể khôi phục phòng.");
       }
     }
   }
@@ -1027,7 +1027,7 @@
     const key = state.room?.key || state.roomKey || localStorage.getItem(STORAGE_ROOM) || "";
     const hiddenOnHome = state.route === "home";
     dom.resumeRoomBtn.classList.toggle("hidden", !key || !state.user || hiddenOnHome);
-    if (key) dom.resumeRoomBtn.textContent = `PhÃ²ng ${key}`;
+    if (key) dom.resumeRoomBtn.textContent = `Phòng ${key}`;
   }
 
   function renderRoomState({ forceBoard = false } = {}) {
@@ -1044,16 +1044,16 @@
     const room = state.room;
     if (!room) {
       dom.roomKeyLabel.textContent = "------";
-      dom.roomStatusBadge.textContent = "ChÆ°a vÃ o phÃ²ng";
-      dom.roomSummary.textContent = "PhÃ²ng Ä‘ang Ä‘Æ°á»£c chuáº©n bá»‹.";
+      dom.roomStatusBadge.textContent = "Chưa vào phòng";
+      dom.roomSummary.textContent = "Phòng đang được chuẩn bị.";
       dom.undoCount.textContent = "0";
       dom.drawCount.textContent = "0";
       paintAvatar(dom.topPlayerAvatar, null, "?");
       paintAvatar(dom.bottomPlayerAvatar, null, "?");
-      dom.topPlayerName.textContent = "Äang chá» Ä‘á»‘i thá»§";
-      dom.bottomPlayerName.textContent = "Báº¡n";
-      dom.topSideLabel.textContent = "Äen";
-      dom.bottomSideLabel.textContent = "Äá»";
+      dom.topPlayerName.textContent = "Đang chờ đối thủ";
+      dom.bottomPlayerName.textContent = "Bạn";
+      dom.topSideLabel.textContent = "Đen";
+      dom.bottomSideLabel.textContent = "Đỏ";
       renderRoomClocks();
       return;
     }
@@ -1069,15 +1069,15 @@
     dom.undoCount.textContent = String(room.allowances?.undoRemaining ?? 0);
     dom.drawCount.textContent = String(room.allowances?.drawRemaining ?? 0);
 
-    dom.topSideLabel.textContent = topSide === "w" ? "Äá»" : "Äen";
+    dom.topSideLabel.textContent = topSide === "w" ? "Đỏ" : "Đen";
     dom.topSideLabel.classList.toggle("side-red", topSide === "w");
-    dom.bottomSideLabel.textContent = bottomSide === "w" ? "Äá»" : "Äen";
+    dom.bottomSideLabel.textContent = bottomSide === "w" ? "Đỏ" : "Đen";
     dom.bottomSideLabel.classList.toggle("side-red", bottomSide === "w");
 
-    paintAvatar(dom.topPlayerAvatar, topPlayer, topSide === "w" ? "Ä" : "B");
-    paintAvatar(dom.bottomPlayerAvatar, bottomPlayer || state.user, bottomSide === "w" ? "Ä" : "B");
-    dom.topPlayerName.textContent = topPlayer ? topPlayer.displayName || topPlayer.username : "Äang chá» Ä‘á»‘i thá»§";
-    dom.bottomPlayerName.textContent = bottomPlayer ? bottomPlayer.displayName || bottomPlayer.username : "Äang chá» ngÆ°á»i chÆ¡i";
+    paintAvatar(dom.topPlayerAvatar, topPlayer, topSide === "w" ? "Đ" : "B");
+    paintAvatar(dom.bottomPlayerAvatar, bottomPlayer || state.user, bottomSide === "w" ? "Đ" : "B");
+    dom.topPlayerName.textContent = topPlayer ? topPlayer.displayName || topPlayer.username : "Đang chờ đối thủ";
+    dom.bottomPlayerName.textContent = bottomPlayer ? bottomPlayer.displayName || bottomPlayer.username : "Đang chờ người chơi";
 
     const canAct = room.role === "player" && room.status === "active" && !state.roomActionBusy;
     dom.undoRequestBtn.disabled = !canAct || Number(room.allowances?.undoRemaining || 0) <= 0 || Boolean(room.pendingRequest);
@@ -1093,43 +1093,43 @@
     if (!room) return;
 
     if (room.waitingForOpponent) {
-      dom.requestState.appendChild(makeNotice("Äang chá» Ä‘á»‘i thá»§", "BÃ n cá» Ä‘Ã£ sáºµn sÃ ng. Khi Ä‘á»‘i thá»§ nháº­p Ä‘Ãºng Key, vÃ¡n Ä‘áº¥u sáº½ tá»± báº¯t Ä‘áº§u."));
+      dom.requestState.appendChild(makeNotice("Đang chờ đối thủ", "Bàn cờ đã sẵn sàng. Khi đối thủ nhập đúng Key, ván đấu sẽ tự bắt đầu."));
       return;
     }
 
     if (room.role === "spectator") {
       if (room.pendingRequest) {
         dom.requestState.appendChild(makeNotice(
-          room.pendingRequest.type === "undo" ? "NgÆ°á»i chÆ¡i Ä‘ang xin Ä‘i láº¡i" : "NgÆ°á»i chÆ¡i Ä‘ang cáº§u hÃ²a",
-          "Báº¡n Ä‘ang á»Ÿ cháº¿ Ä‘á»™ ngÆ°á»i xem nÃªn chá»‰ cÃ³ thá»ƒ quan sÃ¡t vÃ  chat."
+          room.pendingRequest.type === "undo" ? "Người chơi đang xin đi lại" : "Người chơi đang cầu hòa",
+          "Bạn đang ở chế độ người xem nên chỉ có thể quan sát và chat."
         ));
       } else {
-        dom.requestState.appendChild(makeNotice("Cháº¿ Ä‘á»™ ngÆ°á»i xem", "Báº¡n Ä‘ang theo dÃµi vÃ¡n cá». HÃ£y dÃ¹ng khung chat Ä‘á»ƒ trÃ² chuyá»‡n."));
+        dom.requestState.appendChild(makeNotice("Chế độ người xem", "Bạn đang theo dõi ván cờ. Hãy dùng khung chat để trò chuyện."));
       }
       return;
     }
 
     if (room.pendingRequest?.fromYou) {
-      dom.requestState.appendChild(makeNotice("Äang chá» Ä‘á»‘i thá»§ xÃ¡c nháº­n...", room.pendingRequest.type === "undo" ? "YÃªu cáº§u Ä‘i láº¡i Ä‘Ã£ Ä‘Æ°á»£c gá»­i." : "YÃªu cáº§u hÃ²a Ä‘Ã£ Ä‘Æ°á»£c gá»­i."));
+      dom.requestState.appendChild(makeNotice("Đang chờ đối thủ xác nhận...", room.pendingRequest.type === "undo" ? "Yêu cầu đi lại đã được gửi." : "Yêu cầu hòa đã được gửi."));
       return;
     }
 
     if (room.pendingRequest?.toYou) {
       const notice = makeNotice(
-        room.pendingRequest.type === "undo" ? "Äá»‘i thá»§ yÃªu cáº§u Ä‘i láº¡i" : "Äá»‘i thá»§ yÃªu cáº§u hÃ²a",
-        room.pendingRequest.type === "undo" ? "Náº¿u Ä‘á»“ng Ã½, nÆ°á»›c cá» gáº§n nháº¥t sáº½ Ä‘Æ°á»£c thá»±c hiá»‡n láº¡i." : "Náº¿u Ä‘á»“ng Ã½, vÃ¡n cá» sáº½ Ä‘Æ°á»£c xá»­ hÃ²a."
+        room.pendingRequest.type === "undo" ? "Đối thủ yêu cầu đi lại" : "Đối thủ yêu cầu hòa",
+        room.pendingRequest.type === "undo" ? "Nếu đồng ý, nước cờ gần nhất sẽ được thực hiện lại." : "Nếu đồng ý, ván cờ sẽ được xử hòa."
       );
       const actions = document.createElement("div");
       actions.className = "notice-actions";
       const accept = document.createElement("button");
       accept.className = "primary-button";
       accept.type = "button";
-      accept.textContent = "Äá»“ng Ã½";
+      accept.textContent = "Đồng ý";
       accept.addEventListener("click", () => respondRequest(true));
       const decline = document.createElement("button");
       decline.className = "secondary-button";
       decline.type = "button";
-      decline.textContent = "KhÃ´ng";
+      decline.textContent = "Không";
       decline.addEventListener("click", () => respondRequest(false));
       actions.append(accept, decline);
       notice.appendChild(actions);
@@ -1138,8 +1138,8 @@
     }
 
     dom.requestState.appendChild(makeNotice(
-      room.yourTurn ? "Äáº¿n lÆ°á»£t báº¡n" : "Äáº¿n lÆ°á»£t Ä‘á»‘i thá»§",
-      room.yourTurn ? "Báº¡n chá»‰ cÃ³ thá»ƒ Ä‘i quÃ¢n thuá»™c bÃªn mÃ¬nh." : "Äá»“ng há»“ bÃªn Ä‘á»‘i thá»§ Ä‘ang cháº¡y."
+      room.yourTurn ? "Đến lượt bạn" : "Đến lượt đối thủ",
+      room.yourTurn ? "Bạn chỉ có thể đi quân thuộc bên mình." : "Đồng hồ bên đối thủ đang chạy."
     ));
   }
 
@@ -1154,7 +1154,7 @@
       const ready = document.createElement("button");
       ready.className = room.rematchReady?.you ? "primary-button" : "secondary-button";
       ready.type = "button";
-      ready.textContent = room.rematchReady?.you ? "ÄÃ£ sáºµn sÃ ng vÃ¡n má»›i" : "Sáºµn sÃ ng vÃ¡n má»›i";
+      ready.textContent = room.rematchReady?.you ? "Đã sẵn sàng ván mới" : "Sẵn sàng ván mới";
       ready.disabled = state.roomActionBusy;
       ready.addEventListener("click", toggleRematch);
       notice.appendChild(ready);
@@ -1162,7 +1162,7 @@
         const detail = document.createElement("div");
         detail.style.marginTop = "8px";
         detail.style.color = "var(--muted)";
-        detail.textContent = "Äá»‘i thá»§ Ä‘Ã£ sáºµn sÃ ng.";
+        detail.textContent = "Đối thủ đã sẵn sàng.";
         notice.appendChild(detail);
       }
     }
@@ -1175,11 +1175,11 @@
     if (!room) return;
 
     const viewers = Array.isArray(room.spectators) ? room.spectators : [];
-    dom.viewerSummary.textContent = viewers.length ? `${viewers.length} ngÆ°á»i Ä‘ang xem` : "ChÆ°a cÃ³ ngÆ°á»i xem.";
+    dom.viewerSummary.textContent = viewers.length ? `${viewers.length} người đang xem` : "Chưa có người xem.";
     if (!viewers.length) {
       const empty = document.createElement("div");
       empty.className = "viewer-empty";
-      empty.textContent = "Hiá»‡n chÆ°a cÃ³ ngÆ°á»i xem nÃ o trong phÃ²ng.";
+      empty.textContent = "Hiện chưa có người xem nào trong phòng.";
       dom.viewerList.appendChild(empty);
       return;
     }
@@ -1195,7 +1195,7 @@
       const name = document.createElement("strong");
       name.textContent = viewer.displayName || viewer.username;
       const sub = document.createElement("small");
-      sub.textContent = "NgÆ°á»i xem";
+      sub.textContent = "Người xem";
       meta.append(name, sub);
       item.append(avatar, meta);
       dom.viewerList.appendChild(item);
@@ -1213,7 +1213,7 @@
     if (!messages.length) {
       const empty = document.createElement("div");
       empty.className = "chat-empty";
-      empty.textContent = "ChÆ°a cÃ³ tin nháº¯n nÃ o.";
+      empty.textContent = "Chưa có tin nhắn nào.";
       dom.chatList.appendChild(empty);
       state.lastChatSignature = signature;
       return;
@@ -1254,7 +1254,7 @@
     const moves = Array.isArray(state.room?.moves) ? state.room.moves : [];
     if (!moves.length) {
       const item = document.createElement("li");
-      item.innerHTML = '<span class="move-number">-</span><span class="move-cell red">ChÆ°a cÃ³ nÆ°á»›c nÃ o</span><span class="move-cell black"></span>';
+      item.innerHTML = '<span class="move-number">-</span><span class="move-cell red">Chưa có nước nào</span><span class="move-cell black"></span>';
       dom.roomMoveList.appendChild(item);
       return;
     }
@@ -1323,8 +1323,8 @@
     ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
     ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
     ctx.textAlign = "center";
-    ctx.fillText("æ¥šæ²³", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
-    ctx.fillText("æ¼¢ç•Œ", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
   }
 
   function drawRoomPieces(force) {
@@ -1411,8 +1411,8 @@
     ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
     ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
     ctx.textAlign = "center";
-    ctx.fillText("æ¥šæ²³", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
-    ctx.fillText("æ¼¢ç•Œ", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
   }
 
   function drawReviewPieces(force) {
@@ -1562,7 +1562,7 @@
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
-      showToast(error.message || "KhÃ´ng thá»ƒ Ä‘i nÆ°á»›c nÃ y.");
+      showToast(error.message || "Không thể đi nước này.");
     }
   }
 
@@ -1577,11 +1577,11 @@
       });
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
-      showToast(type === "undo" ? "ÄÃ£ gá»­i yÃªu cáº§u Ä‘i láº¡i." : "ÄÃ£ gá»­i yÃªu cáº§u hÃ²a.");
+      showToast(type === "undo" ? "Đã gửi yêu cầu đi lại." : "Đã gửi yêu cầu hòa.");
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
-      showToast(error.message || "KhÃ´ng thá»ƒ gá»­i yÃªu cáº§u.");
+      showToast(error.message || "Không thể gửi yêu cầu.");
     }
   }
 
@@ -1596,19 +1596,19 @@
       });
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
-      showToast(accept ? "ÄÃ£ xÃ¡c nháº­n yÃªu cáº§u." : "ÄÃ£ tá»« chá»‘i yÃªu cáº§u.");
+      showToast(accept ? "Đã xác nhận yêu cầu." : "Đã từ chối yêu cầu.");
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
-      showToast(error.message || "KhÃ´ng thá»ƒ xá»­ lÃ½ yÃªu cáº§u.");
+      showToast(error.message || "Không thể xử lý yêu cầu.");
     }
   }
 
   function confirmResign() {
     openModal({
-      title: "Báº¡n cháº¯c cháº¯n chá»‹u thua chá»©?",
-      text: "Náº¿u Ä‘á»“ng Ã½, vÃ¡n cá» sáº½ káº¿t thÃºc ngay vÃ  mÃ¡y sáº½ xá»­ thua cho báº¡n.",
-      confirmText: "Äá»“ng Ã½",
+      title: "Bạn chắc chắn chịu thua chứ?",
+      text: "Nếu đồng ý, ván cờ sẽ kết thúc ngay và máy sẽ xử thua cho bạn.",
+      confirmText: "Đồng ý",
       onConfirm: resignGame
     });
   }
@@ -1627,7 +1627,7 @@
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
-      showToast(error.message || "KhÃ´ng thá»ƒ xin thua.");
+      showToast(error.message || "Không thể xin thua.");
     }
   }
 
@@ -1642,11 +1642,11 @@
       });
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
-      showToast(payload.room.status === "active" ? "VÃ¡n má»›i Ä‘Ã£ báº¯t Ä‘áº§u." : "ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i sáºµn sÃ ng.");
+      showToast(payload.room.status === "active" ? "Ván mới đã bắt đầu." : "Đã cập nhật trạng thái sẵn sàng.");
     } catch (error) {
       state.roomActionBusy = false;
       renderRoomMeta();
-      showToast(error.message || "KhÃ´ng thá»ƒ Ä‘á»•i tráº¡ng thÃ¡i sáºµn sÃ ng.");
+      showToast(error.message || "Không thể đổi trạng thái sẵn sàng.");
     }
   }
 
@@ -1662,7 +1662,7 @@
       dom.chatInput.value = "";
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
     } catch (error) {
-      showToast(error.message || "KhÃ´ng thá»ƒ gá»­i tin nháº¯n.");
+      showToast(error.message || "Không thể gửi tin nhắn.");
     }
   }
 
@@ -1689,7 +1689,7 @@
       const payload = await api(`/api/rooms/state?key=${encodeURIComponent(state.roomKey)}`);
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
     } catch (error) {
-      if (/ROOM_NOT_FOUND|KhÃ´ng tÃ¬m tháº¥y phÃ²ng/i.test(error.message || "")) {
+      if (/ROOM_NOT_FOUND|Không tìm thấy phòng/i.test(error.message || "")) {
         state.room = null;
         state.roomKey = "";
         localStorage.removeItem(STORAGE_ROOM);
@@ -1736,6 +1736,57 @@
     if (state.room) renderRoomMeta();
   }
 
+  function readOrCreateDeviceId() {
+    try {
+      const existing = String(localStorage.getItem(STORAGE_DEVICE_ID) || "").trim();
+      if (/^[a-zA-Z0-9:_-]{8,120}$/.test(existing)) return existing;
+      const next = `device-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+      localStorage.setItem(STORAGE_DEVICE_ID, next);
+      return next;
+    } catch {
+      return `device-${Date.now().toString(36)}`;
+    }
+  }
+
+  function readOrCreateDeviceAvatar() {
+    try {
+      const existing = String(localStorage.getItem(STORAGE_DEVICE_AVATAR) || "");
+      if (DEVICE_AVATARS.includes(existing)) return existing;
+      const next = DEVICE_AVATARS[Math.floor(Math.random() * DEVICE_AVATARS.length)];
+      localStorage.setItem(STORAGE_DEVICE_AVATAR, next);
+      return next;
+    } catch {
+      return DEVICE_AVATARS[0];
+    }
+  }
+
+  function readStoredHistory() {
+    try {
+      const raw = localStorage.getItem(STORAGE_DEVICE_HISTORY);
+      if (!raw) return [];
+      return normalizeHistoryList(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  }
+
+  function persistStoredHistory(entries) {
+    try {
+      localStorage.setItem(STORAGE_DEVICE_HISTORY, JSON.stringify(normalizeHistoryList(entries)));
+    } catch {}
+  }
+
+  function mergeHistoryLists(primary, fallback) {
+    const combined = [...(Array.isArray(primary) ? primary : []), ...(Array.isArray(fallback) ? fallback : [])];
+    const seen = new Set();
+    return normalizeHistoryList(combined.filter((entry) => {
+      const key = String(entry?.id || `${entry?.roomKey || ""}:${entry?.endedAt || ""}:${entry?.sideCode || ""}`);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }));
+  }
+
   function readStoredUser() {
     try {
       const raw = localStorage.getItem(STORAGE_USER);
@@ -1768,10 +1819,10 @@
   }
 
   function roomStatusText(room) {
-    if (room.status === "waiting") return "Äang chá» Ä‘á»‘i thá»§";
-    if (room.status === "finished") return "VÃ¡n cá» káº¿t thÃºc";
-    if (room.role === "spectator") return "Báº¡n Ä‘ang xem";
-    return room.yourTurn ? "Tá»›i lÆ°á»£t báº¡n" : "Tá»›i lÆ°á»£t Ä‘á»‘i thá»§";
+    if (room.status === "waiting") return "Đang chờ đối thủ";
+    if (room.status === "finished") return "Ván cờ kết thúc";
+    if (room.role === "spectator") return "Bạn đang xem";
+    return room.yourTurn ? "Tới lượt bạn" : "Tới lượt đối thủ";
   }
 
   function roomSummaryText(room) {
@@ -1779,42 +1830,42 @@
     const yourClockMs = Number(room.clockSetupMs?.[yourSide] || 0);
     const opponentClockMs = Number(room.clockSetupMs?.[oppositeSide(yourSide)] || 0);
     const incrementLabel = Number(room.incrementSeconds || 0) > 0
-      ? `, tÃ­ch lÅ©y ${room.incrementSeconds} giÃ¢y/nÆ°á»›c`
+      ? `, tích lũy ${room.incrementSeconds} giây/nước`
       : "";
 
     if (room.status === "waiting") {
-      return `BÃªn ta ${formatClockSetup(yourClockMs)}, bÃªn Ä‘á»‹ch ${formatClockSetup(opponentClockMs)}${incrementLabel}. Há»‡ thá»‘ng Ä‘ang chá» Ä‘á»§ hai ngÆ°á»i chÆ¡i.`;
+      return `Bên ta ${formatClockSetup(yourClockMs)}, bên địch ${formatClockSetup(opponentClockMs)}${incrementLabel}. Hệ thống đang chờ đủ hai người chơi.`;
     }
     if (room.status === "finished") {
       return resultDetail(room);
     }
     if (room.role === "spectator") {
-      return `Báº¡n Ä‘ang á»Ÿ cháº¿ Ä‘á»™ ngÆ°á»i xem. Äá»“ng há»“ hai bÃªn lÃ  ${formatClockSetup(Number(room.clockSetupMs?.w || 0))} vÃ  ${formatClockSetup(Number(room.clockSetupMs?.b || 0))}${incrementLabel}.`;
+      return `Bạn đang ở chế độ người xem. Đồng hồ hai bên là ${formatClockSetup(Number(room.clockSetupMs?.w || 0))} và ${formatClockSetup(Number(room.clockSetupMs?.b || 0))}${incrementLabel}.`;
     }
     return room.yourTurn
-      ? `Báº¡n Ä‘ang cáº§m bÃªn ${room.yourSide === "w" ? "Äá»" : "Äen"}. Äá»“ng há»“ cá»§a báº¡n lÃ  ${formatClockSetup(yourClockMs)}, Ä‘á»‘i thá»§ lÃ  ${formatClockSetup(opponentClockMs)}${incrementLabel}.`
-      : `Báº¡n Ä‘ang cáº§m bÃªn ${room.yourSide === "w" ? "Äá»" : "Äen"}. Äá»“ng há»“ cá»§a báº¡n lÃ  ${formatClockSetup(yourClockMs)}, Ä‘á»‘i thá»§ lÃ  ${formatClockSetup(opponentClockMs)}${incrementLabel}.`;
+      ? `Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}. Đồng hồ của bạn là ${formatClockSetup(yourClockMs)}, đối thủ là ${formatClockSetup(opponentClockMs)}${incrementLabel}.`
+      : `Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}. Đồng hồ của bạn là ${formatClockSetup(yourClockMs)}, đối thủ là ${formatClockSetup(opponentClockMs)}${incrementLabel}.`;
   }
 
   function resultTitle(room) {
     if (!room?.result) return "";
     if (room.role === "spectator") {
-      if (!room.result.winnerSide) return "VÃ¡n cá» hÃ²a";
-      return `${room.result.winnerSide === "w" ? "Äá»" : "Äen"} tháº¯ng`;
+      if (!room.result.winnerSide) return "Ván cờ hòa";
+      return `${room.result.winnerSide === "w" ? "Đỏ" : "Đen"} thắng`;
     }
-    if (!room.result.winnerSide) return "VÃ¡n cá» hÃ²a";
-    return room.result.winnerSide === room.yourSide ? "Báº¡n tháº¯ng" : "Báº¡n thua";
+    if (!room.result.winnerSide) return "Ván cờ hòa";
+    return room.result.winnerSide === room.yourSide ? "Bạn thắng" : "Bạn thua";
   }
 
   function resultDetail(room) {
     if (!room?.result) return "";
     return {
-      checkmate: "Chiáº¿u bÃ­ tÆ°á»›ng.",
-      "no-moves": "BÃªn thua khÃ´ng cÃ²n nÆ°á»›c Ä‘i há»£p lá»‡.",
-      timeout: "Má»™t bÃªn Ä‘Ã£ háº¿t giá».",
-      resign: "CÃ³ ngÆ°á»i xin thua.",
-      draw: "Hai bÃªn cháº¥p nháº­n hÃ²a."
-    }[room.result.reason] || "VÃ¡n cá» Ä‘Ã£ káº¿t thÃºc.";
+      checkmate: "Chiếu bí tướng.",
+      "no-moves": "Bên thua không còn nước đi hợp lệ.",
+      timeout: "Một bên đã hết giờ.",
+      resign: "Có người xin thua.",
+      draw: "Hai bên chấp nhận hòa."
+    }[room.result.reason] || "Ván cờ đã kết thúc.";
   }
 
   function makeNotice(title, text) {
@@ -1830,7 +1881,7 @@
     return box;
   }
 
-  function openModal({ title, text, confirmText = "Äá»“ng Ã½", onConfirm }) {
+  function openModal({ title, text, confirmText = "Đồng ý", onConfirm }) {
     state.modalConfirm = onConfirm || null;
     dom.modalTitle.textContent = title;
     dom.modalText.textContent = text;
@@ -1857,7 +1908,7 @@
       document.execCommand("copy");
       input.remove();
     }
-    showToast("ÄÃ£ sao chÃ©p.");
+    showToast("Đã sao chép.");
   }
 
   function showToast(message) {
@@ -2115,10 +2166,10 @@
     if (lastError && /UNAUTHORIZED/i.test(lastError.message || "")) {
       clearSession();
       goRoute("home", true);
-      setMessage(dom.matchHubMessage, "Phiên khách đã hết hạn. Hãy thử lại.");
+      setMessage(dom.matchHubMessage, "Phiên thiết bị đã hết hạn. Hãy thử lại.");
     }
     renderProfileAfterApiFailure();
-    throw lastError || new Error("KhÃ´ng thá»ƒ káº¿t ná»‘i tá»›i mÃ¡y chá»§.");
+    throw lastError || new Error("Không thể kết nối tới máy chủ.");
   }
 })();
 

@@ -35,6 +35,15 @@ const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME ||
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
 const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "DmaiHXCAI Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
+const DEVICE_AVATAR_PATHS = new Set([
+  "/assets/device-avatars/goku.png",
+  "/assets/device-avatars/vegeta.png",
+  "/assets/device-avatars/naruto.png",
+  "/assets/device-avatars/luffy.png",
+  "/assets/device-avatars/ichigo.png",
+  "/assets/device-avatars/gojo.png",
+  "/assets/device-avatars/sungjinwoo.png"
+]);
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -47,7 +56,7 @@ const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, M
 const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
 
 const RANDOM_NAME_PREFIX = ["Kỳ", "Danh", "Long", "Mai", "Chiến", "Phong", "Hổ", "Hưng", "Phi", "Mộc"];
-const RANDOM_NAME_SUFFIX = ["Thủ", "Sĩ", "Kỳ", "Tướng", "Vương", "Cục", "Mãnh", "Quân", "Lực", "Minh"];
+const RANDOM_NAME_SUFFIX = ["Thư", "Sĩ", "Kỳ", "Tướng", "Vương", "Cục", "Mạnh", "Quân", "Lộc", "Minh"];
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
@@ -494,6 +503,7 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       email,
       username,
       role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
+      deviceId: sanitizeDeviceId(user.deviceId || ""),
       displayName: sanitizeDisplayName(user.displayName || user.username || generateDisplayName()),
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
@@ -557,9 +567,17 @@ function sanitizeDisplayName(value) {
   return cleaned || generateDisplayName();
 }
 
+function sanitizeDeviceId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^[a-zA-Z0-9:_-]{8,120}$/.test(text)) return text;
+  return "";
+}
+
 function sanitizeAvatarUrl(value) {
   const text = String(value || "").trim();
   if (!text) return "";
+  if (DEVICE_AVATAR_PATHS.has(text)) return text;
   if (/^https?:\/\/\S+$/i.test(text)) return text.slice(0, 500);
   return "";
 }
@@ -673,6 +691,12 @@ function publicUser(user) {
   };
 }
 
+function findGuestByDeviceId(deviceId) {
+  const safeDeviceId = sanitizeDeviceId(deviceId);
+  if (!safeDeviceId) return null;
+  return users.find((item) => item?.role === "guest" && item.deviceId === safeDeviceId) || null;
+}
+
 function adminUserSummary(user) {
   return {
     id: user.id,
@@ -711,7 +735,7 @@ function uniqueGuestIdentity() {
   }
 }
 
-function createGuestUser(displayName = "") {
+function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {}) {
   const identity = uniqueGuestIdentity();
   const passwordInfo = hashPassword(randomId(18));
   const guestUser = {
@@ -721,9 +745,10 @@ function createGuestUser(displayName = "") {
     passwordSalt: passwordInfo.salt,
     passwordHash: passwordInfo.hash,
     role: "guest",
+    deviceId: sanitizeDeviceId(deviceId),
     displayName: sanitizeDisplayName(displayName || generateDisplayName()),
     avatarSeed: randomBase36(4),
-    avatarUrl: "",
+    avatarUrl: sanitizeAvatarUrl(avatarUrl),
     history: [],
     createdAt: nowIso()
   };
@@ -738,6 +763,23 @@ function updateUserDisplayName(user, displayName) {
   user.displayName = nextName;
   saveUsers();
   return true;
+}
+
+function updateGuestDeviceProfile(user, { deviceId = "", avatarUrl = "" } = {}) {
+  if (!user || user.role !== "guest") return false;
+  let changed = false;
+  const safeDeviceId = sanitizeDeviceId(deviceId);
+  const safeAvatarUrl = sanitizeAvatarUrl(avatarUrl);
+  if (safeDeviceId && user.deviceId !== safeDeviceId) {
+    user.deviceId = safeDeviceId;
+    changed = true;
+  }
+  if (safeAvatarUrl && user.avatarUrl !== safeAvatarUrl) {
+    user.avatarUrl = safeAvatarUrl;
+    changed = true;
+  }
+  if (changed) saveUsers();
+  return changed;
 }
 
 function oppositeSide(side) {
@@ -1854,9 +1896,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/auth/guest" && req.method === "POST") {
-      const existing = getAuthenticatedUser(req);
       const body = await readBody(req);
+      const deviceId = sanitizeDeviceId(body.deviceId);
+      const avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      let existing = getAuthenticatedUser(req);
+      if (!existing && deviceId) {
+        existing = findGuestByDeviceId(deviceId);
+      }
       if (existing) {
+        updateGuestDeviceProfile(existing, { deviceId, avatarUrl });
         if (body.displayName) {
           updateUserDisplayName(existing, body.displayName);
           await flushUserPersistence();
@@ -1864,7 +1912,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 200, { ok: true, token: createAuthToken(existing.id), user: publicUser(existing) });
         return;
       }
-      const guest = createGuestUser(body.displayName || "");
+      const guest = createGuestUser(body.displayName || "", { deviceId, avatarUrl });
       await flushUserPersistence();
       json(res, 200, { ok: true, token: createAuthToken(guest.id), user: publicUser(guest) });
       return;
@@ -2130,26 +2178,26 @@ const server = http.createServer(async (req, res) => {
 
 function friendlyErrorVi(code) {
   return {
-    UNAUTHORIZED: "B?n c?n ??ng nh?p.",
-    ROOM_NOT_FOUND: "Kh?ng t?m th?y ph?ng ??u.",
-    ROOM_FULL: "Ph?ng ?? ?? ng??i.",
-    ROOM_CLOSED: "Ph?ng n?y kh?ng th? tham gia n?a.",
-    FORBIDDEN_ROOM: "B?n kh?ng thu?c ph?ng ??u n?y.",
-    FORBIDDEN_ADMIN: "B?n kh?ng c? quy?n qu?n tr?.",
-    INVALID_MOVE: "N??c ?i kh?ng h?p l?.",
-    NOT_YOUR_TURN: "Ch?a t?i l??t b?n.",
-    REQUEST_LIMIT_REACHED: "B?n ?? d?ng h?t l??t y?u c?u.",
-    REQUEST_PENDING: "?ang c? y?u c?u ch? ??i th? x?c nh?n.",
-    ROOM_NOT_ACTIVE: "Ph?ng ch?a s?n s?ng thi ??u.",
-    ROOM_FINISHED: "V?n c? ?? k?t th?c.",
-    ROOM_NOT_FINISHED: "V?n c? ch?a k?t th?c.",
-    NO_PENDING_REQUEST: "Kh?ng c? y?u c?u ?ang ch?.",
-    NO_MOVE_TO_UNDO: "Ch?a c? n??c n?o ?? ?i l?i.",
-    SELF_REQUEST: "B?n kh?ng th? t? x?c nh?n y?u c?u c?a m?nh.",
-    INVALID_REQUEST: "Yeu cau khong hop le.",
-    INVALID_SIDE: "Phong dau dang loi ve ben cam quan.",
-    SPECTATOR_READ_ONLY: "Nguoi xem chi co the quan sat va chat.",
-    EMPTY_CHAT: "Noi dung chat khong duoc de trong."
+    UNAUTHORIZED: "Bạn cần đăng nhập.",
+    ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",
+    ROOM_FULL: "Phòng đấu đã đủ người.",
+    ROOM_CLOSED: "Phòng này không thể tham gia nữa.",
+    FORBIDDEN_ROOM: "Bạn không thuộc phòng đấu này.",
+    FORBIDDEN_ADMIN: "Bạn không có quyền quản trị.",
+    INVALID_MOVE: "Nước đi không hợp lệ.",
+    NOT_YOUR_TURN: "Chưa tới lượt bạn.",
+    REQUEST_LIMIT_REACHED: "Bạn đã dùng hết lượt yêu cầu.",
+    REQUEST_PENDING: "Đang có yêu cầu chờ đối thủ xác nhận.",
+    ROOM_NOT_ACTIVE: "Phòng chưa sẵn sàng thi đấu.",
+    ROOM_FINISHED: "Ván cờ đã kết thúc.",
+    ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
+    NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
+    NO_MOVE_TO_UNDO: "Chưa có nước nào để đi lại.",
+    SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",
+    INVALID_REQUEST: "Yêu cầu không hợp lệ.",
+    INVALID_SIDE: "Phòng đấu đang lỗi về bên cầm quân.",
+    SPECTATOR_READ_ONLY: "Người xem chỉ có thể quan sát và chat.",
+    EMPTY_CHAT: "Nội dung chat không được để trống."
   }[code] || code;
 }
 
