@@ -822,7 +822,7 @@ function drawBoard() {
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
   const g = geometry();
-  ctx.strokeStyle = "rgba(65, 62, 47, 0.62)";
+  ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
   ctx.lineWidth = Math.max(1.5, rect.width / 420);
   for (let x = 0; x < 9; x++) {
     line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
@@ -834,7 +834,7 @@ function drawBoard() {
   line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
   line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
   ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-  ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
+  ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
   ctx.textAlign = "center";
   ctx.fillText("\u695a\u6cb3", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
   ctx.fillText("\u6f22\u754c", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
@@ -886,8 +886,6 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const pieceRatio = Number.parseFloat(getComputedStyle(boardEl).getPropertyValue("--piece-size")) / 100 || 0.086;
   const isMobileBoard = rect.width <= 460;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
   ctx.lineWidth = isMobileBoard ? Math.max(7, rect.width * pieceRatio * 0.18) : Math.max(11, rect.width / 66);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -901,13 +899,8 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.92) : Math.max(58, rect.width / 12);
   const halfWidth = isMobileBoard ? Math.max(9, head * 0.18) : Math.max(12, head * 0.2);
   const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
-  line(ctx, from.x, from.y, base.x, base.y);
-  ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
-  ctx.lineTo(base.x - normal.x * halfWidth, base.y - normal.y * halfWidth);
-  ctx.closePath();
-  ctx.fill();
+  const palette = arrowPalette(color);
+  drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
 }
 
 function clearArrow() {
@@ -1589,6 +1582,80 @@ function line(ctx, x1, y1, x2, y2) {
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
+}
+
+function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
+  const gradient = ctx.createLinearGradient(from.x, from.y, tip.x, tip.y);
+  gradient.addColorStop(0, palette.start);
+  gradient.addColorStop(0.55, palette.mid);
+  gradient.addColorStop(1, palette.end);
+
+  ctx.save();
+  ctx.shadowColor = palette.glow;
+  ctx.shadowBlur = Math.max(10, ctx.lineWidth * 1.2);
+  ctx.strokeStyle = gradient;
+  ctx.fillStyle = gradient;
+  line(ctx, from.x, from.y, base.x, base.y);
+
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
+  ctx.lineTo(base.x - normal.x * halfWidth, base.y - normal.y * halfWidth);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = palette.highlight;
+  ctx.lineWidth = Math.max(1.5, ctx.lineWidth * 0.18);
+  line(
+    ctx,
+    from.x - normal.x * ctx.lineWidth * 0.8,
+    from.y - normal.y * ctx.lineWidth * 0.8,
+    base.x - normal.x * ctx.lineWidth * 0.8,
+    base.y - normal.y * ctx.lineWidth * 0.8
+  );
+
+  ctx.beginPath();
+  ctx.moveTo(tip.x - normal.x * 1.5, tip.y - normal.y * 1.5);
+  ctx.lineTo(base.x, base.y);
+  ctx.lineTo(base.x - normal.x * halfWidth * 0.42, base.y - normal.y * halfWidth * 0.42);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function arrowPalette(color) {
+  const base = parseArrowColor(color);
+  return {
+    start: rgbaString(mixArrowColor(base, 0.26, 255, 0.85)),
+    mid: rgbaString({ ...base, a: 0.96 }),
+    end: rgbaString(mixArrowColor(base, 0.18, 0, 0.98)),
+    glow: rgbaString({ ...base, a: 0.42 }),
+    highlight: "rgba(255, 245, 220, 0.3)"
+  };
+}
+
+function parseArrowColor(color) {
+  const match = String(color || "").match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
+  if (!match) return { r: 23, g: 126, b: 137, a: 0.9 };
+  return {
+    r: Number(match[1]),
+    g: Number(match[2]),
+    b: Number(match[3]),
+    a: match[4] === undefined ? 1 : Number(match[4])
+  };
+}
+
+function mixArrowColor(base, ratio, target, alpha = base.a) {
+  return {
+    r: Math.round(base.r + (target - base.r) * ratio),
+    g: Math.round(base.g + (target - base.g) * ratio),
+    b: Math.round(base.b + (target - base.b) * ratio),
+    a: alpha
+  };
+}
+
+function rgbaString(color) {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
 }
 
 async function api(url, body) {

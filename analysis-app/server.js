@@ -55,9 +55,6 @@ const DEFAULT_ENGINE_CANDIDATES = [
 const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(2, cpuCount())), 1, 16);
 const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
 
-const RANDOM_NAME_PREFIX = ["Kỳ", "Danh", "Long", "Mai", "Chiến", "Phong", "Hổ", "Hưng", "Phi", "Mộc"];
-const RANDOM_NAME_SUFFIX = ["Thư", "Sĩ", "Kỳ", "Tướng", "Vương", "Cục", "Mạnh", "Quân", "Lộc", "Minh"];
-
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
 
@@ -504,7 +501,9 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       username,
       role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
       deviceId: sanitizeDeviceId(user.deviceId || ""),
-      displayName: sanitizeDisplayName(user.displayName || user.username || generateDisplayName()),
+      displayName: user.role === "guest"
+        ? sanitizeOptionalDisplayName(user.displayName || "")
+        : sanitizeDisplayName(user.displayName || "", user.username || ADMIN_DISPLAY_NAME),
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
       history: normalizeHistoryEntries(user.history),
@@ -556,15 +555,14 @@ function slugSafe(value) {
     .trim();
 }
 
-function generateDisplayName() {
-  const left = RANDOM_NAME_PREFIX[Math.floor(Math.random() * RANDOM_NAME_PREFIX.length)];
-  const right = RANDOM_NAME_SUFFIX[Math.floor(Math.random() * RANDOM_NAME_SUFFIX.length)];
-  return `${left} ${right} ${Math.floor(100 + Math.random() * 900)}`;
+function sanitizeDisplayName(value, fallback = "") {
+  const cleaned = slugSafe(value).slice(0, 26);
+  const fallbackClean = slugSafe(fallback).slice(0, 26);
+  return cleaned || fallbackClean || "";
 }
 
-function sanitizeDisplayName(value) {
-  const cleaned = slugSafe(value).slice(0, 26);
-  return cleaned || generateDisplayName();
+function sanitizeOptionalDisplayName(value) {
+  return slugSafe(value).slice(0, 26);
 }
 
 function sanitizeDeviceId(value) {
@@ -746,7 +744,7 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
     passwordHash: passwordInfo.hash,
     role: "guest",
     deviceId: sanitizeDeviceId(deviceId),
-    displayName: sanitizeDisplayName(displayName || generateDisplayName()),
+    displayName: sanitizeOptionalDisplayName(displayName),
     avatarSeed: randomBase36(4),
     avatarUrl: sanitizeAvatarUrl(avatarUrl),
     history: [],
@@ -758,7 +756,7 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
 }
 
 function updateUserDisplayName(user, displayName) {
-  const nextName = sanitizeDisplayName(displayName || user?.displayName || "");
+  const nextName = sanitizeOptionalDisplayName(displayName);
   if (!user || !nextName || user.displayName === nextName) return false;
   user.displayName = nextName;
   saveUsers();
@@ -1943,7 +1941,7 @@ const server = http.createServer(async (req, res) => {
         passwordSalt: passwordInfo.salt,
         passwordHash: passwordInfo.hash,
         role: "user",
-        displayName: generateDisplayName(),
+        displayName: sanitizeDisplayName("", username),
         avatarSeed: randomBase36(4),
         avatarUrl: "",
         history: [],
@@ -1989,7 +1987,9 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/profile" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      user.displayName = sanitizeDisplayName(body.displayName);
+      user.displayName = user.role === "guest"
+        ? sanitizeOptionalDisplayName(body.displayName || user.displayName || "")
+        : sanitizeDisplayName(body.displayName || "", user.username || user.displayName || "");
       user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
       await saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });

@@ -175,7 +175,6 @@
     profileAvatarLarge: byId("profileAvatarLarge"),
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
-    historyList: byId("historyList"),
     libraryHistoryList: byId("libraryHistoryList"),
     adminRefreshBtn: byId("adminRefreshBtn"),
     adminUsersMeta: byId("adminUsersMeta"),
@@ -402,10 +401,6 @@
       state.token = token;
       localStorage.setItem(STORAGE_TOKEN, token);
     }
-    if (state.user?.displayName) {
-      dom.joinDisplayName.value = state.user.displayName;
-      dom.createDisplayName.value = state.user.displayName;
-    }
     persistStoredUser(state.user);
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
@@ -483,7 +478,6 @@
   function openProfileModal() {
     if (!state.user) return;
     renderProfile();
-    renderHistory();
     dom.profileModal.classList.remove("hidden");
   }
 
@@ -509,13 +503,15 @@
 
   function renderProfile() {
     if (!state.user) {
-      dom.profileName.textContent = "Thiết bị của bạn";
-      dom.profileUsername.textContent = "Đã ghi nhớ trên thiết bị này";
       const deviceAvatar = {
         displayName: "Thiết bị",
         avatarSeed: state.deviceId,
         avatarUrl: state.deviceAvatarUrl
       };
+      if (dom.profileName) dom.profileName.textContent = "";
+      if (dom.profileUsername) dom.profileUsername.textContent = "";
+      dom.profileButton.title = "Ảnh đại diện thiết bị";
+      dom.profileButton.setAttribute("aria-label", "Ảnh đại diện thiết bị");
       paintAvatar(dom.profileAvatar, deviceAvatar, "D");
       paintAvatar(dom.profileAvatarLarge, deviceAvatar, "D");
       if (dom.openAdminBtn) dom.openAdminBtn.classList.add("hidden");
@@ -523,10 +519,11 @@
       return;
     }
 
-    const displayName = state.user.displayName || "Thiết bị của bạn";
-    const subtitle = state.user.role === "admin" ? `@${state.user.username}` : "Đã ghi nhớ trên thiết bị này";
-    dom.profileName.textContent = displayName;
-    dom.profileUsername.textContent = subtitle;
+    const displayName = state.user.displayName || state.user.username || "Thiết bị";
+    if (dom.profileName) dom.profileName.textContent = "";
+    if (dom.profileUsername) dom.profileUsername.textContent = "";
+    dom.profileButton.title = state.user.role === "admin" ? `${displayName} (@${state.user.username})` : displayName;
+    dom.profileButton.setAttribute("aria-label", `Ảnh đại diện của ${displayName}`);
     if (dom.openAdminBtn) dom.openAdminBtn.classList.toggle("hidden", !isAdmin());
     if (dom.logoutBtn) dom.logoutBtn.classList.toggle("hidden", !isAdmin());
     paintAvatar(dom.profileAvatar, state.user);
@@ -539,7 +536,6 @@
       emptyText: "Chưa có ván nào được lưu.",
       onOpen: openHistoryReview
     };
-    renderHistoryCollection(dom.historyList, state.history, options);
     renderHistoryCollection(dom.libraryHistoryList, state.history, options);
   }
 
@@ -633,6 +629,7 @@
   }
 
   function renderHistoryCollection(container, entries, { emptyText, onOpen }) {
+    if (!container) return;
     container.innerHTML = "";
     const list = Array.isArray(entries) ? entries.slice(0, 20) : [];
     if (!list.length) {
@@ -922,6 +919,10 @@
   async function onCreateRoom(event) {
     event.preventDefault();
     const displayName = dom.createDisplayName.value.trim();
+    if (!displayName) {
+      setMessage(dom.matchHubMessage, "Hãy nhập tên của bạn trước khi tạo phòng.");
+      return;
+    }
     setMessage(dom.matchHubMessage, "Đang tạo phòng...", "info");
     try {
       await ensureGuestSession(displayName);
@@ -948,6 +949,10 @@
     event.preventDefault();
     const displayName = dom.joinDisplayName.value.trim();
     const key = dom.joinRoomKey.value.trim().toUpperCase();
+    if (!displayName) {
+      setMessage(dom.matchHubMessage, "Hãy nhập tên của bạn trước khi vào phòng.");
+      return;
+    }
     setMessage(dom.matchHubMessage, "Đang vào phòng...", "info");
     try {
       await ensureGuestSession(displayName);
@@ -1306,7 +1311,7 @@
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     const g = geometry();
-    ctx.strokeStyle = "rgba(65, 62, 47, 0.62)";
+    ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
     ctx.lineWidth = Math.max(1.5, rect.width / 420);
 
     for (let x = 0; x < 9; x += 1) {
@@ -1321,7 +1326,7 @@
     line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
     line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
     ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-    ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
+    ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
     ctx.textAlign = "center";
     ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
     ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
@@ -1394,7 +1399,7 @@
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     const g = reviewGeometry();
-    ctx.strokeStyle = "rgba(65, 62, 47, 0.62)";
+    ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
     ctx.lineWidth = Math.max(1.5, rect.width / 420);
 
     for (let x = 0; x < 9; x += 1) {
@@ -1409,7 +1414,7 @@
     line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
     line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
     ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-    ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
+    ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
     ctx.textAlign = "center";
     ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
     ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
@@ -1475,8 +1480,6 @@
     const pieceRatio = Number.parseFloat(getComputedStyle(dom.reviewBoard).getPropertyValue("--piece-size")) / 100 || 0.086;
     const isMobileBoard = rect.width <= 460;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.strokeStyle = "rgba(23, 126, 137, 0.88)";
-    ctx.fillStyle = "rgba(23, 126, 137, 0.88)";
     ctx.lineWidth = isMobileBoard ? Math.max(7, rect.width * pieceRatio * 0.18) : Math.max(11, rect.width / 66);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -1490,13 +1493,8 @@
     const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.92) : Math.max(58, rect.width / 12);
     const halfWidth = isMobileBoard ? Math.max(9, head * 0.18) : Math.max(12, head * 0.2);
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
-    line(ctx, from.x, from.y, base.x, base.y);
-    ctx.beginPath();
-    ctx.moveTo(tip.x, tip.y);
-    ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
-    ctx.lineTo(base.x - normal.x * halfWidth, base.y - normal.y * halfWidth);
-    ctx.closePath();
-    ctx.fill();
+    const palette = arrowPalette("rgba(164, 55, 205, 0.94)");
+    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
   }
 
   function clearReviewArrow() {
@@ -2058,6 +2056,80 @@
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
+  }
+
+  function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
+    const gradient = ctx.createLinearGradient(from.x, from.y, tip.x, tip.y);
+    gradient.addColorStop(0, palette.start);
+    gradient.addColorStop(0.55, palette.mid);
+    gradient.addColorStop(1, palette.end);
+
+    ctx.save();
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = Math.max(10, ctx.lineWidth * 1.2);
+    ctx.strokeStyle = gradient;
+    ctx.fillStyle = gradient;
+    line(ctx, from.x, from.y, base.x, base.y);
+
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
+    ctx.lineTo(base.x - normal.x * halfWidth, base.y - normal.y * halfWidth);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = palette.highlight;
+    ctx.lineWidth = Math.max(1.5, ctx.lineWidth * 0.18);
+    line(
+      ctx,
+      from.x - normal.x * ctx.lineWidth * 0.8,
+      from.y - normal.y * ctx.lineWidth * 0.8,
+      base.x - normal.x * ctx.lineWidth * 0.8,
+      base.y - normal.y * ctx.lineWidth * 0.8
+    );
+
+    ctx.beginPath();
+    ctx.moveTo(tip.x - normal.x * 1.5, tip.y - normal.y * 1.5);
+    ctx.lineTo(base.x, base.y);
+    ctx.lineTo(base.x - normal.x * halfWidth * 0.42, base.y - normal.y * halfWidth * 0.42);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function arrowPalette(color) {
+    const base = parseArrowColor(color);
+    return {
+      start: rgbaString(mixArrowColor(base, 0.26, 255, 0.85)),
+      mid: rgbaString({ ...base, a: 0.96 }),
+      end: rgbaString(mixArrowColor(base, 0.18, 0, 0.98)),
+      glow: rgbaString({ ...base, a: 0.42 }),
+      highlight: "rgba(255, 245, 220, 0.3)"
+    };
+  }
+
+  function parseArrowColor(color) {
+    const match = String(color || "").match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
+    if (!match) return { r: 164, g: 55, b: 205, a: 0.94 };
+    return {
+      r: Number(match[1]),
+      g: Number(match[2]),
+      b: Number(match[3]),
+      a: match[4] === undefined ? 1 : Number(match[4])
+    };
+  }
+
+  function mixArrowColor(base, ratio, target, alpha = base.a) {
+    return {
+      r: Math.round(base.r + (target - base.r) * ratio),
+      g: Math.round(base.g + (target - base.g) * ratio),
+      b: Math.round(base.b + (target - base.b) * ratio),
+      a: alpha
+    };
+  }
+
+  function rgbaString(color) {
+    return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
   }
 
   function getCheckedSides(board) {
