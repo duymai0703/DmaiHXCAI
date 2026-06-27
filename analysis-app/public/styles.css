@@ -57,6 +57,19 @@ button.active {
   color: white;
 }
 
+.nav-back {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .toast-message {
   position: fixed;
   left: 50%;
@@ -160,6 +173,10 @@ h2 {
     inset 0 0 0 2px rgba(80, 64, 42, 0.25),
     0 18px 42px rgba(55, 37, 18, 0.28);
   touch-action: manipulation;
+  contain: layout paint style;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #boardCanvas,
@@ -169,6 +186,9 @@ h2 {
   inset: 0;
   width: 100%;
   height: 100%;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #arrowCanvas {
@@ -203,6 +223,10 @@ h2 {
   line-height: 1;
   transform: translate(-50%, -50%);
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   text-shadow:
     0 1px 0 rgba(0, 0, 0, 0.28),
     0 0 1px rgba(255, 255, 255, 0.18);
@@ -230,12 +254,14 @@ h2 {
   color: transparent;
   font-size: 0;
   text-shadow: none;
+  image-rendering: auto;
 }
 
 .piece.selected {
   outline: 4px solid rgba(23, 126, 137, 0.45);
 }
 
+.piece.in-check::after,
 .piece.checkmated::after {
   content: "";
   position: absolute;

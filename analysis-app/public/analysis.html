@@ -12,10 +12,11 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css?v=20260627-panel-height-fix">
+    <link rel="stylesheet" href="/styles.css?v=20260627-room-fix">
   </head>
   <body>
     <header class="app-header">
+      <button id="backButton" class="nav-back" type="button" aria-label="Quay lại">←</button>
       <div class="brand">
         <img class="brand-mark" src="/assets/icons/header-logo.png" alt="HXC">
         <div>
@@ -94,8 +95,21 @@
       </aside>
     </main>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260627-panel-height-fix"></script>
+    <script src="/app.js?v=20260627-room-fix"></script>
     <script>
+      const backButton = document.getElementById("backButton");
+      if (backButton) {
+        backButton.addEventListener("click", () => {
+          try {
+            const referrer = document.referrer ? new URL(document.referrer) : null;
+            if (referrer && referrer.origin === location.origin) {
+              history.back();
+              return;
+            }
+          } catch {}
+          location.href = "/";
+        });
+      }
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/service-worker.js").catch(() => {});

@@ -18,7 +18,9 @@ const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret"
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
+const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+const PRESENCE_TTL_MS = 1000 * 30;
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -100,6 +102,9 @@ function loadRooms() {
       b: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT }
     };
     room.moves = Array.isArray(room.moves) ? room.moves : [];
+    room.spectators = Array.isArray(room.spectators) ? [...new Set(room.spectators)] : [];
+    room.chat = Array.isArray(room.chat) ? room.chat.slice(-MAX_CHAT_MESSAGES) : [];
+    room.presence = room.presence && typeof room.presence === "object" ? room.presence : {};
     room.clocks = room.clocks || { w: room.timeControlMs || 0, b: room.timeControlMs || 0 };
     room.boardFen = room.boardFen || XiangqiCore.START_FEN;
     room.sideToMove = room.sideToMove === "b" ? "b" : "w";
@@ -172,6 +177,13 @@ function sanitizeDisplayName(value) {
   return cleaned || generateDisplayName();
 }
 
+function sanitizeAvatarUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^https?:\/\/\S+$/i.test(text)) return text.slice(0, 500);
+  return "";
+}
+
 function createAuthToken(userId) {
   const payload = {
     uid: userId,
@@ -222,6 +234,7 @@ function publicUser(user) {
     username: user.username,
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
+    avatarUrl: user.avatarUrl || "",
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
   };
 }
@@ -233,7 +246,8 @@ function roomPlayerSnapshot(userId) {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
-    avatarSeed: user.avatarSeed
+    avatarSeed: user.avatarSeed,
+    avatarUrl: user.avatarUrl || ""
   };
 }
 
@@ -255,7 +269,12 @@ function uniqueRoomKey() {
 
 function currentRoomForUser(userId) {
   for (const room of rooms.values()) {
-    if ((room.players?.w === userId || room.players?.b === userId) && room.status !== "finished") return room;
+    if (room.status === "finished") continue;
+    if (room.players?.w === userId || room.players?.b === userId) return room;
+    sanitizeRoomPresence(room);
+    if (Array.isArray(room.spectators) && room.spectators.includes(userId) && room.presence?.[userId]?.role === "spectator") {
+      return room;
+    }
   }
   return null;
 }
@@ -276,7 +295,10 @@ function createRoom(user, minutes, side) {
       w: color === "w" ? user.id : null,
       b: color === "b" ? user.id : null
     },
+    spectators: [],
     moves: [],
+    chat: [],
+    presence: {},
     clocks: { w: minutes * 60 * 1000, b: minutes * 60 * 1000 },
     allowances: {
       w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
@@ -296,6 +318,43 @@ function userSideInRoom(room, userId) {
   if (room.players?.w === userId) return "w";
   if (room.players?.b === userId) return "b";
   return "";
+}
+
+function roomAccessForUser(room, userId) {
+  const side = userSideInRoom(room, userId);
+  if (side) return { role: "player", side };
+  if (Array.isArray(room.spectators) && room.spectators.includes(userId)) {
+    return { role: "spectator", side: "" };
+  }
+  return { role: "", side: "" };
+}
+
+function sanitizeRoomPresence(room) {
+  const now = Date.now();
+  room.presence = room.presence && typeof room.presence === "object" ? room.presence : {};
+  Object.keys(room.presence).forEach((userId) => {
+    if (now - Number(room.presence[userId]?.lastSeen || 0) > PRESENCE_TTL_MS) {
+      delete room.presence[userId];
+    }
+  });
+}
+
+function touchPresence(room, userId, role) {
+  sanitizeRoomPresence(room);
+  room.presence[userId] = {
+    role,
+    lastSeen: Date.now()
+  };
+}
+
+function activeSpectatorIds(room) {
+  sanitizeRoomPresence(room);
+  return (room.spectators || []).filter((userId) => room.presence[userId]?.role === "spectator");
+}
+
+function addSpectator(room, userId) {
+  room.spectators = Array.isArray(room.spectators) ? room.spectators : [];
+  if (!room.spectators.includes(userId)) room.spectators.push(userId);
 }
 
 function materializeRoomClock(room) {
@@ -337,9 +396,10 @@ function maybeStartRoom(room) {
 }
 
 function ensureRoomAccess(room, userId) {
-  const side = userSideInRoom(room, userId);
-  if (!side) throw new Error("FORBIDDEN_ROOM");
-  return side;
+  const access = roomAccessForUser(room, userId);
+  if (!access.role) throw new Error("FORBIDDEN_ROOM");
+  touchPresence(room, userId, access.role);
+  return access;
 }
 
 function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw" } = {}) {
@@ -405,14 +465,25 @@ function formatResultReason(reason) {
 function joinRoom(user, key) {
   const room = roomByKey(key);
   if (!room) throw new Error("ROOM_NOT_FOUND");
-  const side = userSideInRoom(room, user.id);
-  if (side) return room;
+  const access = roomAccessForUser(room, user.id);
+  if (access.role) {
+    touchPresence(room, user.id, access.role);
+    saveRooms();
+    return room;
+  }
   if (room.status === "finished" && (!room.players.w || !room.players.b)) {
     throw new Error("ROOM_CLOSED");
   }
-  if (room.players.w && room.players.b) throw new Error("ROOM_FULL");
+  if (room.players.w && room.players.b) {
+    addSpectator(room, user.id);
+    touchPresence(room, user.id, "spectator");
+    room.updatedAt = Date.now();
+    saveRooms();
+    return room;
+  }
   if (!room.players.w) room.players.w = user.id;
   else room.players.b = user.id;
+  touchPresence(room, user.id, "player");
   room.updatedAt = Date.now();
   maybeStartRoom(room);
   saveRooms();
@@ -421,36 +492,55 @@ function joinRoom(user, key) {
 
 function roomStateForUser(room, user) {
   materializeRoomClock(room);
-  const yourSide = ensureRoomAccess(room, user.id);
+  const access = ensureRoomAccess(room, user.id);
+  const yourSide = access.side;
   const waitingForOpponent = room.status === "waiting";
   const viewerRequest = room.pendingRequest
     ? {
         type: room.pendingRequest.type,
-        fromYou: room.pendingRequest.fromSide === yourSide,
-        toYou: room.pendingRequest.fromSide !== yourSide
+        fromSide: room.pendingRequest.fromSide,
+        fromYou: access.role === "player" && room.pendingRequest.fromSide === yourSide,
+        toYou: access.role === "player" && room.pendingRequest.fromSide !== yourSide
       }
     : null;
+  const spectators = activeSpectatorIds(room).map(roomPlayerSnapshot).filter(Boolean);
   return {
     key: room.key,
     status: room.status,
     timeControlMinutes: Math.round(room.timeControlMs / 60000),
     boardFen: room.boardFen,
     sideToMove: room.sideToMove,
+    role: access.role,
     yourSide,
+    viewSide: access.role === "player" ? yourSide : "w",
     waitingForOpponent,
-    yourTurn: room.status === "active" && room.sideToMove === yourSide,
+    yourTurn: access.role === "player" && room.status === "active" && room.sideToMove === yourSide,
     players: {
       w: roomPlayerSnapshot(room.players.w),
       b: roomPlayerSnapshot(room.players.b)
     },
+    spectators,
+    viewerCount: spectators.length,
     clocks: room.clocks,
-    allowances: room.allowances[yourSide] || { undoRemaining: 0, drawRemaining: 0 },
+    allowances: access.role === "player"
+      ? room.allowances[yourSide] || { undoRemaining: 0, drawRemaining: 0 }
+      : { undoRemaining: 0, drawRemaining: 0 },
     pendingRequest: viewerRequest,
     rematchReady: {
-      you: Boolean(room.rematchReady?.[yourSide]),
-      opponent: Boolean(room.rematchReady?.[oppositeSide(yourSide)])
+      you: access.role === "player" ? Boolean(room.rematchReady?.[yourSide]) : false,
+      opponent: access.role === "player" ? Boolean(room.rematchReady?.[oppositeSide(yourSide)]) : false
     },
     result: room.result,
+    chat: (room.chat || []).slice(-MAX_CHAT_MESSAGES).map((entry) => ({
+      id: entry.id,
+      userId: entry.userId,
+      displayName: entry.displayName,
+      username: entry.username,
+      avatarSeed: entry.avatarSeed,
+      avatarUrl: entry.avatarUrl || "",
+      text: entry.text,
+      createdAt: entry.createdAt
+    })),
     moves: room.moves.map((move) => ({
       side: move.side,
       move: move.move,
@@ -463,7 +553,13 @@ function requireRoomAndUser(req, key) {
   const user = requireUser(req);
   const room = roomByKey(key);
   if (!room) throw new Error("ROOM_NOT_FOUND");
-  return { user, room, side: ensureRoomAccess(room, user.id) };
+  const access = ensureRoomAccess(room, user.id);
+  return { user, room, access, side: access.side };
+}
+
+function requirePlayerAccess(access) {
+  if (access.role !== "player" || !access.side) throw new Error("SPECTATOR_READ_ONLY");
+  return access.side;
 }
 
 function applyMoveInRoom(room, side, move) {
@@ -570,6 +666,25 @@ function setRematchReady(room, side, ready) {
     room.players = nextPlayers;
     resetRoomForGame(room);
   }
+  saveRooms();
+}
+
+function appendChatMessage(room, user, text) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim().slice(0, 280);
+  if (!clean) throw new Error("EMPTY_CHAT");
+  room.chat = Array.isArray(room.chat) ? room.chat : [];
+  room.chat.push({
+    id: randomId(8),
+    userId: user.id,
+    displayName: user.displayName,
+    username: user.username,
+    avatarSeed: user.avatarSeed,
+    avatarUrl: user.avatarUrl || "",
+    text: clean,
+    createdAt: nowIso()
+  });
+  room.chat = room.chat.slice(-MAX_CHAT_MESSAGES);
+  room.updatedAt = Date.now();
   saveRooms();
 }
 
@@ -1116,6 +1231,7 @@ const server = http.createServer(async (req, res) => {
         passwordHash: passwordInfo.hash,
         displayName: generateDisplayName(),
         avatarSeed: randomBase36(4),
+        avatarUrl: "",
         history: [],
         createdAt: nowIso()
       };
@@ -1160,6 +1276,7 @@ const server = http.createServer(async (req, res) => {
       const user = requireUser(req);
       const body = await readBody(req);
       user.displayName = sanitizeDisplayName(body.displayName);
+      user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
       saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });
       return;
@@ -1225,7 +1342,8 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/move" && req.method === "POST") {
       const body = await readBody(req);
-      const { user, room, side } = requireRoomAndUser(req, body.key);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
       applyMoveInRoom(room, side, String(body.move || ""));
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -1233,7 +1351,8 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/request" && req.method === "POST") {
       const body = await readBody(req);
-      const { user, room, side } = requireRoomAndUser(req, body.key);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
       sendRoomRequest(room, side, String(body.type || ""));
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -1241,7 +1360,8 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/respond" && req.method === "POST") {
       const body = await readBody(req);
-      const { user, room, side } = requireRoomAndUser(req, body.key);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
       answerRoomRequest(room, side, Boolean(body.accept));
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -1249,7 +1369,8 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/resign" && req.method === "POST") {
       const body = await readBody(req);
-      const { user, room, side } = requireRoomAndUser(req, body.key);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
       resignRoom(room, side);
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -1257,8 +1378,17 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/rematch" && req.method === "POST") {
       const body = await readBody(req);
-      const { user, room, side } = requireRoomAndUser(req, body.key);
+      const { user, room, access, side } = requireRoomAndUser(req, body.key);
+      requirePlayerAccess(access);
       setRematchReady(room, side, Boolean(body.ready));
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/chat" && req.method === "POST") {
+      const body = await readBody(req);
+      const { user, room } = requireRoomAndUser(req, body.key);
+      appendChatMessage(room, user, body.text);
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -1283,7 +1413,9 @@ const server = http.createServer(async (req, res) => {
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
       INVALID_REQUEST: 400,
-      INVALID_SIDE: 400
+      INVALID_SIDE: 400,
+      SPECTATOR_READ_ONLY: 403,
+      EMPTY_CHAT: 400
     }[message] || 500;
     json(res, status, { ok: false, error: friendlyErrorVi(message) });
   }
@@ -1306,8 +1438,10 @@ function friendlyErrorVi(code) {
     NO_PENDING_REQUEST: "Kh?ng c? y?u c?u ?ang ch?.",
     NO_MOVE_TO_UNDO: "Ch?a c? n??c n?o ?? ?i l?i.",
     SELF_REQUEST: "B?n kh?ng th? t? x?c nh?n y?u c?u c?a m?nh.",
-    INVALID_REQUEST: "Y?u c?u kh?ng h?p l?.",
-    INVALID_SIDE: "Ph?ng ??u ?ang l?i v? b?n c?m qu?n."
+    INVALID_REQUEST: "Yeu cau khong hop le.",
+    INVALID_SIDE: "Phong dau dang loi ve ben cam quan.",
+    SPECTATOR_READ_ONLY: "Nguoi xem chi co the quan sat va chat.",
+    EMPTY_CHAT: "Noi dung chat khong duoc de trong."
   }[code] || code;
 }
 

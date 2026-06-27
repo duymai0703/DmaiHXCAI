@@ -73,7 +73,7 @@ const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
 
 window.addEventListener("resize", draw);
-boardEl.addEventListener("click", onBoardClick);
+boardEl.addEventListener("pointerdown", onBoardClick);
 document.getElementById("flipBtn").addEventListener("click", () => {
   state.flipped = !state.flipped;
   if (state.lastAnalysis) {
@@ -98,6 +98,7 @@ if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
 preventDoubleTapZoom();
+preloadPieceImages();
 
 init();
 
@@ -115,6 +116,14 @@ function preventDoubleTapZoom() {
     }
     lastTouchEnd = now;
   }, { passive: false });
+}
+
+function preloadPieceImages() {
+  Object.values(PIECE_IMAGES).forEach((src) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = src;
+  });
 }
 
 function autoDelay() {
@@ -496,6 +505,7 @@ function escapeHtml(value) {
 }
 
 function onBoardClick(event) {
+  event.preventDefault();
   const square = eventToSquare(event);
   if (!square) return;
   if (state.editMode) {
@@ -817,6 +827,7 @@ function drawBoard() {
 
 function drawPieces() {
   piecesEl.innerHTML = "";
+  const checkedSides = getCheckedSides();
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const piece = state.board[y][x];
@@ -824,8 +835,8 @@ function drawPieces() {
       const pos = squareToPixel({ x, y });
       const el = document.createElement("div");
       el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
-      if (piece.toLowerCase() === "k" && pieceColor(piece) === state.checkmatedSide) {
-        el.classList.add("checkmated");
+      if (piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]) {
+        el.classList.add("in-check");
       }
       if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
       el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
@@ -1288,6 +1299,13 @@ function getCheckmatedSide() {
   return isCheckmate(state.side) ? state.side : null;
 }
 
+function getCheckedSides() {
+  return {
+    w: Boolean(findKing(state.board, "w")) && isKingInCheck(state.board, "w"),
+    b: Boolean(findKing(state.board, "b")) && isKingInCheck(state.board, "b")
+  };
+}
+
 function evaluateGameOver() {
   return Boolean(getCheckmatedSide());
 }
@@ -1526,7 +1544,7 @@ function eventToSquare(event) {
       }
     }
   }
-  return bestDistance < rect.width / 13 ? best : null;
+  return bestDistance < rect.width / 9.4 ? best : null;
 }
 
 function squareToUci(square) {
