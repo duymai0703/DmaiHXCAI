@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260627-lobby-v4">
+    <link rel="stylesheet" href="/portal.css?v=20260627-lobby-v5">
   </head>
   <body>
     <header class="portal-header">
@@ -272,6 +272,50 @@
           </aside>
         </div>
       </section>
+
+      <section id="reviewView" class="view hidden">
+        <div class="review-shell">
+          <section class="room-stage-panel review-stage-panel">
+            <div class="panel-heading">
+              <div>
+                <h2 id="reviewTitle">Xem lại ván đấu</h2>
+                <p id="reviewMeta">Chọn một ván trong lịch sử để tua lại.</p>
+              </div>
+              <span id="reviewResultBadge" class="room-status-badge">Lịch sử</span>
+            </div>
+
+            <div class="review-controls">
+              <button id="reviewPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
+              <button id="reviewNextBtn" class="secondary-button" type="button">Làm lại</button>
+              <button id="reviewAnalyzeBtn" class="primary-button" type="button">Phân tích</button>
+            </div>
+
+            <div id="reviewInsight" class="notice-card review-insight">
+              Tua lại từng nước để xem diễn biến của ván cờ.
+            </div>
+
+            <div class="review-board-wrap">
+              <div id="reviewBoard" class="room-board review-board">
+                <canvas id="reviewBoardCanvas"></canvas>
+                <canvas id="reviewArrowCanvas"></canvas>
+                <div id="reviewPieces"></div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="room-side review-side">
+            <section class="panel-card room-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Biên bản và độ chính xác</h3>
+                  <p id="reviewMoveMeta">Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.</p>
+                </div>
+              </div>
+              <ol id="reviewMoveList" class="room-move-list review-move-list"></ol>
+            </section>
+          </aside>
+        </div>
+      </section>
     </main>
 
     <div id="profileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
@@ -331,7 +375,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260627-lobby-v4"></script>
+    <script src="/portal.js?v=20260627-lobby-v5"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

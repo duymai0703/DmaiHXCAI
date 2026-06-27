@@ -420,6 +420,8 @@ function materializeRoomClock(room) {
 
 function resetRoomForGame(room) {
   room.boardFen = XiangqiCore.START_FEN;
+  room.startFen = XiangqiCore.START_FEN;
+  room.gameStartedAt = nowIso();
   room.sideToMove = "w";
   room.activeSide = "w";
   room.lastTickAt = Date.now();
@@ -485,13 +487,23 @@ function buildHistoryEntry(room, side, opponent) {
   if (winnerSide === side) outcome = "Thắng";
   if (winnerSide && winnerSide !== side) outcome = "Thua";
   return {
+    id: randomId(10),
     roomKey: room.key,
+    startedAt: room.gameStartedAt || nowIso(),
     endedAt: room.result?.endedAt || nowIso(),
     side: side === "w" ? "Đỏ" : "Đen",
+    sideCode: side,
     opponent: opponent?.displayName || opponent?.username || "Đang chờ",
     result: outcome,
     reason: formatResultReason(room.result?.reason || "draw"),
-    moves: room.moves.map((move) => move.notation)
+    startFen: room.startFen || XiangqiCore.START_FEN,
+    moves: room.moves.map((move) => move.notation),
+    plies: room.moves.map((move, index) => ({
+      index,
+      side: move.side,
+      move: move.move,
+      notation: move.notation
+    }))
   };
 }
 
@@ -856,12 +868,13 @@ class UciEngine {
     return queued;
   }
 
-  async runAnalyze({ fen = "", moves = [], depth = 12, movetime = 0, multipv = 3 }) {
+  async runAnalyze({ fen = "", moves = [], depth = 12, movetime = 0, multipv = 3, searchMoves = [] }) {
     await this.ensureStarted();
     if (this.searching) throw new Error("Engine đang phân tích, thử lại sau một nhịp.");
     this.searching = true;
     try {
       const safeMoves = moves.filter((move) => /^[a-i][0-9][a-i][0-9]$/.test(move));
+      const safeSearchMoves = searchMoves.filter((move) => /^[a-i][0-9][a-i][0-9]$/.test(move));
       const safeFen = sanitizeFen(fen);
       const safeDepth = Math.max(1, Math.min(30, Number(depth) || 12));
       const safeTime = Math.max(0, Math.min(60000, Number(movetime) || 0));
@@ -869,7 +882,8 @@ class UciEngine {
       this.write(`setoption name MultiPV value ${safeMultiPv}`);
       await this.command("isready", (line) => line === "readyok", 8000);
       this.write(safeFen ? `position fen ${safeFen}` : `position startpos${safeMoves.length ? ` moves ${safeMoves.join(" ")}` : ""}`);
-      const go = safeTime > 0 ? `go movetime ${safeTime}` : `go depth ${safeDepth}`;
+      const searchClause = safeSearchMoves.length ? ` searchmoves ${safeSearchMoves.join(" ")}` : "";
+      const go = safeTime > 0 ? `go movetime ${safeTime}${searchClause}` : `go depth ${safeDepth}${searchClause}`;
       const lines = await this.command(go, (line) => line.startsWith("bestmove "), Math.max(15000, safeTime + 5000), true);
       return parseSearch(lines);
     } finally {
@@ -936,6 +950,105 @@ function readScore(line) {
   const index = parts.indexOf("score");
   if (index < 0) return "";
   return `${parts[index + 1] || ""} ${parts[index + 2] || ""}`.trim();
+}
+
+function parseEngineScore(score) {
+  const [kind, valueText] = String(score || "").trim().split(/\s+/);
+  const value = Number(valueText || 0);
+  if (kind === "mate") return { kind, value: Number.isFinite(value) ? value : 0 };
+  return { kind: "cp", value: Number.isFinite(value) ? value : 0 };
+}
+
+function normalizedReviewScore(line) {
+  const raw = parseEngineScore(line?.score || "");
+  if (raw.kind === "mate") return Math.sign(raw.value || 1) * 31999;
+  return raw.value;
+}
+
+function reviewGradeForMove(actualMove, bestMove, bestScore, actualScore) {
+  if (!actualMove || !bestMove) {
+    return { key: "okay", label: "Tạm", delta: 0 };
+  }
+  const delta = Math.max(0, Number(bestScore || 0) - Number(actualScore || 0));
+  if (actualMove === bestMove || delta <= 14) {
+    return { key: "brilliant", label: "Ưu việt", delta };
+  }
+  if (delta <= 70) {
+    return { key: "good", label: "Tốt", delta };
+  }
+  if (delta <= 180) {
+    return { key: "okay", label: "Tạm", delta };
+  }
+  return { key: "bad", label: "Tệ", delta };
+}
+
+async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = [], depth = 8, movetime = 180 }) {
+  const safePlies = Array.isArray(plies) ? plies.filter((item) => /^[a-i][0-9][a-i][0-9]$/.test(String(item?.move || ""))) : [];
+  const safeDepth = Math.max(4, Math.min(16, Number(depth) || 8));
+  const safeMoveTime = Math.max(80, Math.min(1200, Number(movetime) || 180));
+  let currentFen = sanitizeFen(startFen || XiangqiCore.START_FEN);
+  const items = [];
+
+  for (let index = 0; index < safePlies.length; index += 1) {
+    const ply = safePlies[index];
+    const parsed = XiangqiCore.parseFenState(currentFen);
+    const side = ply.side === "b" ? "b" : parsed.side;
+    const boardBefore = parsed.board;
+
+    const best = await engine.analyze({
+      fen: currentFen,
+      moves: [],
+      depth: safeDepth,
+      movetime: safeMoveTime,
+      multipv: 3
+    });
+    const rankedLines = Array.isArray(best.lines) ? best.lines : [];
+    const matchedLine = rankedLines.find((line) => line?.pv?.[0] === ply.move);
+    const bestScore = rankedLines.length ? normalizedReviewScore(rankedLines[0]) : 0;
+
+    let actualScore = matchedLine ? normalizedReviewScore(matchedLine) : null;
+    if (actualScore === null) {
+      const actual = await engine.analyze({
+        fen: currentFen,
+        moves: [],
+        depth: Math.max(4, safeDepth - 1),
+        movetime: Math.max(80, Math.round(safeMoveTime * 0.7)),
+        multipv: 1,
+        searchMoves: [ply.move]
+      });
+      actualScore = actual.lines?.length ? normalizedReviewScore(actual.lines[0]) : bestScore;
+    }
+
+    let bestNotation = "";
+    if (best.bestMove && /^[a-i][0-9][a-i][0-9]$/.test(best.bestMove)) {
+      try {
+        bestNotation = XiangqiCore.formatMoveNotation(best.bestMove, boardBefore, side);
+      } catch {}
+    }
+
+    const grade = reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);
+    items.push({
+      index,
+      side,
+      move: ply.move,
+      notation: ply.notation || "",
+      bestMove: best.bestMove || "",
+      bestNotation,
+      bestScore,
+      actualScore,
+      delta: grade.delta,
+      grade: grade.key,
+      gradeLabel: grade.label
+    });
+
+    if (!XiangqiCore.isLegalMove(boardBefore, ply.move, side)) {
+      break;
+    }
+    XiangqiCore.applyMoveToBoard(boardBefore, ply.move);
+    currentFen = XiangqiCore.boardToFen(boardBefore, side === "w" ? "b" : "w");
+  }
+
+  return { ok: true, items, depth: safeDepth, movetime: safeMoveTime };
 }
 
 let engine = new UciEngine(configuredEnginePath);
@@ -1334,6 +1447,20 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/history") {
       const user = requireUser(req);
       json(res, 200, { ok: true, history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [] });
+      return;
+    }
+
+    if (url.pathname === "/api/history/analyze" && req.method === "POST") {
+      requireUser(req);
+      syncEngineInstance();
+      const body = await readBody(req);
+      const result = await analyzeHistoryGame({
+        startFen: body.startFen || XiangqiCore.START_FEN,
+        plies: Array.isArray(body.plies) ? body.plies : [],
+        depth: Number(body.depth) || 8,
+        movetime: Number(body.movetime) || 180
+      });
+      json(res, 200, result);
       return;
     }
 

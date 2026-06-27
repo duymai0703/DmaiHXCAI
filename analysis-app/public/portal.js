@@ -32,6 +32,15 @@
     room: null,
     roomKey: localStorage.getItem(STORAGE_ROOM) || "",
     roomBoard: XiangqiCore.parseFenState(START_FEN).board,
+    reviewGame: null,
+    reviewCursor: 0,
+    reviewBoard: XiangqiCore.parseFenState(START_FEN).board,
+    reviewContextBoard: XiangqiCore.parseFenState(START_FEN).board,
+    reviewSideToMove: "w",
+    reviewAnalysis: [],
+    reviewAnalyzing: false,
+    reviewLastBoardFrame: "",
+    reviewLastPieceFrame: "",
     selectedSquare: null,
     hints: [],
     roomSyncedAt: 0,
@@ -54,6 +63,7 @@
     matchHubView: byId("matchHubView"),
     libraryView: byId("libraryView"),
     roomView: byId("roomView"),
+    reviewView: byId("reviewView"),
     headerProfile: byId("headerProfile"),
     resumeRoomBtn: byId("resumeRoomBtn"),
     profileButton: byId("profileButton"),
@@ -112,6 +122,19 @@
     chatForm: byId("chatForm"),
     chatInput: byId("chatInput"),
     roomMoveList: byId("roomMoveList"),
+    reviewTitle: byId("reviewTitle"),
+    reviewMeta: byId("reviewMeta"),
+    reviewResultBadge: byId("reviewResultBadge"),
+    reviewPrevBtn: byId("reviewPrevBtn"),
+    reviewNextBtn: byId("reviewNextBtn"),
+    reviewAnalyzeBtn: byId("reviewAnalyzeBtn"),
+    reviewInsight: byId("reviewInsight"),
+    reviewMoveMeta: byId("reviewMoveMeta"),
+    reviewBoard: byId("reviewBoard"),
+    reviewBoardCanvas: byId("reviewBoardCanvas"),
+    reviewArrowCanvas: byId("reviewArrowCanvas"),
+    reviewPieces: byId("reviewPieces"),
+    reviewMoveList: byId("reviewMoveList"),
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
     profileAvatarLarge: byId("profileAvatarLarge"),
@@ -175,6 +198,9 @@
     dom.drawRequestBtn.addEventListener("click", () => requestRoomAction("draw"));
     dom.resignBtn.addEventListener("click", confirmResign);
     dom.roomBoard.addEventListener("pointerdown", onBoardPointerDown);
+    dom.reviewPrevBtn.addEventListener("click", () => stepReview(-1));
+    dom.reviewNextBtn.addEventListener("click", () => stepReview(1));
+    dom.reviewAnalyzeBtn.addEventListener("click", analyzeReviewGame);
     dom.chatForm.addEventListener("submit", onChatSubmit);
     dom.modalCancel.addEventListener("click", closeModal);
     dom.modalConfirm.addEventListener("click", async () => {
@@ -203,7 +229,7 @@
         api("/api/rooms/current")
       ]);
       applySession(session.user);
-      state.history = Array.isArray(historyPayload.history) ? historyPayload.history : [];
+      state.history = normalizeHistoryList(historyPayload.history);
       renderHistory();
       if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
       syncRoute(true);
@@ -245,7 +271,7 @@
 
   function normalizeRoute(hash) {
     const value = String(hash || location.hash || "").replace(/^#/, "").trim().toLowerCase();
-    if (["auth", "home", "match", "library", "room"].includes(value)) return value;
+    if (["auth", "home", "match", "library", "room", "review"].includes(value)) return value;
     return state.user ? "home" : "auth";
   }
 
@@ -268,6 +294,7 @@
     if (!state.user) route = "auth";
     else if (route === "auth") route = state.room ? "room" : "home";
     else if (route === "room" && !state.room) route = "match";
+    else if (route === "review" && !state.reviewGame) route = "home";
 
     state.route = route;
     if (replaceIfNeeded || location.hash !== `#${route}`) {
@@ -279,6 +306,7 @@
     dom.matchHubView.classList.toggle("hidden", route !== "match");
     dom.libraryView.classList.toggle("hidden", route !== "library");
     dom.roomView.classList.toggle("hidden", route !== "room");
+    dom.reviewView.classList.toggle("hidden", route !== "review");
     dom.headerProfile.classList.toggle("hidden", !state.user);
 
     if (route === "room" && state.room) {
@@ -286,6 +314,10 @@
       renderRoomState({ forceBoard: true, keepSelection: true });
     } else {
       stopRoomPolling();
+    }
+
+    if (route === "review") {
+      renderReviewState(true);
     }
 
     updateResumeButton();
@@ -346,7 +378,7 @@
       api("/api/history"),
       api("/api/rooms/current")
     ]);
-    state.history = Array.isArray(historyPayload.history) ? historyPayload.history : [];
+    state.history = normalizeHistoryList(historyPayload.history);
     renderHistory();
     if (currentRoom.room) {
       applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
@@ -400,10 +432,19 @@
     state.history = [];
     state.room = null;
     state.roomKey = "";
+    state.reviewGame = null;
+    state.reviewCursor = 0;
+    state.reviewAnalysis = [];
+    state.reviewAnalyzing = false;
+    state.reviewBoard = XiangqiCore.parseFenState(START_FEN).board;
+    state.reviewContextBoard = XiangqiCore.parseFenState(START_FEN).board;
+    state.reviewSideToMove = "w";
     state.selectedSquare = null;
     state.hints = [];
     state.lastBoardFrame = "";
     state.lastPieceFrame = "";
+    state.reviewLastBoardFrame = "";
+    state.reviewLastPieceFrame = "";
     state.lastChatSignature = "";
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_ROOM);
@@ -453,7 +494,7 @@
     if (!state.token) return;
     try {
       const payload = await api("/api/history");
-      state.history = Array.isArray(payload.history) ? payload.history : [];
+      state.history = normalizeHistoryList(payload.history);
       renderHistory();
     } catch {}
   }
@@ -492,6 +533,7 @@
     state.history.slice(0, 20).forEach((entry) => {
       const item = document.createElement("article");
       item.className = "history-item";
+      item.tabIndex = 0;
       const header = document.createElement("header");
       const title = document.createElement("strong");
       title.textContent = `${entry.side || "Đỏ"} vs ${entry.opponent || "Đối thủ"}`;
@@ -506,7 +548,8 @@
       const detail = document.createElement("div");
       detail.style.color = "var(--muted)";
       detail.style.fontSize = "13px";
-      detail.textContent = `${entry.reason || "Kết thúc"} • ${formatDate(entry.endedAt)}`;
+      const timeLabel = entry.startedAt ? formatDate(entry.startedAt) : formatDate(entry.endedAt);
+      detail.textContent = `${entry.reason || "Kết thúc"} • ${timeLabel}`;
 
       const moves = document.createElement("div");
       moves.style.marginTop = "8px";
@@ -514,8 +557,222 @@
       moves.textContent = Array.isArray(entry.moves) && entry.moves.length ? entry.moves.slice(0, 4).join(" • ") : "Không có biên bản.";
 
       item.append(header, detail, moves);
+      item.addEventListener("click", () => openHistoryReview(entry));
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openHistoryReview(entry);
+        }
+      });
       dom.historyList.appendChild(item);
     });
+  }
+
+  function openHistoryReview(entry) {
+    const reviewEntry = normalizeHistoryEntry(entry);
+    if (!reviewEntry.plies.length) {
+      showToast("Ván này chưa có đủ dữ liệu để xem lại.");
+      return;
+    }
+    state.reviewGame = reviewEntry;
+    state.reviewCursor = 0;
+    state.reviewAnalysis = [];
+    state.reviewAnalyzing = false;
+    state.reviewLastBoardFrame = "";
+    state.reviewLastPieceFrame = "";
+    rebuildReviewBoard();
+    closeProfileModal();
+    goRoute("review");
+  }
+
+  function normalizeHistoryEntry(entry) {
+    return {
+      ...entry,
+      startFen: entry?.startFen || START_FEN,
+      sideCode: entry?.sideCode === "b" ? "b" : "w",
+      plies: Array.isArray(entry?.plies)
+        ? entry.plies.filter((item) => /^[a-i][0-9][a-i][0-9]$/.test(String(item?.move || "")))
+        : []
+    };
+  }
+
+  function normalizeHistoryList(history) {
+    return Array.isArray(history) ? history.map(normalizeHistoryEntry).slice(0, 20) : [];
+  }
+
+  function rebuildReviewBoard() {
+    if (!state.reviewGame) {
+      const parsedStart = XiangqiCore.parseFenState(START_FEN);
+      state.reviewBoard = parsedStart.board;
+      state.reviewContextBoard = parsedStart.board.map((row) => row.slice());
+      state.reviewSideToMove = "w";
+      return;
+    }
+
+    const parsed = XiangqiCore.parseFenState(state.reviewGame.startFen || START_FEN);
+    const board = parsed.board;
+    let side = parsed.side;
+    let contextBoard = board.map((row) => row.slice());
+    const limit = Math.max(0, Math.min(state.reviewCursor, state.reviewGame.plies.length));
+    for (let index = 0; index < limit; index += 1) {
+      const ply = state.reviewGame.plies[index];
+      if (index === limit - 1) {
+        contextBoard = board.map((row) => row.slice());
+      }
+      if (!XiangqiCore.isLegalMove(board, ply.move, side)) break;
+      XiangqiCore.applyMoveToBoard(board, ply.move);
+      side = oppositeSide(side);
+    }
+    state.reviewBoard = board;
+    state.reviewContextBoard = contextBoard;
+    state.reviewSideToMove = side;
+  }
+
+  function setReviewCursor(cursor) {
+    if (!state.reviewGame) return;
+    const clamped = Math.max(0, Math.min(state.reviewGame.plies.length, cursor));
+    if (clamped === state.reviewCursor && state.route === "review") return;
+    state.reviewCursor = clamped;
+    rebuildReviewBoard();
+    renderReviewState(true);
+  }
+
+  function stepReview(delta) {
+    if (!state.reviewGame) return;
+    setReviewCursor(state.reviewCursor + delta);
+  }
+
+  async function analyzeReviewGame() {
+    if (!state.reviewGame || state.reviewAnalyzing) return;
+    state.reviewAnalyzing = true;
+    renderReviewState(false);
+    try {
+      const payload = await api("/api/history/analyze", {
+        method: "POST",
+        body: {
+          startFen: state.reviewGame.startFen || START_FEN,
+          plies: state.reviewGame.plies,
+          depth: 8,
+          movetime: 180
+        }
+      });
+      state.reviewAnalysis = Array.isArray(payload.items) ? payload.items : [];
+      renderReviewState(true);
+      showToast("Pikafish đã phân tích xong ván cờ.");
+    } catch (error) {
+      showToast(error.message || "Không thể phân tích ván cờ này.");
+    } finally {
+      state.reviewAnalyzing = false;
+      renderReviewState(true);
+    }
+  }
+
+  function renderReviewState(forceBoard = false) {
+    renderReviewMeta();
+    renderReviewMoveList();
+    drawReviewScene(forceBoard);
+  }
+
+  function renderReviewMeta() {
+    const game = state.reviewGame;
+    if (!game) {
+      dom.reviewTitle.textContent = "Xem lại ván đấu";
+      dom.reviewMeta.textContent = "Chọn một ván trong lịch sử để tua lại.";
+      dom.reviewResultBadge.textContent = "Lịch sử";
+      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
+      dom.reviewInsight.textContent = "Tua lại từng nước để xem diễn biến của ván cờ.";
+      dom.reviewPrevBtn.disabled = true;
+      dom.reviewNextBtn.disabled = true;
+      dom.reviewAnalyzeBtn.disabled = true;
+      dom.reviewMoveList.innerHTML = "";
+      return;
+    }
+
+    dom.reviewTitle.textContent = `${game.side || "Đỏ"} vs ${game.opponent || "Đối thủ"}`;
+    dom.reviewMeta.textContent = `Bắt đầu: ${formatDate(game.startedAt || game.endedAt)} • Kết thúc: ${formatDate(game.endedAt)}`;
+    dom.reviewResultBadge.textContent = game.result || "Lịch sử";
+    dom.reviewMoveMeta.textContent = state.reviewAnalysis.length
+      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của Pikafish."
+      : "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
+    dom.reviewPrevBtn.disabled = state.reviewCursor <= 0 || state.reviewAnalyzing;
+    dom.reviewNextBtn.disabled = state.reviewCursor >= game.plies.length || state.reviewAnalyzing;
+    dom.reviewAnalyzeBtn.disabled = state.reviewAnalyzing;
+    dom.reviewAnalyzeBtn.textContent = state.reviewAnalyzing
+      ? "Đang phân tích..."
+      : state.reviewAnalysis.length
+        ? "Phân tích lại"
+        : "Phân tích";
+
+    const currentIndex = state.reviewCursor - 1;
+    if (currentIndex < 0) {
+      dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Làm lại để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
+      return;
+    }
+
+    const currentPly = game.plies[currentIndex];
+    const analysis = state.reviewAnalysis[currentIndex] || null;
+    const moveTitle = currentPly?.notation || currentPly?.move || `Nước ${currentIndex + 1}`;
+    if (!analysis) {
+      dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle}</strong><div>Ván đang ở sau nước này. Bấm Phân tích để xem chất lượng và nước đề xuất.</div>`;
+      return;
+    }
+
+    const recommendText = analysis.grade === "brilliant"
+      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
+      : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
+    dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} · ${analysis.gradeLabel}</strong><div>${recommendText}</div>`;
+  }
+
+  function renderReviewMoveList() {
+    dom.reviewMoveList.innerHTML = "";
+    const plies = Array.isArray(state.reviewGame?.plies) ? state.reviewGame.plies : [];
+    if (!plies.length) {
+      const item = document.createElement("li");
+      item.innerHTML = '<span class="move-number">-</span><span class="move-cell red">Chưa có dữ liệu</span><span class="move-cell black"></span>';
+      dom.reviewMoveList.appendChild(item);
+      return;
+    }
+
+    for (let index = 0; index < plies.length; index += 2) {
+      const row = document.createElement("li");
+      if (state.reviewCursor - 1 === index || state.reviewCursor - 1 === index + 1) {
+        row.classList.add("active");
+      }
+      const number = document.createElement("span");
+      number.className = "move-number";
+      number.textContent = `${Math.floor(index / 2) + 1}.`;
+      row.appendChild(number);
+      row.appendChild(buildReviewMoveCell(plies[index], index));
+      row.appendChild(buildReviewMoveCell(plies[index + 1], index + 1));
+      dom.reviewMoveList.appendChild(row);
+    }
+  }
+
+  function buildReviewMoveCell(ply, index) {
+    const cell = document.createElement("span");
+    cell.className = `move-cell ${index % 2 === 0 ? "red" : "black"}`;
+    if (!ply) return cell;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `review-move-button ${state.reviewCursor - 1 === index ? "active" : ""}`;
+    button.addEventListener("click", () => setReviewCursor(index + 1));
+
+    const text = document.createElement("span");
+    text.className = "review-move-text";
+    text.textContent = ply.notation || ply.move;
+    button.appendChild(text);
+
+    const analysis = state.reviewAnalysis[index];
+    if (analysis) {
+      const badge = document.createElement("span");
+      badge.className = `review-grade ${analysis.grade}`;
+      badge.textContent = analysis.gradeLabel;
+      button.appendChild(badge);
+    }
+
+    cell.appendChild(button);
+    return cell;
   }
 
   async function onCreateRoom(event) {
@@ -871,6 +1128,12 @@
     drawRoomPieces(forceBoard);
   }
 
+  function drawReviewScene(forceBoard) {
+    drawReviewBoard(forceBoard);
+    drawReviewPieces(forceBoard);
+    drawReviewArrow();
+  }
+
   function drawRoomBoard(force) {
     if (dom.roomView.classList.contains("hidden")) return;
     const rect = dom.roomBoard.getBoundingClientRect();
@@ -955,6 +1218,137 @@
 
     dom.roomPieces.replaceChildren(pieceFragment);
     dom.roomMarks.replaceChildren(markFragment);
+  }
+
+  function drawReviewBoard(force) {
+    if (dom.reviewView.classList.contains("hidden")) return;
+    const rect = dom.reviewBoard.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${reviewViewSide()}`;
+    if (!force && signature === state.reviewLastBoardFrame) return;
+    state.reviewLastBoardFrame = signature;
+
+    const canvas = dom.reviewBoardCanvas;
+    const arrowCanvas = dom.reviewArrowCanvas;
+    for (const item of [canvas, arrowCanvas]) {
+      item.width = Math.round(rect.width * devicePixelRatio);
+      item.height = Math.round(rect.height * devicePixelRatio);
+      item.style.width = `${rect.width}px`;
+      item.style.height = `${rect.height}px`;
+    }
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    const g = reviewGeometry();
+    ctx.strokeStyle = "rgba(65, 62, 47, 0.62)";
+    ctx.lineWidth = Math.max(1.5, rect.width / 420);
+
+    for (let x = 0; x < 9; x += 1) {
+      line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
+      line(ctx, g.x(x), g.y(5), g.x(x), g.y(9));
+    }
+    for (let y = 0; y < 10; y += 1) {
+      line(ctx, g.x(0), g.y(y), g.x(8), g.y(y));
+    }
+    line(ctx, g.x(3), g.y(0), g.x(5), g.y(2));
+    line(ctx, g.x(5), g.y(0), g.x(3), g.y(2));
+    line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
+    line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
+    ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
+    ctx.fillStyle = "rgba(38, 39, 33, 0.82)";
+    ctx.textAlign = "center";
+    ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
+  }
+
+  function drawReviewPieces(force) {
+    if (dom.reviewView.classList.contains("hidden")) return;
+    const board = state.reviewBoard;
+    const checkedSides = getCheckedSides(board);
+    const currentIndex = state.reviewCursor - 1;
+    const currentAnalysis = currentIndex >= 0 ? state.reviewAnalysis[currentIndex] : null;
+    const currentPly = currentIndex >= 0 ? state.reviewGame?.plies?.[currentIndex] : null;
+    const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    if (!force && signature === state.reviewLastPieceFrame) return;
+    state.reviewLastPieceFrame = signature;
+
+    const fragment = document.createDocumentFragment();
+    let starSquare = null;
+    if (currentAnalysis?.grade === "brilliant" && currentPly?.move) {
+      starSquare = uciToSquare(currentPly.move.slice(2, 4));
+    }
+
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const piece = board[y]?.[x] || "";
+        if (!piece) continue;
+        const pixel = reviewSquareToPixel({ x, y });
+        const el = document.createElement("div");
+        el.className = "piece image-piece";
+        if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
+          el.classList.add("in-check");
+        }
+        if (starSquare && starSquare.x === x && starSquare.y === y) {
+          el.classList.add("review-star");
+        }
+        el.style.left = `${pixel.x}px`;
+        el.style.top = `${pixel.y}px`;
+        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+        fragment.appendChild(el);
+      }
+    }
+
+    dom.reviewPieces.replaceChildren(fragment);
+  }
+
+  function drawReviewArrow() {
+    clearReviewArrow();
+    const currentIndex = state.reviewCursor - 1;
+    if (currentIndex < 0) return;
+    const analysis = state.reviewAnalysis[currentIndex];
+    if (!analysis || analysis.grade === "brilliant" || !/^[a-i][0-9][a-i][0-9]$/.test(analysis.bestMove || "")) return;
+
+    const canvas = dom.reviewArrowCanvas;
+    const ctx = canvas.getContext("2d");
+    const rect = dom.reviewBoard.getBoundingClientRect();
+    const from = reviewSquareToPixel(uciToSquare(analysis.bestMove.slice(0, 2)));
+    const toSquare = uciToSquare(analysis.bestMove.slice(2, 4));
+    const to = reviewSquareToPixel(toSquare);
+    const contextBoard = state.reviewContextBoard || state.reviewBoard;
+    const pieceRatio = Number.parseFloat(getComputedStyle(dom.reviewBoard).getPropertyValue("--piece-size")) / 100 || 0.086;
+    const isMobileBoard = rect.width <= 460;
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.strokeStyle = "rgba(23, 126, 137, 0.88)";
+    ctx.fillStyle = "rgba(23, 126, 137, 0.88)";
+    ctx.lineWidth = isMobileBoard ? Math.max(7, rect.width * pieceRatio * 0.18) : Math.max(11, rect.width / 66);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
+    const capturesPiece = Boolean(contextBoard[toSquare.y]?.[toSquare.x]);
+    const pieceRadius = rect.width * pieceRatio / 2;
+    const stopBeforeTarget = capturesPiece ? pieceRadius + Math.max(4, ctx.lineWidth * 0.5) : 0;
+    const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
+    const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.92) : Math.max(58, rect.width / 12);
+    const halfWidth = isMobileBoard ? Math.max(9, head * 0.18) : Math.max(12, head * 0.2);
+    const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
+    line(ctx, from.x, from.y, base.x, base.y);
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
+    ctx.lineTo(base.x - normal.x * halfWidth, base.y - normal.y * halfWidth);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function clearReviewArrow() {
+    const rect = dom.reviewBoard.getBoundingClientRect();
+    const ctx = dom.reviewArrowCanvas.getContext("2d");
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
   }
 
   function onBoardPointerDown(event) {
@@ -1323,15 +1717,24 @@
     const targetBoard = dom.roomView.classList.contains("hidden") ? null : dom.roomBoard;
     const rect = targetBoard ? targetBoard.getBoundingClientRect() : null;
     const boardSizeKey = rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : "";
-    if (boardSizeKey && boardSizeKey === state.lastBoardSizeKey) return;
+    const reviewRect = dom.reviewView.classList.contains("hidden") ? null : dom.reviewBoard.getBoundingClientRect();
+    const reviewBoardSizeKey = reviewRect ? `${Math.round(reviewRect.width)}x${Math.round(reviewRect.height)}` : "";
+    if (boardSizeKey && boardSizeKey === state.lastBoardSizeKey && (!reviewBoardSizeKey || reviewBoardSizeKey === state.reviewLastBoardFrame.split("|")[0])) return;
     state.lastBoardSizeKey = boardSizeKey;
     state.lastBoardFrame = "";
     state.lastPieceFrame = "";
     if (!dom.roomView.classList.contains("hidden")) drawRoomScene(true);
+    state.reviewLastBoardFrame = "";
+    state.reviewLastPieceFrame = "";
+    if (!dom.reviewView.classList.contains("hidden")) drawReviewScene(true);
   }
 
   function viewSide() {
     return state.room?.viewSide === "b" ? "b" : "w";
+  }
+
+  function reviewViewSide() {
+    return state.reviewGame?.sideCode === "b" ? "b" : "w";
   }
 
   function geometry() {
@@ -1347,9 +1750,40 @@
     };
   }
 
+  function reviewGeometry() {
+    const rect = dom.reviewBoard.getBoundingClientRect();
+    const pad = rect.width * 0.07;
+    const usableW = rect.width - pad * 2;
+    const usableH = rect.height - pad * 2;
+    const flipped = reviewViewSide() === "b";
+    return {
+      rect,
+      x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
+      y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
+    };
+  }
+
   function squareToPixel(square) {
     const g = geometry();
     return { x: g.x(square.x), y: g.y(square.y) };
+  }
+
+  function reviewSquareToPixel(square) {
+    const g = reviewGeometry();
+    return { x: g.x(square.x), y: g.y(square.y) };
+  }
+
+  function uciToSquare(uci) {
+    const text = String(uci || "").trim().toLowerCase();
+    if (!/^[a-i][0-9]$/.test(text)) return { x: 0, y: 0 };
+    return {
+      x: text.charCodeAt(0) - 97,
+      y: Number(text[1])
+    };
+  }
+
+  function boardSignature(board) {
+    return (board || []).map((row) => row.join("")).join("/");
   }
 
   function eventToSquare(event) {
