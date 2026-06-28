@@ -616,9 +616,9 @@ a {
 
 .room-shell {
   display: grid;
-  grid-template-columns: minmax(0, 0.96fr) minmax(360px, 0.92fr);
+  grid-template-columns: minmax(0, 1.34fr) minmax(290px, 0.66fr);
   align-items: start;
-  gap: 18px;
+  gap: 16px;
 }
 
 .review-shell {
@@ -638,12 +638,17 @@ a {
   min-width: 0;
 }
 
-.room-toolbar {
+.room-toolbar,
+.room-side-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.room-side-topbar {
+  flex-wrap: wrap;
 }
 
 .room-key-box,
@@ -669,6 +674,14 @@ a {
   letter-spacing: 1px;
 }
 
+.room-side-topbar .room-key-box {
+  flex: 1 1 220px;
+}
+
+.room-side-topbar .room-status-badge {
+  flex: 0 0 auto;
+}
+
 .room-status-badge {
   font-weight: 700;
   white-space: nowrap;
@@ -676,15 +689,15 @@ a {
 
 .board-stage {
   position: relative;
-  width: min(100%, 660px);
+  width: min(100%, 820px);
   margin: 0 auto;
-  padding: 88px 0 98px;
+  padding: 96px 0 112px;
 }
 
 .room-board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 500px);
+  width: min(100%, 620px);
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background: var(--board-bg);
@@ -799,7 +812,7 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(228px, calc(50% - 10px));
+  width: min(240px, calc(50% - 18px));
   padding: 12px 14px;
   border-radius: 18px;
   background: rgba(255, 250, 242, 0.97);
@@ -883,6 +896,7 @@ a {
 
 .room-side {
   display: grid;
+  align-content: start;
   gap: 14px;
 }
 
@@ -941,6 +955,10 @@ a {
   margin-top: 14px;
   display: grid;
   gap: 10px;
+}
+
+.request-state.hidden {
+  display: none !important;
 }
 
 .notice-card {
@@ -1513,7 +1531,8 @@ a {
     padding: 0;
   }
 
-  .room-toolbar {
+  .room-toolbar,
+  .room-side-topbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1535,7 +1554,7 @@ a {
   }
 
   .room-board {
-    width: min(100%, 90vw);
+    width: min(100%, 92vw);
     --piece-size: 10.35%;
   }
 }
@@ -1826,6 +1845,22 @@ textarea:focus {
     inset 0 0 0 2px rgba(79, 52, 25, 0.38),
     inset 0 10px 18px rgba(255, 226, 166, 0.12),
     0 26px 54px rgba(0, 0, 0, 0.34);
+}
+
+.chat-item,
+.chat-item.mine {
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(245, 236, 224, 0.98));
+  border-color: rgba(123, 94, 46, 0.18);
+  color: #1f1812;
+}
+
+.chat-meta strong,
+.chat-text {
+  color: #1f1812;
+}
+
+.chat-meta small {
+  color: #6f6153;
 }
 
 .room-board::before {

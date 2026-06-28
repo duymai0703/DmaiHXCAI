@@ -302,12 +302,18 @@
   }
 
   async function ensureGuestSession(displayName) {
+    let safeDisplayName = "";
+    if (displayName) {
+      const checked = validateDisplayNameInput(displayName);
+      if (!checked.ok) throw new Error(checked.message);
+      safeDisplayName = checked.value;
+    }
     const payload = await api("/api/auth/guest", {
       method: "POST",
       body: {
         deviceId: state.deviceId,
         avatarUrl: state.deviceAvatarUrl,
-        ...(displayName ? { displayName } : {})
+        ...(safeDisplayName ? { displayName: safeDisplayName } : {})
       }
     });
     applySession(payload.user, payload.token);
@@ -939,11 +945,13 @@
 
   async function onCreateRoom(event) {
     event.preventDefault();
-    const displayName = dom.createDisplayName.value.trim();
-    if (!displayName) {
-      setMessage(dom.matchHubMessage, "Hãy nhập tên của bạn trước khi tạo phòng.");
+    const checkedName = validateDisplayNameInput(dom.createDisplayName.value);
+    if (!checkedName.ok) {
+      setMessage(dom.matchHubMessage, checkedName.message);
       return;
     }
+    const displayName = checkedName.value;
+    dom.createDisplayName.value = displayName;
     setMessage(dom.matchHubMessage, "Đang tạo phòng...", "info");
     try {
       await ensureGuestSession(displayName);
@@ -968,12 +976,14 @@
 
   async function onJoinRoom(event) {
     event.preventDefault();
-    const displayName = dom.joinDisplayName.value.trim();
+    const checkedName = validateDisplayNameInput(dom.joinDisplayName.value);
     const key = dom.joinRoomKey.value.trim().toUpperCase();
-    if (!displayName) {
-      setMessage(dom.matchHubMessage, "Hãy nhập tên của bạn trước khi vào phòng.");
+    if (!checkedName.ok) {
+      setMessage(dom.matchHubMessage, checkedName.message);
       return;
     }
+    const displayName = checkedName.value;
+    dom.joinDisplayName.value = displayName;
     setMessage(dom.matchHubMessage, "Đang vào phòng...", "info");
     try {
       await ensureGuestSession(displayName);
@@ -1147,43 +1157,7 @@
   }
 
   function renderRequestState() {
-    const room = state.room;
     dom.requestState.innerHTML = "";
-    if (!room) {
-      dom.requestState.classList.add("hidden");
-      return;
-    }
-
-    if (room.pendingRequest?.fromYou) {
-      dom.requestState.classList.remove("hidden");
-      dom.requestState.appendChild(makeNotice("Đang chờ đối thủ xác nhận...", room.pendingRequest.type === "undo" ? "Yêu cầu đi lại đã được gửi." : "Yêu cầu hòa đã được gửi."));
-      return;
-    }
-
-    if (room.pendingRequest?.toYou) {
-      dom.requestState.classList.remove("hidden");
-      const notice = makeNotice(
-        room.pendingRequest.type === "undo" ? "Đối thủ yêu cầu đi lại" : "Đối thủ yêu cầu hòa",
-        room.pendingRequest.type === "undo" ? "Nếu đồng ý, nước cờ gần nhất sẽ được thực hiện lại." : "Nếu đồng ý, ván cờ sẽ được xử hòa."
-      );
-      const actions = document.createElement("div");
-      actions.className = "notice-actions";
-      const accept = document.createElement("button");
-      accept.className = "primary-button";
-      accept.type = "button";
-      accept.textContent = "Đồng ý";
-      accept.addEventListener("click", () => respondRequest(true));
-      const decline = document.createElement("button");
-      decline.className = "secondary-button";
-      decline.type = "button";
-      decline.textContent = "Không";
-      decline.addEventListener("click", () => respondRequest(false));
-      actions.append(accept, decline);
-      notice.appendChild(actions);
-      dom.requestState.appendChild(notice);
-      return;
-    }
-
     dom.requestState.classList.add("hidden");
   }
 
@@ -1198,6 +1172,49 @@
     if (room.status === "starting") {
       dom.roomOverlayTitle.textContent = "Bắt đầu!";
       dom.roomOverlayText.textContent = "Đỏ đi trước. Đồng hồ sẽ chạy ngay sau khi bảng này biến mất.";
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
+    if (room.pendingRequest?.fromYou) {
+      dom.roomOverlayTitle.textContent = "Đang chờ đối thủ xác nhận...";
+      dom.roomOverlayText.textContent = room.pendingRequest.type === "undo"
+        ? "Yêu cầu đi lại của bạn đã được gửi. Bàn cờ sẽ tiếp tục ngay khi đối thủ phản hồi."
+        : "Yêu cầu hòa của bạn đã được gửi. Bàn cờ sẽ tiếp tục ngay khi đối thủ phản hồi.";
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
+    if (room.pendingRequest?.toYou) {
+      dom.roomOverlayTitle.textContent = room.pendingRequest.type === "undo" ? "Đối thủ xin đi lại" : "Đối thủ cầu hòa";
+      dom.roomOverlayText.textContent = room.pendingRequest.type === "undo"
+        ? "Nếu đồng ý, nước cờ gần nhất sẽ được thực hiện lại."
+        : "Nếu đồng ý, ván cờ sẽ được xử hòa ngay.";
+
+      const accept = document.createElement("button");
+      accept.className = "primary-button";
+      accept.type = "button";
+      accept.textContent = "Đồng ý";
+      accept.disabled = !!state.roomActionBusy;
+      accept.addEventListener("click", () => respondRequest(true));
+
+      const decline = document.createElement("button");
+      decline.className = "secondary-button";
+      decline.type = "button";
+      decline.textContent = "Không";
+      decline.disabled = !!state.roomActionBusy;
+      decline.addEventListener("click", () => respondRequest(false));
+
+      dom.roomOverlayActions.append(accept, decline);
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
+    if (room.role === "spectator" && room.pendingRequest) {
+      dom.roomOverlayTitle.textContent = "Hai người chơi đang xử lý yêu cầu";
+      dom.roomOverlayText.textContent = room.pendingRequest.type === "undo"
+        ? "Một người chơi đang xin đi lại."
+        : "Một người chơi đang cầu hòa.";
       dom.roomBoardOverlay.classList.remove("hidden");
       return;
     }
@@ -2513,6 +2530,27 @@
       hour: "2-digit",
       minute: "2-digit"
     }).format(date);
+  }
+
+  function normalizeDisplayNameInput(value) {
+    return String(value || "")
+      .normalize("NFC")
+      .replace(/\s+/gu, " ")
+      .trim();
+  }
+
+  function validateDisplayNameInput(value) {
+    const displayName = normalizeDisplayNameInput(value);
+    if (!displayName) {
+      return { ok: false, message: "Hãy nhập tên của bạn trước khi vào phòng." };
+    }
+    if (Array.from(displayName).length > 15) {
+      return { ok: false, message: "Tên người dùng tối đa 15 ký tự, tính cả dấu cách." };
+    }
+    if (!/^(?:\p{L}+(?: \p{L}+)*)$/u.test(displayName)) {
+      return { ok: false, message: "Tên chỉ được gồm chữ cái tiếng Việt và dấu cách, không chứa số hay ký tự đặc biệt." };
+    }
+    return { ok: true, value: displayName };
   }
 
   function formatTime(dateText) {

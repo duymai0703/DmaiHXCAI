@@ -559,22 +559,32 @@ function mergeRooms(primaryRooms, fallbackRooms) {
   return [...merged.values()];
 }
 
-function slugSafe(value) {
+function normalizePersonName(value) {
   return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9 _-]/g, "")
+    .normalize("NFC")
+    .replace(/\s+/gu, " ")
     .trim();
 }
 
+function isValidDisplayName(value) {
+  const text = normalizePersonName(value);
+  return Boolean(text) && Array.from(text).length <= 15 && /^(?:\p{L}+(?: \p{L}+)*)$/u.test(text);
+}
+
+function requireDisplayName(value) {
+  const text = normalizePersonName(value);
+  if (!isValidDisplayName(text)) throw new Error("INVALID_DISPLAY_NAME");
+  return text;
+}
+
 function sanitizeDisplayName(value, fallback = "") {
-  const cleaned = slugSafe(value).slice(0, 26);
-  const fallbackClean = slugSafe(fallback).slice(0, 26);
+  const cleaned = isValidDisplayName(value) ? normalizePersonName(value) : "";
+  const fallbackClean = isValidDisplayName(fallback) ? normalizePersonName(fallback) : "";
   return cleaned || fallbackClean || "";
 }
 
 function sanitizeOptionalDisplayName(value) {
-  return slugSafe(value).slice(0, 26);
+  return isValidDisplayName(value) ? normalizePersonName(value) : "";
 }
 
 function sanitizeDeviceId(value) {
@@ -1220,9 +1230,10 @@ function requirePlayerAccess(access) {
 }
 
 function applyMoveInRoom(room, side, move) {
-  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   materializeRoomClock(room);
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   if (room.result) throw new Error("ROOM_FINISHED");
+  if (room.pendingRequest) throw new Error("REQUEST_PENDING");
   if (room.sideToMove !== side) throw new Error("NOT_YOUR_TURN");
   const parsed = XiangqiCore.parseFenState(room.boardFen);
   if (!XiangqiCore.isLegalMove(parsed.board, move, side)) throw new Error("INVALID_MOVE");
@@ -1255,8 +1266,8 @@ function applyMoveInRoom(room, side, move) {
 }
 
 function sendRoomRequest(room, side, type) {
-  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   materializeRoomClock(room);
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   if (room.result) throw new Error("ROOM_FINISHED");
   if (room.pendingRequest) throw new Error("REQUEST_PENDING");
   if (!["undo", "draw"].includes(type)) throw new Error("INVALID_REQUEST");
@@ -1310,8 +1321,8 @@ function answerRoomRequest(room, side, accept) {
 }
 
 function resignRoom(room, side) {
-  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   materializeRoomClock(room);
+  if (room.status !== "active") throw new Error("ROOM_NOT_ACTIVE");
   finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "resign" });
 }
 
@@ -2046,20 +2057,21 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const deviceId = sanitizeDeviceId(body.deviceId);
       const avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
       let existing = getAuthenticatedUser(req);
       if (!existing && deviceId) {
         existing = findGuestByDeviceId(deviceId);
       }
       if (existing) {
         updateGuestDeviceProfile(existing, { deviceId, avatarUrl });
-        if (body.displayName) {
-          updateUserDisplayName(existing, body.displayName);
+        if (requestedDisplayName) {
+          updateUserDisplayName(existing, requestedDisplayName);
           await flushUserPersistence();
         }
         json(res, 200, { ok: true, token: createAuthToken(existing.id), user: publicUser(existing) });
         return;
       }
-      const guest = createGuestUser(body.displayName || "", { deviceId, avatarUrl });
+      const guest = createGuestUser(requestedDisplayName, { deviceId, avatarUrl });
       await flushUserPersistence();
       json(res, 200, { ok: true, token: createAuthToken(guest.id), user: publicUser(guest) });
       return;
@@ -2136,9 +2148,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/profile" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
+      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
+      const fallbackDisplayName = sanitizeDisplayName(user.displayName || "", ADMIN_DISPLAY_NAME);
       user.displayName = user.role === "guest"
-        ? sanitizeOptionalDisplayName(body.displayName || user.displayName || "")
-        : sanitizeDisplayName(body.displayName || "", user.username || user.displayName || "");
+        ? requestedDisplayName || sanitizeOptionalDisplayName(user.displayName || "")
+        : sanitizeDisplayName(requestedDisplayName || "", fallbackDisplayName);
       user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
       await saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });
@@ -2188,8 +2202,9 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/create" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      if (body.displayName) {
-        updateUserDisplayName(user, body.displayName);
+      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
+      if (requestedDisplayName) {
+        updateUserDisplayName(user, requestedDisplayName);
         await flushUserPersistence();
       }
       const yourMinutes = clampRoomMinutes(body.yourMinutes, 10);
@@ -2209,8 +2224,9 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/join" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      if (body.displayName) {
-        updateUserDisplayName(user, body.displayName);
+      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
+      if (requestedDisplayName) {
+        updateUserDisplayName(user, requestedDisplayName);
         await flushUserPersistence();
       }
       const key = String(body.key || "").trim().toUpperCase();
@@ -2337,6 +2353,7 @@ const server = http.createServer(async (req, res) => {
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
       INVALID_REQUEST: 400,
+      INVALID_DISPLAY_NAME: 400,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
       EMPTY_CHAT: 400
@@ -2357,15 +2374,16 @@ function friendlyErrorVi(code) {
     NOT_YOUR_TURN: "Chưa tới lượt bạn.",
     REQUEST_LIMIT_REACHED: "Bạn đã dùng hết lượt yêu cầu.",
     REQUEST_PENDING: "Đang có yêu cầu chờ đối thủ xác nhận.",
-      ROOM_NOT_ACTIVE: "Phòng chưa sẵn sàng thi đấu.",
-      ROOM_FINISHED: "Ván cờ đã kết thúc.",
-      ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
-      ROOM_NOT_READY: "Hai bên chưa ở trạng thái sẵn sàng bắt đầu.",
-      ROOM_NOT_FULL: "Phòng chưa đủ hai người chơi.",
-      NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
+    ROOM_NOT_ACTIVE: "Phòng chưa sẵn sàng thi đấu.",
+    ROOM_FINISHED: "Ván cờ đã kết thúc.",
+    ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
+    ROOM_NOT_READY: "Hai bên chưa ở trạng thái sẵn sàng bắt đầu.",
+    ROOM_NOT_FULL: "Phòng chưa đủ hai người chơi.",
+    NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
     NO_MOVE_TO_UNDO: "Chưa có nước nào để đi lại.",
     SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",
     INVALID_REQUEST: "Yêu cầu không hợp lệ.",
+    INVALID_DISPLAY_NAME: "Tên người dùng chỉ được gồm chữ cái tiếng Việt và dấu cách, tối đa 15 ký tự.",
     INVALID_SIDE: "Phòng đấu đang lỗi về bên cầm quân.",
     SPECTATOR_READ_ONLY: "Người xem chỉ có thể quan sát và chat.",
     EMPTY_CHAT: "Nội dung chat không được để trống."

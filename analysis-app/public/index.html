@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260628-room-v6">
+    <link rel="stylesheet" href="/portal.css?v=20260628-room-v7">
   </head>
   <body>
     <header class="portal-header">
@@ -91,7 +91,7 @@
             <form id="joinRoomForm" class="subpanel">
               <label>
                 <span>Tên của bạn</span>
-                <input id="joinDisplayName" type="text" maxlength="26" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+                <input id="joinDisplayName" type="text" maxlength="15" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
               </label>
               <label>
                 <span>Nhập Key phòng</span>
@@ -103,7 +103,7 @@
             <form id="createRoomForm" class="subpanel hidden">
               <label>
                 <span>Tên của bạn</span>
-                <input id="createDisplayName" type="text" maxlength="26" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+                <input id="createDisplayName" type="text" maxlength="15" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
               </label>
 
               <label class="range-field">
@@ -187,15 +187,6 @@
       <section id="roomView" class="view hidden">
         <div class="room-shell">
           <section class="room-stage-panel">
-            <div class="room-toolbar">
-              <div class="room-key-box">
-                <span>Key phòng</span>
-                <strong id="roomKeyLabel">------</strong>
-                <button id="copyRoomKeyBtn" class="ghost-button" type="button">Sao chép Key</button>
-              </div>
-              <div id="roomStatusBadge" class="room-status-badge">Đang chờ</div>
-            </div>
-
             <div class="board-stage">
               <div id="opponentBadge" class="board-badge opponent">
                 <span id="topPlayerAvatar" class="avatar badge-avatar">?</span>
@@ -235,6 +226,15 @@
           </section>
 
           <aside class="room-side">
+            <div class="room-side-topbar">
+              <div class="room-key-box">
+                <span>Key phòng</span>
+                <strong id="roomKeyLabel">------</strong>
+                <button id="copyRoomKeyBtn" class="ghost-button" type="button">Sao chép Key</button>
+              </div>
+              <div id="roomStatusBadge" class="room-status-badge">Đang chờ</div>
+            </div>
+
             <section class="panel-card room-panel">
               <div class="panel-heading">
                 <div>
@@ -373,7 +373,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-room-v6"></script>
+    <script src="/portal.js?v=20260628-room-v7"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
