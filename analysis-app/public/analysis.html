@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css?v=20260628-theme-v2">
+    <link rel="stylesheet" href="/styles.css?v=20260628-mobile-v1">
   </head>
   <body>
     <header class="app-header">
@@ -38,7 +38,7 @@
       <aside class="panel">
         <div class="panel-shell">
           <div class="panel-main-col">
-            <div class="group primary-actions">
+            <div class="group primary-actions" data-mobile-panel="analysis">
               <button id="analyzeBtn" class="analyze-button"><span aria-hidden="true">⌕</span> Phân tích</button>
               <div id="analysis" class="analysis score-slot">
                 <div class="score-banner equal"><span>Đánh giá</span><strong>0</strong><small>Cân bằng</small></div>
@@ -52,14 +52,14 @@
               <button id="flipBtn" type="button">Xoay bàn cờ</button>
             </div>
 
-            <div class="group board-tools">
+            <div class="group board-tools" data-mobile-panel="tools">
               <div class="tool-row">
-                <button id="loadFenBtn" type="button">Tải FEN</button>
-                <button id="copyFenBtn" type="button">Copy FEN</button>
+                <button id="loadFenBtn" type="button" data-mobile-icon="F↓" aria-label="Tải FEN" title="Tải FEN">Tải FEN</button>
+                <button id="copyFenBtn" type="button" data-mobile-icon="F⧉" aria-label="Copy FEN" title="Copy FEN">Copy FEN</button>
               </div>
               <div class="tool-row">
-                <button id="editBoardBtn" type="button">Sửa bàn cờ</button>
-                <button id="clearBoardBtn" type="button">Xóa bàn cờ</button>
+                <button id="editBoardBtn" type="button" data-mobile-icon="✎" aria-label="Sửa bàn cờ" title="Sửa bàn cờ">Sửa bàn cờ</button>
+                <button id="clearBoardBtn" type="button" data-mobile-icon="⌫" aria-label="Xóa bàn cờ" title="Xóa bàn cờ">Xóa bàn cờ</button>
               </div>
               <label>Quân đặt lên bàn</label>
               <div id="piecePalette" class="piece-palette"></div>
@@ -70,7 +70,7 @@
               </select>
             </div>
 
-            <div class="group auto-play-group">
+            <div class="group auto-play-group" data-mobile-panel="ai">
               <label>AI tự chơi</label>
               <div class="toggles">
                 <label><input id="aiRed" type="checkbox"> Đỏ</label>
@@ -81,21 +81,33 @@
           </div>
 
           <div class="panel-side-col">
-            <div class="group cloud-group">
-              <h2>Cơ sở dữ liệu đám mây</h2>
+            <div class="group cloud-group" data-mobile-panel="cloud">
+              <h2>Data book</h2>
               <div id="cloudBook" class="cloud-book">Đang tải dữ liệu...</div>
             </div>
 
-            <div class="group history-group">
+            <div class="group history-group" data-mobile-panel="history">
               <h2>Lịch sử</h2>
               <ol id="history" class="history"></ol>
             </div>
           </div>
         </div>
+
+        <div class="mobile-action-strip" aria-label="Điều khiển nhanh">
+          <button class="mobile-action-btn" type="button" data-mobile-action="analysis" title="Phân tích" aria-label="Phân tích"><span aria-hidden="true">⌕</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="cloud" title="Data book" aria-label="Data book"><span aria-hidden="true">DB</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="undo" title="Hoàn tác" aria-label="Hoàn tác"><span aria-hidden="true">‹</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="redo" title="Tiếp theo" aria-label="Tiếp theo"><span aria-hidden="true">›</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="reset" title="Đặt lại" aria-label="Đặt lại"><span aria-hidden="true">↺</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="flip" title="Xoay bàn cờ" aria-label="Xoay bàn cờ"><span aria-hidden="true">⇵</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="tools" title="Công cụ" aria-label="Công cụ"><span aria-hidden="true">▣</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="history" title="Lịch sử" aria-label="Lịch sử"><span aria-hidden="true">≣</span></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="ai" title="AI tự chơi" aria-label="AI tự chơi"><span aria-hidden="true">AI</span></button>
+        </div>
       </aside>
     </main>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260628-theme-v2"></script>
+    <script src="/app.js?v=20260628-mobile-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

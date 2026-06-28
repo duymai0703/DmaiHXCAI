@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --app-vh: 1vh;
   --ink: #201913;
   --muted: #6c5d4f;
   --paper: #f4ead7;
@@ -950,6 +951,32 @@ a {
   font-weight: 800;
 }
 
+.room-mobile-dock {
+  display: none;
+}
+
+.room-mobile-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.room-mobile-count {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 17px;
+  min-height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(255, 240, 206, 0.96);
+  color: #6a260d;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 17px;
+}
+
 .request-state,
 .result-state {
   margin-top: 14px;
@@ -1299,6 +1326,241 @@ a {
   transform: translateY(-1px);
   border-color: rgba(190, 119, 29, 0.42);
   box-shadow: 0 12px 22px rgba(35, 23, 12, 0.12);
+}
+
+@media (max-width: 760px) {
+  body.portal-mobile-mode[data-route="room"] {
+    min-height: calc(var(--app-vh, 1vh) * 100);
+    height: calc(var(--app-vh, 1vh) * 100);
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .portal-header {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    min-height: 58px;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .header-profile {
+    grid-column: auto;
+    width: auto;
+    gap: 8px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .profile-button,
+  body.portal-mobile-mode[data-route="room"] .ghost-chip {
+    min-width: 0;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .brand-copy {
+    min-height: 38px;
+    padding-top: 2px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .brand-copy strong {
+    font-size: 18px;
+    margin-top: 0;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .portal-main {
+    height: calc(var(--app-vh, 1vh) * 100 - 58px);
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .view {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-shell {
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-stage-panel {
+    padding: 12px 10px 10px;
+    overflow: hidden;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .board-stage {
+    width: 100%;
+    height: 100%;
+    padding: 72px 0 92px;
+    display: grid;
+    place-items: center;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-board {
+    width: min(calc(100vw - 42px), calc((var(--app-vh, 1vh) * 100 - 58px - 308px) * 0.9), 520px);
+    max-width: 100%;
+    border-width: 3px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .board-badge {
+    position: absolute;
+    width: min(176px, calc(50% - 10px));
+    margin: 0;
+    padding: 10px 12px;
+    gap: 8px;
+    border-radius: 16px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .board-badge.opponent {
+    top: 4px;
+    left: 0;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .board-badge.self {
+    right: 0;
+    bottom: 4px;
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .board-badge.self .badge-meta {
+    align-items: flex-end;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .badge-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .badge-meta strong {
+    font-size: 14px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .side-pill,
+  body.portal-mobile-mode[data-route="room"] .clock-inline {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-side {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-side-topbar {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 0;
+    gap: 8px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-side-topbar .room-key-box {
+    flex: 1 1 auto;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-side-topbar .room-status-badge {
+    flex: 0 0 auto;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-key-box,
+  body.portal-mobile-mode[data-route="room"] .room-status-badge {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 14px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-key-box strong {
+    font-size: 17px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-key-box .ghost-button {
+    min-height: 34px;
+    padding: 0 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-panel {
+    display: none;
+    min-height: 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-panel.is-mobile-active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .panel-heading {
+    margin-bottom: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .panel-heading h3 {
+    font-size: 16px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .panel-heading p,
+  body.portal-mobile-mode[data-route="room"] #roomSummary,
+  body.portal-mobile-mode[data-route="room"] #viewerSummary {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .request-buttons,
+  body.portal-mobile-mode[data-route="room"] .room-utility-buttons,
+  body.portal-mobile-mode[data-route="room"] #requestState {
+    display: none !important;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .viewer-list,
+  body.portal-mobile-mode[data-route="room"] .chat-list,
+  body.portal-mobile-mode[data-route="room"] .room-move-list {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .chat-list {
+    max-height: none;
+    flex: 1 1 auto;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .chat-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .chat-form input,
+  body.portal-mobile-mode[data-route="room"] .chat-form button {
+    min-height: 42px;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-mobile-dock {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(216, 174, 89, 0.16);
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-mobile-btn {
+    min-height: 44px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  body.portal-mobile-mode[data-route="room"] .room-mobile-btn span {
+    pointer-events: none;
+  }
 }
 
 .history-item:focus-visible {

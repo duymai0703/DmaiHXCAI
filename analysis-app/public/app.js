@@ -53,9 +53,12 @@ const state = {
   editorPiece: "R",
   resizeTimer: null,
   lastBoardSizeKey: "",
+  lastBoardFrame: "",
+  lastPieceFrame: "",
   pieceSlots: null,
   hintSlots: null,
-  slotLayoutKey: ""
+  slotLayoutKey: "",
+  mobilePanel: "analysis"
 };
 
 const boardEl = document.getElementById("board");
@@ -76,17 +79,12 @@ const copyFenBtn = document.getElementById("copyFenBtn");
 const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
+const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
+const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 
-window.addEventListener("resize", scheduleBoardDraw, { passive: true });
+window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
-document.getElementById("flipBtn").addEventListener("click", () => {
-  state.flipped = !state.flipped;
-  if (state.lastAnalysis) {
-    renderAnalysis(state.lastAnalysis.result, state.lastAnalysis.board, state.lastAnalysis.side);
-  }
-  draw();
-  refreshCloudBook();
-});
+document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
 bindClick("saveEngineBtn", saveEnginePath);
 bindClick("buildEngineBtn", buildEngine);
 bindClick("downloadNetBtn", downloadNetwork);
@@ -131,6 +129,9 @@ function scheduleBoardDraw() {
     const sizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
     if (sizeKey === state.lastBoardSizeKey) return;
     state.lastBoardSizeKey = sizeKey;
+    state.lastBoardFrame = "";
+    state.lastPieceFrame = "";
+    state.slotLayoutKey = "";
     draw();
   }, 120);
 }
@@ -148,12 +149,99 @@ function autoDelay() {
 }
 
 async function init() {
+  syncViewportHeight();
+  setupMobileActionStrip();
   renderPiecePalette();
+  renderMobilePanelState();
   updateEditorUi();
   wakeBackend();
   await refreshStatus();
   draw();
   refreshCloudBook();
+}
+
+function onViewportResize() {
+  syncViewportHeight();
+  renderMobilePanelState();
+  scheduleBoardDraw();
+}
+
+function syncViewportHeight() {
+  document.documentElement.style.setProperty("--app-vh", `${window.innerHeight * 0.01}px`);
+}
+
+function isCompactMobile() {
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function setupMobileActionStrip() {
+  mobileActionButtons.forEach((button) => {
+    button.addEventListener("click", () => handleMobileAction(button.dataset.mobileAction || ""));
+  });
+}
+
+function handleMobileAction(action) {
+  switch (action) {
+    case "analysis":
+      setMobilePanel("analysis");
+      startManualAnalysis().catch(() => {});
+      break;
+    case "cloud":
+      setMobilePanel("cloud");
+      break;
+    case "history":
+      setMobilePanel("history");
+      break;
+    case "tools":
+      setMobilePanel("tools");
+      break;
+    case "ai":
+      setMobilePanel("ai");
+      break;
+    case "undo":
+      undo();
+      break;
+    case "redo":
+      redo();
+      break;
+    case "reset":
+      reset();
+      break;
+    case "flip":
+      toggleFlipBoard();
+      break;
+    default:
+      break;
+  }
+}
+
+function toggleFlipBoard() {
+  state.flipped = !state.flipped;
+  state.lastBoardFrame = "";
+  state.lastPieceFrame = "";
+  state.slotLayoutKey = "";
+  if (state.lastAnalysis) {
+    renderAnalysis(state.lastAnalysis.result, state.lastAnalysis.board, state.lastAnalysis.side);
+  }
+  draw();
+  refreshCloudBook();
+}
+
+function setMobilePanel(panel) {
+  state.mobilePanel = panel;
+  renderMobilePanelState();
+}
+
+function renderMobilePanelState() {
+  const compact = isCompactMobile();
+  document.body.classList.toggle("analysis-mobile-mode", compact);
+  mobilePanels.forEach((panel) => {
+    panel.classList.toggle("is-mobile-active", !compact || panel.dataset.mobilePanel === state.mobilePanel);
+  });
+  mobileActionButtons.forEach((button) => {
+    const action = button.dataset.mobileAction || "";
+    button.classList.toggle("active", compact && ["analysis", "cloud", "history", "tools", "ai"].includes(action) && action === state.mobilePanel);
+  });
 }
 
 async function refreshStatus() {
@@ -814,7 +902,11 @@ function draw() {
 
 function drawBoard() {
   const rect = boardEl.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
   state.lastBoardSizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+  const signature = `${state.lastBoardSizeKey}|${state.flipped ? "b" : "w"}`;
+  if (signature === state.lastBoardFrame) return;
+  state.lastBoardFrame = signature;
   for (const canvas of [boardCanvas, arrowCanvas]) {
     canvas.width = Math.round(rect.width * devicePixelRatio);
     canvas.height = Math.round(rect.height * devicePixelRatio);
@@ -896,6 +988,11 @@ function drawPieces() {
   const { pieceSlots, hintSlots } = ensureBoardSlots();
   if (!pieceSlots.length || !hintSlots.length) return;
   const checkedSides = getCheckedSides();
+  const selectionKey = state.selected ? squareToUci(state.selected) : "";
+  const hintKey = state.hints.map(squareToUci).join(",");
+  const signature = `${boardSignature(state.board)}|${state.flipped ? "b" : "w"}|${selectionKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+  if (signature === state.lastPieceFrame) return;
+  state.lastPieceFrame = signature;
   const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
@@ -904,18 +1001,24 @@ function drawPieces() {
       const el = pieceSlots[index];
       if (!piece) {
         el.style.display = "none";
-        el.className = "piece image-piece";
-        el.style.removeProperty("--piece-image");
-        el.removeAttribute("aria-label");
+        el.classList.remove("selected", "in-check", "red", "black");
+        if (el.dataset.piece) {
+          el.dataset.piece = "";
+          el.style.removeProperty("--piece-image");
+          el.removeAttribute("aria-label");
+        }
       } else {
         el.style.display = "";
-        el.className = `piece image-piece ${piece === piece.toUpperCase() ? "red" : "black"}`;
-        if (piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]) {
-          el.classList.add("in-check");
+        const isRed = piece === piece.toUpperCase();
+        el.classList.toggle("red", isRed);
+        el.classList.toggle("black", !isRed);
+        el.classList.toggle("selected", Boolean(state.selected && state.selected.x === x && state.selected.y === y));
+        el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
+        if (el.dataset.piece !== piece) {
+          el.dataset.piece = piece;
+          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+          el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
-        if (state.selected && state.selected.x === x && state.selected.y === y) el.classList.add("selected");
-        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-        el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
       }
 
       const hintEl = hintSlots[index];
@@ -1144,6 +1247,10 @@ function boardToCloudFen(board, side) {
 
 function currentFenString() {
   return `${boardToCloudFen(state.board, state.side)} - - 0 1`;
+}
+
+function boardSignature(board) {
+  return (board || []).map((row) => row.join("")).join("/");
 }
 
 function buildSuggestionOptions(result, board) {

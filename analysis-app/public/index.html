@@ -12,7 +12,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260628-room-v7">
+    <link rel="stylesheet" href="/portal.css?v=20260628-room-v8">
   </head>
   <body>
     <header class="portal-header">
@@ -235,7 +235,7 @@
               <div id="roomStatusBadge" class="room-status-badge">Đang chờ</div>
             </div>
 
-            <section class="panel-card room-panel">
+            <section class="panel-card room-panel" data-room-mobile-panel="control">
               <div class="panel-heading">
                 <div>
                   <h3>Điều khiển ván đấu</h3>
@@ -257,7 +257,7 @@
               <div id="requestState" class="request-state hidden"></div>
             </section>
 
-            <section class="panel-card room-panel">
+            <section class="panel-card room-panel" data-room-mobile-panel="viewers">
               <div class="panel-heading">
                 <div>
                   <h3>Người xem</h3>
@@ -267,7 +267,7 @@
               <div id="viewerList" class="viewer-list"></div>
             </section>
 
-            <section class="panel-card room-panel chat-panel">
+            <section class="panel-card room-panel chat-panel" data-room-mobile-panel="chat">
               <div class="panel-heading">
                 <div>
                   <h3>Chat</h3>
@@ -283,7 +283,7 @@
               </form>
             </section>
 
-            <section class="panel-card room-panel">
+            <section class="panel-card room-panel" data-room-mobile-panel="moves">
               <div class="panel-heading">
                 <div>
                   <h3>Lịch sử nước đi</h3>
@@ -292,6 +292,18 @@
               </div>
               <ol id="roomMoveList" class="room-move-list"></ol>
             </section>
+
+            <div class="room-mobile-dock" aria-label="Điều khiển nhanh">
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="control" title="Điều khiển" aria-label="Điều khiển"><span aria-hidden="true">⌘</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="viewers" title="Người xem" aria-label="Người xem"><span aria-hidden="true">👁</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="chat" title="Chat" aria-label="Chat"><span aria-hidden="true">✉</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="moves" title="Lịch sử nước đi" aria-label="Lịch sử nước đi"><span aria-hidden="true">≣</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-action="ready" title="Sẵn sàng" aria-label="Sẵn sàng"><span aria-hidden="true">✓</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-action="undo" title="Xin đi lại" aria-label="Xin đi lại"><span aria-hidden="true">↺</span><small id="roomUndoDockCount" class="room-mobile-count">2</small></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-action="draw" title="Cầu hòa" aria-label="Cầu hòa"><span aria-hidden="true">=</span><small id="roomDrawDockCount" class="room-mobile-count">2</small></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-action="resign" title="Xin thua" aria-label="Xin thua"><span aria-hidden="true">✕</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-action="leave" title="Out phòng" aria-label="Out phòng"><span aria-hidden="true">⎋</span></button>
+            </div>
           </aside>
         </div>
       </section>
@@ -373,7 +385,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-room-v7"></script>
+    <script src="/portal.js?v=20260628-room-v8"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

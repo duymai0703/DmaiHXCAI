@@ -89,7 +89,8 @@
     roomSlotLayoutKey: "",
     lastChatSignature: "",
     resizeTimer: null,
-    lastBoardSizeKey: ""
+    lastBoardSizeKey: "",
+    roomMobilePanel: "control"
   };
 
   const dom = {
@@ -160,6 +161,8 @@
     resignBtn: byId("resignBtn"),
     roomReadyBtn: byId("roomReadyBtn"),
     leaveRoomBtn: byId("leaveRoomBtn"),
+    roomUndoDockCount: byId("roomUndoDockCount"),
+    roomDrawDockCount: byId("roomDrawDockCount"),
     undoCount: byId("undoCount"),
     drawCount: byId("drawCount"),
     requestState: byId("requestState"),
@@ -200,10 +203,15 @@
     modalCancel: byId("modalCancel"),
     modalConfirm: byId("modalConfirm")
   };
+  const roomMobilePanelButtons = [...document.querySelectorAll("[data-room-mobile-mode]")];
+  const roomMobileActionButtons = [...document.querySelectorAll("[data-room-mobile-action]")];
+  const roomMobilePanels = [...document.querySelectorAll("[data-room-mobile-panel]")];
 
   bindEvents();
   preventDoubleTapZoom();
   preloadPieceImages();
+  syncViewportHeight();
+  setupRoomMobileDock();
   setLobbyMode("join");
   updateTimeLabels();
   bootstrap()
@@ -320,6 +328,83 @@
     return payload.user;
   }
 
+  function syncViewportHeight() {
+    document.documentElement.style.setProperty("--app-vh", `${window.innerHeight * 0.01}px`);
+  }
+
+  function isCompactMobile() {
+    return window.matchMedia("(max-width: 760px)").matches;
+  }
+
+  function setupRoomMobileDock() {
+    roomMobilePanelButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        setRoomMobilePanel(button.dataset.roomMobileMode || "control");
+      });
+    });
+    roomMobileActionButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        handleRoomMobileAction(button.dataset.roomMobileAction || "");
+      });
+    });
+  }
+
+  function handleRoomMobileAction(action) {
+    switch (action) {
+      case "ready":
+        dom.roomReadyBtn.click();
+        break;
+      case "undo":
+        dom.undoRequestBtn.click();
+        break;
+      case "draw":
+        dom.drawRequestBtn.click();
+        break;
+      case "resign":
+        dom.resignBtn.click();
+        break;
+      case "leave":
+        dom.leaveRoomBtn.click();
+        break;
+      default:
+        break;
+    }
+  }
+
+  function setRoomMobilePanel(panel) {
+    state.roomMobilePanel = panel || "control";
+    renderRoomMobilePanels();
+  }
+
+  function renderRoomMobilePanels() {
+    const compact = isCompactMobile();
+    document.body.classList.toggle("portal-mobile-mode", compact);
+    document.body.dataset.route = state.route || "home";
+    roomMobilePanels.forEach((panel) => {
+      const mode = panel.dataset.roomMobilePanel || "control";
+      panel.classList.toggle("is-mobile-active", !compact || mode === state.roomMobilePanel);
+    });
+    roomMobilePanelButtons.forEach((button) => {
+      button.classList.toggle("active", compact && button.dataset.roomMobileMode === state.roomMobilePanel);
+    });
+  }
+
+  function syncRoomMobileActionState() {
+    const readyButton = document.querySelector("[data-room-mobile-action='ready']");
+    const undoButton = document.querySelector("[data-room-mobile-action='undo']");
+    const drawButton = document.querySelector("[data-room-mobile-action='draw']");
+    const resignButton = document.querySelector("[data-room-mobile-action='resign']");
+    const leaveButton = document.querySelector("[data-room-mobile-action='leave']");
+
+    if (dom.roomUndoDockCount) dom.roomUndoDockCount.textContent = dom.undoCount.textContent || "0";
+    if (dom.roomDrawDockCount) dom.roomDrawDockCount.textContent = dom.drawCount.textContent || "0";
+    if (readyButton) readyButton.disabled = dom.roomReadyBtn.classList.contains("hidden") || dom.roomReadyBtn.disabled;
+    if (undoButton) undoButton.disabled = dom.undoRequestBtn.disabled;
+    if (drawButton) drawButton.disabled = dom.drawRequestBtn.disabled;
+    if (resignButton) resignButton.disabled = dom.resignBtn.disabled;
+    if (leaveButton) leaveButton.disabled = dom.leaveRoomBtn.disabled;
+  }
+
   function setLobbyMode(mode) {
     state.lobbyMode = mode === "create" ? "create" : "join";
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
@@ -370,6 +455,7 @@
     else if (route === "review" && !state.reviewGame) route = "library";
 
     state.route = route;
+    document.body.dataset.route = route;
     if (replaceIfNeeded || location.hash !== `#${route}`) {
       history.replaceState(null, "", `#${route}`);
     }
@@ -402,6 +488,7 @@
 
     updateResumeButton();
     renderProfile();
+    renderRoomMobilePanels();
   }
 
   function handleBack() {
@@ -1077,6 +1164,7 @@
     renderChat();
     renderMoveList();
     renderRoomOverlay();
+    renderRoomMobilePanels();
     drawRoomScene(forceBoard);
   }
 
@@ -1113,6 +1201,7 @@
       dom.topSideLabel.textContent = "Đen";
       dom.bottomSideLabel.textContent = "Đỏ";
       renderRoomClocks();
+      syncRoomMobileActionState();
       return;
     }
 
@@ -1154,6 +1243,7 @@
     dom.leaveRoomBtn.disabled = !!state.roomActionBusy;
 
     renderRoomClocks();
+    syncRoomMobileActionState();
   }
 
   function renderRequestState() {
@@ -1501,20 +1591,21 @@
         const el = pieceSlots[index];
         if (!piece) {
           el.style.display = "none";
-          el.className = "piece image-piece";
-          el.style.removeProperty("--piece-image");
-          el.removeAttribute("aria-label");
+          el.classList.remove("selected", "in-check");
+          if (el.dataset.piece) {
+            el.dataset.piece = "";
+            el.style.removeProperty("--piece-image");
+            el.removeAttribute("aria-label");
+          }
         } else {
           el.style.display = "";
-          el.className = "piece image-piece";
-          if (state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y) {
-            el.classList.add("selected");
+          el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
+          el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
+          if (el.dataset.piece !== piece) {
+            el.dataset.piece = piece;
+            el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+            el.setAttribute("aria-label", piece);
           }
-          if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
-            el.classList.add("in-check");
-          }
-          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-          el.setAttribute("aria-label", piece);
         }
 
         const mark = hintSlots[index];
@@ -1588,21 +1679,25 @@
         const el = slots[index];
         if (!piece) {
           el.style.display = "none";
-          el.className = "piece image-piece";
-          el.style.removeProperty("--piece-image");
-          el.removeAttribute("aria-label");
-          el.replaceChildren();
+          el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
+          if (el.dataset.piece) {
+            el.dataset.piece = "";
+            el.style.removeProperty("--piece-image");
+            el.removeAttribute("aria-label");
+          }
+          if (el.childNodes.length) el.replaceChildren();
           continue;
         }
 
         el.style.display = "";
-        el.className = "piece image-piece";
-        el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
-        el.setAttribute("aria-label", piece);
-        el.replaceChildren();
-        if (piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]) {
-          el.classList.add("in-check");
+        el.classList.remove("review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
+        if (el.dataset.piece !== piece) {
+          el.dataset.piece = piece;
+          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+          el.setAttribute("aria-label", piece);
         }
+        el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
+        if (el.childNodes.length) el.replaceChildren();
         if (movedSquare && movedSquare.x === x && movedSquare.y === y) {
           el.classList.add("review-current");
           if (badge.image) {
@@ -2242,6 +2337,8 @@
     if (state.resizeTimer) clearTimeout(state.resizeTimer);
     state.resizeTimer = window.setTimeout(() => {
       state.resizeTimer = null;
+      syncViewportHeight();
+      renderRoomMobilePanels();
       onResize();
     }, 120);
   }
