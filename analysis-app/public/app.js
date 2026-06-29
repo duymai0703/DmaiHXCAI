@@ -28,11 +28,12 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v15";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v16";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
-const ANALYSIS_MOVE_ANIMATION_MS = 176;
+const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
+const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 180;
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -84,6 +85,9 @@ const state = {
   slotLayoutKey: "",
   mobilePanel: "analysis",
   drawFrame: 0,
+  queuedCursorTarget: null,
+  queuedCursorFrame: 0,
+  analysisRefreshTimer: 0,
   assetWarmupPending: false,
   assetWarmupProgress: 0,
   assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
@@ -505,11 +509,13 @@ async function downloadNetwork() {
 
 async function startManualAnalysis() {
   stopAutoPlay(true);
+  cancelScheduledAnalysisRefresh();
   state.analysisMode = true;
   return runAnalysis({ activateMode: true, autoPlay: false });
 }
 
 async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
+  cancelScheduledAnalysisRefresh();
   if (activateMode) state.analysisMode = true;
   const requestId = ++state.analysisRequest;
   const boardBefore = cloneBoard(state.board);
@@ -571,7 +577,31 @@ async function playBestMove() {
   }
 }
 
+function cancelScheduledAnalysisRefresh() {
+  if (!state.analysisRefreshTimer) return;
+  clearTimeout(state.analysisRefreshTimer);
+  state.analysisRefreshTimer = 0;
+}
+
+function scheduleAnalysisRefresh(delay = 0) {
+  cancelScheduledAnalysisRefresh();
+  if (!state.analysisMode) return;
+  state.analysisRefreshTimer = window.setTimeout(() => {
+    state.analysisRefreshTimer = 0;
+    runAnalysis({ activateMode: true }).catch(() => {});
+  }, Math.max(0, delay));
+}
+
+function clearQueuedCursorNavigation() {
+  if (state.queuedCursorFrame) {
+    cancelAnimationFrame(state.queuedCursorFrame);
+    state.queuedCursorFrame = 0;
+  }
+  state.queuedCursorTarget = null;
+}
+
 function toggleAuto() {
+  cancelScheduledAnalysisRefresh();
   stopScoreAnimation();
   state.auto = !state.auto;
   if (state.auto) {
@@ -988,6 +1018,8 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
 function makeMove(move, { manual = true } = {}) {
   if (state.gameOver) return;
   if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return;
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   const from = uciToSquare(move.slice(0, 2));
   const to = uciToSquare(move.slice(2, 4));
   const piece = getPiece(from);
@@ -1023,29 +1055,47 @@ function makeMove(move, { manual = true } = {}) {
   }
   refreshCloudBook();
   if (manual && state.analysisMode) {
-    setTimeout(() => runAnalysis({ activateMode: true }).catch(() => {}), 0);
+    scheduleAnalysisRefresh(0);
   }
 }
 
-function undo() {
-  if (state.cursor <= 0) return;
+function applyQueuedCursorTarget() {
+  state.queuedCursorFrame = 0;
+  const target = state.queuedCursorTarget;
+  state.queuedCursorTarget = null;
+  if (!Number.isInteger(target) || target === state.cursor) return;
   clearMoveAnimation();
-  state.cursor -= 1;
-  rebuildPosition();
+  state.cursor = target;
+  rebuildPosition({ immediateDraw: true, analysisDelay: ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS });
+}
+
+function queueCursorTarget(target) {
+  const clamped = Math.max(0, Math.min(state.moves.length, target));
+  if (clamped === state.cursor && !state.queuedCursorFrame) return;
+  state.queuedCursorTarget = clamped;
+  if (state.queuedCursorFrame) return;
+  state.queuedCursorFrame = window.requestAnimationFrame(applyQueuedCursorTarget);
+}
+
+function undo() {
+  const baseCursor = Number.isInteger(state.queuedCursorTarget) ? state.queuedCursorTarget : state.cursor;
+  if (baseCursor <= 0) return;
+  queueCursorTarget(baseCursor - 1);
 }
 
 function redo() {
-  if (state.cursor >= state.moves.length) return;
-  clearMoveAnimation();
-  state.cursor += 1;
-  rebuildPosition();
+  const baseCursor = Number.isInteger(state.queuedCursorTarget) ? state.queuedCursorTarget : state.cursor;
+  if (baseCursor >= state.moves.length) return;
+  queueCursorTarget(baseCursor + 1);
 }
 
 function reset() {
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   state.moves = [];
   state.cursor = 0;
-  rebuildPosition();
+  rebuildPosition({ immediateDraw: true, analysisDelay: 0 });
 }
 
 function renderPiecePalette() {
@@ -1088,6 +1138,8 @@ function updateEditorUi() {
 }
 
 function toggleEditMode() {
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   state.editMode = !state.editMode;
   stopAutoPlay();
@@ -1101,6 +1153,8 @@ function toggleEditMode() {
 }
 
 function clearBoard() {
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   stopAutoPlay();
   stopScoreAnimation();
@@ -1125,6 +1179,8 @@ function loadFenFromPrompt() {
   const input = window.prompt("Nhập FEN cờ tướng:", currentFen);
   if (input === null) return;
   try {
+    clearQueuedCursorNavigation();
+    cancelScheduledAnalysisRefresh();
     const parsed = parseFenInput(input);
     clearMoveAnimation();
     stopAutoPlay();
@@ -1143,10 +1199,10 @@ function loadFenFromPrompt() {
     state.checkmatedSide = getCheckmatedSide();
     state.gameOver = Boolean(state.checkmatedSide);
     if (sideToMoveEl) sideToMoveEl.value = state.side;
-    draw();
+    draw(true);
     refreshCloudBook();
     if (state.analysisMode) {
-      setTimeout(() => runAnalysis({ activateMode: true }).catch(() => {}), 0);
+      scheduleAnalysisRefresh(0);
     }
   } catch (err) {
     window.alert(err.message || "FEN không hợp lệ.");
@@ -1186,6 +1242,8 @@ function showToast(message) {
 
 function setSideToMove() {
   if (!sideToMoveEl) return;
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   stopScoreAnimation();
   state.side = sideToMoveEl.value === "b" ? "b" : "w";
@@ -1194,11 +1252,13 @@ function setSideToMove() {
   state.gameOver = false;
   state.checkmatedSide = null;
   state.analysisRequest++;
-  draw();
+  draw(true);
   refreshCloudBook();
 }
 
 function editBoardSquare(square) {
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   const piece = state.editorPiece;
   if (piece && !isEditorPieceAllowed(piece, square)) return;
@@ -1215,7 +1275,7 @@ function editBoardSquare(square) {
   state.analysisRequest++;
   state.checkmatedSide = getCheckmatedSide();
   state.gameOver = Boolean(state.checkmatedSide);
-  draw();
+  draw(true);
   refreshCloudBook();
 }
 
@@ -1230,7 +1290,9 @@ function isEditorPieceAllowed(piece, square) {
   return true;
 }
 
-function rebuildPosition() {
+function rebuildPosition({ immediateDraw = false, analysisDelay = 0 } = {}) {
+  clearQueuedCursorNavigation();
+  cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   stopScoreAnimation();
   state.board = parseFen(START_FEN);
@@ -1248,10 +1310,10 @@ function rebuildPosition() {
   state.analysisRequest++;
   state.checkmatedSide = getCheckmatedSide();
   state.gameOver = Boolean(state.checkmatedSide);
-  draw();
+  draw(immediateDraw);
   refreshCloudBook();
   if (state.analysisMode) {
-    setTimeout(() => runAnalysis({ activateMode: true }).catch(() => {}), 0);
+    scheduleAnalysisRefresh(analysisDelay);
   }
 }
 
