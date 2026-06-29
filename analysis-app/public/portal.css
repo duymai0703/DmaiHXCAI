@@ -2354,6 +2354,7 @@ textarea:focus {
 .badge-avatar.turn-flash,
 .clock-inline.turn-flash {
   animation: turnFlashPulse 0.42s ease-in-out 5;
+  will-change: box-shadow, opacity;
 }
 
 .board-badge.turn-flash {
@@ -2372,10 +2373,10 @@ textarea:focus {
 
 @keyframes turnFlashPulse {
   0%, 100% {
-    filter: brightness(1);
+    opacity: 1;
   }
   50% {
-    filter: brightness(1.08);
+    opacity: 0.96;
   }
 }
 

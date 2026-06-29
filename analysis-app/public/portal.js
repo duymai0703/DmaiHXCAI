@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v25";
+  const ASSET_WARMUP_VERSION = "20260630-v26";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1999,6 +1999,7 @@
 
   function renderRoomAfterLocalMove() {
     materializeLocalRoomPhase();
+    clearTurnFlash();
     renderRoomMeta();
     renderRequestState();
     renderMoveList();
@@ -2437,6 +2438,7 @@
     const room = state.room;
     if (!room || room.role !== "player" || room.status !== "active" || !room.yourTurn || state.roomActionBusy) return;
     event.preventDefault();
+    clearTurnFlash();
     const square = eventToSquare(event);
     if (!square) return;
 
@@ -2476,6 +2478,7 @@
 
   async function sendMove(move) {
     if (!state.room) return;
+    clearTurnFlash();
     const side = state.room.yourSide;
     const previousRoom = cloneJsonValue(state.room);
     const previousBoard = state.roomBoard.map((row) => row.slice());
