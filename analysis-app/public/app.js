@@ -23,10 +23,9 @@ const PIECE_IMAGES = {
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
 const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
-const MANUAL_ANALYSIS_STAGES = [180, 420, 900, 1700, 3000, 5000, 7600, 9800];
-const AUTO_ANALYSIS_STAGES = [140, 320, 700, 1200];
-const MANUAL_ANALYSIS_MAX_MS = 12000;
-const AUTO_ANALYSIS_MAX_MS = 2400;
+const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
+const AUTO_ANALYSIS_STAGES = [220, 380, 650];
+const ANALYSIS_MAX_MS = 10000;
 let wakePromise = null;
 
 const state = {
@@ -129,7 +128,7 @@ function scheduleBoardDraw() {
   state.resizeTimer = window.setTimeout(() => {
     state.resizeTimer = null;
     const rect = boardEl.getBoundingClientRect();
-    const sizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    const sizeKey = `${Math.round(rect.width)}`;
     if (sizeKey === state.lastBoardSizeKey) return;
     state.lastBoardSizeKey = sizeKey;
     state.lastBoardFrame = "";
@@ -319,13 +318,12 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
   try {
     const schedule = autoPlay ? AUTO_ANALYSIS_STAGES : MANUAL_ANALYSIS_STAGES;
     const startedAt = performance.now();
-    const maxBudgetMs = autoPlay ? AUTO_ANALYSIS_MAX_MS : MANUAL_ANALYSIS_MAX_MS;
     let latestResult = null;
 
     for (const stageMs of schedule) {
       if (requestId !== state.analysisRequest) return latestResult;
       const elapsed = performance.now() - startedAt;
-      const remainingBudget = maxBudgetMs - elapsed;
+      const remainingBudget = ANALYSIS_MAX_MS - elapsed;
       if (remainingBudget < 140) break;
       const movetime = Math.max(120, Math.min(stageMs, Math.floor(remainingBudget)));
       const result = await api("/api/analyze", {
@@ -339,7 +337,7 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
       if (hasAnalysisLine(result)) {
         applyAnalysisSnapshot(result, boardBefore, sideBefore, { pending: true });
       }
-      if ((performance.now() - startedAt) >= maxBudgetMs) break;
+      if ((performance.now() - startedAt) >= ANALYSIS_MAX_MS) break;
     }
 
     if (!latestResult || !hasAnalysisLine(latestResult)) {
@@ -906,7 +904,7 @@ function draw() {
 function drawBoard() {
   const rect = boardEl.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
-  state.lastBoardSizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+  state.lastBoardSizeKey = `${Math.round(rect.width)}`;
   const signature = `${state.lastBoardSizeKey}|${state.flipped ? "b" : "w"}`;
   if (signature === state.lastBoardFrame) return;
   state.lastBoardFrame = signature;
@@ -940,7 +938,7 @@ function drawBoard() {
 
 function ensureBoardSlots() {
   const rect = boardEl.getBoundingClientRect();
-  const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${state.flipped ? "b" : "w"}`;
+  const layoutKey = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}`;
   if (
     state.pieceSlots &&
     state.hintSlots &&
@@ -1033,7 +1031,7 @@ function drawPieces() {
 function drawArrowLayer() {
   const rect = boardEl.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
-  const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${state.flipped ? "b" : "w"}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${suggestion.color}`).join("|")}`;
+  const signature = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${suggestion.color}`).join("|")}`;
   if (signature === state.lastArrowFrame) return;
   state.lastArrowFrame = signature;
   clearArrowCanvas();

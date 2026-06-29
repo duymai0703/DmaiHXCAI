@@ -1165,15 +1165,37 @@ select {
     box-shadow:
       inset 0 0 0 2px rgba(79, 52, 25, 0.3),
       0 18px 34px rgba(0, 0, 0, 0.28);
+    contain: layout paint;
+    isolation: auto;
+    transform: none;
+    -webkit-transform: none;
   }
 
   .board::before {
     display: none;
   }
 
+  #boardCanvas,
+  #arrowCanvas,
+  #pieces {
+    transform: none;
+    -webkit-transform: none;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+  }
+
   .piece {
     font-size: clamp(18px, 6.1vw, 30px);
     will-change: auto;
+    transform: translate(-50%, -50%);
+    -webkit-transform: translate(-50%, -50%);
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+  }
+
+  .board.flipped .piece {
+    transform: translate(-50%, -50%);
+    -webkit-transform: translate(-50%, -50%);
   }
 
   .panel {
@@ -1298,6 +1320,7 @@ select {
   .piece.image-piece {
     filter: none;
     box-shadow: none;
+    image-rendering: auto;
   }
 
   .piece.image-piece::before,
