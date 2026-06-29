@@ -28,14 +28,18 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v6";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v7";
+const ANALYSIS_ASSET_BLOCK_MS = 1800;
+const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 188;
-const ANALYSIS_PRELOAD_ASSETS = [
+const ANALYSIS_BLOCKING_ASSETS = [
   BOARD_SKIN_ASSET,
+  ...Object.values(PIECE_IMAGES)
+];
+const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/back.png",
   "/assets/icons/header-logo.png",
-  "/assets/icons/icon-192.png",
-  ...Object.values(PIECE_IMAGES)
+  "/assets/icons/icon-192.png"
 ];
 let wakePromise = null;
 
@@ -165,22 +169,29 @@ async function warmAnalysisAssets() {
   state.assetWarmupPending = needsBlockingWarmup;
   renderAssetPreloadOverlay();
 
-  const normalizedAssets = [...new Set(ANALYSIS_PRELOAD_ASSETS)];
-  const tasks = [
-    cacheAnalysisAssets(normalizedAssets),
-    decodeAnalysisAssets(normalizedAssets)
+  const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
+  const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
+  const blockingTasks = [
+    cacheAnalysisAssets(blockingAssets),
+    decodeAnalysisAssets(blockingAssets)
+  ];
+  const backgroundTasks = [
+    cacheAnalysisAssets(backgroundAssets),
+    decodeAnalysisAssets(backgroundAssets)
   ];
 
   if (!needsBlockingWarmup) {
-    await Promise.allSettled(tasks);
+    void Promise.allSettled(blockingTasks);
+    void Promise.allSettled(backgroundTasks);
     void tryPersistBrowserStorage();
     return;
   }
 
   try {
-    await Promise.all(tasks);
-    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+    void Promise.allSettled(backgroundTasks);
+    await waitForWarmup(blockingTasks, ANALYSIS_ASSET_BLOCK_MS);
   } catch {}
+  writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
   void tryPersistBrowserStorage();
 }
 
@@ -201,7 +212,7 @@ async function cacheAnalysisAssets(assets) {
     try {
       const existing = await cache.match(asset);
       if (existing) return;
-      const response = await fetch(asset, { cache: "force-cache" });
+      const response = await fetchWithTimeout(asset, { cache: "force-cache" }, ANALYSIS_ASSET_TIMEOUT_MS);
       if (response && response.ok) await cache.put(asset, response.clone());
     } catch {}
   }));
@@ -218,7 +229,14 @@ function decodeAnalysisAsset(src) {
     image.decoding = "async";
     image.loading = "eager";
     image.src = src;
-    const finish = () => resolve();
+    let done = false;
+    const timer = window.setTimeout(finish, ANALYSIS_ASSET_TIMEOUT_MS);
+    function finish() {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      resolve();
+    }
     if (typeof image.decode === "function") {
       image.decode().then(finish).catch(() => {
         if (image.complete) finish();
@@ -232,6 +250,35 @@ function decodeAnalysisAsset(src) {
     image.onload = finish;
     image.onerror = finish;
   });
+}
+
+async function waitForWarmup(tasks, timeoutMs) {
+  await Promise.race([
+    Promise.allSettled(tasks),
+    delay(timeoutMs)
+  ]);
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+  });
+}
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
+  if (typeof AbortController === "undefined") {
+    return fetch(resource, options);
+  }
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 async function tryPersistBrowserStorage() {

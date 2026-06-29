@@ -11,7 +11,9 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v13";
+  const ASSET_WARMUP_VERSION = "20260630-v14";
+  const PORTAL_ASSET_BLOCK_MS = 1800;
+  const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
@@ -45,8 +47,13 @@
     okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
-  const PORTAL_PRELOAD_ASSETS = [
+  const PORTAL_BLOCKING_ASSETS = [
     BOARD_SKIN_ASSET,
+    "/assets/icons/back.png",
+    "/assets/icons/header-logo.png",
+    ...Object.values(PIECE_IMAGES)
+  ];
+  const PORTAL_BACKGROUND_ASSETS = [
     "/assets/icons/back.png",
     "/assets/icons/header-logo.png",
     "/assets/icons/icon-192.png",
@@ -54,8 +61,7 @@
     "/assets/posters/phaoposter.png",
     "/assets/posters/maposter.png",
     ...DEVICE_AVATARS,
-    ...Object.values(REVIEW_BADGES).map((entry) => entry.image),
-    ...Object.values(PIECE_IMAGES)
+    ...Object.values(REVIEW_BADGES).map((entry) => entry.image)
   ];
   const ROOM_MOVE_ANIMATION_MS = 188;
 
@@ -328,24 +334,31 @@
     state.assetWarmupPending = needsBlockingWarmup;
     renderAssetPreloadOverlay();
 
-    const normalizedAssets = [...new Set(PORTAL_PRELOAD_ASSETS)];
-    if (!normalizedAssets.length) return;
-
-    const tasks = [
-      cacheStaticAssets(normalizedAssets),
-      decodeImageAssets(normalizedAssets)
+    const blockingAssets = [...new Set(PORTAL_BLOCKING_ASSETS)];
+    const backgroundAssets = [...new Set(
+      PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
+    )];
+    const blockingTasks = [
+      cacheStaticAssets(blockingAssets),
+      decodeImageAssets(blockingAssets)
+    ];
+    const backgroundTasks = [
+      cacheStaticAssets(backgroundAssets),
+      decodeImageAssets(backgroundAssets)
     ];
 
     if (!needsBlockingWarmup) {
-      await Promise.allSettled(tasks);
+      void Promise.allSettled(blockingTasks);
+      void Promise.allSettled(backgroundTasks);
       void tryPersistBrowserStorage();
       return;
     }
 
     try {
-      await Promise.all(tasks);
-      writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+      void Promise.allSettled(backgroundTasks);
+      await waitForWarmup(blockingTasks, PORTAL_ASSET_BLOCK_MS);
     } catch {}
+    writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
     void tryPersistBrowserStorage();
   }
 
@@ -366,7 +379,7 @@
       try {
         const existing = await cache.match(asset);
         if (existing) return;
-        const response = await fetch(asset, { cache: "force-cache" });
+        const response = await fetchWithTimeout(asset, { cache: "force-cache" }, PORTAL_ASSET_TIMEOUT_MS);
         if (response && response.ok) await cache.put(asset, response.clone());
       } catch {}
     }));
@@ -383,7 +396,14 @@
       image.decoding = "async";
       image.loading = "eager";
       image.src = src;
-      const finish = () => resolve();
+      let done = false;
+      const timer = window.setTimeout(finish, PORTAL_ASSET_TIMEOUT_MS);
+      function finish() {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        resolve();
+      }
       if (typeof image.decode === "function") {
         image.decode().then(finish).catch(() => {
           if (image.complete) finish();
@@ -397,6 +417,35 @@
       image.onload = finish;
       image.onerror = finish;
     });
+  }
+
+  async function waitForWarmup(tasks, timeoutMs) {
+    await Promise.race([
+      Promise.allSettled(tasks),
+      delay(timeoutMs)
+    ]);
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+    });
+  }
+
+  async function fetchWithTimeout(resource, options = {}, timeoutMs = PORTAL_ASSET_TIMEOUT_MS) {
+    if (typeof AbortController === "undefined") {
+      return fetch(resource, options);
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(resource, {
+        ...options,
+        signal: controller.signal
+      });
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   async function tryPersistBrowserStorage() {
