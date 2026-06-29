@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v22";
+  const ASSET_WARMUP_VERSION = "20260630-v23";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -56,7 +56,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260630-mobile-v11",
-    "/app.js?v=20260630-mobile-v17",
+    "/app.js?v=20260630-mobile-v18",
     BOARD_SKIN_ASSET,
     ...Object.values(PIECE_IMAGES)
   ];
@@ -126,7 +126,9 @@
     assetWarmupText: PORTAL_PRELOAD_TEXT.prepare,
     roomAnimation: null,
     roomAnimationTimer: 0,
-    lastAnimatedRoomMoveKey: ""
+    lastAnimatedRoomMoveKey: "",
+    activeRoomMoveSlotEl: null,
+    activeReviewMoveSlotEl: null
   };
 
   const dom = {
@@ -1125,6 +1127,10 @@
   }
 
   function hideReviewMoveAnimationElements() {
+    if (state.activeReviewMoveSlotEl) {
+      state.activeReviewMoveSlotEl.style.transition = "none";
+      state.activeReviewMoveSlotEl.style.transform = "translate(-50%, -50%)";
+    }
     if (!dom.reviewMotionPiece) return;
     dom.reviewMotionPiece.style.transition = "none";
     dom.reviewMotionPiece.classList.remove("is-visible");
@@ -1153,6 +1159,7 @@
     }
     hideReviewMoveAnimationElements();
     state.reviewAnimation = null;
+    state.activeReviewMoveSlotEl = null;
     if (!preserveKey) state.lastAnimatedReviewMoveKey = "";
   }
 
@@ -1164,48 +1171,38 @@
     }
     hideReviewMoveAnimationElements();
     state.reviewAnimation = null;
+    state.activeReviewMoveSlotEl = null;
     state.reviewLastPieceFrame = "";
     drawReviewPieces(true);
     drawReviewArrow();
   }
 
   function startReviewMoveAnimation(animation, { prepared = false } = {}) {
-    if (!animation || !dom.reviewMotionPiece) return;
+    if (!animation) return;
     if (prepared) {
       if (state.reviewAnimationTimer) {
         clearTimeout(state.reviewAnimationTimer);
         state.reviewAnimationTimer = 0;
       }
-      hideReviewMoveAnimationElements();
       state.reviewAnimation = animation;
       state.lastAnimatedReviewMoveKey = animation.moveKey;
     } else {
       primeReviewMoveAnimation(animation);
     }
 
-    const fromPixel = reviewSquareToPixel(animation.from);
-    const toPixel = reviewSquareToPixel(animation.to);
-    const deltaX = toPixel.x - fromPixel.x;
-    const deltaY = toPixel.y - fromPixel.y;
-    const movingImage = dom.reviewMotionPiece.querySelector(".piece-skin");
-    if (movingImage) {
-      movingImage.removeAttribute("src");
-      movingImage.src = PIECE_IMAGES[animation.piece] || "";
-      movingImage.alt = animation.piece;
-      movingImage.decoding = "sync";
+    const slots = ensureReviewSlots();
+    const movingSlotEl = slots[animation.toIndex];
+    if (!movingSlotEl) return;
+    state.activeReviewMoveSlotEl = movingSlotEl;
+    if (!prepared) {
+      movingSlotEl.style.transition = "none";
+      movingSlotEl.style.transform = directionalAnimationOffsetTransform(animation, reviewSquareToPixel);
     }
 
-    dom.reviewMotionPiece.style.transition = "none";
-    dom.reviewMotionPiece.style.left = `${fromPixel.x}px`;
-    dom.reviewMotionPiece.style.top = `${fromPixel.y}px`;
-    dom.reviewMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
-    dom.reviewMotionPiece.classList.add("is-visible");
-    dom.reviewMotionPiece.setAttribute("aria-hidden", "false");
-
-    void dom.reviewMotionPiece.offsetWidth;
+    void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
-    dom.reviewMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
-    dom.reviewMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+    movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
 
     state.reviewAnimationTimer = window.setTimeout(() => {
       finalizeReviewMoveAnimation(animation);
@@ -1592,6 +1589,15 @@
     };
   }
 
+  function directionalAnimationOffsetTransform(animation, pixelForSquare) {
+    if (!animation) return "translate(-50%, -50%)";
+    const fromPixel = pixelForSquare(animation.from);
+    const toPixel = pixelForSquare(animation.to);
+    const deltaX = toPixel.x - fromPixel.x;
+    const deltaY = toPixel.y - fromPixel.y;
+    return `translate(-50%, -50%) translate3d(${-deltaX}px, ${-deltaY}px, 0)`;
+  }
+
   function clearRoomMoveAnimation({ preserveKey = false } = {}) {
     if (state.roomAnimationTimer) {
       clearTimeout(state.roomAnimationTimer);
@@ -1599,10 +1605,15 @@
     }
     hideRoomMoveAnimationElements();
     state.roomAnimation = null;
+    state.activeRoomMoveSlotEl = null;
     if (!preserveKey) state.lastAnimatedRoomMoveKey = "";
   }
 
   function hideRoomMoveAnimationElements() {
+    if (state.activeRoomMoveSlotEl) {
+      state.activeRoomMoveSlotEl.style.transition = "none";
+      state.activeRoomMoveSlotEl.style.transform = "translate(-50%, -50%)";
+    }
     if (dom.roomMotionPiece) {
       dom.roomMotionPiece.style.transition = "none";
       dom.roomMotionPiece.classList.remove("is-visible");
@@ -1641,42 +1652,33 @@
     }
     hideRoomMoveAnimationElements();
     state.roomAnimation = null;
+    state.activeRoomMoveSlotEl = null;
     state.lastPieceFrame = "";
     drawRoomPieces(true);
   }
 
   function startRoomMoveAnimation(animation, { prepared = false } = {}) {
-    if (!animation || !dom.roomMotionPiece) return;
+    if (!animation) return;
     if (prepared) {
       if (state.roomAnimationTimer) {
         clearTimeout(state.roomAnimationTimer);
         state.roomAnimationTimer = 0;
       }
-      hideRoomMoveAnimationElements();
       state.roomAnimation = animation;
       state.lastAnimatedRoomMoveKey = animation.moveKey;
     } else {
       primeRoomMoveAnimation(animation);
     }
 
-    const fromPixel = squareToPixel(animation.from);
     const toPixel = squareToPixel(animation.to);
-    const deltaX = toPixel.x - fromPixel.x;
-    const deltaY = toPixel.y - fromPixel.y;
-    const movingImage = dom.roomMotionPiece.querySelector(".piece-skin");
-    if (movingImage) {
-      movingImage.removeAttribute("src");
-      movingImage.src = PIECE_IMAGES[animation.piece] || "";
-      movingImage.alt = animation.piece;
-      movingImage.decoding = "sync";
+    const { pieceSlots } = ensureRoomSlots();
+    const movingSlotEl = pieceSlots[animation.toIndex];
+    if (!movingSlotEl) return;
+    state.activeRoomMoveSlotEl = movingSlotEl;
+    if (!prepared) {
+      movingSlotEl.style.transition = "none";
+      movingSlotEl.style.transform = directionalAnimationOffsetTransform(animation, squareToPixel);
     }
-
-    dom.roomMotionPiece.style.transition = "none";
-    dom.roomMotionPiece.style.left = `${fromPixel.x}px`;
-    dom.roomMotionPiece.style.top = `${fromPixel.y}px`;
-    dom.roomMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
-    dom.roomMotionPiece.classList.add("is-visible");
-    dom.roomMotionPiece.setAttribute("aria-hidden", "false");
 
     if (animation.capturedPiece && dom.roomCapturePiece) {
       const captureImage = dom.roomCapturePiece.querySelector(".piece-skin");
@@ -1694,10 +1696,10 @@
       dom.roomCapturePiece.setAttribute("aria-hidden", "false");
     }
 
-    void dom.roomMotionPiece.offsetWidth;
+    void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
-    dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
-    dom.roomMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+    movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
     if (animation.capturedPiece && dom.roomCapturePiece) {
       dom.roomCapturePiece.classList.add("fading");
     }
@@ -2220,17 +2222,17 @@
     const { pieceSlots, hintSlots } = ensureRoomSlots();
     if (!pieceSlots.length || !hintSlots.length) return;
     const hintIndexes = new Set(state.hints.map((square) => square.y * 9 + square.x));
-    const hiddenToIndex = state.roomAnimation?.toIndex ?? -1;
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
         const el = pieceSlots[index];
-        const shouldHideForAnimation = index === hiddenToIndex && piece === state.roomAnimation?.piece;
-        if (!piece || shouldHideForAnimation) {
+        if (!piece) {
           el.classList.remove("is-visible");
           el.classList.remove("selected", "in-check");
+          el.style.transition = "none";
+          el.style.transform = "translate(-50%, -50%)";
           if (el.dataset.piece) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
@@ -2248,6 +2250,14 @@
               image.alt = piece;
             }
             el.setAttribute("aria-label", piece);
+          }
+          if (state.roomAnimation && state.roomAnimation.toIndex === index) {
+            state.activeRoomMoveSlotEl = el;
+            el.style.transition = "none";
+            el.style.transform = directionalAnimationOffsetTransform(state.roomAnimation, squareToPixel);
+          } else {
+            el.style.transition = "none";
+            el.style.transform = "translate(-50%, -50%)";
           }
           el.setAttribute("aria-hidden", "false");
         }
@@ -2319,17 +2329,16 @@
     if (!slots.length) return;
     const movedSquare = state.reviewLastMoveSquare;
     const badge = reviewBadgeForGrade(currentAnalysis?.grade || "");
-    const hiddenToIndex = state.reviewAnimation?.toIndex ?? -1;
-
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
         const el = slots[index];
-        const shouldHideForAnimation = index === hiddenToIndex && piece === state.reviewAnimation?.piece;
-        if (!piece || shouldHideForAnimation) {
+        if (!piece) {
           el.classList.remove("is-visible");
           el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
+          el.style.transition = "none";
+          el.style.transform = "translate(-50%, -50%)";
           if (el.dataset.piece) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
@@ -2351,6 +2360,14 @@
             image.alt = piece;
           }
           el.setAttribute("aria-label", piece);
+        }
+        if (state.reviewAnimation && state.reviewAnimation.toIndex === index) {
+          state.activeReviewMoveSlotEl = el;
+          el.style.transition = "none";
+          el.style.transform = directionalAnimationOffsetTransform(state.reviewAnimation, reviewSquareToPixel);
+        } else {
+          el.style.transition = "none";
+          el.style.transform = "translate(-50%, -50%)";
         }
         el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
         el.setAttribute("aria-hidden", "false");

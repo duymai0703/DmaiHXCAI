@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v14";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v15";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 176;
@@ -89,7 +89,8 @@ const state = {
   assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
   moveAnimation: null,
   moveAnimationTimer: 0,
-  lastAnimatedMoveKey: ""
+  lastAnimatedMoveKey: "",
+  activeMoveSlotEl: null
 };
 
 const boardEl = document.getElementById("board");
@@ -866,6 +867,15 @@ function buildMoveAnimation(board, move, moveKey) {
   };
 }
 
+function moveAnimationOffsetTransform(animation) {
+  if (!animation) return "translate(-50%, -50%)";
+  const fromPos = squareToPixel(animation.from);
+  const toPos = squareToPixel(animation.to);
+  const deltaX = toPos.x - fromPos.x;
+  const deltaY = toPos.y - fromPos.y;
+  return `translate(-50%, -50%) translate3d(${-deltaX}px, ${-deltaY}px, 0)`;
+}
+
 function clearMoveAnimation({ preserveKey = false } = {}) {
   if (state.moveAnimationTimer) {
     clearTimeout(state.moveAnimationTimer);
@@ -873,6 +883,7 @@ function clearMoveAnimation({ preserveKey = false } = {}) {
   }
   hideMoveAnimationElements();
   state.moveAnimation = null;
+  state.activeMoveSlotEl = null;
   if (!preserveKey) state.lastAnimatedMoveKey = "";
 }
 
@@ -889,6 +900,10 @@ function primeMoveAnimation(animation) {
 }
 
 function hideMoveAnimationElements() {
+  if (state.activeMoveSlotEl) {
+    state.activeMoveSlotEl.style.transition = "none";
+    state.activeMoveSlotEl.style.transform = "translate(-50%, -50%)";
+  }
   if (movingPieceEl) {
     movingPieceEl.style.transition = "none";
     movingPieceEl.classList.remove("is-visible");
@@ -915,42 +930,33 @@ function finalizeMoveAnimation(animation) {
   }
   hideMoveAnimationElements();
   state.moveAnimation = null;
+  state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
   draw(true);
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {
-  if (!animation || !movingPieceEl) return;
+  if (!animation) return;
   if (prepared) {
     if (state.moveAnimationTimer) {
       clearTimeout(state.moveAnimationTimer);
       state.moveAnimationTimer = 0;
     }
-    hideMoveAnimationElements();
     state.moveAnimation = animation;
     state.lastAnimatedMoveKey = animation.moveKey;
   } else {
     primeMoveAnimation(animation);
   }
 
-  const fromPos = squareToPixel(animation.from);
   const toPos = squareToPixel(animation.to);
-  const deltaX = toPos.x - fromPos.x;
-  const deltaY = toPos.y - fromPos.y;
-  const movingImage = movingPieceEl.querySelector(".piece-skin");
-  if (movingImage) {
-    movingImage.removeAttribute("src");
-    movingImage.src = PIECE_IMAGES[animation.piece] || "";
-    movingImage.alt = PIECE_NAMES[animation.piece] || animation.piece;
-    movingImage.decoding = "sync";
+  const { pieceSlots } = ensureBoardSlots();
+  const movingSlotEl = pieceSlots[animation.toIndex];
+  if (!movingSlotEl) return;
+  state.activeMoveSlotEl = movingSlotEl;
+  if (!prepared) {
+    movingSlotEl.style.transition = "none";
+    movingSlotEl.style.transform = moveAnimationOffsetTransform(animation);
   }
-
-  movingPieceEl.style.transition = "none";
-  movingPieceEl.style.left = `${fromPos.x}px`;
-  movingPieceEl.style.top = `${fromPos.y}px`;
-  movingPieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
-  movingPieceEl.classList.add("is-visible");
-  movingPieceEl.setAttribute("aria-hidden", "false");
 
   if (animation.capturedPiece && capturePieceEl) {
     const captureImage = capturePieceEl.querySelector(".piece-skin");
@@ -968,10 +974,10 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     capturePieceEl.setAttribute("aria-hidden", "false");
   }
 
-  void movingPieceEl.offsetWidth;
+  void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
-  movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}, opacity 100ms ease`;
-  movingPieceEl.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  movingSlotEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}`;
+  movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
   if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
 
   state.moveAnimationTimer = window.setTimeout(() => {
@@ -1362,16 +1368,16 @@ function drawPieces() {
   if (signature === state.lastPieceFrame) return;
   state.lastPieceFrame = signature;
   const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
-  const hiddenToIndex = state.moveAnimation?.toIndex ?? -1;
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const index = y * 9 + x;
       const piece = state.board[y][x];
       const el = pieceSlots[index];
-      const shouldHideForAnimation = index === hiddenToIndex && piece === state.moveAnimation?.piece;
-      if (!piece || shouldHideForAnimation) {
+      if (!piece) {
         el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
+        el.style.transition = "none";
+        el.style.transform = "translate(-50%, -50%)";
         if (el.dataset.piece) {
           el.dataset.piece = "";
           el.removeAttribute("aria-label");
@@ -1392,6 +1398,14 @@ function drawPieces() {
             image.alt = PIECE_NAMES[piece] || piece;
           }
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+        }
+        if (state.moveAnimation && state.moveAnimation.toIndex === index) {
+          state.activeMoveSlotEl = el;
+          el.style.transition = "none";
+          el.style.transform = moveAnimationOffsetTransform(state.moveAnimation);
+        } else {
+          el.style.transition = "none";
+          el.style.transform = "translate(-50%, -50%)";
         }
         el.setAttribute("aria-hidden", "false");
       }
