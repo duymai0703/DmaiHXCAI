@@ -11,9 +11,15 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v15";
+  const ASSET_WARMUP_VERSION = "20260630-v16";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
+  const PORTAL_PRELOAD_TEXT = {
+    prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
+    cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
+    decode: "\u0110ang t\u1ed1i \u01b0u hi\u1ec3n th\u1ecb...",
+    done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
+  };
   const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
@@ -114,6 +120,8 @@
     roomMobilePanel: "control",
     roomTurnFlashTimer: 0,
     assetWarmupPending: false,
+    assetWarmupProgress: 0,
+    assetWarmupText: PORTAL_PRELOAD_TEXT.prepare,
     roomAnimation: null,
     roomAnimationTimer: 0,
     lastAnimatedRoomMoveKey: ""
@@ -130,6 +138,8 @@
     reviewView: byId("reviewView"),
     assetPreloadOverlay: byId("assetPreloadOverlay"),
     assetPreloadText: byId("assetPreloadText"),
+    assetPreloadPercent: byId("assetPreloadPercent"),
+    assetPreloadBar: byId("assetPreloadBar"),
     opponentBadge: byId("opponentBadge"),
     selfBadge: byId("selfBadge"),
     headerProfile: byId("headerProfile"),
@@ -261,10 +271,7 @@
       state.booting = false;
       syncRoute(true);
     });
-  assetWarmupPromise.catch(() => {}).finally(() => {
-    state.assetWarmupPending = false;
-    renderAssetPreloadOverlay();
-  });
+  assetWarmupPromise.catch(() => {});
 
   function byId(id) {
     return document.getElementById(id);
@@ -324,27 +331,48 @@
   }
 
   async function warmPortalAssets() {
-    state.assetWarmupPending = false;
-    renderAssetPreloadOverlay();
+    const existingVersion = String(readPersistentValue(STORAGE_ASSET_WARMUP_VERSION) || "");
+    if (existingVersion === ASSET_WARMUP_VERSION) {
+      state.assetWarmupPending = false;
+      state.assetWarmupProgress = 100;
+      state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
+      renderAssetPreloadOverlay();
+      return;
+    }
 
     const blockingAssets = [...new Set(PORTAL_BLOCKING_ASSETS)];
     const backgroundAssets = [...new Set(
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
-    const blockingTasks = [
-      cacheStaticAssets(blockingAssets),
-      decodeImageAssets(blockingAssets)
-    ];
-    const backgroundTasks = [
-      cacheStaticAssets(backgroundAssets),
-      decodeImageAssets(backgroundAssets)
-    ];
+    const supportsCache = "caches" in window;
+    const totalSteps = Math.max(
+      1,
+      (supportsCache ? blockingAssets.length + backgroundAssets.length : 0) +
+      countImageAssets(blockingAssets) +
+      countImageAssets(backgroundAssets)
+    );
+    const tracker = createPortalWarmupTracker(totalSteps);
 
-    void Promise.allSettled(blockingTasks);
-    void Promise.allSettled(backgroundTasks).finally(() => {
+    state.assetWarmupPending = true;
+    state.assetWarmupProgress = 0;
+    state.assetWarmupText = PORTAL_PRELOAD_TEXT.prepare;
+    renderAssetPreloadOverlay();
+
+    try {
+      await Promise.allSettled([
+        cacheStaticAssets(blockingAssets, tracker),
+        decodeImageAssets(blockingAssets, tracker),
+        cacheStaticAssets(backgroundAssets, tracker),
+        decodeImageAssets(backgroundAssets, tracker)
+      ]);
       writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
-    });
-    void tryPersistBrowserStorage();
+      tracker.finish(PORTAL_PRELOAD_TEXT.done);
+      void tryPersistBrowserStorage();
+      await delay(140);
+    } finally {
+      state.assetWarmupPending = false;
+      renderAssetPreloadOverlay();
+    }
   }
 
   function renderAssetPreloadOverlay() {
@@ -352,12 +380,16 @@
     const visible = Boolean(state.assetWarmupPending);
     dom.assetPreloadOverlay.classList.toggle("hidden", !visible);
     document.body.classList.toggle("asset-preload-active", visible);
-    if (visible && dom.assetPreloadText) {
+    const progress = Math.max(0, Math.min(100, Math.round(state.assetWarmupProgress || 0)));
+    if (dom.assetPreloadPercent) dom.assetPreloadPercent.textContent = `${progress}%`;
+    if (dom.assetPreloadBar) dom.assetPreloadBar.style.width = `${progress}%`;
+    if (dom.assetPreloadText && state.assetWarmupText) dom.assetPreloadText.textContent = state.assetWarmupText;
+    if (visible && dom.assetPreloadText && !state.assetWarmupText) {
       dom.assetPreloadText.textContent = "Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...";
     }
   }
 
-  async function cacheStaticAssets(assets) {
+  async function cacheStaticAssets(assets, tracker) {
     if (!("caches" in window)) return;
     const cache = await caches.open(`dmaihxcai-portal-runtime-${ASSET_WARMUP_VERSION}`);
     await Promise.all(assets.map(async (asset) => {
@@ -366,13 +398,22 @@
         if (existing) return;
         const response = await fetchWithTimeout(asset, { cache: "force-cache" }, PORTAL_ASSET_TIMEOUT_MS);
         if (response && response.ok) await cache.put(asset, response.clone());
-      } catch {}
+      } catch {
+      } finally {
+        tracker?.step(PORTAL_PRELOAD_TEXT.cache);
+      }
     }));
   }
 
-  async function decodeImageAssets(assets) {
+  async function decodeImageAssets(assets, tracker) {
     const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
-    await Promise.all(imageAssets.map((asset) => decodeImageAsset(asset)));
+    await Promise.all(imageAssets.map(async (asset) => {
+      try {
+        await decodeImageAsset(asset);
+      } finally {
+        tracker?.step(PORTAL_PRELOAD_TEXT.decode);
+      }
+    }));
   }
 
   function decodeImageAsset(src) {
@@ -440,6 +481,28 @@
     } catch {
       return false;
     }
+  }
+
+  function countImageAssets(assets) {
+    return assets.reduce((count, asset) => count + (/\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset) ? 1 : 0), 0);
+  }
+
+  function createPortalWarmupTracker(totalSteps) {
+    let completedSteps = 0;
+    return {
+      step(text) {
+        completedSteps = Math.min(totalSteps, completedSteps + 1);
+        state.assetWarmupProgress = Math.round((completedSteps / totalSteps) * 100);
+        if (text) state.assetWarmupText = text;
+        renderAssetPreloadOverlay();
+      },
+      finish(text) {
+        completedSteps = totalSteps;
+        state.assetWarmupProgress = 100;
+        if (text) state.assetWarmupText = text;
+        renderAssetPreloadOverlay();
+      }
+    };
   }
 
   async function bootstrap() {

@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260630-mobile-v6">
+    <link rel="stylesheet" href="/styles.css?v=20260630-mobile-v8">
   </head>
   <body>
     <header class="app-header">
@@ -116,11 +116,15 @@
       <div class="asset-preload-card">
         <div class="asset-preload-spinner" aria-hidden="true"></div>
         <strong>Tải tài nguyên</strong>
+        <div id="assetPreloadPercent" class="asset-preload-percent">0%</div>
+        <div class="asset-preload-progress" aria-hidden="true">
+          <span id="assetPreloadBar" class="asset-preload-progress-bar"></span>
+        </div>
         <p id="assetPreloadText">Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...</p>
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260630-mobile-v8"></script>
+    <script src="/app.js?v=20260630-mobile-v10"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

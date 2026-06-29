@@ -28,10 +28,16 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v8";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v9";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 188;
+const ANALYSIS_PRELOAD_TEXT = {
+  prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
+  cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
+  decode: "\u0110ang t\u1ed1i \u01b0u hi\u1ec3n th\u1ecb qu\u00e2n c\u1edd...",
+  done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
+};
 const ANALYSIS_BLOCKING_ASSETS = [
   BOARD_SKIN_ASSET
 ];
@@ -78,6 +84,8 @@ const state = {
   mobilePanel: "analysis",
   drawFrame: 0,
   assetWarmupPending: false,
+  assetWarmupProgress: 0,
+  assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
   moveAnimation: null,
   moveAnimationTimer: 0,
   lastAnimatedMoveKey: ""
@@ -106,6 +114,8 @@ const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
 const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
 const assetPreloadTextEl = document.getElementById("assetPreloadText");
+const assetPreloadPercentEl = document.getElementById("assetPreloadPercent");
+const assetPreloadBarEl = document.getElementById("assetPreloadBar");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 
@@ -164,25 +174,46 @@ function scheduleBoardDraw() {
 }
 
 async function warmAnalysisAssets() {
-  state.assetWarmupPending = false;
-  renderAssetPreloadOverlay();
+  const existingVersion = readStorage(ANALYSIS_ASSET_WARMUP_KEY);
+  if (existingVersion === ANALYSIS_ASSET_WARMUP_VERSION) {
+    state.assetWarmupPending = false;
+    state.assetWarmupProgress = 100;
+    state.assetWarmupText = ANALYSIS_PRELOAD_TEXT.done;
+    renderAssetPreloadOverlay();
+    return;
+  }
 
   const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
   const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
-  const blockingTasks = [
-    cacheAnalysisAssets(blockingAssets),
-    decodeAnalysisAssets(blockingAssets)
-  ];
-  const backgroundTasks = [
-    cacheAnalysisAssets(backgroundAssets),
-    decodeAnalysisAssets(backgroundAssets)
-  ];
+  const supportsCache = "caches" in window;
+  const totalSteps = Math.max(
+    1,
+    (supportsCache ? blockingAssets.length + backgroundAssets.length : 0) +
+    countImageAssets(blockingAssets) +
+    countImageAssets(backgroundAssets)
+  );
+  const tracker = createAssetWarmupTracker(totalSteps);
 
-  void Promise.allSettled(blockingTasks);
-  void Promise.allSettled(backgroundTasks).finally(() => {
+  state.assetWarmupPending = true;
+  state.assetWarmupProgress = 0;
+  state.assetWarmupText = ANALYSIS_PRELOAD_TEXT.prepare;
+  renderAssetPreloadOverlay();
+
+  try {
+    await Promise.allSettled([
+      cacheAnalysisAssets(blockingAssets, tracker),
+      decodeAnalysisAssets(blockingAssets, tracker),
+      cacheAnalysisAssets(backgroundAssets, tracker),
+      decodeAnalysisAssets(backgroundAssets, tracker)
+    ]);
     writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
-  });
-  void tryPersistBrowserStorage();
+    tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
+    void tryPersistBrowserStorage();
+    await delay(140);
+  } finally {
+    state.assetWarmupPending = false;
+    renderAssetPreloadOverlay();
+  }
 }
 
 function renderAssetPreloadOverlay() {
@@ -190,12 +221,16 @@ function renderAssetPreloadOverlay() {
   const visible = Boolean(state.assetWarmupPending);
   assetPreloadOverlayEl.classList.toggle("hidden", !visible);
   document.body.classList.toggle("asset-preload-active", visible);
-  if (visible && assetPreloadTextEl) {
+  const progress = Math.max(0, Math.min(100, Math.round(state.assetWarmupProgress || 0)));
+  if (assetPreloadPercentEl) assetPreloadPercentEl.textContent = `${progress}%`;
+  if (assetPreloadBarEl) assetPreloadBarEl.style.width = `${progress}%`;
+  if (assetPreloadTextEl && state.assetWarmupText) assetPreloadTextEl.textContent = state.assetWarmupText;
+  if (visible && assetPreloadTextEl && !state.assetWarmupText) {
     assetPreloadTextEl.textContent = "Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...";
   }
 }
 
-async function cacheAnalysisAssets(assets) {
+async function cacheAnalysisAssets(assets, tracker) {
   if (!("caches" in window)) return;
   const cache = await caches.open(`dmaihxcai-analysis-runtime-${ANALYSIS_ASSET_WARMUP_VERSION}`);
   await Promise.all(assets.map(async (asset) => {
@@ -204,13 +239,22 @@ async function cacheAnalysisAssets(assets) {
       if (existing) return;
       const response = await fetchWithTimeout(asset, { cache: "force-cache" }, ANALYSIS_ASSET_TIMEOUT_MS);
       if (response && response.ok) await cache.put(asset, response.clone());
-    } catch {}
+    } catch {
+    } finally {
+      tracker?.step(ANALYSIS_PRELOAD_TEXT.cache);
+    }
   }));
 }
 
-async function decodeAnalysisAssets(assets) {
+async function decodeAnalysisAssets(assets, tracker) {
   const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
-  await Promise.all(imageAssets.map((asset) => decodeAnalysisAsset(asset)));
+  await Promise.all(imageAssets.map(async (asset) => {
+    try {
+      await decodeAnalysisAsset(asset);
+    } finally {
+      tracker?.step(ANALYSIS_PRELOAD_TEXT.decode);
+    }
+  }));
 }
 
 function decodeAnalysisAsset(src) {
@@ -280,6 +324,28 @@ async function tryPersistBrowserStorage() {
   }
 }
 
+function countImageAssets(assets) {
+  return assets.reduce((count, asset) => count + (/\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset) ? 1 : 0), 0);
+}
+
+function createAssetWarmupTracker(totalSteps) {
+  let completedSteps = 0;
+  return {
+    step(text) {
+      completedSteps = Math.min(totalSteps, completedSteps + 1);
+      state.assetWarmupProgress = Math.round((completedSteps / totalSteps) * 100);
+      if (text) state.assetWarmupText = text;
+      renderAssetPreloadOverlay();
+    },
+    finish(text) {
+      completedSteps = totalSteps;
+      state.assetWarmupProgress = 100;
+      if (text) state.assetWarmupText = text;
+      renderAssetPreloadOverlay();
+    }
+  };
+}
+
 function autoDelay() {
   return delayEl ? Number(delayEl.value) : 700;
 }
@@ -292,8 +358,6 @@ async function init() {
   updateEditorUi();
   wakeBackend();
   void assetWarmupPromise.catch(() => {});
-  state.assetWarmupPending = false;
-  renderAssetPreloadOverlay();
   await refreshStatus();
   draw();
   refreshCloudBook();
