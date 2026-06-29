@@ -2350,34 +2350,12 @@ textarea:focus {
     0 0 20px rgba(246, 188, 81, 0.32);
 }
 
-.board-badge.turn-flash,
-.badge-avatar.turn-flash,
-.clock-inline.turn-flash {
-  animation: turnFlashPulse 0.42s ease-in-out 5;
-  will-change: box-shadow, opacity;
-}
-
-.board-badge.turn-flash {
-  box-shadow:
-    0 0 0 2px rgba(112, 255, 166, 0.9),
-    0 0 18px rgba(112, 255, 166, 0.4),
-    var(--shadow);
-}
-
 .badge-avatar.turn-flash,
 .clock-inline.turn-flash {
   box-shadow:
     0 0 0 2px rgba(112, 255, 166, 0.95),
     0 0 16px rgba(112, 255, 166, 0.42);
-}
-
-@keyframes turnFlashPulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.96;
-  }
+  will-change: box-shadow;
 }
 
 .hint {

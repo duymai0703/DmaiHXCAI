@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v26";
+  const ASSET_WARMUP_VERSION = "20260630-v27";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1535,16 +1535,15 @@
       clearTimeout(state.roomTurnFlashTimer);
       state.roomTurnFlashTimer = 0;
     }
-    [dom.selfBadge, dom.bottomPlayerAvatar, dom.bottomClock].forEach((element) => {
+    [dom.bottomPlayerAvatar, dom.bottomClock].forEach((element) => {
       if (element) element.classList.remove("turn-flash");
     });
   }
 
   function triggerTurnFlash() {
     clearTurnFlash();
-    const targets = [dom.selfBadge, dom.bottomPlayerAvatar, dom.bottomClock].filter(Boolean);
+    const targets = [dom.bottomPlayerAvatar, dom.bottomClock].filter(Boolean);
     if (!targets.length) return;
-    void dom.selfBadge?.offsetWidth;
     targets.forEach((element) => element.classList.add("turn-flash"));
     state.roomTurnFlashTimer = window.setTimeout(() => {
       clearTurnFlash();
