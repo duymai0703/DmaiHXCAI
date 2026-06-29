@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v13";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v14";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 176;
@@ -890,6 +890,7 @@ function primeMoveAnimation(animation) {
 
 function hideMoveAnimationElements() {
   if (movingPieceEl) {
+    movingPieceEl.style.transition = "none";
     movingPieceEl.classList.remove("is-visible");
     movingPieceEl.style.left = "0px";
     movingPieceEl.style.top = "0px";
@@ -897,6 +898,7 @@ function hideMoveAnimationElements() {
     movingPieceEl.setAttribute("aria-hidden", "true");
   }
   if (capturePieceEl) {
+    capturePieceEl.style.transition = "none";
     capturePieceEl.classList.remove("is-visible", "fading");
     capturePieceEl.style.left = "0px";
     capturePieceEl.style.top = "0px";
@@ -911,12 +913,10 @@ function finalizeMoveAnimation(animation) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
+  hideMoveAnimationElements();
   state.moveAnimation = null;
   state.lastPieceFrame = "";
   draw(true);
-  window.requestAnimationFrame(() => {
-    hideMoveAnimationElements();
-  });
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {

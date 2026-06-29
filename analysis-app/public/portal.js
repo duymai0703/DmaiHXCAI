@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v21";
+  const ASSET_WARMUP_VERSION = "20260630-v22";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -56,7 +56,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260630-mobile-v11",
-    "/app.js?v=20260630-mobile-v16",
+    "/app.js?v=20260630-mobile-v17",
     BOARD_SKIN_ASSET,
     ...Object.values(PIECE_IMAGES)
   ];
@@ -1126,6 +1126,7 @@
 
   function hideReviewMoveAnimationElements() {
     if (!dom.reviewMotionPiece) return;
+    dom.reviewMotionPiece.style.transition = "none";
     dom.reviewMotionPiece.classList.remove("is-visible");
     dom.reviewMotionPiece.style.left = "0px";
     dom.reviewMotionPiece.style.top = "0px";
@@ -1161,13 +1162,11 @@
       clearTimeout(state.reviewAnimationTimer);
       state.reviewAnimationTimer = 0;
     }
+    hideReviewMoveAnimationElements();
     state.reviewAnimation = null;
     state.reviewLastPieceFrame = "";
     drawReviewPieces(true);
     drawReviewArrow();
-    window.requestAnimationFrame(() => {
-      hideReviewMoveAnimationElements();
-    });
   }
 
   function startReviewMoveAnimation(animation, { prepared = false } = {}) {
@@ -1605,6 +1604,7 @@
 
   function hideRoomMoveAnimationElements() {
     if (dom.roomMotionPiece) {
+      dom.roomMotionPiece.style.transition = "none";
       dom.roomMotionPiece.classList.remove("is-visible");
       dom.roomMotionPiece.style.left = "0px";
       dom.roomMotionPiece.style.top = "0px";
@@ -1612,6 +1612,7 @@
       dom.roomMotionPiece.setAttribute("aria-hidden", "true");
     }
     if (dom.roomCapturePiece) {
+      dom.roomCapturePiece.style.transition = "none";
       dom.roomCapturePiece.classList.remove("is-visible", "fading");
       dom.roomCapturePiece.style.left = "0px";
       dom.roomCapturePiece.style.top = "0px";
@@ -1638,12 +1639,10 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    hideRoomMoveAnimationElements();
     state.roomAnimation = null;
     state.lastPieceFrame = "";
     drawRoomPieces(true);
-    window.requestAnimationFrame(() => {
-      hideRoomMoveAnimationElements();
-    });
   }
 
   function startRoomMoveAnimation(animation, { prepared = false } = {}) {
