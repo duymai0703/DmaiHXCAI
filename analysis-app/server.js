@@ -31,6 +31,7 @@ const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
 const ROOM_START_DELAY_MS = 2000;
+const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "admin");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
@@ -335,14 +336,24 @@ function loadRooms() {
     room.chat = Array.isArray(room.chat) ? room.chat.slice(-MAX_CHAT_MESSAGES) : [];
     room.presence = room.presence && typeof room.presence === "object" ? room.presence : {};
     room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
+    room.hiddenClockBonusMs = Math.max(
+      0,
+      Number(Object.prototype.hasOwnProperty.call(room, "hiddenClockBonusMs") ? room.hiddenClockBonusMs : 0)
+    );
     room.incrementSeconds = clampIncrementSeconds(room.incrementSeconds, 0);
     room.incrementMs = room.incrementSeconds * 1000;
     if (room.players?.w && !room.playerTimeMs[room.players.w]) room.playerTimeMs[room.players.w] = room.timeControlMs || 0;
     if (room.players?.b && !room.playerTimeMs[room.players.b]) room.playerTimeMs[room.players.b] = room.timeControlMs || 0;
     room.pendingOpponentTimeMs = Number(room.pendingOpponentTimeMs || room.timeControlMs || 0);
+    room.visibleClockSetupMs = room.visibleClockSetupMs && typeof room.visibleClockSetupMs === "object"
+      ? {
+          w: Number(room.visibleClockSetupMs.w || visibleClockSetupMsForSide(room, "w")),
+          b: Number(room.visibleClockSetupMs.b || visibleClockSetupMsForSide(room, "b"))
+        }
+      : syncVisibleClockSetup(room);
     room.clocks = room.clocks || {
-      w: room.players?.w ? Number(room.playerTimeMs[room.players.w] || room.timeControlMs || 0) : Number(room.pendingOpponentTimeMs || room.timeControlMs || 0),
-      b: room.players?.b ? Number(room.playerTimeMs[room.players.b] || room.timeControlMs || 0) : Number(room.pendingOpponentTimeMs || room.timeControlMs || 0)
+      w: startingClockMsForSide(room, "w"),
+      b: startingClockMsForSide(room, "b")
     };
     room.initialClocks = room.initialClocks || { ...room.clocks };
     room.playerProfiles = room.playerProfiles && typeof room.playerProfiles === "object"
@@ -855,10 +866,27 @@ function currentRoomForUser(userId) {
   return null;
 }
 
-function startingClockMsForSide(room, side) {
+function visibleClockSetupMsForSide(room, side) {
   const playerId = room.players?.[side];
   if (playerId && room.playerTimeMs?.[playerId]) return Number(room.playerTimeMs[playerId] || 0);
   return Number(room.pendingOpponentTimeMs || room.timeControlMs || 0);
+}
+
+function hiddenClockBonusMs(room) {
+  return Math.max(0, Number(room?.hiddenClockBonusMs ?? ROOM_HIDDEN_CLOCK_BONUS_MS));
+}
+
+function startingClockMsForSide(room, side, { includeHiddenBonus = true } = {}) {
+  const visible = visibleClockSetupMsForSide(room, side);
+  return visible + (includeHiddenBonus ? hiddenClockBonusMs(room) : 0);
+}
+
+function syncVisibleClockSetup(room) {
+  room.visibleClockSetupMs = {
+    w: visibleClockSetupMsForSide(room, "w"),
+    b: visibleClockSetupMsForSide(room, "b")
+  };
+  return room.visibleClockSetupMs;
 }
 
 function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", incrementSeconds = 0 } = {}) {
@@ -866,6 +894,11 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
   const yourTimeMs = clampRoomMinutes(yourMinutes, 10) * 60 * 1000;
   const opponentTimeMs = clampRoomMinutes(opponentMinutes, 10) * 60 * 1000;
   const safeIncrementSeconds = clampIncrementSeconds(incrementSeconds, 0);
+  const hiddenBonusMs = ROOM_HIDDEN_CLOCK_BONUS_MS;
+  const visibleClockSetupMs = {
+    w: color === "w" ? yourTimeMs : opponentTimeMs,
+    b: color === "b" ? yourTimeMs : opponentTimeMs
+  };
   const room = {
     key: uniqueRoomKey(),
     createdAt: Date.now(),
@@ -884,6 +917,8 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
       [user.id]: yourTimeMs
     },
     pendingOpponentTimeMs: opponentTimeMs,
+    hiddenClockBonusMs: hiddenBonusMs,
+    visibleClockSetupMs,
     incrementSeconds: safeIncrementSeconds,
     incrementMs: safeIncrementSeconds * 1000,
     spectators: [],
@@ -891,12 +926,12 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
     chat: [],
     presence: {},
     clocks: {
-      w: color === "w" ? yourTimeMs : opponentTimeMs,
-      b: color === "b" ? yourTimeMs : opponentTimeMs
+      w: visibleClockSetupMs.w + hiddenBonusMs,
+      b: visibleClockSetupMs.b + hiddenBonusMs
     },
     initialClocks: {
-      w: color === "w" ? yourTimeMs : opponentTimeMs,
-      b: color === "b" ? yourTimeMs : opponentTimeMs
+      w: visibleClockSetupMs.w + hiddenBonusMs,
+      b: visibleClockSetupMs.b + hiddenBonusMs
     },
     allowances: {
       w: { undoRemaining: ROOM_REQUEST_LIMIT, drawRemaining: ROOM_REQUEST_LIMIT },
@@ -987,6 +1022,7 @@ function materializeRoomClock(room) {
 }
 
 function resetRoomForGame(room) {
+  syncVisibleClockSetup(room);
   room.boardFen = XiangqiCore.START_FEN;
   room.startFen = XiangqiCore.START_FEN;
   room.gameStartedAt = nowIso();
@@ -1015,6 +1051,7 @@ function resetRoomForGame(room) {
 
 function maybeStartRoom(room) {
   if (room.players?.w && room.players?.b && room.status === "waiting") {
+    syncVisibleClockSetup(room);
     room.status = "ready";
     room.startReady = { w: false, b: false };
     room.countdownEndsAt = 0;
@@ -1133,6 +1170,7 @@ function joinRoom(user, key) {
   room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
   room.playerTimeMs[user.id] = Number(room.pendingOpponentTimeMs || room.timeControlMs || 0);
   syncRoomPlayerProfile(room, room.players.w === user.id ? "w" : "b", user);
+  syncVisibleClockSetup(room);
   room.clocks = {
     w: startingClockMsForSide(room, "w"),
     b: startingClockMsForSide(room, "b")
@@ -1164,10 +1202,11 @@ function roomStateForUser(room, user) {
     key: room.key,
     status: room.status,
     timeControlMinutes: Math.round(room.timeControlMs / 60000),
-    clockSetupMs: room.initialClocks || {
-      w: startingClockMsForSide(room, "w"),
-      b: startingClockMsForSide(room, "b")
+    clockSetupMs: room.visibleClockSetupMs || {
+      w: startingClockMsForSide(room, "w", { includeHiddenBonus: false }),
+      b: startingClockMsForSide(room, "b", { includeHiddenBonus: false })
     },
+    hiddenClockBonusMs: hiddenClockBonusMs(room),
     incrementSeconds: clampIncrementSeconds(room.incrementSeconds, 0),
     boardFen: room.boardFen,
     sideToMove: room.sideToMove,

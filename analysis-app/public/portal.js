@@ -84,13 +84,18 @@
     modalConfirm: null,
     lastBoardFrame: "",
     lastPieceFrame: "",
+    roomDrawFrame: 0,
+    roomDrawForce: false,
     roomPieceSlots: null,
     roomHintSlots: null,
     roomSlotLayoutKey: "",
+    reviewDrawFrame: 0,
+    reviewDrawForce: false,
     lastChatSignature: "",
     resizeTimer: null,
     lastBoardSizeKey: "",
-    roomMobilePanel: "control"
+    roomMobilePanel: "control",
+    roomTurnFlashTimer: 0
   };
 
   const dom = {
@@ -102,6 +107,8 @@
     adminView: byId("adminView"),
     roomView: byId("roomView"),
     reviewView: byId("reviewView"),
+    opponentBadge: byId("opponentBadge"),
+    selfBadge: byId("selfBadge"),
     headerProfile: byId("headerProfile"),
     resumeRoomBtn: byId("resumeRoomBtn"),
     profileButton: byId("profileButton"),
@@ -1123,6 +1130,7 @@
     const previous = state.room;
     const wasFinished = Boolean(previous?.result);
     const isFinished = Boolean(room?.result);
+    const shouldFlashTurn = shouldTriggerTurnFlash(previous, room);
 
     state.room = room || null;
     if (!room) {
@@ -1134,6 +1142,7 @@
       state.roomPieceSlots = null;
       state.roomHintSlots = null;
       state.roomSlotLayoutKey = "";
+      clearTurnFlash();
       renderRoomState({ forceBoard: true, keepSelection: false });
       updateResumeButton();
       return;
@@ -1151,10 +1160,46 @@
 
     updateResumeButton();
     renderRoomState({ forceBoard, keepSelection });
+    if (shouldFlashTurn) triggerTurnFlash();
+    else if (room.role !== "player" || !room.yourTurn || room.status !== "active" || room.result) clearTurnFlash();
 
     if (!wasFinished && isFinished) {
       void refreshHistory();
     }
+  }
+
+  function shouldTriggerTurnFlash(previousRoom, nextRoom) {
+    if (!previousRoom || !nextRoom || nextRoom.role !== "player") return false;
+    if (previousRoom.key !== nextRoom.key) return false;
+    if (nextRoom.status !== "active" || nextRoom.result) return false;
+    const yourSide = nextRoom.yourSide;
+    if (!yourSide) return false;
+    const previousMoveCount = Array.isArray(previousRoom.moves) ? previousRoom.moves.length : 0;
+    const nextMoveCount = Array.isArray(nextRoom.moves) ? nextRoom.moves.length : 0;
+    const boardChanged = previousRoom.boardFen !== nextRoom.boardFen || previousMoveCount !== nextMoveCount;
+    if (!boardChanged) return false;
+    return previousRoom.sideToMove !== yourSide && nextRoom.sideToMove === yourSide;
+  }
+
+  function clearTurnFlash() {
+    if (state.roomTurnFlashTimer) {
+      clearTimeout(state.roomTurnFlashTimer);
+      state.roomTurnFlashTimer = 0;
+    }
+    [dom.selfBadge, dom.bottomPlayerAvatar, dom.bottomClock].forEach((element) => {
+      if (element) element.classList.remove("turn-flash");
+    });
+  }
+
+  function triggerTurnFlash() {
+    clearTurnFlash();
+    const targets = [dom.selfBadge, dom.bottomPlayerAvatar, dom.bottomClock].filter(Boolean);
+    if (!targets.length) return;
+    void dom.selfBadge?.offsetWidth;
+    targets.forEach((element) => element.classList.add("turn-flash"));
+    state.roomTurnFlashTimer = window.setTimeout(() => {
+      clearTurnFlash();
+    }, 2050);
   }
 
   function updateResumeButton() {
@@ -1450,8 +1495,15 @@
   }
 
   function drawRoomScene(forceBoard) {
-    drawRoomBoard(forceBoard);
-    drawRoomPieces(forceBoard);
+    state.roomDrawForce = state.roomDrawForce || Boolean(forceBoard);
+    if (state.roomDrawFrame) return;
+    state.roomDrawFrame = window.requestAnimationFrame(() => {
+      const force = state.roomDrawForce;
+      state.roomDrawFrame = 0;
+      state.roomDrawForce = false;
+      drawRoomBoard(force);
+      drawRoomPieces(force);
+    });
   }
 
   function ensureRoomSlots() {
@@ -1483,7 +1535,7 @@
         hint.className = "hint";
         hint.style.left = `${pixel.x}px`;
         hint.style.top = `${pixel.y}px`;
-        hint.style.display = "none";
+        hint.setAttribute("aria-hidden", "true");
         hintFragment.appendChild(hint);
         state.roomHintSlots.push(hint);
 
@@ -1491,7 +1543,6 @@
         piece.className = "piece image-piece";
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
-        piece.style.display = "none";
         piece.setAttribute("aria-hidden", "true");
         pieceFragment.appendChild(piece);
         state.roomPieceSlots.push(piece);
@@ -1504,9 +1555,16 @@
   }
 
   function drawReviewScene(forceBoard) {
-    drawReviewBoard(forceBoard);
-    drawReviewPieces(forceBoard);
-    drawReviewArrow();
+    state.reviewDrawForce = state.reviewDrawForce || Boolean(forceBoard);
+    if (state.reviewDrawFrame) return;
+    state.reviewDrawFrame = window.requestAnimationFrame(() => {
+      const force = state.reviewDrawForce;
+      state.reviewDrawFrame = 0;
+      state.reviewDrawForce = false;
+      drawReviewBoard(force);
+      drawReviewPieces(force);
+      drawReviewArrow();
+    });
   }
 
   function ensureReviewSlots() {
@@ -1528,7 +1586,6 @@
         piece.className = "piece image-piece";
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
-        piece.style.display = "none";
         piece.setAttribute("aria-hidden", "true");
         fragment.appendChild(piece);
         state.reviewPieceSlots.push(piece);
@@ -1598,15 +1655,16 @@
         const piece = board[y]?.[x] || "";
         const el = pieceSlots[index];
         if (!piece) {
-          el.style.display = "none";
+          el.classList.remove("is-visible");
           el.classList.remove("selected", "in-check");
           if (el.dataset.piece) {
             el.dataset.piece = "";
             el.style.removeProperty("--piece-image");
             el.removeAttribute("aria-label");
           }
+          el.setAttribute("aria-hidden", "true");
         } else {
-          el.style.display = "";
+          el.classList.add("is-visible");
           el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
           el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
           if (el.dataset.piece !== piece) {
@@ -1614,10 +1672,13 @@
             el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
             el.setAttribute("aria-label", piece);
           }
+          el.setAttribute("aria-hidden", "false");
         }
 
         const mark = hintSlots[index];
-        mark.style.display = hintIndexes.has(index) ? "" : "none";
+        const showHint = hintIndexes.has(index);
+        mark.classList.toggle("is-visible", showHint);
+        mark.setAttribute("aria-hidden", showHint ? "false" : "true");
       }
     }
   }
@@ -1686,7 +1747,7 @@
         const piece = board[y]?.[x] || "";
         const el = slots[index];
         if (!piece) {
-          el.style.display = "none";
+          el.classList.remove("is-visible");
           el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
           if (el.dataset.piece) {
             el.dataset.piece = "";
@@ -1694,10 +1755,11 @@
             el.removeAttribute("aria-label");
           }
           if (el.childNodes.length) el.replaceChildren();
+          el.setAttribute("aria-hidden", "true");
           continue;
         }
 
-        el.style.display = "";
+        el.classList.add("is-visible");
         el.classList.remove("review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
         if (el.dataset.piece !== piece) {
           el.dataset.piece = piece;
@@ -1705,6 +1767,7 @@
           el.setAttribute("aria-label", piece);
         }
         el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
+        el.setAttribute("aria-hidden", "false");
         if (el.childNodes.length) el.replaceChildren();
         if (movedSquare && movedSquare.x === x && movedSquare.y === y) {
           el.classList.add("review-current");
@@ -2082,8 +2145,8 @@
     }
     const bottomSide = room.role === "player" ? room.yourSide : "w";
     const topSide = oppositeSide(bottomSide);
-    paintClock(dom.topClock, liveClockFor(topSide), room.status === "active" && room.sideToMove === topSide);
-    paintClock(dom.bottomClock, liveClockFor(bottomSide), room.status === "active" && room.sideToMove === bottomSide);
+    paintClock(dom.topClock, visibleClockFor(topSide), room.status === "active" && room.sideToMove === topSide);
+    paintClock(dom.bottomClock, visibleClockFor(bottomSide), room.status === "active" && room.sideToMove === bottomSide);
   }
 
   function paintClock(element, milliseconds, active) {
@@ -2112,6 +2175,12 @@
       value -= Date.now() - state.roomSyncedAt;
     }
     return Math.max(0, value);
+  }
+
+  function visibleClockFor(side) {
+    if (!state.room) return 0;
+    const hiddenBonus = Math.max(0, Number(state.room.hiddenClockBonusMs || 0));
+    return Math.max(0, liveClockFor(side) - hiddenBonus);
   }
 
   function renderProfileAfterApiFailure() {
