@@ -207,6 +207,14 @@
   const roomMobileActionButtons = [...document.querySelectorAll("[data-room-mobile-action]")];
   const roomMobilePanels = [...document.querySelectorAll("[data-room-mobile-panel]")];
 
+  const mobileUserAgent = navigator.userAgent || "";
+  const isMobileDevice = (window.matchMedia && window.matchMedia("(max-width: 760px) and (pointer: coarse)").matches)
+    || /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent);
+  if (isMobileDevice) {
+    window.location.replace("/analysis");
+    return;
+  }
+
   bindEvents();
   preventDoubleTapZoom();
   preloadPieceImages();

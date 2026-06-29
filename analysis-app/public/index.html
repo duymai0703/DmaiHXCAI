@@ -9,6 +9,14 @@
     <meta name="apple-mobile-web-app-title" content="DmaiHXCAI">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>DmaiHXCAI</title>
+    <script>
+      const ua = navigator.userAgent || "";
+      const isMobileDevice = (window.matchMedia && window.matchMedia("(max-width: 760px) and (pointer: coarse)").matches)
+        || /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua);
+      if (isMobileDevice) {
+        window.location.replace("/analysis");
+      }
+    </script>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
@@ -385,7 +393,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260628-room-v8"></script>
+    <script src="/portal.js?v=20260629-room-v9"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

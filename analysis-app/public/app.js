@@ -23,9 +23,10 @@ const PIECE_IMAGES = {
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
 const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
-const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
-const AUTO_ANALYSIS_STAGES = [220, 380, 650];
-const ANALYSIS_MAX_MS = 10000;
+const MANUAL_ANALYSIS_STAGES = [180, 420, 900, 1700, 3000, 5000, 7600, 9800];
+const AUTO_ANALYSIS_STAGES = [140, 320, 700, 1200];
+const MANUAL_ANALYSIS_MAX_MS = 12000;
+const AUTO_ANALYSIS_MAX_MS = 2400;
 let wakePromise = null;
 
 const state = {
@@ -55,6 +56,8 @@ const state = {
   lastBoardSizeKey: "",
   lastBoardFrame: "",
   lastPieceFrame: "",
+  lastArrowFrame: "",
+  lastHistoryFrame: "",
   pieceSlots: null,
   hintSlots: null,
   slotLayoutKey: "",
@@ -131,6 +134,7 @@ function scheduleBoardDraw() {
     state.lastBoardSizeKey = sizeKey;
     state.lastBoardFrame = "";
     state.lastPieceFrame = "";
+    state.lastArrowFrame = "";
     state.slotLayoutKey = "";
     draw();
   }, 120);
@@ -219,6 +223,7 @@ function toggleFlipBoard() {
   state.flipped = !state.flipped;
   state.lastBoardFrame = "";
   state.lastPieceFrame = "";
+  state.lastArrowFrame = "";
   state.slotLayoutKey = "";
   if (state.lastAnalysis) {
     renderAnalysis(state.lastAnalysis.result, state.lastAnalysis.board, state.lastAnalysis.side);
@@ -233,14 +238,12 @@ function setMobilePanel(panel) {
 }
 
 function renderMobilePanelState() {
-  const compact = isCompactMobile();
-  document.body.classList.toggle("analysis-mobile-mode", compact);
+  document.body.classList.remove("analysis-mobile-mode");
   mobilePanels.forEach((panel) => {
-    panel.classList.toggle("is-mobile-active", !compact || panel.dataset.mobilePanel === state.mobilePanel);
+    panel.classList.add("is-mobile-active");
   });
   mobileActionButtons.forEach((button) => {
-    const action = button.dataset.mobileAction || "";
-    button.classList.toggle("active", compact && ["analysis", "cloud", "history", "tools", "ai"].includes(action) && action === state.mobilePanel);
+    button.classList.remove("active");
   });
 }
 
@@ -316,12 +319,13 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
   try {
     const schedule = autoPlay ? AUTO_ANALYSIS_STAGES : MANUAL_ANALYSIS_STAGES;
     const startedAt = performance.now();
+    const maxBudgetMs = autoPlay ? AUTO_ANALYSIS_MAX_MS : MANUAL_ANALYSIS_MAX_MS;
     let latestResult = null;
 
     for (const stageMs of schedule) {
       if (requestId !== state.analysisRequest) return latestResult;
       const elapsed = performance.now() - startedAt;
-      const remainingBudget = ANALYSIS_MAX_MS - elapsed;
+      const remainingBudget = maxBudgetMs - elapsed;
       if (remainingBudget < 140) break;
       const movetime = Math.max(120, Math.min(stageMs, Math.floor(remainingBudget)));
       const result = await api("/api/analyze", {
@@ -335,7 +339,7 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
       if (hasAnalysisLine(result)) {
         applyAnalysisSnapshot(result, boardBefore, sideBefore, { pending: true });
       }
-      if ((performance.now() - startedAt) >= ANALYSIS_MAX_MS) break;
+      if ((performance.now() - startedAt) >= maxBudgetMs) break;
     }
 
     if (!latestResult || !hasAnalysisLine(latestResult)) {
@@ -475,8 +479,8 @@ function showSuggestionOption(index) {
   }
   const option = state.suggestionOptions[index] || state.suggestionOptions[0] || [];
   state.suggestions = option;
-  clearArrow();
-  drawArrows(state.suggestions);
+  state.lastArrowFrame = "";
+  drawArrowLayer();
 }
 
 function hasAnalysisLine(result) {
@@ -896,8 +900,7 @@ function draw() {
   drawBoard();
   drawPieces();
   renderHistory();
-  clearArrow();
-  drawArrows(state.suggestions);
+  drawArrowLayer();
 }
 
 function drawBoard() {
@@ -1027,8 +1030,14 @@ function drawPieces() {
   }
 }
 
-function drawArrows(suggestions) {
-  suggestions.forEach((suggestion) => drawArrow(suggestion.move, suggestion.color));
+function drawArrowLayer() {
+  const rect = boardEl.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${state.flipped ? "b" : "w"}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${suggestion.color}`).join("|")}`;
+  if (signature === state.lastArrowFrame) return;
+  state.lastArrowFrame = signature;
+  clearArrowCanvas();
+  state.suggestions.forEach((suggestion) => drawArrow(suggestion.move, suggestion.color));
 }
 
 function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
@@ -1058,14 +1067,23 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
 }
 
-function clearArrow() {
+function clearArrowCanvas() {
   const ctx = arrowCanvas.getContext("2d");
   const rect = boardEl.getBoundingClientRect();
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
 }
 
+function clearArrow() {
+  state.lastArrowFrame = "";
+  clearArrowCanvas();
+}
+
 function renderHistory() {
+  if (!historyEl) return;
+  const signature = `${state.cursor}|${state.moves.join(",")}`;
+  if (signature === state.lastHistoryFrame) return;
+  state.lastHistoryFrame = signature;
   historyEl.innerHTML = "";
   const replay = parseFen(START_FEN);
   let side = "w";

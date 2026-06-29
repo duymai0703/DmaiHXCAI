@@ -53,8 +53,8 @@ const DEFAULT_ENGINE_CANDIDATES = [
   path.join(ROOT, "pikafish.exe"),
   path.join(ROOT, "pikafish")
 ].filter(Boolean);
-const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(2, cpuCount())), 1, 16);
-const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
+const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(4, cpuCount())), 1, 16);
+const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 256, 16, 1024);
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
@@ -73,6 +73,10 @@ let downloadJob = null;
 let users = loadUsers();
 ensureAdminUser();
 let rooms = loadRooms();
+
+function engineNetworkPath() {
+  return path.join(SRC_DIR(), "pikafish.nnue");
+}
 
 function cpuCount() {
   try {
@@ -1477,6 +1481,10 @@ class UciEngine {
         .then(() => {
           this.write(`setoption name Threads value ${DEFAULT_ENGINE_THREADS}`);
           this.write(`setoption name Hash value ${DEFAULT_ENGINE_HASH_MB}`);
+          const nnuePath = engineNetworkPath();
+          if (fs.existsSync(nnuePath)) {
+            this.write(`setoption name EvalFile value ${nnuePath}`);
+          }
           return this.command("isready", (line) => line === "readyok", 8000);
         })
         .then(() => {
@@ -1888,7 +1896,7 @@ function trimNull(text) {
 
 async function downloadNetwork() {
   if (downloadJob) return downloadJob;
-  const target = path.join(SRC_DIR(), "pikafish.nnue");
+  const target = engineNetworkPath();
   if (fs.existsSync(target)) return { ok: true, networkPath: target, exists: true };
   const url = "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue";
   downloadJob = downloadFile(url, target)
@@ -1999,8 +2007,8 @@ const server = http.createServer(async (req, res) => {
         exists: Boolean(configuredEnginePath && fs.existsSync(configuredEnginePath)),
         databaseFile: DATABASE_FILE,
         persistentStorage: isPersistentStoragePath(DATABASE_FILE),
-        networkPath: path.join(SRC_DIR(), "pikafish.nnue"),
-        networkExists: fs.existsSync(path.join(SRC_DIR(), "pikafish.nnue")),
+        networkPath: engineNetworkPath(),
+        networkExists: fs.existsSync(engineNetworkPath()),
         buildRunning: Boolean(buildJob),
         downloadRunning: Boolean(downloadJob),
         candidates: DEFAULT_ENGINE_CANDIDATES,

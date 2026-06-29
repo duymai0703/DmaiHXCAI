@@ -1105,21 +1105,26 @@ select {
 @media (max-width: 760px) {
   html,
   body {
-    height: 100%;
+    min-height: 100%;
+    height: auto;
   }
 
   body {
-    min-height: calc(var(--app-vh, 1vh) * 100);
-    height: calc(var(--app-vh, 1vh) * 100);
-    overflow: hidden;
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: auto;
+    min-height: 100vh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    background-attachment: scroll;
   }
 
   .app-header {
-    height: 58px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
     min-height: 58px;
-    padding: 0 10px;
+    padding: 8px 10px;
     gap: 10px;
     flex-wrap: nowrap;
   }
@@ -1141,72 +1146,68 @@ select {
   .shell {
     width: 100%;
     max-width: none;
-    height: calc(var(--app-vh, 1vh) * 100 - 58px);
-    min-height: 0;
-    padding: 10px 10px 12px;
-    gap: 10px;
+    min-height: auto;
+    height: auto;
+    padding: 10px;
+    gap: 12px;
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .board-zone {
-    min-height: 0;
-    display: grid;
-    place-items: center;
+    display: block;
   }
 
   .board {
-    width: min(calc(100vw - 20px), calc((var(--app-vh, 1vh) * 100 - 58px - 248px) * 0.9), 460px);
+    width: min(calc(100vw - 20px), 520px);
     max-width: 100%;
-    border-width: 3px;
+    border-width: 2px;
+    box-shadow:
+      inset 0 0 0 2px rgba(79, 52, 25, 0.3),
+      0 18px 34px rgba(0, 0, 0, 0.28);
+  }
+
+  .board::before {
+    display: none;
   }
 
   .piece {
-    font-size: clamp(18px, 5.2vw, 28px);
+    font-size: clamp(18px, 6.1vw, 30px);
+    will-change: auto;
   }
 
   .panel {
-    height: min(278px, 36dvh);
-    min-height: 228px;
-    padding: 10px 10px 12px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    border-radius: 18px;
+    height: auto;
+    min-height: 0;
+    padding: 12px;
+    overflow: visible;
+    display: block;
+    border-radius: 14px;
   }
 
   .panel-shell {
     display: block;
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
+    min-height: auto;
+    overflow: visible;
   }
 
   .panel-main-col,
   .panel-side-col {
     display: block;
-    min-height: 0;
+    min-height: auto;
   }
 
   .group {
-    display: none;
-    height: 100%;
+    display: block;
+    height: auto;
     min-height: 0;
-    padding: 0;
-    border-bottom: 0;
-  }
-
-  .group.is-mobile-active {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(223, 179, 96, 0.16);
   }
 
   .primary-actions {
     grid-template-columns: 1fr;
     gap: 8px;
-    align-content: start;
     min-height: 0;
   }
 
@@ -1215,15 +1216,15 @@ select {
   .history,
   .board-tools,
   .auto-play-group {
-    min-height: 0;
-    overflow: auto;
-    padding-right: 2px;
+    min-height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .score-slot {
-    height: auto;
-    min-height: 62px;
-    max-height: none;
+    height: 72px;
+    min-height: 72px;
+    max-height: 72px;
   }
 
   .score-banner {
@@ -1235,7 +1236,15 @@ select {
   }
 
   .move-controls {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .move-controls button {
+    min-height: 40px;
+    padding: 0 4px;
+    font-size: 12px;
   }
 
   .board-tools label,
@@ -1249,43 +1258,36 @@ select {
   }
 
   .board-tools button {
-    min-height: 46px;
-    padding: 0;
-    font-size: 0;
-    position: relative;
-  }
-
-  .board-tools button::before {
-    content: attr(data-mobile-icon);
-    font-size: 16px;
-    font-weight: 800;
+    min-height: 42px;
+    padding: 0 8px;
+    font-size: 14px;
   }
 
   .piece-palette {
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 7px;
+    margin-bottom: 10px;
   }
 
   .palette-piece {
-    min-height: 38px;
+    min-height: 40px;
     background-size: 30px 30px;
   }
 
   .toggles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr 1fr auto;
     gap: 8px;
   }
 
   .toggles label {
-    justify-content: center;
-    padding: 10px 6px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(223, 179, 96, 0.14);
+    justify-content: flex-start;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    border: 0;
   }
 
   .toggles button {
-    min-height: 44px;
+    min-height: 42px;
     padding: 0 8px;
   }
 
@@ -1293,31 +1295,26 @@ select {
     max-height: none;
   }
 
+  .piece.image-piece {
+    filter: none;
+    box-shadow: none;
+  }
+
+  .piece.image-piece::before,
+  .piece.image-piece::after {
+    display: none;
+  }
+
+  .piece.selected {
+    outline: 0;
+    box-shadow: none;
+  }
+
+  .piece.image-piece.selected {
+    filter: brightness(1.08) saturate(1.04);
+  }
+
   .mobile-action-strip {
-    display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(223, 179, 96, 0.16);
-    flex: 0 0 auto;
-  }
-
-  .mobile-action-btn {
-    min-height: 44px;
-    border-radius: 14px;
-    font-size: 17px;
-    font-weight: 800;
-    line-height: 1;
-  }
-
-  .mobile-action-btn span {
-    pointer-events: none;
-  }
-
-  .mobile-action-btn[data-mobile-action="cloud"] span,
-  .mobile-action-btn[data-mobile-action="ai"] span {
-    font-size: 11px;
-    letter-spacing: 0.03em;
+    display: none !important;
   }
 }
