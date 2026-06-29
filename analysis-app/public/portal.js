@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v19";
+  const ASSET_WARMUP_VERSION = "20260630-v20";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1133,6 +1133,18 @@
     dom.reviewMotionPiece.setAttribute("aria-hidden", "true");
   }
 
+  function primeReviewMoveAnimation(animation) {
+    if (!animation) return;
+    if (state.reviewAnimationTimer) {
+      clearTimeout(state.reviewAnimationTimer);
+      state.reviewAnimationTimer = 0;
+    }
+    hideReviewMoveAnimationElements();
+    state.reviewAnimation = animation;
+    state.lastAnimatedReviewMoveKey = animation.moveKey;
+    state.reviewLastPieceFrame = "";
+  }
+
   function clearReviewMoveAnimation({ preserveKey = false } = {}) {
     if (state.reviewAnimationTimer) {
       clearTimeout(state.reviewAnimationTimer);
@@ -1158,11 +1170,19 @@
     });
   }
 
-  function startReviewMoveAnimation(animation) {
+  function startReviewMoveAnimation(animation, { prepared = false } = {}) {
     if (!animation || !dom.reviewMotionPiece) return;
-    clearReviewMoveAnimation({ preserveKey: true });
-    state.reviewAnimation = animation;
-    state.lastAnimatedReviewMoveKey = animation.moveKey;
+    if (prepared) {
+      if (state.reviewAnimationTimer) {
+        clearTimeout(state.reviewAnimationTimer);
+        state.reviewAnimationTimer = 0;
+      }
+      hideReviewMoveAnimationElements();
+      state.reviewAnimation = animation;
+      state.lastAnimatedReviewMoveKey = animation.moveKey;
+    } else {
+      primeReviewMoveAnimation(animation);
+    }
 
     const fromPixel = reviewSquareToPixel(animation.from);
     const toPixel = reviewSquareToPixel(animation.to);
@@ -1170,6 +1190,7 @@
     const deltaY = toPixel.y - fromPixel.y;
     const movingImage = dom.reviewMotionPiece.querySelector(".piece-skin");
     if (movingImage) {
+      movingImage.removeAttribute("src");
       movingImage.src = PIECE_IMAGES[animation.piece] || "";
       movingImage.alt = animation.piece;
       movingImage.decoding = "sync";
@@ -1205,12 +1226,12 @@
     state.reviewCursor = clamped;
     rebuildReviewBoard();
     if (animation) {
-      state.reviewAnimation = animation;
+      primeReviewMoveAnimation(animation);
     } else {
       clearReviewMoveAnimation();
     }
     renderReviewState(true);
-    if (animation) startReviewMoveAnimation(animation);
+    if (animation) startReviewMoveAnimation(animation, { prepared: true });
   }
 
   function stepReview(delta) {
@@ -1492,14 +1513,11 @@
       state.hints = [];
     }
 
-    if (incomingAnimation) {
-      state.roomAnimation = incomingAnimation;
-      state.lastAnimatedRoomMoveKey = incomingAnimation.moveKey;
-    }
+    if (incomingAnimation) primeRoomMoveAnimation(incomingAnimation);
 
     updateResumeButton();
     renderRoomState({ forceBoard, keepSelection });
-    if (incomingAnimation) startRoomMoveAnimation(incomingAnimation);
+    if (incomingAnimation) startRoomMoveAnimation(incomingAnimation, { prepared: true });
     if (shouldFlashTurn) triggerTurnFlash();
     else if (room.role !== "player" || !room.yourTurn || room.status !== "active" || room.result) clearTurnFlash();
 
@@ -1605,6 +1623,18 @@
     }
   }
 
+  function primeRoomMoveAnimation(animation) {
+    if (!animation) return;
+    if (state.roomAnimationTimer) {
+      clearTimeout(state.roomAnimationTimer);
+      state.roomAnimationTimer = 0;
+    }
+    hideRoomMoveAnimationElements();
+    state.roomAnimation = animation;
+    state.lastAnimatedRoomMoveKey = animation.moveKey;
+    state.lastPieceFrame = "";
+  }
+
   function finalizeRoomMoveAnimation(animation) {
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
     if (state.roomAnimationTimer) {
@@ -1619,11 +1649,19 @@
     });
   }
 
-  function startRoomMoveAnimation(animation) {
+  function startRoomMoveAnimation(animation, { prepared = false } = {}) {
     if (!animation || !dom.roomMotionPiece) return;
-    clearRoomMoveAnimation({ preserveKey: true });
-    state.roomAnimation = animation;
-    state.lastAnimatedRoomMoveKey = animation.moveKey;
+    if (prepared) {
+      if (state.roomAnimationTimer) {
+        clearTimeout(state.roomAnimationTimer);
+        state.roomAnimationTimer = 0;
+      }
+      hideRoomMoveAnimationElements();
+      state.roomAnimation = animation;
+      state.lastAnimatedRoomMoveKey = animation.moveKey;
+    } else {
+      primeRoomMoveAnimation(animation);
+    }
 
     const fromPixel = squareToPixel(animation.from);
     const toPixel = squareToPixel(animation.to);
@@ -1631,6 +1669,7 @@
     const deltaY = toPixel.y - fromPixel.y;
     const movingImage = dom.roomMotionPiece.querySelector(".piece-skin");
     if (movingImage) {
+      movingImage.removeAttribute("src");
       movingImage.src = PIECE_IMAGES[animation.piece] || "";
       movingImage.alt = animation.piece;
       movingImage.decoding = "sync";
@@ -1646,6 +1685,7 @@
     if (animation.capturedPiece && dom.roomCapturePiece) {
       const captureImage = dom.roomCapturePiece.querySelector(".piece-skin");
       if (captureImage) {
+        captureImage.removeAttribute("src");
         captureImage.src = PIECE_IMAGES[animation.capturedPiece] || "";
         captureImage.alt = animation.capturedPiece;
         captureImage.decoding = "sync";
@@ -2440,8 +2480,9 @@
     }
     state.roomSyncedAt = Date.now();
     state.roomActionBusy = true;
-    if (localAnimation) startRoomMoveAnimation(localAnimation);
+    if (localAnimation) primeRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();
+    if (localAnimation) startRoomMoveAnimation(localAnimation, { prepared: true });
     try {
       const payload = await api("/api/rooms/move", {
         method: "POST",

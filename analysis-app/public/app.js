@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v11";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v12";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 176;
@@ -876,6 +876,18 @@ function clearMoveAnimation({ preserveKey = false } = {}) {
   if (!preserveKey) state.lastAnimatedMoveKey = "";
 }
 
+function primeMoveAnimation(animation) {
+  if (!animation) return;
+  if (state.moveAnimationTimer) {
+    clearTimeout(state.moveAnimationTimer);
+    state.moveAnimationTimer = 0;
+  }
+  hideMoveAnimationElements();
+  state.moveAnimation = animation;
+  state.lastAnimatedMoveKey = animation.moveKey;
+  state.lastPieceFrame = "";
+}
+
 function hideMoveAnimationElements() {
   if (movingPieceEl) {
     movingPieceEl.classList.remove("is-visible");
@@ -907,11 +919,19 @@ function finalizeMoveAnimation(animation) {
   });
 }
 
-function startMoveAnimation(animation) {
+function startMoveAnimation(animation, { prepared = false } = {}) {
   if (!animation || !movingPieceEl) return;
-  clearMoveAnimation({ preserveKey: true });
-  state.moveAnimation = animation;
-  state.lastAnimatedMoveKey = animation.moveKey;
+  if (prepared) {
+    if (state.moveAnimationTimer) {
+      clearTimeout(state.moveAnimationTimer);
+      state.moveAnimationTimer = 0;
+    }
+    hideMoveAnimationElements();
+    state.moveAnimation = animation;
+    state.lastAnimatedMoveKey = animation.moveKey;
+  } else {
+    primeMoveAnimation(animation);
+  }
 
   const fromPos = squareToPixel(animation.from);
   const toPos = squareToPixel(animation.to);
@@ -919,6 +939,7 @@ function startMoveAnimation(animation) {
   const deltaY = toPos.y - fromPos.y;
   const movingImage = movingPieceEl.querySelector(".piece-skin");
   if (movingImage) {
+    movingImage.removeAttribute("src");
     movingImage.src = PIECE_IMAGES[animation.piece] || "";
     movingImage.alt = PIECE_NAMES[animation.piece] || animation.piece;
     movingImage.decoding = "sync";
@@ -934,6 +955,7 @@ function startMoveAnimation(animation) {
   if (animation.capturedPiece && capturePieceEl) {
     const captureImage = capturePieceEl.querySelector(".piece-skin");
     if (captureImage) {
+      captureImage.removeAttribute("src");
       captureImage.src = PIECE_IMAGES[animation.capturedPiece] || "";
       captureImage.alt = PIECE_NAMES[animation.capturedPiece] || animation.capturedPiece;
       captureImage.decoding = "sync";
@@ -989,8 +1011,13 @@ function makeMove(move, { manual = true } = {}) {
   if (state.gameOver) stopAutoPlay();
   state.selected = null;
   state.hints = [];
-  if (moveAnimation) startMoveAnimation(moveAnimation);
-  draw();
+  if (moveAnimation) {
+    primeMoveAnimation(moveAnimation);
+    draw(true);
+    startMoveAnimation(moveAnimation, { prepared: true });
+  } else {
+    draw();
+  }
   refreshCloudBook();
   if (manual && state.analysisMode) {
     setTimeout(() => runAnalysis({ activateMode: true }).catch(() => {}), 0);
