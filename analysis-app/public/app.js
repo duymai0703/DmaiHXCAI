@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v9";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v10";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 188;
@@ -39,13 +39,13 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  BOARD_SKIN_ASSET
+  BOARD_SKIN_ASSET,
+  ...Object.values(PIECE_IMAGES)
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/back.png",
   "/assets/icons/header-logo.png",
-  "/assets/icons/icon-192.png",
-  ...Object.values(PIECE_IMAGES)
+  "/assets/icons/icon-192.png"
 ];
 let wakePromise = null;
 
@@ -202,19 +202,26 @@ async function warmAnalysisAssets() {
     decodeAnalysisAssets(backgroundAssets)
   ]).catch(() => {});
 
-  try {
-    await Promise.allSettled([
-      cacheAnalysisAssets(blockingAssets, tracker),
-      decodeAnalysisAssets(blockingAssets, tracker)
-    ]);
+  const finishBlocking = Promise.allSettled([
+    cacheAnalysisAssets(blockingAssets, tracker),
+    decodeAnalysisAssets(blockingAssets, tracker)
+  ]).then(() => {
     writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
     tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
     void tryPersistBrowserStorage();
-    await delay(140);
+  }).catch(() => {});
+
+  try {
+    await Promise.race([
+      finishBlocking,
+      delay(ANALYSIS_ASSET_BLOCK_MS)
+    ]);
   } finally {
     state.assetWarmupPending = false;
     renderAssetPreloadOverlay();
   }
+
+  return finishBlocking;
 }
 
 function renderAssetPreloadOverlay() {

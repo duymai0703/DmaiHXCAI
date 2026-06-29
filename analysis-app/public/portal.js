@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v16";
+  const ASSET_WARMUP_VERSION = "20260630-v17";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -53,18 +53,15 @@
     okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
-  const PORTAL_BLOCKING_ASSETS = [
-    "/assets/icons/back.png",
-    "/assets/icons/header-logo.png"
+  const ANALYSIS_PRELOAD_ASSETS = [
+    "/analysis.html",
+    "/styles.css?v=20260630-mobile-v8",
+    "/app.js?v=20260630-mobile-v13",
+    BOARD_SKIN_ASSET,
+    ...Object.values(PIECE_IMAGES)
   ];
-  const PORTAL_BACKGROUND_ASSETS = [
-    "/assets/icons/icon-192.png",
-    "/assets/posters/xeposter.png",
-    "/assets/posters/phaoposter.png",
-    "/assets/posters/maposter.png",
-    ...DEVICE_AVATARS,
-    ...Object.values(REVIEW_BADGES).map((entry) => entry.image)
-  ];
+  const PORTAL_BLOCKING_ASSETS = [];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 188;
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
@@ -286,7 +283,7 @@
     dom.globalBackBtn.addEventListener("click", handleBack);
     dom.openMatchHub.addEventListener("click", () => goRoute("match"));
     dom.openAnalysisBtn.addEventListener("click", () => {
-      window.location.href = "/analysis";
+      window.location.href = "/analysis.html";
     });
     dom.openLibraryBtn.addEventListener("click", () => goRoute("library"));
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
@@ -347,6 +344,20 @@
     const backgroundAssets = [...new Set(
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
+    if (!blockingAssets.length) {
+      void Promise.allSettled([
+        cacheStaticAssets(backgroundAssets),
+        decodeImageAssets(backgroundAssets)
+      ]).then(() => {
+        writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+        void tryPersistBrowserStorage();
+      }).catch(() => {});
+      state.assetWarmupPending = false;
+      state.assetWarmupProgress = 100;
+      state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
+      renderAssetPreloadOverlay();
+      return;
+    }
     const totalSteps = Math.max(
       1,
       ("caches" in window ? blockingAssets.length : 0) +
