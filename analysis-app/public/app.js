@@ -28,18 +28,18 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v7";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v8";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 188;
 const ANALYSIS_BLOCKING_ASSETS = [
-  BOARD_SKIN_ASSET,
-  ...Object.values(PIECE_IMAGES)
+  BOARD_SKIN_ASSET
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/back.png",
   "/assets/icons/header-logo.png",
-  "/assets/icons/icon-192.png"
+  "/assets/icons/icon-192.png",
+  ...Object.values(PIECE_IMAGES)
 ];
 let wakePromise = null;
 
@@ -164,9 +164,7 @@ function scheduleBoardDraw() {
 }
 
 async function warmAnalysisAssets() {
-  const warmedVersion = readStorage(ANALYSIS_ASSET_WARMUP_KEY);
-  const needsBlockingWarmup = warmedVersion !== ANALYSIS_ASSET_WARMUP_VERSION;
-  state.assetWarmupPending = needsBlockingWarmup;
+  state.assetWarmupPending = false;
   renderAssetPreloadOverlay();
 
   const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
@@ -180,18 +178,10 @@ async function warmAnalysisAssets() {
     decodeAnalysisAssets(backgroundAssets)
   ];
 
-  if (!needsBlockingWarmup) {
-    void Promise.allSettled(blockingTasks);
-    void Promise.allSettled(backgroundTasks);
-    void tryPersistBrowserStorage();
-    return;
-  }
-
-  try {
-    void Promise.allSettled(backgroundTasks);
-    await waitForWarmup(blockingTasks, ANALYSIS_ASSET_BLOCK_MS);
-  } catch {}
-  writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+  void Promise.allSettled(blockingTasks);
+  void Promise.allSettled(backgroundTasks).finally(() => {
+    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+  });
   void tryPersistBrowserStorage();
 }
 
@@ -301,7 +291,7 @@ async function init() {
   renderMobilePanelState();
   updateEditorUi();
   wakeBackend();
-  await assetWarmupPromise.catch(() => {});
+  void assetWarmupPromise.catch(() => {});
   state.assetWarmupPending = false;
   renderAssetPreloadOverlay();
   await refreshStatus();

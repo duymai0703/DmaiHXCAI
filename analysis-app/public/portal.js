@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v14";
+  const ASSET_WARMUP_VERSION = "20260630-v15";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
@@ -47,12 +47,7 @@
     okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
-  const PORTAL_BLOCKING_ASSETS = [
-    BOARD_SKIN_ASSET,
-    "/assets/icons/back.png",
-    "/assets/icons/header-logo.png",
-    ...Object.values(PIECE_IMAGES)
-  ];
+  const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [
     "/assets/icons/back.png",
     "/assets/icons/header-logo.png",
@@ -329,9 +324,7 @@
   }
 
   async function warmPortalAssets() {
-    const warmedVersion = readPersistentValue(STORAGE_ASSET_WARMUP_VERSION);
-    const needsBlockingWarmup = warmedVersion !== ASSET_WARMUP_VERSION;
-    state.assetWarmupPending = needsBlockingWarmup;
+    state.assetWarmupPending = false;
     renderAssetPreloadOverlay();
 
     const blockingAssets = [...new Set(PORTAL_BLOCKING_ASSETS)];
@@ -347,18 +340,10 @@
       decodeImageAssets(backgroundAssets)
     ];
 
-    if (!needsBlockingWarmup) {
-      void Promise.allSettled(blockingTasks);
-      void Promise.allSettled(backgroundTasks);
-      void tryPersistBrowserStorage();
-      return;
-    }
-
-    try {
-      void Promise.allSettled(backgroundTasks);
-      await waitForWarmup(blockingTasks, PORTAL_ASSET_BLOCK_MS);
-    } catch {}
-    writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+    void Promise.allSettled(blockingTasks);
+    void Promise.allSettled(backgroundTasks).finally(() => {
+      writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+    });
     void tryPersistBrowserStorage();
   }
 
