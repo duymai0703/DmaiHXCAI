@@ -11,8 +11,8 @@
     <title>DmaiHXCAI</title>
     <script>
       const ua = navigator.userAgent || "";
-      const isMobileDevice = (window.matchMedia && window.matchMedia("(max-width: 760px) and (pointer: coarse)").matches)
-        || /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua);
+      const isIpadDesktop = /macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
+      const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua) || isIpadDesktop;
       if (isMobileDevice) {
         window.location.replace("/analysis");
       }
@@ -393,7 +393,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260629-room-v9"></script>
+    <script src="/portal.js?v=20260629-room-v10"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -208,8 +208,8 @@
   const roomMobilePanels = [...document.querySelectorAll("[data-room-mobile-panel]")];
 
   const mobileUserAgent = navigator.userAgent || "";
-  const isMobileDevice = (window.matchMedia && window.matchMedia("(max-width: 760px) and (pointer: coarse)").matches)
-    || /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent);
+  const isIpadDesktop = /macintosh/i.test(mobileUserAgent) && Number(navigator.maxTouchPoints || 0) > 1;
+  const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent) || isIpadDesktop;
   if (isMobileDevice) {
     window.location.replace("/analysis");
     return;
