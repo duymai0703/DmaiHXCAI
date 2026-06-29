@@ -9,7 +9,9 @@
   const STORAGE_DEVICE_AVATAR = "dmaihxcai-device-avatar";
   const STORAGE_DEVICE_AVATAR_VERSION = "dmaihxcai-device-avatar-version";
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
+  const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
+  const ASSET_WARMUP_VERSION = "20260630-v12";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
     "/assets/device-avatars/goku.png",
@@ -42,6 +44,17 @@
     okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
+  const PORTAL_PRELOAD_ASSETS = [
+    "/assets/icons/back.png",
+    "/assets/icons/header-logo.png",
+    "/assets/icons/icon-192.png",
+    "/assets/posters/xeposter.png",
+    "/assets/posters/phaoposter.png",
+    "/assets/posters/maposter.png",
+    ...DEVICE_AVATARS,
+    ...Object.values(REVIEW_BADGES).map((entry) => entry.image),
+    ...Object.values(PIECE_IMAGES)
+  ];
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
@@ -95,7 +108,8 @@
     resizeTimer: null,
     lastBoardSizeKey: "",
     roomMobilePanel: "control",
-    roomTurnFlashTimer: 0
+    roomTurnFlashTimer: 0,
+    assetWarmupPending: false
   };
 
   const dom = {
@@ -107,6 +121,8 @@
     adminView: byId("adminView"),
     roomView: byId("roomView"),
     reviewView: byId("reviewView"),
+    assetPreloadOverlay: byId("assetPreloadOverlay"),
+    assetPreloadText: byId("assetPreloadText"),
     opponentBadge: byId("opponentBadge"),
     selfBadge: byId("selfBadge"),
     headerProfile: byId("headerProfile"),
@@ -224,7 +240,7 @@
 
   bindEvents();
   preventDoubleTapZoom();
-  preloadPieceImages();
+  const assetWarmupPromise = warmPortalAssets();
   syncViewportHeight();
   setupRoomMobileDock();
   setLobbyMode("join");
@@ -235,6 +251,10 @@
       state.booting = false;
       syncRoute(true);
     });
+  assetWarmupPromise.catch(() => {}).finally(() => {
+    state.assetWarmupPending = false;
+    renderAssetPreloadOverlay();
+  });
 
   function byId(id) {
     return document.getElementById(id);
@@ -290,6 +310,81 @@
     });
     dom.modal.addEventListener("click", (event) => {
       if (event.target === dom.modal) closeModal();
+    });
+  }
+
+  async function warmPortalAssets() {
+    const warmedVersion = readPersistentValue(STORAGE_ASSET_WARMUP_VERSION);
+    const needsBlockingWarmup = warmedVersion !== ASSET_WARMUP_VERSION;
+    state.assetWarmupPending = needsBlockingWarmup;
+    renderAssetPreloadOverlay();
+
+    const normalizedAssets = [...new Set(PORTAL_PRELOAD_ASSETS)];
+    if (!normalizedAssets.length) return;
+
+    const tasks = [
+      cacheStaticAssets(normalizedAssets),
+      decodeImageAssets(normalizedAssets)
+    ];
+
+    if (!needsBlockingWarmup) {
+      await Promise.allSettled(tasks);
+      return;
+    }
+
+    try {
+      await Promise.all(tasks);
+      writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+    } catch {}
+  }
+
+  function renderAssetPreloadOverlay() {
+    if (!dom.assetPreloadOverlay) return;
+    const visible = Boolean(state.assetWarmupPending);
+    dom.assetPreloadOverlay.classList.toggle("hidden", !visible);
+    document.body.classList.toggle("asset-preload-active", visible);
+    if (visible && dom.assetPreloadText) {
+      dom.assetPreloadText.textContent = "Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...";
+    }
+  }
+
+  async function cacheStaticAssets(assets) {
+    if (!("caches" in window)) return;
+    const cache = await caches.open(`dmaihxcai-portal-runtime-${ASSET_WARMUP_VERSION}`);
+    await Promise.all(assets.map(async (asset) => {
+      try {
+        const existing = await cache.match(asset);
+        if (existing) return;
+        const response = await fetch(asset, { cache: "force-cache" });
+        if (response && response.ok) await cache.put(asset, response.clone());
+      } catch {}
+    }));
+  }
+
+  async function decodeImageAssets(assets) {
+    const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
+    await Promise.all(imageAssets.map((asset) => decodeImageAsset(asset)));
+  }
+
+  function decodeImageAsset(src) {
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.loading = "eager";
+      image.src = src;
+      const finish = () => resolve();
+      if (typeof image.decode === "function") {
+        image.decode().then(finish).catch(() => {
+          if (image.complete) finish();
+          else {
+            image.onload = finish;
+            image.onerror = finish;
+          }
+        });
+        return;
+      }
+      image.onload = finish;
+      image.onerror = finish;
     });
   }
 
@@ -1494,6 +1589,16 @@
     }
   }
 
+  function renderRoomAfterLocalMove() {
+    materializeLocalRoomPhase();
+    renderRoomMeta();
+    renderRequestState();
+    renderMoveList();
+    renderRoomOverlay();
+    renderRoomMobilePanels();
+    drawRoomPieces(true);
+  }
+
   function drawRoomScene(forceBoard) {
     state.roomDrawForce = state.roomDrawForce || Boolean(forceBoard);
     if (state.roomDrawFrame) return;
@@ -1544,6 +1649,13 @@
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
         piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "eager";
+        image.draggable = false;
+        piece.appendChild(image);
         pieceFragment.appendChild(piece);
         state.roomPieceSlots.push(piece);
       }
@@ -1587,6 +1699,13 @@
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
         piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "eager";
+        image.draggable = false;
+        piece.appendChild(image);
         fragment.appendChild(piece);
         state.reviewPieceSlots.push(piece);
       }
@@ -1659,7 +1778,6 @@
           el.classList.remove("selected", "in-check");
           if (el.dataset.piece) {
             el.dataset.piece = "";
-            el.style.removeProperty("--piece-image");
             el.removeAttribute("aria-label");
           }
           el.setAttribute("aria-hidden", "true");
@@ -1669,7 +1787,11 @@
           el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
           if (el.dataset.piece !== piece) {
             el.dataset.piece = piece;
-            el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+            const image = el.querySelector(".piece-skin");
+            if (image) {
+              image.src = PIECE_IMAGES[piece];
+              image.alt = piece;
+            }
             el.setAttribute("aria-label", piece);
           }
           el.setAttribute("aria-hidden", "false");
@@ -1751,10 +1873,11 @@
           el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
           if (el.dataset.piece) {
             el.dataset.piece = "";
-            el.style.removeProperty("--piece-image");
             el.removeAttribute("aria-label");
           }
-          if (el.childNodes.length) el.replaceChildren();
+          [...el.childNodes]
+            .filter((node) => !node.classList || !node.classList.contains("piece-skin"))
+            .forEach((node) => node.remove());
           el.setAttribute("aria-hidden", "true");
           continue;
         }
@@ -1763,12 +1886,18 @@
         el.classList.remove("review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
         if (el.dataset.piece !== piece) {
           el.dataset.piece = piece;
-          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+          const image = el.querySelector(".piece-skin");
+          if (image) {
+            image.src = PIECE_IMAGES[piece];
+            image.alt = piece;
+          }
           el.setAttribute("aria-label", piece);
         }
         el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
         el.setAttribute("aria-hidden", "false");
-        if (el.childNodes.length) el.replaceChildren();
+        [...el.childNodes]
+          .filter((node) => !node.classList || !node.classList.contains("piece-skin"))
+          .forEach((node) => node.remove());
         if (movedSquare && movedSquare.x === x && movedSquare.y === y) {
           el.classList.add("review-current");
           if (badge.image) {
@@ -1901,7 +2030,7 @@
     }
     state.roomSyncedAt = Date.now();
     state.roomActionBusy = true;
-    renderRoomState({ forceBoard: false, keepSelection: false });
+    renderRoomAfterLocalMove();
     try {
       const payload = await api("/api/rooms/move", {
         method: "POST",
@@ -2743,14 +2872,6 @@
       hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
     }
     return hash;
-  }
-
-  function preloadPieceImages() {
-    Object.values(PIECE_IMAGES).forEach((src) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.src = src;
-    });
   }
 
   function preventDoubleTapZoom() {
