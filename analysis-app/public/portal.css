@@ -813,7 +813,8 @@ a {
 
 #reviewBoardCanvas,
 #reviewArrowCanvas,
-#reviewPieces {
+#reviewPieces,
+#reviewMotionLayer {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -837,6 +838,10 @@ a {
 
 #reviewPieces {
   z-index: 3;
+}
+
+#reviewMotionLayer {
+  z-index: 4;
 }
 
 .board-badge {
@@ -1288,14 +1293,14 @@ a {
 
 .moving-piece {
   transition:
-    transform 188ms cubic-bezier(0.2, 0.78, 0.22, 1),
-    opacity 120ms ease;
+    transform 176ms cubic-bezier(0.16, 0.84, 0.22, 1),
+    opacity 100ms ease;
 }
 
 .capture-piece {
   transition:
-    opacity 168ms ease,
-    transform 168ms ease;
+    opacity 148ms ease,
+    transform 148ms ease;
 }
 
 .capture-piece.fading {

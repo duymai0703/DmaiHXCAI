@@ -28,10 +28,11 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v10";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v11";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
-const ANALYSIS_MOVE_ANIMATION_MS = 188;
+const ANALYSIS_MOVE_ANIMATION_MS = 176;
+const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -870,6 +871,12 @@ function clearMoveAnimation({ preserveKey = false } = {}) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
+  hideMoveAnimationElements();
+  state.moveAnimation = null;
+  if (!preserveKey) state.lastAnimatedMoveKey = "";
+}
+
+function hideMoveAnimationElements() {
   if (movingPieceEl) {
     movingPieceEl.classList.remove("is-visible");
     movingPieceEl.style.left = "0px";
@@ -884,8 +891,20 @@ function clearMoveAnimation({ preserveKey = false } = {}) {
     capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
     capturePieceEl.setAttribute("aria-hidden", "true");
   }
+}
+
+function finalizeMoveAnimation(animation) {
+  if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+  if (state.moveAnimationTimer) {
+    clearTimeout(state.moveAnimationTimer);
+    state.moveAnimationTimer = 0;
+  }
   state.moveAnimation = null;
-  if (!preserveKey) state.lastAnimatedMoveKey = "";
+  state.lastPieceFrame = "";
+  draw(true);
+  window.requestAnimationFrame(() => {
+    hideMoveAnimationElements();
+  });
 }
 
 function startMoveAnimation(animation) {
@@ -930,17 +949,15 @@ function startMoveAnimation(animation) {
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {
       if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
-      movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms cubic-bezier(0.2, 0.78, 0.22, 1), opacity 120ms ease`;
+      movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}, opacity 100ms ease`;
       movingPieceEl.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
       if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
     });
   });
 
   state.moveAnimationTimer = window.setTimeout(() => {
-    if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
-    clearMoveAnimation({ preserveKey: true });
-    draw(true);
-  }, ANALYSIS_MOVE_ANIMATION_MS + 48);
+    finalizeMoveAnimation(animation);
+  }, ANALYSIS_MOVE_ANIMATION_MS + 8);
 }
 
 function makeMove(move, { manual = true } = {}) {

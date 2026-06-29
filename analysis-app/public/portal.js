@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v18";
+  const ASSET_WARMUP_VERSION = "20260630-v19";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -55,14 +55,15 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260630-mobile-v9",
-    "/app.js?v=20260630-mobile-v13",
+    "/styles.css?v=20260630-mobile-v10",
+    "/app.js?v=20260630-mobile-v14",
     BOARD_SKIN_ASSET,
     ...Object.values(PIECE_IMAGES)
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS];
-  const ROOM_MOVE_ANIMATION_MS = 188;
+  const ROOM_MOVE_ANIMATION_MS = 176;
+  const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
@@ -112,6 +113,9 @@
     roomSlotLayoutKey: "",
     reviewDrawFrame: 0,
     reviewDrawForce: false,
+    reviewAnimation: null,
+    reviewAnimationTimer: 0,
+    lastAnimatedReviewMoveKey: "",
     lastChatSignature: "",
     resizeTimer: null,
     lastBoardSizeKey: "",
@@ -225,6 +229,8 @@
     reviewBoardCanvas: byId("reviewBoardCanvas"),
     reviewArrowCanvas: byId("reviewArrowCanvas"),
     reviewPieces: byId("reviewPieces"),
+    reviewMotionLayer: byId("reviewMotionLayer"),
+    reviewMotionPiece: byId("reviewMotionPiece"),
     reviewMoveList: byId("reviewMoveList"),
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
@@ -783,6 +789,8 @@
 
   function clearSession() {
     stopRoomPolling();
+    clearRoomMoveAnimation();
+    clearReviewMoveAnimation();
     state.user = null;
     state.token = "";
     state.history = readStoredHistory();
@@ -1042,6 +1050,7 @@
       showToast("Ván này chưa có đủ dữ liệu để xem lại.");
       return;
     }
+    clearReviewMoveAnimation();
     state.reviewGame = reviewEntry;
     state.reviewCursor = 0;
     state.reviewAnalysis = [];
@@ -1100,13 +1109,108 @@
     state.reviewSideToMove = side;
   }
 
+  function buildReviewCursorAnimation(previousCursor, nextCursor, sourceBoard) {
+    if (!state.reviewGame) return null;
+    if (Math.abs(nextCursor - previousCursor) !== 1) return null;
+    const movingForward = nextCursor > previousCursor;
+    const plyIndex = movingForward ? previousCursor : nextCursor;
+    const ply = state.reviewGame.plies[plyIndex];
+    if (!ply?.move) return null;
+    return buildDirectionalMoveAnimation(
+      sourceBoard,
+      ply.move,
+      `review:${plyIndex + 1}:${movingForward ? "f" : "b"}:${ply.move}`,
+      { reverse: !movingForward }
+    );
+  }
+
+  function hideReviewMoveAnimationElements() {
+    if (!dom.reviewMotionPiece) return;
+    dom.reviewMotionPiece.classList.remove("is-visible");
+    dom.reviewMotionPiece.style.left = "0px";
+    dom.reviewMotionPiece.style.top = "0px";
+    dom.reviewMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    dom.reviewMotionPiece.setAttribute("aria-hidden", "true");
+  }
+
+  function clearReviewMoveAnimation({ preserveKey = false } = {}) {
+    if (state.reviewAnimationTimer) {
+      clearTimeout(state.reviewAnimationTimer);
+      state.reviewAnimationTimer = 0;
+    }
+    hideReviewMoveAnimationElements();
+    state.reviewAnimation = null;
+    if (!preserveKey) state.lastAnimatedReviewMoveKey = "";
+  }
+
+  function finalizeReviewMoveAnimation(animation) {
+    if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
+    if (state.reviewAnimationTimer) {
+      clearTimeout(state.reviewAnimationTimer);
+      state.reviewAnimationTimer = 0;
+    }
+    state.reviewAnimation = null;
+    state.reviewLastPieceFrame = "";
+    drawReviewPieces(true);
+    drawReviewArrow();
+    window.requestAnimationFrame(() => {
+      hideReviewMoveAnimationElements();
+    });
+  }
+
+  function startReviewMoveAnimation(animation) {
+    if (!animation || !dom.reviewMotionPiece) return;
+    clearReviewMoveAnimation({ preserveKey: true });
+    state.reviewAnimation = animation;
+    state.lastAnimatedReviewMoveKey = animation.moveKey;
+
+    const fromPixel = reviewSquareToPixel(animation.from);
+    const toPixel = reviewSquareToPixel(animation.to);
+    const deltaX = toPixel.x - fromPixel.x;
+    const deltaY = toPixel.y - fromPixel.y;
+    const movingImage = dom.reviewMotionPiece.querySelector(".piece-skin");
+    if (movingImage) {
+      movingImage.src = PIECE_IMAGES[animation.piece] || "";
+      movingImage.alt = animation.piece;
+      movingImage.decoding = "sync";
+    }
+
+    dom.reviewMotionPiece.style.transition = "none";
+    dom.reviewMotionPiece.style.left = `${fromPixel.x}px`;
+    dom.reviewMotionPiece.style.top = `${fromPixel.y}px`;
+    dom.reviewMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    dom.reviewMotionPiece.classList.add("is-visible");
+    dom.reviewMotionPiece.setAttribute("aria-hidden", "false");
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
+        dom.reviewMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
+        dom.reviewMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+      });
+    });
+
+    state.reviewAnimationTimer = window.setTimeout(() => {
+      finalizeReviewMoveAnimation(animation);
+    }, ROOM_MOVE_ANIMATION_MS + 8);
+  }
+
   function setReviewCursor(cursor) {
     if (!state.reviewGame) return;
     const clamped = Math.max(0, Math.min(state.reviewGame.plies.length, cursor));
     if (clamped === state.reviewCursor && state.route === "review") return;
+    const previousCursor = state.reviewCursor;
+    const previousBoard = state.reviewBoard.map((row) => row.slice());
+    const animation = buildReviewCursorAnimation(previousCursor, clamped, previousBoard);
     state.reviewCursor = clamped;
     rebuildReviewBoard();
+    if (animation) {
+      state.reviewAnimation = animation;
+    } else {
+      clearReviewMoveAnimation();
+    }
     renderReviewState(true);
+    if (animation) startReviewMoveAnimation(animation);
   }
 
   function stepReview(delta) {
@@ -1450,16 +1554,18 @@
     const moveKey = `${nextRoom.key}:${nextMoves.length}:${move}`;
     if (state.lastAnimatedRoomMoveKey === moveKey) return null;
     const previousBoard = XiangqiCore.parseFenState(previousRoom.boardFen || START_FEN).board;
-    return buildRoomAnimation(previousBoard, move, moveKey);
+    return buildDirectionalMoveAnimation(previousBoard, move, moveKey);
   }
 
-  function buildRoomAnimation(board, move, moveKey) {
+  function buildDirectionalMoveAnimation(board, move, moveKey, { reverse = false } = {}) {
     if (!board || !/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
-    const from = uciToSquare(move.slice(0, 2));
-    const to = uciToSquare(move.slice(2, 4));
+    const rawFrom = uciToSquare(move.slice(0, 2));
+    const rawTo = uciToSquare(move.slice(2, 4));
+    const from = reverse ? rawTo : rawFrom;
+    const to = reverse ? rawFrom : rawTo;
     const piece = board[from.y]?.[from.x] || "";
     if (!piece) return null;
-    const capturedPiece = board[to.y]?.[to.x] || "";
+    const capturedPiece = reverse ? "" : (board[to.y]?.[to.x] || "");
     return {
       move,
       moveKey,
@@ -1477,6 +1583,12 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    hideRoomMoveAnimationElements();
+    state.roomAnimation = null;
+    if (!preserveKey) state.lastAnimatedRoomMoveKey = "";
+  }
+
+  function hideRoomMoveAnimationElements() {
     if (dom.roomMotionPiece) {
       dom.roomMotionPiece.classList.remove("is-visible");
       dom.roomMotionPiece.style.left = "0px";
@@ -1491,8 +1603,20 @@
       dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
       dom.roomCapturePiece.setAttribute("aria-hidden", "true");
     }
+  }
+
+  function finalizeRoomMoveAnimation(animation) {
+    if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
+    if (state.roomAnimationTimer) {
+      clearTimeout(state.roomAnimationTimer);
+      state.roomAnimationTimer = 0;
+    }
     state.roomAnimation = null;
-    if (!preserveKey) state.lastAnimatedRoomMoveKey = "";
+    state.lastPieceFrame = "";
+    drawRoomPieces(true);
+    window.requestAnimationFrame(() => {
+      hideRoomMoveAnimationElements();
+    });
   }
 
   function startRoomMoveAnimation(animation) {
@@ -1537,7 +1661,7 @@
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
-        dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms cubic-bezier(0.2, 0.78, 0.22, 1), opacity 120ms ease`;
+        dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
         dom.roomMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
         if (animation.capturedPiece && dom.roomCapturePiece) {
           dom.roomCapturePiece.classList.add("fading");
@@ -1546,10 +1670,8 @@
     });
 
     state.roomAnimationTimer = window.setTimeout(() => {
-      if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
-      clearRoomMoveAnimation({ preserveKey: true });
-      drawRoomPieces(true);
-    }, ROOM_MOVE_ANIMATION_MS + 48);
+      finalizeRoomMoveAnimation(animation);
+    }, ROOM_MOVE_ANIMATION_MS + 8);
   }
 
   function updateResumeButton() {
@@ -2135,20 +2257,23 @@
     const currentIndex = state.reviewCursor - 1;
     const currentAnalysis = currentIndex >= 0 ? state.reviewAnalysis[currentIndex] : null;
     const currentPly = currentIndex >= 0 ? state.reviewGame?.plies?.[currentIndex] : null;
-    const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    const animationKey = state.reviewAnimation?.moveKey || "";
+    const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.reviewLastPieceFrame) return;
     state.reviewLastPieceFrame = signature;
     const slots = ensureReviewSlots();
     if (!slots.length) return;
     const movedSquare = state.reviewLastMoveSquare;
     const badge = reviewBadgeForGrade(currentAnalysis?.grade || "");
+    const hiddenToIndex = state.reviewAnimation?.toIndex ?? -1;
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
         const el = slots[index];
-        if (!piece) {
+        const shouldHideForAnimation = index === hiddenToIndex && piece === state.reviewAnimation?.piece;
+        if (!piece || shouldHideForAnimation) {
           el.classList.remove("is-visible");
           el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
           if (el.dataset.piece) {
@@ -2279,7 +2404,7 @@
     const previousBoard = state.roomBoard.map((row) => row.slice());
     const previousSyncedAt = state.roomSyncedAt;
     const localBoard = state.roomBoard.map((row) => row.slice());
-    const localAnimation = buildRoomAnimation(
+    const localAnimation = buildDirectionalMoveAnimation(
       previousBoard,
       move,
       `${state.room.key}:${(Array.isArray(state.room.moves) ? state.room.moves.length : 0) + 1}:${move}`

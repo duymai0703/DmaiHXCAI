@@ -21,7 +21,7 @@
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260630-room-v16">
+    <link rel="stylesheet" href="/portal.css?v=20260630-room-v17">
   </head>
   <body>
     <header class="portal-header">
@@ -349,6 +349,9 @@
                 <canvas id="reviewBoardCanvas"></canvas>
                 <canvas id="reviewArrowCanvas"></canvas>
                 <div id="reviewPieces"></div>
+                <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
+                  <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+                </div>
               </div>
             </div>
           </section>
@@ -412,7 +415,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260630-room-v22"></script>
+    <script src="/portal.js?v=20260630-room-v23"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
