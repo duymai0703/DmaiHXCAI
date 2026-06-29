@@ -2391,14 +2391,30 @@ function friendlyErrorVi(code) {
 }
 
 async function startServer() {
-  await hydrateUsersFromMongo();
-  await flushUserPersistence();
-  server.listen(PORT, () => {
-    console.log(`Pikafish analysis app: http://localhost:${PORT}`);
-    if (!configuredEnginePath) {
-      console.log("No engine binary found. Set PIKAFISH_ENGINE or configure it in the UI.");
-    }
+  await new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      console.log(`Pikafish analysis app: http://localhost:${PORT}`);
+      if (!configuredEnginePath) {
+        console.log("No engine binary found. Set PIKAFISH_ENGINE or configure it in the UI.");
+      }
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(PORT);
   });
+
+  Promise.resolve()
+    .then(() => hydrateUsersFromMongo())
+    .then(() => flushUserPersistence())
+    .catch((error) => {
+      console.warn(`Background persistence bootstrap failed. Continuing with local storage. ${error?.stack || error}`);
+    });
 }
 
 startServer().catch((error) => {
