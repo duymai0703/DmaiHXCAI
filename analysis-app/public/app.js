@@ -60,7 +60,8 @@ const state = {
   pieceSlots: null,
   hintSlots: null,
   slotLayoutKey: "",
-  mobilePanel: "analysis"
+  mobilePanel: "analysis",
+  drawFrame: 0
 };
 
 const boardEl = document.getElementById("board");
@@ -135,7 +136,7 @@ function scheduleBoardDraw() {
     state.lastPieceFrame = "";
     state.lastArrowFrame = "";
     state.slotLayoutKey = "";
-    draw();
+    draw(true);
   }, 120);
 }
 
@@ -892,7 +893,22 @@ function rebuildPosition() {
   }
 }
 
-function draw() {
+function draw(immediate = false) {
+  if (state.drawFrame) {
+    window.cancelAnimationFrame(state.drawFrame);
+    state.drawFrame = 0;
+  }
+  if (immediate || !isCompactMobile()) {
+    drawNow();
+    return;
+  }
+  state.drawFrame = window.requestAnimationFrame(() => {
+    state.drawFrame = 0;
+    drawNow();
+  });
+}
+
+function drawNow() {
   boardEl.classList.toggle("flipped", state.flipped);
   updateEditorUi();
   drawBoard();
@@ -961,7 +977,7 @@ function ensureBoardSlots() {
       hint.className = "hint";
       hint.style.left = `${pos.x}px`;
       hint.style.top = `${pos.y}px`;
-      hint.style.display = "none";
+      hint.setAttribute("aria-hidden", "true");
       fragment.appendChild(hint);
       state.hintSlots.push(hint);
     }
@@ -974,7 +990,6 @@ function ensureBoardSlots() {
       piece.className = "piece image-piece";
       piece.style.left = `${pos.x}px`;
       piece.style.top = `${pos.y}px`;
-      piece.style.display = "none";
       piece.setAttribute("aria-hidden", "true");
       fragment.appendChild(piece);
       state.pieceSlots.push(piece);
@@ -1001,15 +1016,16 @@ function drawPieces() {
       const piece = state.board[y][x];
       const el = pieceSlots[index];
       if (!piece) {
-        el.style.display = "none";
+        el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
         if (el.dataset.piece) {
           el.dataset.piece = "";
           el.style.removeProperty("--piece-image");
           el.removeAttribute("aria-label");
         }
+        el.setAttribute("aria-hidden", "true");
       } else {
-        el.style.display = "";
+        el.classList.add("is-visible");
         const isRed = piece === piece.toUpperCase();
         el.classList.toggle("red", isRed);
         el.classList.toggle("black", !isRed);
@@ -1020,10 +1036,13 @@ function drawPieces() {
           el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
+        el.setAttribute("aria-hidden", "false");
       }
 
       const hintEl = hintSlots[index];
-      hintEl.style.display = hintIndexes.has(index) ? "" : "none";
+      const showHint = hintIndexes.has(index);
+      hintEl.classList.toggle("is-visible", showHint);
+      hintEl.setAttribute("aria-hidden", showHint ? "false" : "true");
     }
   }
 }
