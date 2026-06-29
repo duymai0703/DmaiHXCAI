@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v20";
+  const ASSET_WARMUP_VERSION = "20260630-v21";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -55,8 +55,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260630-mobile-v10",
-    "/app.js?v=20260630-mobile-v14",
+    "/styles.css?v=20260630-mobile-v11",
+    "/app.js?v=20260630-mobile-v16",
     BOARD_SKIN_ASSET,
     ...Object.values(PIECE_IMAGES)
   ];
@@ -1203,13 +1203,10 @@
     dom.reviewMotionPiece.classList.add("is-visible");
     dom.reviewMotionPiece.setAttribute("aria-hidden", "false");
 
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
-        dom.reviewMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
-        dom.reviewMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
-      });
-    });
+    void dom.reviewMotionPiece.offsetWidth;
+    if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
+    dom.reviewMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
+    dom.reviewMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
 
     state.reviewAnimationTimer = window.setTimeout(() => {
       finalizeReviewMoveAnimation(animation);
@@ -1267,7 +1264,7 @@
   function renderReviewState(forceBoard = false) {
     renderReviewMeta();
     renderReviewMoveList();
-    drawReviewScene(forceBoard);
+    drawReviewScene(forceBoard, Boolean(state.reviewAnimation));
   }
 
   function renderReviewMeta() {
@@ -1698,16 +1695,13 @@
       dom.roomCapturePiece.setAttribute("aria-hidden", "false");
     }
 
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
-        dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
-        dom.roomMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
-        if (animation.capturedPiece && dom.roomCapturePiece) {
-          dom.roomCapturePiece.classList.add("fading");
-        }
-      });
-    });
+    void dom.roomMotionPiece.offsetWidth;
+    if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
+    dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}, opacity 100ms ease`;
+    dom.roomMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    if (animation.capturedPiece && dom.roomCapturePiece) {
+      dom.roomCapturePiece.classList.add("fading");
+    }
 
     state.roomAnimationTimer = window.setTimeout(() => {
       finalizeRoomMoveAnimation(animation);
@@ -1730,7 +1724,7 @@
     renderMoveList();
     renderRoomOverlay();
     renderRoomMobilePanels();
-    drawRoomScene(forceBoard);
+    drawRoomScene(forceBoard, Boolean(state.roomAnimation));
   }
 
   function materializeLocalRoomPhase() {
@@ -2016,7 +2010,17 @@
     drawRoomPieces(true);
   }
 
-  function drawRoomScene(forceBoard) {
+  function drawRoomScene(forceBoard, immediate = false) {
+    if (immediate) {
+      if (state.roomDrawFrame) {
+        window.cancelAnimationFrame(state.roomDrawFrame);
+        state.roomDrawFrame = 0;
+      }
+      state.roomDrawForce = false;
+      drawRoomBoard(forceBoard);
+      drawRoomPieces(forceBoard);
+      return;
+    }
     state.roomDrawForce = state.roomDrawForce || Boolean(forceBoard);
     if (state.roomDrawFrame) return;
     state.roomDrawFrame = window.requestAnimationFrame(() => {
@@ -2091,7 +2095,18 @@
     return { pieceSlots: state.roomPieceSlots, hintSlots: state.roomHintSlots };
   }
 
-  function drawReviewScene(forceBoard) {
+  function drawReviewScene(forceBoard, immediate = false) {
+    if (immediate) {
+      if (state.reviewDrawFrame) {
+        window.cancelAnimationFrame(state.reviewDrawFrame);
+        state.reviewDrawFrame = 0;
+      }
+      state.reviewDrawForce = false;
+      drawReviewBoard(forceBoard);
+      drawReviewPieces(forceBoard);
+      drawReviewArrow();
+      return;
+    }
     state.reviewDrawForce = state.reviewDrawForce || Boolean(forceBoard);
     if (state.reviewDrawFrame) return;
     state.reviewDrawFrame = window.requestAnimationFrame(() => {

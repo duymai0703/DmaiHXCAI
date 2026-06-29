@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v12";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v13";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 176;
@@ -968,14 +968,11 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     capturePieceEl.setAttribute("aria-hidden", "false");
   }
 
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
-      movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}, opacity 100ms ease`;
-      movingPieceEl.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
-      if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
-    });
-  });
+  void movingPieceEl.offsetWidth;
+  if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+  movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}, opacity 100ms ease`;
+  movingPieceEl.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
 
   state.moveAnimationTimer = window.setTimeout(() => {
     finalizeMoveAnimation(animation);
