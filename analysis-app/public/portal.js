@@ -265,6 +265,8 @@
   setupRoomMobileDock();
   setLobbyMode("join");
   updateTimeLabels();
+  renderHistory();
+  syncRoute(true);
   bootstrap()
     .catch(() => {})
     .finally(() => {

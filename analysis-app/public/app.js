@@ -358,9 +358,9 @@ async function init() {
   updateEditorUi();
   wakeBackend();
   void assetWarmupPromise.catch(() => {});
-  await refreshStatus();
   draw();
   refreshCloudBook();
+  void refreshStatus().catch(() => {});
 }
 
 function onViewportResize() {
