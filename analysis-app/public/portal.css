@@ -2353,8 +2353,9 @@ textarea:focus {
 .badge-avatar.turn-flash,
 .clock-inline.turn-flash {
   box-shadow:
-    0 0 0 2px rgba(112, 255, 166, 0.95),
-    0 0 16px rgba(112, 255, 166, 0.42);
+    0 0 0 4px rgba(112, 255, 166, 0.98),
+    0 0 0 7px rgba(28, 71, 45, 0.92),
+    0 0 20px rgba(112, 255, 166, 0.48);
   will-change: box-shadow;
 }
 

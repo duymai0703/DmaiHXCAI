@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v27";
+  const ASSET_WARMUP_VERSION = "20260630-v28";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1654,6 +1654,19 @@
     drawRoomPieces(true);
   }
 
+  function settleRoomAnimationNow() {
+    if (!state.roomAnimation) return;
+    if (state.roomAnimationTimer) {
+      clearTimeout(state.roomAnimationTimer);
+      state.roomAnimationTimer = 0;
+    }
+    hideRoomMoveAnimationElements();
+    state.roomAnimation = null;
+    state.activeRoomMoveSlotEl = null;
+    state.lastPieceFrame = "";
+    drawRoomPieces(true);
+  }
+
   function startRoomMoveAnimation(animation, { prepared = false } = {}) {
     if (!animation) return;
     if (prepared) {
@@ -2438,6 +2451,7 @@
     if (!room || room.role !== "player" || room.status !== "active" || !room.yourTurn || state.roomActionBusy) return;
     event.preventDefault();
     clearTurnFlash();
+    settleRoomAnimationNow();
     const square = eventToSquare(event);
     if (!square) return;
 
@@ -2478,6 +2492,7 @@
   async function sendMove(move) {
     if (!state.room) return;
     clearTurnFlash();
+    settleRoomAnimationNow();
     const side = state.room.yourSide;
     const previousRoom = cloneJsonValue(state.room);
     const previousBoard = state.roomBoard.map((row) => row.slice());
