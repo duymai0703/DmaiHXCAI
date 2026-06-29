@@ -12,7 +12,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/styles.css?v=20260629-mobile-v4">
+    <link rel="preload" href="/assets/board/board-skin.svg" as="image">
+    <link rel="stylesheet" href="/styles.css?v=20260630-mobile-v6">
   </head>
   <body>
     <header class="app-header">
@@ -29,9 +30,14 @@
     <main class="shell">
       <section class="board-zone">
         <div id="board" class="board" aria-label="Bàn cờ tướng">
+          <div class="board-skin-layer" aria-hidden="true"></div>
           <canvas id="boardCanvas"></canvas>
           <canvas id="arrowCanvas"></canvas>
           <div id="pieces"></div>
+          <div id="motionLayer" class="motion-layer" aria-hidden="true">
+            <div id="capturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+            <div id="movingPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+          </div>
         </div>
       </section>
 
@@ -106,8 +112,15 @@
         </div>
       </aside>
     </main>
+    <div id="assetPreloadOverlay" class="asset-preload-overlay hidden" role="status" aria-live="polite" aria-label="Đang tải tài nguyên">
+      <div class="asset-preload-card">
+        <div class="asset-preload-spinner" aria-hidden="true"></div>
+        <strong>Tải tài nguyên</strong>
+        <p id="assetPreloadText">Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...</p>
+      </div>
+    </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260629-mobile-v4"></script>
+    <script src="/app.js?v=20260630-mobile-v6"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

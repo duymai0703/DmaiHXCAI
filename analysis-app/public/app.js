@@ -26,6 +26,17 @@ const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
+const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
+const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v6";
+const ANALYSIS_MOVE_ANIMATION_MS = 188;
+const ANALYSIS_PRELOAD_ASSETS = [
+  BOARD_SKIN_ASSET,
+  "/assets/icons/back.png",
+  "/assets/icons/header-logo.png",
+  "/assets/icons/icon-192.png",
+  ...Object.values(PIECE_IMAGES)
+];
 let wakePromise = null;
 
 const state = {
@@ -61,13 +72,20 @@ const state = {
   hintSlots: null,
   slotLayoutKey: "",
   mobilePanel: "analysis",
-  drawFrame: 0
+  drawFrame: 0,
+  assetWarmupPending: false,
+  moveAnimation: null,
+  moveAnimationTimer: 0,
+  lastAnimatedMoveKey: ""
 };
 
 const boardEl = document.getElementById("board");
 const boardCanvas = document.getElementById("boardCanvas");
 const arrowCanvas = document.getElementById("arrowCanvas");
 const piecesEl = document.getElementById("pieces");
+const motionLayerEl = document.getElementById("motionLayer");
+const capturePieceEl = document.getElementById("capturePiece");
+const movingPieceEl = document.getElementById("movingPiece");
 const analysisEl = document.getElementById("analysis");
 const cloudBookEl = document.getElementById("cloudBook");
 const historyEl = document.getElementById("history");
@@ -82,6 +100,8 @@ const copyFenBtn = document.getElementById("copyFenBtn");
 const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
+const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
+const assetPreloadTextEl = document.getElementById("assetPreloadText");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 
@@ -104,8 +124,7 @@ if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
 preventDoubleTapZoom();
-preloadPieceImages();
-
+const assetWarmupPromise = warmAnalysisAssets();
 init();
 
 function bindClick(id, handler) {
@@ -140,12 +159,88 @@ function scheduleBoardDraw() {
   }, 120);
 }
 
-function preloadPieceImages() {
-  Object.values(PIECE_IMAGES).forEach((src) => {
+async function warmAnalysisAssets() {
+  const warmedVersion = readStorage(ANALYSIS_ASSET_WARMUP_KEY);
+  const needsBlockingWarmup = warmedVersion !== ANALYSIS_ASSET_WARMUP_VERSION;
+  state.assetWarmupPending = needsBlockingWarmup;
+  renderAssetPreloadOverlay();
+
+  const normalizedAssets = [...new Set(ANALYSIS_PRELOAD_ASSETS)];
+  const tasks = [
+    cacheAnalysisAssets(normalizedAssets),
+    decodeAnalysisAssets(normalizedAssets)
+  ];
+
+  if (!needsBlockingWarmup) {
+    await Promise.allSettled(tasks);
+    void tryPersistBrowserStorage();
+    return;
+  }
+
+  try {
+    await Promise.all(tasks);
+    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+  } catch {}
+  void tryPersistBrowserStorage();
+}
+
+function renderAssetPreloadOverlay() {
+  if (!assetPreloadOverlayEl) return;
+  const visible = Boolean(state.assetWarmupPending);
+  assetPreloadOverlayEl.classList.toggle("hidden", !visible);
+  document.body.classList.toggle("asset-preload-active", visible);
+  if (visible && assetPreloadTextEl) {
+    assetPreloadTextEl.textContent = "Đang tải tài nguyên lần đầu để bàn cờ hiển thị mượt hơn...";
+  }
+}
+
+async function cacheAnalysisAssets(assets) {
+  if (!("caches" in window)) return;
+  const cache = await caches.open(`dmaihxcai-analysis-runtime-${ANALYSIS_ASSET_WARMUP_VERSION}`);
+  await Promise.all(assets.map(async (asset) => {
+    try {
+      const existing = await cache.match(asset);
+      if (existing) return;
+      const response = await fetch(asset, { cache: "force-cache" });
+      if (response && response.ok) await cache.put(asset, response.clone());
+    } catch {}
+  }));
+}
+
+async function decodeAnalysisAssets(assets) {
+  const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
+  await Promise.all(imageAssets.map((asset) => decodeAnalysisAsset(asset)));
+}
+
+function decodeAnalysisAsset(src) {
+  return new Promise((resolve) => {
     const image = new Image();
     image.decoding = "async";
+    image.loading = "eager";
     image.src = src;
+    const finish = () => resolve();
+    if (typeof image.decode === "function") {
+      image.decode().then(finish).catch(() => {
+        if (image.complete) finish();
+        else {
+          image.onload = finish;
+          image.onerror = finish;
+        }
+      });
+      return;
+    }
+    image.onload = finish;
+    image.onerror = finish;
   });
+}
+
+async function tryPersistBrowserStorage() {
+  if (!navigator.storage?.persist) return false;
+  try {
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
 }
 
 function autoDelay() {
@@ -159,6 +254,9 @@ async function init() {
   renderMobilePanelState();
   updateEditorUi();
   wakeBackend();
+  await assetWarmupPromise.catch(() => {});
+  state.assetWarmupPending = false;
+  renderAssetPreloadOverlay();
   await refreshStatus();
   draw();
   refreshCloudBook();
@@ -639,6 +737,103 @@ function onBoardClick(event) {
   draw();
 }
 
+function buildMoveAnimation(board, move, moveKey) {
+  if (!board || !/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
+  const from = uciToSquare(move.slice(0, 2));
+  const to = uciToSquare(move.slice(2, 4));
+  const piece = board[from.y]?.[from.x] || "";
+  if (!piece) return null;
+  const capturedPiece = board[to.y]?.[to.x] || "";
+  return {
+    move,
+    moveKey,
+    piece,
+    capturedPiece,
+    from,
+    to,
+    fromIndex: from.y * 9 + from.x,
+    toIndex: to.y * 9 + to.x
+  };
+}
+
+function clearMoveAnimation({ preserveKey = false } = {}) {
+  if (state.moveAnimationTimer) {
+    clearTimeout(state.moveAnimationTimer);
+    state.moveAnimationTimer = 0;
+  }
+  if (movingPieceEl) {
+    movingPieceEl.classList.remove("is-visible");
+    movingPieceEl.style.left = "0px";
+    movingPieceEl.style.top = "0px";
+    movingPieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    movingPieceEl.setAttribute("aria-hidden", "true");
+  }
+  if (capturePieceEl) {
+    capturePieceEl.classList.remove("is-visible", "fading");
+    capturePieceEl.style.left = "0px";
+    capturePieceEl.style.top = "0px";
+    capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    capturePieceEl.setAttribute("aria-hidden", "true");
+  }
+  state.moveAnimation = null;
+  if (!preserveKey) state.lastAnimatedMoveKey = "";
+}
+
+function startMoveAnimation(animation) {
+  if (!animation || !movingPieceEl) return;
+  clearMoveAnimation({ preserveKey: true });
+  state.moveAnimation = animation;
+  state.lastAnimatedMoveKey = animation.moveKey;
+
+  const fromPos = squareToPixel(animation.from);
+  const toPos = squareToPixel(animation.to);
+  const deltaX = toPos.x - fromPos.x;
+  const deltaY = toPos.y - fromPos.y;
+  const movingImage = movingPieceEl.querySelector(".piece-skin");
+  if (movingImage) {
+    movingImage.src = PIECE_IMAGES[animation.piece] || "";
+    movingImage.alt = PIECE_NAMES[animation.piece] || animation.piece;
+    movingImage.decoding = "sync";
+  }
+
+  movingPieceEl.style.transition = "none";
+  movingPieceEl.style.left = `${fromPos.x}px`;
+  movingPieceEl.style.top = `${fromPos.y}px`;
+  movingPieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+  movingPieceEl.classList.add("is-visible");
+  movingPieceEl.setAttribute("aria-hidden", "false");
+
+  if (animation.capturedPiece && capturePieceEl) {
+    const captureImage = capturePieceEl.querySelector(".piece-skin");
+    if (captureImage) {
+      captureImage.src = PIECE_IMAGES[animation.capturedPiece] || "";
+      captureImage.alt = PIECE_NAMES[animation.capturedPiece] || animation.capturedPiece;
+      captureImage.decoding = "sync";
+    }
+    capturePieceEl.style.left = `${toPos.x}px`;
+    capturePieceEl.style.top = `${toPos.y}px`;
+    capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    capturePieceEl.classList.remove("fading");
+    capturePieceEl.classList.add("is-visible");
+    capturePieceEl.setAttribute("aria-hidden", "false");
+  }
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+      movingPieceEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms cubic-bezier(0.2, 0.78, 0.22, 1), opacity 120ms ease`;
+      movingPieceEl.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+      if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
+    });
+  });
+
+  state.moveAnimationTimer = window.setTimeout(() => {
+    if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+    clearMoveAnimation({ preserveKey: true });
+    draw(true);
+  }, ANALYSIS_MOVE_ANIMATION_MS + 48);
+}
+
 function makeMove(move, { manual = true } = {}) {
   if (state.gameOver) return;
   if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return;
@@ -647,6 +842,7 @@ function makeMove(move, { manual = true } = {}) {
   const piece = getPiece(from);
   if (!piece) return;
   if (!isLegalMove(move, state.side)) return;
+  const moveAnimation = buildMoveAnimation(state.board, move, `${state.cursor + 1}:${move}`);
   if (manual) {
     stopScoreAnimation();
     state.bestMove = "";
@@ -667,6 +863,7 @@ function makeMove(move, { manual = true } = {}) {
   if (state.gameOver) stopAutoPlay();
   state.selected = null;
   state.hints = [];
+  if (moveAnimation) startMoveAnimation(moveAnimation);
   draw();
   refreshCloudBook();
   if (manual && state.analysisMode) {
@@ -676,17 +873,20 @@ function makeMove(move, { manual = true } = {}) {
 
 function undo() {
   if (state.cursor <= 0) return;
+  clearMoveAnimation();
   state.cursor -= 1;
   rebuildPosition();
 }
 
 function redo() {
   if (state.cursor >= state.moves.length) return;
+  clearMoveAnimation();
   state.cursor += 1;
   rebuildPosition();
 }
 
 function reset() {
+  clearMoveAnimation();
   state.moves = [];
   state.cursor = 0;
   rebuildPosition();
@@ -732,6 +932,7 @@ function updateEditorUi() {
 }
 
 function toggleEditMode() {
+  clearMoveAnimation();
   state.editMode = !state.editMode;
   stopAutoPlay();
   state.selected = null;
@@ -744,6 +945,7 @@ function toggleEditMode() {
 }
 
 function clearBoard() {
+  clearMoveAnimation();
   stopAutoPlay();
   stopScoreAnimation();
   state.board = emptyBoard();
@@ -768,6 +970,7 @@ function loadFenFromPrompt() {
   if (input === null) return;
   try {
     const parsed = parseFenInput(input);
+    clearMoveAnimation();
     stopAutoPlay();
     stopScoreAnimation();
     state.board = parsed.board;
@@ -827,6 +1030,7 @@ function showToast(message) {
 
 function setSideToMove() {
   if (!sideToMoveEl) return;
+  clearMoveAnimation();
   stopScoreAnimation();
   state.side = sideToMoveEl.value === "b" ? "b" : "w";
   state.moves = [];
@@ -839,6 +1043,7 @@ function setSideToMove() {
 }
 
 function editBoardSquare(square) {
+  clearMoveAnimation();
   const piece = state.editorPiece;
   if (piece && !isEditorPieceAllowed(piece, square)) return;
   stopScoreAnimation();
@@ -870,6 +1075,7 @@ function isEditorPieceAllowed(piece, square) {
 }
 
 function rebuildPosition() {
+  clearMoveAnimation();
   stopScoreAnimation();
   state.board = parseFen(START_FEN);
   state.side = "w";
@@ -930,38 +1136,25 @@ function drawBoard() {
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
   }
-  const ctx = boardCanvas.getContext("2d");
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  const g = geometry();
-  ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
-  ctx.lineWidth = Math.max(1.5, rect.width / 420);
-  for (let x = 0; x < 9; x++) {
-    line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
-    line(ctx, g.x(x), g.y(5), g.x(x), g.y(9));
-  }
-  for (let y = 0; y < 10; y++) line(ctx, g.x(0), g.y(y), g.x(8), g.y(y));
-  line(ctx, g.x(3), g.y(0), g.x(5), g.y(2));
-  line(ctx, g.x(5), g.y(0), g.x(3), g.y(2));
-  line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
-  line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
-  ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-  ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
-  ctx.textAlign = "center";
-  ctx.fillText("\u695a\u6cb3", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
-  ctx.fillText("\u6f22\u754c", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
 }
 
 function ensureBoardSlots() {
   const rect = boardEl.getBoundingClientRect();
   const layoutKey = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}`;
-  if (
-    state.pieceSlots &&
-    state.hintSlots &&
-    state.pieceSlots.length === 90 &&
-    state.hintSlots.length === 90 &&
-    state.slotLayoutKey === layoutKey
-  ) {
+  if (state.pieceSlots && state.hintSlots && state.pieceSlots.length === 90 && state.hintSlots.length === 90) {
+    if (state.slotLayoutKey !== layoutKey) {
+      for (let y = 0; y < 10; y++) {
+        for (let x = 0; x < 9; x++) {
+          const index = y * 9 + x;
+          const pos = squareToPixel({ x, y });
+          state.hintSlots[index].style.left = `${pos.x}px`;
+          state.hintSlots[index].style.top = `${pos.y}px`;
+          state.pieceSlots[index].style.left = `${pos.x}px`;
+          state.pieceSlots[index].style.top = `${pos.y}px`;
+        }
+      }
+      state.slotLayoutKey = layoutKey;
+    }
     return { pieceSlots: state.pieceSlots, hintSlots: state.hintSlots };
   }
 
@@ -991,6 +1184,14 @@ function ensureBoardSlots() {
       piece.style.left = `${pos.x}px`;
       piece.style.top = `${pos.y}px`;
       piece.setAttribute("aria-hidden", "true");
+      const image = document.createElement("img");
+      image.className = "piece-skin";
+      image.alt = "";
+      image.decoding = "sync";
+      image.loading = "eager";
+      image.fetchPriority = "high";
+      image.draggable = false;
+      piece.appendChild(image);
       fragment.appendChild(piece);
       state.pieceSlots.push(piece);
     }
@@ -1006,21 +1207,23 @@ function drawPieces() {
   const checkedSides = getCheckedSides();
   const selectionKey = state.selected ? squareToUci(state.selected) : "";
   const hintKey = state.hints.map(squareToUci).join(",");
-  const signature = `${boardSignature(state.board)}|${state.flipped ? "b" : "w"}|${selectionKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+  const animationKey = state.moveAnimation?.moveKey || "";
+  const signature = `${boardSignature(state.board)}|${state.flipped ? "b" : "w"}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
   if (signature === state.lastPieceFrame) return;
   state.lastPieceFrame = signature;
   const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
+  const hiddenToIndex = state.moveAnimation?.toIndex ?? -1;
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const index = y * 9 + x;
       const piece = state.board[y][x];
       const el = pieceSlots[index];
-      if (!piece) {
+      const shouldHideForAnimation = index === hiddenToIndex && piece === state.moveAnimation?.piece;
+      if (!piece || shouldHideForAnimation) {
         el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
         if (el.dataset.piece) {
           el.dataset.piece = "";
-          el.style.removeProperty("--piece-image");
           el.removeAttribute("aria-label");
         }
         el.setAttribute("aria-hidden", "true");
@@ -1033,7 +1236,11 @@ function drawPieces() {
         el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
         if (el.dataset.piece !== piece) {
           el.dataset.piece = piece;
-          el.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+          const image = el.querySelector(".piece-skin");
+          if (image) {
+            image.src = PIECE_IMAGES[piece];
+            image.alt = PIECE_NAMES[piece] || piece;
+          }
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
         el.setAttribute("aria-hidden", "false");
@@ -1850,6 +2057,20 @@ function mixArrowColor(base, ratio, target, alpha = base.a) {
 
 function rgbaString(color) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+}
+
+function readStorage(key) {
+  try {
+    return String(localStorage.getItem(key) || "");
+  } catch {
+    return "";
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, String(value || ""));
+  } catch {}
 }
 
 async function api(url, body) {

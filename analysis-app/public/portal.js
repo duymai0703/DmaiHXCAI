@@ -11,7 +11,8 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v12";
+  const ASSET_WARMUP_VERSION = "20260630-v13";
+  const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
     "/assets/device-avatars/goku.png",
@@ -45,6 +46,7 @@
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
   const PORTAL_PRELOAD_ASSETS = [
+    BOARD_SKIN_ASSET,
     "/assets/icons/back.png",
     "/assets/icons/header-logo.png",
     "/assets/icons/icon-192.png",
@@ -55,6 +57,7 @@
     ...Object.values(REVIEW_BADGES).map((entry) => entry.image),
     ...Object.values(PIECE_IMAGES)
   ];
+  const ROOM_MOVE_ANIMATION_MS = 188;
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
@@ -109,7 +112,10 @@
     lastBoardSizeKey: "",
     roomMobilePanel: "control",
     roomTurnFlashTimer: 0,
-    assetWarmupPending: false
+    assetWarmupPending: false,
+    roomAnimation: null,
+    roomAnimationTimer: 0,
+    lastAnimatedRoomMoveKey: ""
   };
 
   const dom = {
@@ -175,6 +181,9 @@
     roomBoardCanvas: byId("roomBoardCanvas"),
     roomMarks: byId("roomMarks"),
     roomPieces: byId("roomPieces"),
+    roomMotionLayer: byId("roomMotionLayer"),
+    roomCapturePiece: byId("roomCapturePiece"),
+    roomMotionPiece: byId("roomMotionPiece"),
     roomBoardOverlay: byId("roomBoardOverlay"),
     roomOverlayTitle: byId("roomOverlayTitle"),
     roomOverlayText: byId("roomOverlayText"),
@@ -329,6 +338,7 @@
 
     if (!needsBlockingWarmup) {
       await Promise.allSettled(tasks);
+      void tryPersistBrowserStorage();
       return;
     }
 
@@ -336,6 +346,7 @@
       await Promise.all(tasks);
       writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
     } catch {}
+    void tryPersistBrowserStorage();
   }
 
   function renderAssetPreloadOverlay() {
@@ -386,6 +397,15 @@
       image.onload = finish;
       image.onerror = finish;
     });
+  }
+
+  async function tryPersistBrowserStorage() {
+    if (!navigator.storage?.persist) return false;
+    try {
+      return await navigator.storage.persist();
+    } catch {
+      return false;
+    }
   }
 
   async function bootstrap() {
@@ -1226,6 +1246,7 @@
     const wasFinished = Boolean(previous?.result);
     const isFinished = Boolean(room?.result);
     const shouldFlashTurn = shouldTriggerTurnFlash(previous, room);
+    const incomingAnimation = deriveRoomAnimation(previous, room);
 
     state.room = room || null;
     if (!room) {
@@ -1237,6 +1258,8 @@
       state.roomPieceSlots = null;
       state.roomHintSlots = null;
       state.roomSlotLayoutKey = "";
+      state.lastAnimatedRoomMoveKey = "";
+      clearRoomMoveAnimation();
       clearTurnFlash();
       renderRoomState({ forceBoard: true, keepSelection: false });
       updateResumeButton();
@@ -1253,8 +1276,14 @@
       state.hints = [];
     }
 
+    if (incomingAnimation) {
+      state.roomAnimation = incomingAnimation;
+      state.lastAnimatedRoomMoveKey = incomingAnimation.moveKey;
+    }
+
     updateResumeButton();
     renderRoomState({ forceBoard, keepSelection });
+    if (incomingAnimation) startRoomMoveAnimation(incomingAnimation);
     if (shouldFlashTurn) triggerTurnFlash();
     else if (room.role !== "player" || !room.yourTurn || room.status !== "active" || room.result) clearTurnFlash();
 
@@ -1295,6 +1324,120 @@
     state.roomTurnFlashTimer = window.setTimeout(() => {
       clearTurnFlash();
     }, 2050);
+  }
+
+  function deriveRoomAnimation(previousRoom, nextRoom) {
+    if (!previousRoom || !nextRoom) return null;
+    if (previousRoom.key !== nextRoom.key) return null;
+    const previousMoves = Array.isArray(previousRoom.moves) ? previousRoom.moves : [];
+    const nextMoves = Array.isArray(nextRoom.moves) ? nextRoom.moves : [];
+    if (nextMoves.length <= previousMoves.length) return null;
+    const latestMove = nextMoves[nextMoves.length - 1];
+    const move = String(latestMove?.move || "");
+    if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
+    const moveKey = `${nextRoom.key}:${nextMoves.length}:${move}`;
+    if (state.lastAnimatedRoomMoveKey === moveKey) return null;
+    const previousBoard = XiangqiCore.parseFenState(previousRoom.boardFen || START_FEN).board;
+    return buildRoomAnimation(previousBoard, move, moveKey);
+  }
+
+  function buildRoomAnimation(board, move, moveKey) {
+    if (!board || !/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
+    const from = uciToSquare(move.slice(0, 2));
+    const to = uciToSquare(move.slice(2, 4));
+    const piece = board[from.y]?.[from.x] || "";
+    if (!piece) return null;
+    const capturedPiece = board[to.y]?.[to.x] || "";
+    return {
+      move,
+      moveKey,
+      piece,
+      capturedPiece,
+      from,
+      to,
+      fromIndex: from.y * 9 + from.x,
+      toIndex: to.y * 9 + to.x
+    };
+  }
+
+  function clearRoomMoveAnimation({ preserveKey = false } = {}) {
+    if (state.roomAnimationTimer) {
+      clearTimeout(state.roomAnimationTimer);
+      state.roomAnimationTimer = 0;
+    }
+    if (dom.roomMotionPiece) {
+      dom.roomMotionPiece.classList.remove("is-visible");
+      dom.roomMotionPiece.style.left = "0px";
+      dom.roomMotionPiece.style.top = "0px";
+      dom.roomMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+      dom.roomMotionPiece.setAttribute("aria-hidden", "true");
+    }
+    if (dom.roomCapturePiece) {
+      dom.roomCapturePiece.classList.remove("is-visible", "fading");
+      dom.roomCapturePiece.style.left = "0px";
+      dom.roomCapturePiece.style.top = "0px";
+      dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+      dom.roomCapturePiece.setAttribute("aria-hidden", "true");
+    }
+    state.roomAnimation = null;
+    if (!preserveKey) state.lastAnimatedRoomMoveKey = "";
+  }
+
+  function startRoomMoveAnimation(animation) {
+    if (!animation || !dom.roomMotionPiece) return;
+    clearRoomMoveAnimation({ preserveKey: true });
+    state.roomAnimation = animation;
+    state.lastAnimatedRoomMoveKey = animation.moveKey;
+
+    const fromPixel = squareToPixel(animation.from);
+    const toPixel = squareToPixel(animation.to);
+    const deltaX = toPixel.x - fromPixel.x;
+    const deltaY = toPixel.y - fromPixel.y;
+    const movingImage = dom.roomMotionPiece.querySelector(".piece-skin");
+    if (movingImage) {
+      movingImage.src = PIECE_IMAGES[animation.piece] || "";
+      movingImage.alt = animation.piece;
+      movingImage.decoding = "sync";
+    }
+
+    dom.roomMotionPiece.style.transition = "none";
+    dom.roomMotionPiece.style.left = `${fromPixel.x}px`;
+    dom.roomMotionPiece.style.top = `${fromPixel.y}px`;
+    dom.roomMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    dom.roomMotionPiece.classList.add("is-visible");
+    dom.roomMotionPiece.setAttribute("aria-hidden", "false");
+
+    if (animation.capturedPiece && dom.roomCapturePiece) {
+      const captureImage = dom.roomCapturePiece.querySelector(".piece-skin");
+      if (captureImage) {
+        captureImage.src = PIECE_IMAGES[animation.capturedPiece] || "";
+        captureImage.alt = animation.capturedPiece;
+        captureImage.decoding = "sync";
+      }
+      dom.roomCapturePiece.style.left = `${toPixel.x}px`;
+      dom.roomCapturePiece.style.top = `${toPixel.y}px`;
+      dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+      dom.roomCapturePiece.classList.remove("fading");
+      dom.roomCapturePiece.classList.add("is-visible");
+      dom.roomCapturePiece.setAttribute("aria-hidden", "false");
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
+        dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms cubic-bezier(0.2, 0.78, 0.22, 1), opacity 120ms ease`;
+        dom.roomMotionPiece.style.transform = `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+        if (animation.capturedPiece && dom.roomCapturePiece) {
+          dom.roomCapturePiece.classList.add("fading");
+        }
+      });
+    });
+
+    state.roomAnimationTimer = window.setTimeout(() => {
+      if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
+      clearRoomMoveAnimation({ preserveKey: true });
+      drawRoomPieces(true);
+    }, ROOM_MOVE_ANIMATION_MS + 48);
   }
 
   function updateResumeButton() {
@@ -1616,13 +1759,20 @@
     const rect = dom.roomBoard.getBoundingClientRect();
     if (!rect.width || !rect.height) return { pieceSlots: [], hintSlots: [] };
     const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
-    if (
-      state.roomPieceSlots &&
-      state.roomHintSlots &&
-      state.roomPieceSlots.length === 90 &&
-      state.roomHintSlots.length === 90 &&
-      state.roomSlotLayoutKey === layoutKey
-    ) {
+    if (state.roomPieceSlots && state.roomHintSlots && state.roomPieceSlots.length === 90 && state.roomHintSlots.length === 90) {
+      if (state.roomSlotLayoutKey !== layoutKey) {
+        for (let y = 0; y < 10; y += 1) {
+          for (let x = 0; x < 9; x += 1) {
+            const index = y * 9 + x;
+            const pixel = squareToPixel({ x, y });
+            state.roomHintSlots[index].style.left = `${pixel.x}px`;
+            state.roomHintSlots[index].style.top = `${pixel.y}px`;
+            state.roomPieceSlots[index].style.left = `${pixel.x}px`;
+            state.roomPieceSlots[index].style.top = `${pixel.y}px`;
+          }
+        }
+        state.roomSlotLayoutKey = layoutKey;
+      }
       return { pieceSlots: state.roomPieceSlots, hintSlots: state.roomHintSlots };
     }
 
@@ -1652,8 +1802,9 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "async";
+        image.decoding = "sync";
         image.loading = "eager";
+        image.fetchPriority = "high";
         image.draggable = false;
         piece.appendChild(image);
         pieceFragment.appendChild(piece);
@@ -1684,7 +1835,18 @@
     const rect = dom.reviewBoard.getBoundingClientRect();
     if (!rect.width || !rect.height) return [];
     const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${reviewViewSide()}`;
-    if (state.reviewPieceSlots && state.reviewPieceSlots.length === 90 && state.reviewSlotLayoutKey === layoutKey) {
+    if (state.reviewPieceSlots && state.reviewPieceSlots.length === 90) {
+      if (state.reviewSlotLayoutKey !== layoutKey) {
+        for (let y = 0; y < 10; y += 1) {
+          for (let x = 0; x < 9; x += 1) {
+            const index = y * 9 + x;
+            const pixel = reviewSquareToPixel({ x, y });
+            state.reviewPieceSlots[index].style.left = `${pixel.x}px`;
+            state.reviewPieceSlots[index].style.top = `${pixel.y}px`;
+          }
+        }
+        state.reviewSlotLayoutKey = layoutKey;
+      }
       return state.reviewPieceSlots;
     }
 
@@ -1702,8 +1864,9 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "async";
+        image.decoding = "sync";
         image.loading = "eager";
+        image.fetchPriority = "high";
         image.draggable = false;
         piece.appendChild(image);
         fragment.appendChild(piece);
@@ -1722,6 +1885,7 @@
     const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
     if (!force && signature === state.lastBoardFrame) return;
     state.lastBoardFrame = signature;
+    return;
 
     const canvas = dom.roomBoardCanvas;
     canvas.width = Math.round(rect.width * devicePixelRatio);
@@ -1761,19 +1925,22 @@
     const checkedSides = getCheckedSides(board);
     const selectionKey = state.selectedSquare ? XiangqiCore.squareToUci(state.selectedSquare) : "";
     const hintKey = state.hints.map(XiangqiCore.squareToUci).join(",");
-    const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${selectionKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    const animationKey = state.roomAnimation?.moveKey || "";
+    const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.lastPieceFrame) return;
     state.lastPieceFrame = signature;
     const { pieceSlots, hintSlots } = ensureRoomSlots();
     if (!pieceSlots.length || !hintSlots.length) return;
     const hintIndexes = new Set(state.hints.map((square) => square.y * 9 + square.x));
+    const hiddenToIndex = state.roomAnimation?.toIndex ?? -1;
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const piece = board[y]?.[x] || "";
         const el = pieceSlots[index];
-        if (!piece) {
+        const shouldHideForAnimation = index === hiddenToIndex && piece === state.roomAnimation?.piece;
+        if (!piece || shouldHideForAnimation) {
           el.classList.remove("is-visible");
           el.classList.remove("selected", "in-check");
           if (el.dataset.piece) {
@@ -1821,6 +1988,7 @@
       item.style.width = `${rect.width}px`;
       item.style.height = `${rect.height}px`;
     }
+    return;
 
     const ctx = canvas.getContext("2d");
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
@@ -1999,6 +2167,11 @@
     const previousBoard = state.roomBoard.map((row) => row.slice());
     const previousSyncedAt = state.roomSyncedAt;
     const localBoard = state.roomBoard.map((row) => row.slice());
+    const localAnimation = buildRoomAnimation(
+      previousBoard,
+      move,
+      `${state.room.key}:${(Array.isArray(state.room.moves) ? state.room.moves.length : 0) + 1}:${move}`
+    );
     const notation = XiangqiCore.formatMoveNotation(move, state.roomBoard, side);
     const remaining = liveClockFor(side);
     XiangqiCore.applyMoveToBoard(localBoard, move);
@@ -2030,6 +2203,7 @@
     }
     state.roomSyncedAt = Date.now();
     state.roomActionBusy = true;
+    if (localAnimation) startRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();
     try {
       const payload = await api("/api/rooms/move", {
@@ -2039,6 +2213,7 @@
       state.roomActionBusy = false;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: false });
     } catch (error) {
+      clearRoomMoveAnimation();
       state.room = previousRoom;
       state.roomBoard = previousBoard;
       state.roomSyncedAt = previousSyncedAt;

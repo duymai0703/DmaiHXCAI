@@ -20,7 +20,8 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="stylesheet" href="/portal.css?v=20260630-room-v10">
+    <link rel="preload" href="/assets/board/board-skin.svg" as="image">
+    <link rel="stylesheet" href="/portal.css?v=20260630-room-v14">
   </head>
   <body>
     <header class="portal-header">
@@ -208,9 +209,14 @@
               </div>
 
               <div id="roomBoard" class="room-board" aria-label="Bàn cờ phòng đấu">
+                <div class="board-skin-layer" aria-hidden="true"></div>
                 <canvas id="roomBoardCanvas"></canvas>
                 <div id="roomMarks"></div>
                 <div id="roomPieces"></div>
+                <div id="roomMotionLayer" class="motion-layer" aria-hidden="true">
+                  <div id="roomCapturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+                  <div id="roomMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+                </div>
                 <div id="roomBoardOverlay" class="room-board-overlay hidden">
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
@@ -339,6 +345,7 @@
 
             <div class="review-board-wrap">
               <div id="reviewBoard" class="room-board review-board">
+                <div class="board-skin-layer" aria-hidden="true"></div>
                 <canvas id="reviewBoardCanvas"></canvas>
                 <canvas id="reviewArrowCanvas"></canvas>
                 <div id="reviewPieces"></div>
@@ -401,7 +408,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260630-room-v12"></script>
+    <script src="/portal.js?v=20260630-room-v14"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
