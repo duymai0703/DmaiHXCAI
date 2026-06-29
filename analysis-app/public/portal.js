@@ -53,10 +53,11 @@
     okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
   };
-  const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [
+  const PORTAL_BLOCKING_ASSETS = [
     "/assets/icons/back.png",
-    "/assets/icons/header-logo.png",
+    "/assets/icons/header-logo.png"
+  ];
+  const PORTAL_BACKGROUND_ASSETS = [
     "/assets/icons/icon-192.png",
     "/assets/posters/xeposter.png",
     "/assets/posters/phaoposter.png",
@@ -346,12 +347,10 @@
     const backgroundAssets = [...new Set(
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
-    const supportsCache = "caches" in window;
     const totalSteps = Math.max(
       1,
-      (supportsCache ? blockingAssets.length + backgroundAssets.length : 0) +
-      countImageAssets(blockingAssets) +
-      countImageAssets(backgroundAssets)
+      ("caches" in window ? blockingAssets.length : 0) +
+      countImageAssets(blockingAssets)
     );
     const tracker = createPortalWarmupTracker(totalSteps);
 
@@ -360,12 +359,15 @@
     state.assetWarmupText = PORTAL_PRELOAD_TEXT.prepare;
     renderAssetPreloadOverlay();
 
+    void Promise.allSettled([
+      cacheStaticAssets(backgroundAssets),
+      decodeImageAssets(backgroundAssets)
+    ]).catch(() => {});
+
     try {
       await Promise.allSettled([
         cacheStaticAssets(blockingAssets, tracker),
-        decodeImageAssets(blockingAssets, tracker),
-        cacheStaticAssets(backgroundAssets, tracker),
-        decodeImageAssets(backgroundAssets, tracker)
+        decodeImageAssets(blockingAssets, tracker)
       ]);
       writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
       tracker.finish(PORTAL_PRELOAD_TEXT.done);

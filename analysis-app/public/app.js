@@ -185,12 +185,10 @@ async function warmAnalysisAssets() {
 
   const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
   const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
-  const supportsCache = "caches" in window;
   const totalSteps = Math.max(
     1,
-    (supportsCache ? blockingAssets.length + backgroundAssets.length : 0) +
-    countImageAssets(blockingAssets) +
-    countImageAssets(backgroundAssets)
+    ("caches" in window ? blockingAssets.length : 0) +
+    countImageAssets(blockingAssets)
   );
   const tracker = createAssetWarmupTracker(totalSteps);
 
@@ -199,12 +197,15 @@ async function warmAnalysisAssets() {
   state.assetWarmupText = ANALYSIS_PRELOAD_TEXT.prepare;
   renderAssetPreloadOverlay();
 
+  void Promise.allSettled([
+    cacheAnalysisAssets(backgroundAssets),
+    decodeAnalysisAssets(backgroundAssets)
+  ]).catch(() => {});
+
   try {
     await Promise.allSettled([
       cacheAnalysisAssets(blockingAssets, tracker),
-      decodeAnalysisAssets(blockingAssets, tracker),
-      cacheAnalysisAssets(backgroundAssets, tracker),
-      decodeAnalysisAssets(backgroundAssets, tracker)
+      decodeAnalysisAssets(blockingAssets, tracker)
     ]);
     writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
     tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
