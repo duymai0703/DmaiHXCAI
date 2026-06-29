@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260630-v24";
+  const ASSET_WARMUP_VERSION = "20260630-v25";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -56,7 +56,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260630-mobile-v11",
-    "/app.js?v=20260630-mobile-v19",
+    "/app.js?v=20260630-mobile-v20",
     BOARD_SKIN_ASSET,
     ...Object.values(PIECE_IMAGES)
   ];
@@ -1191,18 +1191,16 @@
     }
 
     const slots = ensureReviewSlots();
-    const movingSlotEl = slots[animation.toIndex];
+    const movingSlotEl = slots[animation.fromIndex];
     if (!movingSlotEl) return;
     state.activeReviewMoveSlotEl = movingSlotEl;
-    if (!prepared) {
-      movingSlotEl.style.transition = "none";
-      movingSlotEl.style.transform = directionalAnimationOffsetTransform(animation, reviewSquareToPixel);
-    }
+    movingSlotEl.style.transition = "none";
+    movingSlotEl.style.transform = "translate(-50%, -50%)";
 
     void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-    movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, reviewSquareToPixel);
 
     state.reviewAnimationTimer = window.setTimeout(() => {
       finalizeReviewMoveAnimation(animation);
@@ -1589,13 +1587,13 @@
     };
   }
 
-  function directionalAnimationOffsetTransform(animation, pixelForSquare) {
+  function directionalAnimationTravelTransform(animation, pixelForSquare) {
     if (!animation) return "translate(-50%, -50%)";
     const fromPixel = pixelForSquare(animation.from);
     const toPixel = pixelForSquare(animation.to);
     const deltaX = toPixel.x - fromPixel.x;
     const deltaY = toPixel.y - fromPixel.y;
-    return `translate(-50%, -50%) translate3d(${-deltaX}px, ${-deltaY}px, 0)`;
+    return `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
   }
 
   function clearRoomMoveAnimation({ preserveKey = false } = {}) {
@@ -1672,13 +1670,11 @@
 
     const toPixel = squareToPixel(animation.to);
     const { pieceSlots } = ensureRoomSlots();
-    const movingSlotEl = pieceSlots[animation.toIndex];
+    const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
     state.activeRoomMoveSlotEl = movingSlotEl;
-    if (!prepared) {
-      movingSlotEl.style.transition = "none";
-      movingSlotEl.style.transform = directionalAnimationOffsetTransform(animation, squareToPixel);
-    }
+    movingSlotEl.style.transition = "none";
+    movingSlotEl.style.transform = "translate(-50%, -50%)";
 
     if (animation.capturedPiece && dom.roomCapturePiece) {
       const captureImage = dom.roomCapturePiece.querySelector(".piece-skin");
@@ -1699,7 +1695,7 @@
     void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-    movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel);
     if (animation.capturedPiece && dom.roomCapturePiece) {
       dom.roomCapturePiece.classList.add("fading");
     }
@@ -2226,7 +2222,12 @@
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
-        const piece = board[y]?.[x] || "";
+        const animation = state.roomAnimation;
+        let piece = board[y]?.[x] || "";
+        if (animation) {
+          if (index === animation.fromIndex) piece = animation.piece;
+          else if (index === animation.toIndex) piece = "";
+        }
         const el = pieceSlots[index];
         if (!piece) {
           el.classList.remove("is-visible");
@@ -2251,10 +2252,10 @@
             }
             el.setAttribute("aria-label", piece);
           }
-          if (state.roomAnimation && state.roomAnimation.toIndex === index) {
+          if (state.roomAnimation && state.roomAnimation.fromIndex === index) {
             state.activeRoomMoveSlotEl = el;
             el.style.transition = "none";
-            el.style.transform = directionalAnimationOffsetTransform(state.roomAnimation, squareToPixel);
+            el.style.transform = "translate(-50%, -50%)";
           } else {
             el.style.transition = "none";
             el.style.transform = "translate(-50%, -50%)";
@@ -2332,7 +2333,12 @@
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
-        const piece = board[y]?.[x] || "";
+        const animation = state.reviewAnimation;
+        let piece = board[y]?.[x] || "";
+        if (animation) {
+          if (index === animation.fromIndex) piece = animation.piece;
+          else if (index === animation.toIndex) piece = "";
+        }
         const el = slots[index];
         if (!piece) {
           el.classList.remove("is-visible");
@@ -2361,10 +2367,10 @@
           }
           el.setAttribute("aria-label", piece);
         }
-        if (state.reviewAnimation && state.reviewAnimation.toIndex === index) {
+        if (state.reviewAnimation && state.reviewAnimation.fromIndex === index) {
           state.activeReviewMoveSlotEl = el;
           el.style.transition = "none";
-          el.style.transform = directionalAnimationOffsetTransform(state.reviewAnimation, reviewSquareToPixel);
+          el.style.transform = "translate(-50%, -50%)";
         } else {
           el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";

@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v16";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v17";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -897,13 +897,13 @@ function buildMoveAnimation(board, move, moveKey) {
   };
 }
 
-function moveAnimationOffsetTransform(animation) {
+function moveAnimationTravelTransform(animation) {
   if (!animation) return "translate(-50%, -50%)";
   const fromPos = squareToPixel(animation.from);
   const toPos = squareToPixel(animation.to);
   const deltaX = toPos.x - fromPos.x;
   const deltaY = toPos.y - fromPos.y;
-  return `translate(-50%, -50%) translate3d(${-deltaX}px, ${-deltaY}px, 0)`;
+  return `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
 }
 
 function clearMoveAnimation({ preserveKey = false } = {}) {
@@ -978,15 +978,14 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     primeMoveAnimation(animation);
   }
 
-  const toPos = squareToPixel(animation.to);
   const { pieceSlots } = ensureBoardSlots();
-  const movingSlotEl = pieceSlots[animation.toIndex];
+  const movingSlotEl = pieceSlots[animation.fromIndex];
   if (!movingSlotEl) return;
   state.activeMoveSlotEl = movingSlotEl;
-  if (!prepared) {
-    movingSlotEl.style.transition = "none";
-    movingSlotEl.style.transform = moveAnimationOffsetTransform(animation);
-  }
+  movingSlotEl.style.transition = "none";
+  movingSlotEl.style.transform = "translate(-50%, -50%)";
+
+  const toPos = squareToPixel(animation.to);
 
   if (animation.capturedPiece && capturePieceEl) {
     const captureImage = capturePieceEl.querySelector(".piece-skin");
@@ -1007,7 +1006,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   movingSlotEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}`;
-  movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+  movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
   if (animation.capturedPiece && capturePieceEl) capturePieceEl.classList.add("fading");
 
   state.moveAnimationTimer = window.setTimeout(() => {
@@ -1433,7 +1432,12 @@ function drawPieces() {
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const index = y * 9 + x;
-      const piece = state.board[y][x];
+      const animation = state.moveAnimation;
+      let piece = state.board[y][x];
+      if (animation) {
+        if (index === animation.fromIndex) piece = animation.piece;
+        else if (index === animation.toIndex) piece = "";
+      }
       const el = pieceSlots[index];
       if (!piece) {
         el.classList.remove("is-visible");
@@ -1461,10 +1465,10 @@ function drawPieces() {
           }
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
-        if (state.moveAnimation && state.moveAnimation.toIndex === index) {
+        if (state.moveAnimation && state.moveAnimation.fromIndex === index) {
           state.activeMoveSlotEl = el;
           el.style.transition = "none";
-          el.style.transform = moveAnimationOffsetTransform(state.moveAnimation);
+          el.style.transform = "translate(-50%, -50%)";
         } else {
           el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";
