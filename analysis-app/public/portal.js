@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260706-v29";
+  const ASSET_WARMUP_VERSION = "20260706-v30";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -59,7 +59,7 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260706-mobile-v12",
+    "/styles.css?v=20260706-mobile-v13",
     "/app.js?v=20260706-mobile-v21",
     BOARD_SKIN_ASSET
   ];
