@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260706-v31";
+  const ASSET_WARMUP_VERSION = "20260706-v32";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -126,6 +126,7 @@
     assetWarmupText: PORTAL_PRELOAD_TEXT.prepare,
     roomAnimation: null,
     roomAnimationTimer: 0,
+    roomAnimationRunning: false,
     lastAnimatedRoomMoveKey: "",
     activeRoomMoveSlotEl: null,
     activeReviewMoveSlotEl: null
@@ -1600,6 +1601,7 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    state.roomAnimationRunning = false;
     hideRoomMoveAnimationElements();
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
@@ -1635,6 +1637,7 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    state.roomAnimationRunning = false;
     hideRoomMoveAnimationElements();
     state.roomAnimation = animation;
     state.lastAnimatedRoomMoveKey = animation.moveKey;
@@ -1647,6 +1650,7 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    state.roomAnimationRunning = false;
     hideRoomMoveAnimationElements();
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
@@ -1660,6 +1664,7 @@
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
+    state.roomAnimationRunning = false;
     hideRoomMoveAnimationElements();
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
@@ -1684,6 +1689,7 @@
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
     state.activeRoomMoveSlotEl = movingSlotEl;
+    state.roomAnimationRunning = false;
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = "translate(-50%, -50%)";
 
@@ -1691,6 +1697,7 @@
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel);
+    state.roomAnimationRunning = true;
 
     state.roomAnimationTimer = window.setTimeout(() => {
       finalizeRoomMoveAnimation(animation);
@@ -2246,9 +2253,12 @@
             el.setAttribute("aria-label", piece);
           }
           if (state.roomAnimation && state.roomAnimation.fromIndex === index) {
+            const keepRunningTransform = state.roomAnimationRunning && state.activeRoomMoveSlotEl === el;
             state.activeRoomMoveSlotEl = el;
-            el.style.transition = "none";
-            el.style.transform = "translate(-50%, -50%)";
+            if (!keepRunningTransform) {
+              el.style.transition = "none";
+              el.style.transform = "translate(-50%, -50%)";
+            }
           } else {
             el.style.transition = "none";
             el.style.transform = "translate(-50%, -50%)";
@@ -2727,10 +2737,11 @@
   }
 
   async function pollRoomState() {
-    if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room") return;
+    if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room" || state.roomActionBusy || state.roomAnimation) return;
     state.roomPollBusy = true;
     try {
       const payload = await api(`/api/rooms/state?key=${encodeURIComponent(state.roomKey)}`);
+      if (state.roomActionBusy || state.roomAnimation || state.route !== "room") return;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
     } catch (error) {
       if (/ROOM_NOT_FOUND|Không tìm thấy phòng/i.test(error.message || "")) {
