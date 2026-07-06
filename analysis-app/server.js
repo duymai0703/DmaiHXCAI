@@ -35,6 +35,7 @@ const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "admin");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
+const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_PASSWORD);
 const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "DmaiHXCAI Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
 const DEVICE_AVATAR_PATHS = new Set([
@@ -530,7 +531,9 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
       history: normalizeHistoryEntries(user.history),
-      createdAt: user.createdAt || nowIso()
+      createdAt: user.createdAt || nowIso(),
+      lastSeenAt: user.lastSeenAt || "",
+      currentActivity: sanitizeUserActivity(user.currentActivity || {})
     };
   }
 
@@ -613,6 +616,56 @@ function sanitizeAvatarUrl(value) {
   return "";
 }
 
+function sanitizeActivityRoute(value) {
+  const route = String(value || "").trim().toLowerCase();
+  return ["home", "match", "library", "admin", "room", "review", "analysis"].includes(route) ? route : "";
+}
+
+function sanitizeRoomKey(value) {
+  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+}
+
+function sanitizeUserActivity(activity = {}) {
+  const route = sanitizeActivityRoute(activity.route);
+  const roomKey = sanitizeRoomKey(activity.roomKey);
+  const action = String(activity.action || activity.label || "").normalize("NFC").replace(/\s+/gu, " ").trim().slice(0, 80);
+  const updatedAt = activity.updatedAt && !Number.isNaN(Date.parse(activity.updatedAt)) ? activity.updatedAt : "";
+  return {
+    route,
+    roomKey,
+    action,
+    updatedAt
+  };
+}
+
+function touchUserActivity(user, activity = {}) {
+  if (!user) return;
+  const previousSeen = Date.parse(user.lastSeenAt || 0) || 0;
+  const now = nowIso();
+  const current = sanitizeUserActivity({
+    ...(user.currentActivity || {}),
+    ...activity,
+    updatedAt: now
+  });
+  user.lastSeenAt = now;
+  user.currentActivity = current;
+  if (Date.now() - previousSeen > 8000) saveUsers();
+}
+
+function isAdminQuickLoginName(displayName) {
+  const safeName = normalizePersonName(displayName).toLowerCase();
+  return safeName === ADMIN_USERNAME || safeName === normalizePersonName(ADMIN_DISPLAY_NAME).toLowerCase();
+}
+
+function isAdminRoomKey(value) {
+  const submitted = String(value || "");
+  const expected = String(ADMIN_ROOM_KEY || "");
+  if (!submitted || !expected) return false;
+  const left = Buffer.from(submitted);
+  const right = Buffer.from(expected);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
 function ensureAdminUser() {
   const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.username === ADMIN_USERNAME);
   if (existing) {
@@ -633,11 +686,16 @@ function ensureAdminUser() {
       existing.createdAt = nowIso();
       changed = true;
     }
+    if (!existing.currentActivity) {
+      existing.currentActivity = { route: "admin", roomKey: "", action: "Quản trị", updatedAt: "" };
+      changed = true;
+    }
     if (changed) saveUsers();
     return existing;
   }
 
   const passwordInfo = hashPassword(ADMIN_PASSWORD);
+  const now = nowIso();
   const adminUser = {
     id: randomId(12),
     email: ADMIN_EMAIL,
@@ -649,7 +707,9 @@ function ensureAdminUser() {
     avatarSeed: randomBase36(4),
     avatarUrl: "",
     history: [],
-    createdAt: nowIso()
+    createdAt: now,
+    lastSeenAt: "",
+    currentActivity: { route: "admin", roomKey: "", action: "Quản trị", updatedAt: "" }
   };
   users.push(adminUser);
   saveUsers();
@@ -696,6 +756,11 @@ function getAuthenticatedUser(req) {
 function requireUser(req) {
   const user = getAuthenticatedUser(req);
   if (!user) throw new Error("UNAUTHORIZED");
+  touchUserActivity(user, {
+    route: user.currentActivity?.route || "",
+    roomKey: user.currentActivity?.roomKey || "",
+    action: user.currentActivity?.action || "Đang hoạt động"
+  });
   return user;
 }
 
@@ -729,15 +794,23 @@ function findGuestByDeviceId(deviceId) {
 }
 
 function adminUserSummary(user) {
+  const room = currentRoomForUser(user.id);
+  const lastSeenMs = Date.parse(user.lastSeenAt || 0) || 0;
+  const online = lastSeenMs > 0 && Date.now() - lastSeenMs <= PRESENCE_TTL_MS * 2;
   return {
     id: user.id,
     email: user.email,
     username: user.username,
-    role: user.role === "admin" ? "admin" : "user",
+    role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     createdAt: user.createdAt || nowIso(),
+    lastSeenAt: user.lastSeenAt || "",
+    online,
+    currentActivity: sanitizeUserActivity(user.currentActivity || {}),
+    currentRoomKey: room?.key || user.currentActivity?.roomKey || "",
+    currentRoomRole: room ? roomAccessForUser(room, user.id).role : "",
     history: normalizeHistoryEntries(user.history),
     historyCount: Array.isArray(user.history) ? user.history.length : 0
   };
@@ -794,6 +867,7 @@ function uniqueGuestIdentity() {
 function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {}) {
   const identity = uniqueGuestIdentity();
   const passwordInfo = hashPassword(randomId(18));
+  const now = nowIso();
   const guestUser = {
     id: randomId(12),
     email: identity.email,
@@ -806,7 +880,9 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
     avatarSeed: randomBase36(4),
     avatarUrl: sanitizeAvatarUrl(avatarUrl),
     history: [],
-    createdAt: nowIso()
+    createdAt: now,
+    lastSeenAt: now,
+    currentActivity: { route: "match", roomKey: "", action: "Khách vừa truy cập", updatedAt: now }
   };
   users.push(guestUser);
   saveUsers();
@@ -2092,6 +2168,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/admin/quick-login" && req.method === "POST") {
+      const body = await readBody(req);
+      const displayName = requireDisplayName(body.displayName || "");
+      const key = String(body.key || "");
+      if (!isAdminQuickLoginName(displayName) || !isAdminRoomKey(key)) {
+        json(res, 401, { ok: false, error: "Sai tên quản trị hoặc mật khẩu quản trị." });
+        return;
+      }
+      const admin = ensureAdminUser();
+      touchUserActivity(admin, { route: "admin", roomKey: "", action: "Đăng nhập quản trị nhanh" });
+      await flushUserPersistence();
+      json(res, 200, { ok: true, token: createAuthToken(admin.id), user: publicUser(admin) });
+      return;
+    }
+
     if (url.pathname === "/api/auth/guest" && req.method === "POST") {
       const body = await readBody(req);
       const deviceId = sanitizeDeviceId(body.deviceId);
@@ -2116,6 +2207,18 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/activity" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      touchUserActivity(user, {
+        route: sanitizeActivityRoute(body.route),
+        roomKey: sanitizeRoomKey(body.roomKey),
+        action: String(body.action || "").slice(0, 80)
+      });
+      json(res, 200, { ok: true });
+      return;
+    }
+
     if (url.pathname === "/api/auth/register" && req.method === "POST") {
       const body = await readBody(req);
       const email = normalizeEmail(body.email);
@@ -2134,6 +2237,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const passwordInfo = hashPassword(password);
+      const now = nowIso();
       const user = {
         id: randomId(12),
         email,
@@ -2145,7 +2249,9 @@ const server = http.createServer(async (req, res) => {
         avatarSeed: randomBase36(4),
         avatarUrl: "",
         history: [],
-        createdAt: nowIso()
+        createdAt: now,
+        lastSeenAt: now,
+        currentActivity: { route: "home", roomKey: "", action: "Vừa đăng ký", updatedAt: now }
       };
       users.push(user);
       await saveUsers();
@@ -2166,6 +2272,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { ok: false, error: "Sai thông tin đăng nhập." });
         return;
       }
+      touchUserActivity(user, { route: user.role === "admin" ? "admin" : "home", roomKey: "", action: "Vừa đăng nhập" });
       json(res, 200, {
         ok: true,
         token: createAuthToken(user.id),
@@ -2214,6 +2321,27 @@ const server = http.createServer(async (req, res) => {
           return (Date.parse(right.createdAt || 0) || 0) - (Date.parse(left.createdAt || 0) || 0);
         });
       json(res, 200, { ok: true, users: list });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/watch-room" && req.method === "POST") {
+      const admin = requireAdmin(req);
+      const body = await readBody(req);
+      const targetUserId = String(body.userId || "").trim();
+      const roomKey = sanitizeRoomKey(body.roomKey);
+      const room = roomKey
+        ? roomByKey(roomKey)
+        : currentRoomForUser(targetUserId);
+      if (!room) {
+        json(res, 404, { ok: false, error: "Tài khoản này hiện không ở trong phòng đấu nào." });
+        return;
+      }
+      addSpectator(room, admin.id);
+      touchPresence(room, admin.id, "spectator");
+      touchUserActivity(admin, { route: "room", roomKey: room.key, action: `Đang xem phòng ${room.key}` });
+      room.updatedAt = Date.now();
+      saveRooms();
+      json(res, 200, { ok: true, room: roomStateForUser(room, admin) });
       return;
     }
 

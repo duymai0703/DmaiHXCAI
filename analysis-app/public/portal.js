@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v34";
+  const ASSET_WARMUP_VERSION = "20260707-v35";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -97,11 +97,13 @@
     adminUsers: [],
     adminSelectedUserId: "",
     adminLoading: false,
+    adminRefreshTimer: 0,
     selectedSquare: null,
     hints: [],
     roomSyncedAt: 0,
     roomPollTimer: null,
     roomClockTimer: null,
+    activityTimer: 0,
     roomPollBusy: false,
     roomActionBusy: false,
     modalConfirm: null,
@@ -272,6 +274,7 @@
   const assetWarmupPromise = warmPortalAssets();
   syncViewportHeight();
   setupRoomMobileDock();
+  startActivityHeartbeat();
   setLobbyMode("join");
   updateTimeLabels();
   renderHistory();
@@ -762,15 +765,19 @@
       renderReviewState(true);
     }
     if (route === "admin") {
+      startAdminPolling();
       renderAdminState();
       if (isAdmin() && !state.adminUsers.length && !state.adminLoading) {
         void loadAdminUsers();
       }
+    } else {
+      stopAdminPolling();
     }
 
     updateResumeButton();
     renderProfile();
     renderRoomMobilePanels();
+    reportActivity();
   }
 
   function handleBack() {
@@ -779,6 +786,39 @@
       return;
     }
     goRoute(state.room ? "room" : "home", true);
+  }
+
+  function startActivityHeartbeat() {
+    if (state.activityTimer) return;
+    state.activityTimer = window.setInterval(reportActivity, 12000);
+    reportActivity();
+  }
+
+  function activityLabelForRoute() {
+    if (state.route === "room") {
+      return state.room?.key ? `Đang trong phòng ${state.room.key}` : "Đang trong phòng đấu";
+    }
+    return {
+      home: "Đang ở sảnh chính",
+      match: "Đang ở khu phòng đấu",
+      library: "Đang xem lịch sử ván đấu",
+      admin: "Đang mở trang quản trị",
+      review: "Đang xem lại ván đấu",
+      analysis: "Đang dùng phần mềm phân tích"
+    }[state.route] || "Đang hoạt động";
+  }
+
+  function reportActivity(action = "") {
+    if (!state.token || !state.user) return;
+    const roomKey = state.room?.key || state.roomKey || "";
+    api("/api/activity", {
+      method: "POST",
+      body: {
+        route: state.route,
+        roomKey,
+        action: action || activityLabelForRoute()
+      }
+    }).catch(() => {});
   }
 
   function applySession(user, token) {
@@ -944,7 +984,11 @@
       const payload = await api("/api/admin/users");
       state.adminUsers = Array.isArray(payload.users) ? payload.users.map((user) => ({
         ...user,
-        history: normalizeHistoryList(user.history)
+        history: normalizeHistoryList(user.history),
+        online: Boolean(user.online),
+        currentActivity: user.currentActivity || {},
+        currentRoomKey: user.currentRoomKey || "",
+        currentRoomRole: user.currentRoomRole || ""
       })) : [];
       if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
         state.adminSelectedUserId = state.adminUsers[0]?.id || "";
@@ -955,6 +999,21 @@
       state.adminLoading = false;
       renderAdminState();
     }
+  }
+
+  function startAdminPolling() {
+    if (!isAdmin() || state.adminRefreshTimer) return;
+    state.adminRefreshTimer = window.setInterval(() => {
+      if (state.route === "admin" && isAdmin() && !state.adminLoading) {
+        void loadAdminUsers(true);
+      }
+    }, 5000);
+  }
+
+  function stopAdminPolling() {
+    if (!state.adminRefreshTimer) return;
+    clearInterval(state.adminRefreshTimer);
+    state.adminRefreshTimer = 0;
   }
 
   function renderAdminState() {
@@ -1022,6 +1081,63 @@
       emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
       onOpen: openHistoryReview
     });
+    renderAdminWatchPanel(selected);
+  }
+
+  function renderAdminWatchPanel(user) {
+    if (!dom.adminHistoryList || !user) return;
+    const panel = document.createElement("div");
+    panel.className = "admin-watch-card";
+    const route = routeLabel(user.currentActivity?.route || "");
+    const action = user.currentActivity?.action || "Chưa có hoạt động mới";
+    const seen = user.lastSeenAt ? formatDate(user.lastSeenAt) : "Chưa rõ";
+    const roomKey = user.currentRoomKey || user.currentActivity?.roomKey || "";
+
+    const status = document.createElement("strong");
+    status.textContent = `${user.online ? "Đang online" : "Offline"}${route ? ` • ${route}` : ""}`;
+    const detail = document.createElement("span");
+    detail.textContent = `${action} • Lần cuối: ${seen}`;
+    panel.append(status, detail);
+
+    if (roomKey) {
+      const room = document.createElement("span");
+      room.textContent = `Phòng hiện tại: ${roomKey}`;
+      const watch = document.createElement("button");
+      watch.type = "button";
+      watch.className = "primary-button";
+      watch.textContent = "Xem phòng";
+      watch.addEventListener("click", () => watchAdminRoom(user));
+      panel.append(room, watch);
+    }
+
+    dom.adminHistoryList.prepend(panel);
+  }
+
+  function routeLabel(route) {
+    return {
+      home: "Sảnh chính",
+      match: "Phòng đấu",
+      library: "Lịch sử ván đấu",
+      admin: "Quản trị",
+      room: "Đang trong phòng",
+      review: "Xem lại ván",
+      analysis: "Phần mềm phân tích"
+    }[route] || "";
+  }
+
+  async function watchAdminRoom(user) {
+    if (!user) return;
+    try {
+      const payload = await api("/api/admin/watch-room", {
+        method: "POST",
+        body: { userId: user.id, roomKey: user.currentRoomKey || user.currentActivity?.roomKey || "" }
+      });
+      applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
+      goRoute("room");
+      showToast("Đã vào phòng với vai trò người xem.");
+    } catch (error) {
+      showToast(error.message || "Không thể xem phòng hiện tại.");
+    }
   }
 
   function renderHistoryCollection(container, entries, { emptyText, onOpen }) {
@@ -1454,13 +1570,18 @@
   async function onJoinRoom(event) {
     event.preventDefault();
     const checkedName = validateDisplayNameInput(dom.joinDisplayName.value);
-    const key = dom.joinRoomKey.value.trim().toUpperCase();
+    const rawKey = dom.joinRoomKey.value.trim();
+    const key = rawKey.toUpperCase();
     if (!checkedName.ok) {
       setMessage(dom.matchHubMessage, checkedName.message);
       return;
     }
     const displayName = checkedName.value;
     dom.joinDisplayName.value = displayName;
+    if (isAdminShortcutName(displayName)) {
+      const handled = await tryAdminShortcutLogin(displayName, rawKey);
+      if (handled) return;
+    }
     setMessage(dom.matchHubMessage, "Đang vào phòng...", "info");
     try {
       await ensureGuestSession(displayName);
@@ -1476,6 +1597,35 @@
       showToast(payload.room.role === "spectator" ? "Đã vào phòng với vai trò người xem." : "Đã vào phòng đấu.");
     } catch (error) {
       setMessage(dom.matchHubMessage, error.message || "Không thể vào phòng.");
+    }
+  }
+
+  function isAdminShortcutName(displayName) {
+    const normalized = normalizeDisplayNameInput(displayName).toLowerCase();
+    return normalized === "admin" || normalized === "dmaihxcai admin";
+  }
+
+  async function tryAdminShortcutLogin(displayName, key) {
+    setMessage(dom.matchHubMessage, "Đang kiểm tra quyền quản trị...", "info");
+    try {
+      const payload = await api("/api/admin/quick-login", {
+        method: "POST",
+        body: { displayName, key }
+      });
+      applySession(payload.user, payload.token);
+      dom.joinDisplayName.value = "";
+      dom.joinRoomKey.value = "";
+      state.room = null;
+      state.roomKey = "";
+      localStorage.removeItem(STORAGE_ROOM);
+      setMessage(dom.matchHubMessage, "");
+      await loadAdminUsers(true);
+      goRoute("admin");
+      showToast("Đã mở trang quản trị.");
+      return true;
+    } catch (error) {
+      setMessage(dom.matchHubMessage, error.message || "Không thể mở quyền quản trị.");
+      return true;
     }
   }
 
