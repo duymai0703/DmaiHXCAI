@@ -1250,11 +1250,25 @@ a {
 
 .piece {
   position: absolute;
+  display: grid;
+  place-items: center;
   width: var(--piece-size);
   height: var(--piece-size);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.32);
+  background: #191919;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 4px rgba(0, 0, 0, 0.32);
+  font-weight: 700;
+  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
+  font-size: clamp(18px, 4vw, 34px);
+  line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.28),
+    0 0 1px rgba(255, 255, 255, 0.18);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -1268,22 +1282,69 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+.piece.red {
+  color: #fff;
+  border-color: rgba(116, 15, 22, 0.48);
+  background: #b11e29;
+}
+
+.piece.black {
+  color: #fff;
+  background: #191919;
+}
+
+.piece.text-piece::before,
+.motion-piece.text-piece::before {
+  content: attr(data-label);
+}
+
+.piece.text-piece .piece-skin,
+.motion-piece.text-piece .piece-skin {
+  display: none;
+}
+
 .motion-layer {
   overflow: visible;
 }
 
 .motion-piece {
   position: absolute;
+  display: grid;
+  place-items: center;
   width: var(--piece-size);
   height: var(--piece-size);
   aspect-ratio: 1;
   left: 0;
   top: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.32);
+  background: #191919;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 4px rgba(0, 0, 0, 0.32);
+  font-weight: 700;
+  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
+  font-size: clamp(18px, 4vw, 34px);
+  line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.28),
+    0 0 1px rgba(255, 255, 255, 0.18);
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -50%) translate3d(0, 0, 0);
   pointer-events: none;
   will-change: transform, opacity;
+}
+
+.motion-piece.red {
+  color: #fff;
+  border-color: rgba(116, 15, 22, 0.48);
+  background: #b11e29;
+}
+
+.motion-piece.black {
+  color: #fff;
+  background: #191919;
 }
 
 .motion-piece.is-visible {

@@ -28,7 +28,7 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260630-v17";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v18";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -40,10 +40,6 @@ const ANALYSIS_PRELOAD_TEXT = {
   decode: "\u0110ang t\u1ed1i \u01b0u hi\u1ec3n th\u1ecb qu\u00e2n c\u1edd...",
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
-const ANALYSIS_BLOCKING_ASSETS = [
-  BOARD_SKIN_ASSET,
-  ...Object.values(PIECE_IMAGES)
-];
 const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/back.png",
   "/assets/icons/header-logo.png",
@@ -179,6 +175,62 @@ function scheduleBoardDraw() {
   }, 120);
 }
 
+function useImagePiecesOnBoard() {
+  return !isCompactMobile();
+}
+
+function ensurePieceSkinImage(el) {
+  let image = el.querySelector(".piece-skin");
+  if (image) return image;
+  image = document.createElement("img");
+  image.className = "piece-skin";
+  image.alt = "";
+  image.decoding = "sync";
+  image.loading = "eager";
+  image.fetchPriority = "high";
+  image.draggable = false;
+  el.appendChild(image);
+  return image;
+}
+
+function applyBoardPieceSkin(el, piece, { useImages = useImagePiecesOnBoard() } = {}) {
+  if (!el) return;
+  const label = piece ? (PIECE_NAMES[piece] || piece) : "";
+  el.classList.toggle("image-piece", useImages);
+  el.classList.toggle("text-piece", !useImages);
+  if (label) {
+    el.dataset.label = label;
+  } else {
+    delete el.dataset.label;
+  }
+  const image = el.querySelector(".piece-skin");
+  if (useImages) {
+    const target = image || ensurePieceSkinImage(el);
+    target.src = piece ? (PIECE_IMAGES[piece] || "") : "";
+    target.alt = label;
+  } else if (image) {
+    image.removeAttribute("src");
+    image.alt = "";
+  }
+}
+
+function clearBoardPieceSkin(el) {
+  if (!el) return;
+  el.classList.remove("image-piece", "text-piece", "red", "black");
+  delete el.dataset.label;
+  const image = el.querySelector(".piece-skin");
+  if (image) {
+    image.removeAttribute("src");
+    image.alt = "";
+  }
+}
+
+function getAnalysisBlockingAssets() {
+  return useImagePiecesOnBoard()
+    ? [BOARD_SKIN_ASSET, ...Object.values(PIECE_IMAGES)]
+    : [BOARD_SKIN_ASSET];
+}
+
 async function warmAnalysisAssets() {
   const existingVersion = readStorage(ANALYSIS_ASSET_WARMUP_KEY);
   if (existingVersion === ANALYSIS_ASSET_WARMUP_VERSION) {
@@ -189,7 +241,7 @@ async function warmAnalysisAssets() {
     return;
   }
 
-  const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
+  const blockingAssets = [...new Set(getAnalysisBlockingAssets())];
   const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
   const totalSteps = Math.max(
     1,
@@ -949,6 +1001,7 @@ function hideMoveAnimationElements() {
     capturePieceEl.style.top = "0px";
     capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
     capturePieceEl.setAttribute("aria-hidden", "true");
+    clearBoardPieceSkin(capturePieceEl);
   }
 }
 
@@ -988,13 +1041,10 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   const toPos = squareToPixel(animation.to);
 
   if (animation.capturedPiece && capturePieceEl) {
-    const captureImage = capturePieceEl.querySelector(".piece-skin");
-    if (captureImage) {
-      captureImage.removeAttribute("src");
-      captureImage.src = PIECE_IMAGES[animation.capturedPiece] || "";
-      captureImage.alt = PIECE_NAMES[animation.capturedPiece] || animation.capturedPiece;
-      captureImage.decoding = "sync";
-    }
+    const captureIsRed = animation.capturedPiece === animation.capturedPiece.toUpperCase();
+    applyBoardPieceSkin(capturePieceEl, animation.capturedPiece);
+    capturePieceEl.classList.toggle("red", captureIsRed);
+    capturePieceEl.classList.toggle("black", !captureIsRed);
     capturePieceEl.style.left = `${toPos.x}px`;
     capturePieceEl.style.top = `${toPos.y}px`;
     capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
@@ -1397,18 +1447,11 @@ function ensureBoardSlots() {
     for (let x = 0; x < 9; x++) {
       const pos = squareToPixel({ x, y });
       const piece = document.createElement("div");
-      piece.className = "piece image-piece";
+      piece.className = "piece";
       piece.style.left = `${pos.x}px`;
       piece.style.top = `${pos.y}px`;
       piece.setAttribute("aria-hidden", "true");
-      const image = document.createElement("img");
-      image.className = "piece-skin";
-      image.alt = "";
-      image.decoding = "sync";
-      image.loading = "eager";
-      image.fetchPriority = "high";
-      image.draggable = false;
-      piece.appendChild(image);
+      ensurePieceSkinImage(piece);
       fragment.appendChild(piece);
       state.pieceSlots.push(piece);
     }
@@ -1439,35 +1482,30 @@ function drawPieces() {
         else if (index === animation.toIndex) piece = "";
       }
       const el = pieceSlots[index];
-      if (!piece) {
-        el.classList.remove("is-visible");
-        el.classList.remove("selected", "in-check", "red", "black");
-        el.style.transition = "none";
-        el.style.transform = "translate(-50%, -50%)";
-        if (el.dataset.piece) {
-          el.dataset.piece = "";
-          el.removeAttribute("aria-label");
-        }
-        el.setAttribute("aria-hidden", "true");
-      } else {
-        el.classList.add("is-visible");
-        const isRed = piece === piece.toUpperCase();
-        el.classList.toggle("red", isRed);
-        el.classList.toggle("black", !isRed);
-        el.classList.toggle("selected", Boolean(state.selected && state.selected.x === x && state.selected.y === y));
-        el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
-        if (el.dataset.piece !== piece) {
-          el.dataset.piece = piece;
-          const image = el.querySelector(".piece-skin");
-          if (image) {
-            image.src = PIECE_IMAGES[piece];
-            image.alt = PIECE_NAMES[piece] || piece;
-          }
-          el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
-        }
-        if (state.moveAnimation && state.moveAnimation.fromIndex === index) {
-          state.activeMoveSlotEl = el;
+        if (!piece) {
+          el.classList.remove("is-visible");
+          el.classList.remove("selected", "in-check");
           el.style.transition = "none";
+          el.style.transform = "translate(-50%, -50%)";
+          if (el.dataset.piece) {
+            el.dataset.piece = "";
+            el.removeAttribute("aria-label");
+          }
+          clearBoardPieceSkin(el);
+          el.setAttribute("aria-hidden", "true");
+        } else {
+          el.classList.add("is-visible");
+          const isRed = piece === piece.toUpperCase();
+          el.classList.toggle("red", isRed);
+          el.classList.toggle("black", !isRed);
+          el.classList.toggle("selected", Boolean(state.selected && state.selected.x === x && state.selected.y === y));
+          el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
+          if (el.dataset.piece !== piece) el.dataset.piece = piece;
+          applyBoardPieceSkin(el, piece);
+          el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+          if (state.moveAnimation && state.moveAnimation.fromIndex === index) {
+            state.activeMoveSlotEl = el;
+            el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";
         } else {
           el.style.transition = "none";

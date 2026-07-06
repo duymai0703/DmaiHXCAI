@@ -374,6 +374,16 @@ h2 {
   background: #191919;
 }
 
+.piece.text-piece::before,
+.motion-piece.text-piece::before {
+  content: attr(data-label);
+}
+
+.piece.text-piece .piece-skin,
+.motion-piece.text-piece .piece-skin {
+  display: none;
+}
+
 .piece.image-piece {
   background: none;
   border: 0;
@@ -412,6 +422,34 @@ h2 {
   transform: translate(-50%, -50%) translate3d(0, 0, 0);
   pointer-events: none;
   will-change: transform, opacity;
+}
+
+.motion-piece.text-piece {
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(0, 0, 0, 0.32);
+  background: #191919;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 3px 4px rgba(0, 0, 0, 0.32);
+  font-weight: 700;
+  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
+  font-size: clamp(18px, 4vw, 34px);
+  line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.28),
+    0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.motion-piece.text-piece.red {
+  color: #fff;
+  border-color: rgba(116, 15, 22, 0.48);
+  background: #b11e29;
+}
+
+.motion-piece.text-piece.black {
+  color: #fff;
+  background: #191919;
 }
 
 .motion-piece.is-visible {
