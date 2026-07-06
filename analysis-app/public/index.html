@@ -3,12 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#24170f">
+    <meta name="theme-color" content="#050914">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="DmaiHXCAI">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>DmaiHXCAI</title>
+    <script>
+      try {
+        const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#eaf6ff" : "#050914");
+      } catch {}
+    </script>
     <script>
       const ua = navigator.userAgent || "";
       const isIpadDesktop = /macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
@@ -20,8 +27,9 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="preload" href="/assets/board/board-skin.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260706-room-v24">
+    <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
+    <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
+    <link rel="stylesheet" href="/portal.css?v=20260706-room-v25">
   </head>
   <body>
     <header class="portal-header">
@@ -35,6 +43,10 @@
       </div>
 
       <div id="headerProfile" class="header-profile">
+        <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
+          <button type="button" data-theme-choice="light" aria-pressed="false">Ánh sáng</button>
+          <button type="button" data-theme-choice="dark" aria-pressed="false">Bóng đêm</button>
+        </div>
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
         <button id="profileButton" class="profile-button avatar-only" type="button" aria-label="Ảnh đại diện thiết bị">
           <span id="profileAvatar" class="avatar">D</span>
@@ -415,7 +427,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260706-room-v36"></script>
+    <script src="/portal.js?v=20260706-room-v37"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -26,9 +26,9 @@ const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
-const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
+const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v19";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v20";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -41,7 +41,8 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  BOARD_SKIN_ASSET,
+  "/assets/board/board-skin-dark.svg",
+  "/assets/board/board-skin-light.svg",
   ...Object.values(PIECE_IMAGES)
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
@@ -125,6 +126,7 @@ const assetPreloadBarEl = document.getElementById("assetPreloadBar");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 
+setupThemeControls();
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
 document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
@@ -150,6 +152,35 @@ init();
 function bindClick(id, handler) {
   const element = document.getElementById(id);
   if (element) element.addEventListener("click", handler);
+}
+
+function setupThemeControls() {
+  applyTheme(readTheme());
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      applyTheme(button.dataset.themeChoice, { persist: true });
+    });
+  });
+}
+
+function readTheme() {
+  return normalizeTheme(readStorage(THEME_STORAGE_KEY) || document.documentElement.dataset.theme || "dark");
+}
+
+function normalizeTheme(theme) {
+  return theme === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme, { persist = false } = {}) {
+  const normalized = normalizeTheme(theme);
+  document.documentElement.dataset.theme = normalized;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+  if (persist) writeStorage(THEME_STORAGE_KEY, normalized);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    const active = button.dataset.themeChoice === normalized;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function preventDoubleTapZoom() {

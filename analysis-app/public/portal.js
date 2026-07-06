@@ -10,8 +10,9 @@
   const STORAGE_DEVICE_AVATAR_VERSION = "dmaihxcai-device-avatar-version";
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
+  const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260706-v32";
+  const ASSET_WARMUP_VERSION = "20260706-v33";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -20,7 +21,6 @@
     decode: "\u0110ang t\u1ed1i \u01b0u hi\u1ec3n th\u1ecb...",
     done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
   };
-  const BOARD_SKIN_ASSET = "/assets/board/board-skin.svg";
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
     "/assets/device-avatars/goku.png",
@@ -55,9 +55,10 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260706-mobile-v14",
-    "/app.js?v=20260706-mobile-v22",
-    BOARD_SKIN_ASSET,
+    "/styles.css?v=20260706-mobile-v15",
+    "/app.js?v=20260706-mobile-v23",
+    "/assets/board/board-skin-dark.svg",
+    "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
   ];
   const PORTAL_BLOCKING_ASSETS = [];
@@ -265,6 +266,7 @@
     return;
   }
 
+  initThemeControls();
   bindEvents();
   preventDoubleTapZoom();
   const assetWarmupPromise = warmPortalAssets();
@@ -284,6 +286,35 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function initThemeControls() {
+    applyTheme(readTheme());
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        applyTheme(button.dataset.themeChoice, { persist: true });
+      });
+    });
+  }
+
+  function readTheme() {
+    return normalizeTheme(readPersistentValue(STORAGE_THEME) || document.documentElement.dataset.theme || "dark");
+  }
+
+  function normalizeTheme(theme) {
+    return theme === "light" ? "light" : "dark";
+  }
+
+  function applyTheme(theme, { persist = false } = {}) {
+    const normalized = normalizeTheme(theme);
+    document.documentElement.dataset.theme = normalized;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+    if (persist) writePersistentValue(STORAGE_THEME, normalized);
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      const active = button.dataset.themeChoice === normalized;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
 
   function bindEvents() {

@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --app-vh: 1vh;
-  --board-skin: url("/assets/board/board-skin.svg");
+  --board-skin: url("/assets/board/board-skin-dark.svg");
   --ink: #1e2328;
   --muted: #68717c;
   --panel: #f6f0e6;
@@ -1528,5 +1528,303 @@ select {
 
   .mobile-action-strip {
     display: none !important;
+  }
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --board-skin: url("/assets/board/board-skin-dark.svg");
+  --ink: #eef8ff;
+  --muted: #93abc2;
+  --panel: #0b1422;
+  --paper: #0f1b2c;
+  --line: rgba(91, 206, 255, 0.36);
+  --red: #ff4d6d;
+  --black: #e2edf7;
+  --accent: #38bdf8;
+  --accent-2: #ff8a2a;
+  --soft: #162338;
+  --control-bg: linear-gradient(180deg, rgba(18, 34, 55, 0.98), rgba(8, 16, 29, 0.98));
+  --control-hover: linear-gradient(180deg, #27c8ff, #1675d1);
+  --control-active: linear-gradient(180deg, #ffb454, #ff7a1f);
+  --field-bg: rgba(5, 12, 23, 0.92);
+  --machine-panel:
+    linear-gradient(180deg, rgba(13, 22, 36, 0.97), rgba(5, 10, 20, 0.99));
+  --machine-cell:
+    linear-gradient(180deg, rgba(17, 31, 51, 0.84), rgba(7, 14, 25, 0.88));
+  --app-background:
+    radial-gradient(circle at 14% 12%, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at 84% 18%, rgba(255, 77, 109, 0.16), transparent 26%),
+    radial-gradient(circle at 48% 88%, rgba(78, 70, 229, 0.14), transparent 32%),
+    linear-gradient(135deg, #040812 0%, #091426 52%, #02050a 100%);
+  --header-bg: linear-gradient(180deg, rgba(7, 13, 24, 0.96), rgba(3, 8, 16, 0.94));
+  --header-line: rgba(56, 189, 248, 0.42);
+  --board-bg: linear-gradient(145deg, #1b2f42 0%, #264f66 48%, #0d1b2a 100%);
+  --board-border: #5ed5ff;
+  --board-shadow:
+    inset 0 0 0 2px rgba(199, 240, 255, 0.18),
+    inset 0 16px 26px rgba(255, 255, 255, 0.05),
+    0 28px 58px rgba(0, 0, 0, 0.46),
+    0 0 34px rgba(56, 189, 248, 0.16);
+  --focus-ring: rgba(56, 189, 248, 0.22);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --board-skin: url("/assets/board/board-skin-light.svg");
+  --ink: #102033;
+  --muted: #526b80;
+  --panel: #edf7ff;
+  --paper: #ffffff;
+  --line: rgba(47, 122, 171, 0.28);
+  --red: #d92f50;
+  --black: #102033;
+  --accent: #0ea5e9;
+  --accent-2: #ff7a1f;
+  --soft: #d9eefc;
+  --control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(224, 243, 255, 0.98));
+  --control-hover: linear-gradient(180deg, #72d7ff, #2b9ff0);
+  --control-active: linear-gradient(180deg, #ffb454, #ff7a1f);
+  --field-bg: rgba(255, 255, 255, 0.96);
+  --machine-panel:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.97));
+  --machine-cell:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(219, 240, 255, 0.92));
+  --app-background:
+    radial-gradient(circle at 14% 12%, rgba(14, 165, 233, 0.16), transparent 30%),
+    radial-gradient(circle at 86% 18%, rgba(255, 122, 31, 0.14), transparent 28%),
+    radial-gradient(circle at 50% 88%, rgba(49, 130, 206, 0.11), transparent 34%),
+    linear-gradient(135deg, #edf7ff 0%, #f7fbff 52%, #dbeeff 100%);
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(225, 242, 255, 0.92));
+  --header-line: rgba(14, 118, 180, 0.32);
+  --board-bg: linear-gradient(145deg, #eaf8ff 0%, #bfe8ff 48%, #9dd1ef 100%);
+  --board-border: #2d6684;
+  --board-shadow:
+    inset 0 0 0 2px rgba(45, 102, 132, 0.18),
+    inset 0 14px 24px rgba(255, 255, 255, 0.38),
+    0 24px 44px rgba(35, 87, 123, 0.24);
+  --focus-ring: rgba(14, 165, 233, 0.2);
+}
+
+body {
+  color: var(--ink) !important;
+  background: var(--app-background) !important;
+}
+
+.app-header {
+  background: var(--header-bg) !important;
+  border-bottom-color: var(--header-line) !important;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22) !important;
+}
+
+.brand strong {
+  color: var(--ink) !important;
+}
+
+.brand small,
+.group label,
+.mini-status,
+.cloud-rank,
+.score-banner span,
+.score-banner small,
+.move-no {
+  color: var(--muted) !important;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.theme-toggle button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.theme-toggle button:hover,
+.theme-toggle button.active {
+  background: var(--control-active) !important;
+  color: #10151d !important;
+}
+
+button {
+  background: var(--control-bg) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 20px rgba(0, 0, 0, 0.14) !important;
+}
+
+button:hover {
+  background: var(--control-hover) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+  color: #07111f !important;
+}
+
+button.active,
+.analyze-button {
+  background: var(--control-active) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #10151d !important;
+}
+
+input:not([type]),
+input[type="text"],
+select,
+.board-tools select {
+  background: var(--field-bg) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+
+.board {
+  background: var(--board-bg) !important;
+  border-color: var(--board-border) !important;
+  box-shadow: var(--board-shadow) !important;
+}
+
+.board::before {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.18), transparent 18%),
+    radial-gradient(circle at 72% 82%, rgba(0, 0, 0, 0.16), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.04)) !important;
+}
+
+.panel {
+  position: relative;
+  background: var(--machine-panel) !important;
+  border-color: var(--line) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 26px 58px rgba(0, 0, 0, 0.34),
+    0 0 32px rgba(56, 189, 248, 0.1) !important;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 / 34px 34px,
+    radial-gradient(circle at 14% 9%, rgba(56, 189, 248, 0.16), transparent 30%);
+  opacity: 0.55;
+}
+
+.panel-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.group {
+  margin-bottom: 10px;
+  padding: 12px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px;
+  background: var(--machine-cell);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.panel-main-col > .group:last-child,
+.panel-side-col > .group:last-child {
+  margin-bottom: 0;
+}
+
+.primary-actions {
+  min-height: 78px;
+}
+
+.score-banner,
+.cloud-row,
+.cloud-empty,
+.line,
+.palette-piece,
+.move-cell.current {
+  background: var(--control-bg) !important;
+  border-color: var(--line) !important;
+  color: var(--ink) !important;
+}
+
+.palette-piece:not(.eraser) {
+  background:
+    var(--piece-image) center / 34px 34px no-repeat,
+    var(--control-bg) !important;
+}
+
+.cloud-move,
+.line strong,
+.score-banner strong {
+  color: var(--ink) !important;
+}
+
+.positive,
+.score-banner.positive strong {
+  color: #38a8ff !important;
+}
+
+.negative,
+.score-banner.negative strong {
+  color: #ff6174 !important;
+}
+
+.equal,
+.score-banner.equal strong {
+  color: var(--ink) !important;
+}
+
+.red-move {
+  color: #ff6174 !important;
+}
+
+.black-move {
+  color: var(--ink) !important;
+}
+
+.hint {
+  background: radial-gradient(circle at 35% 35%, #fef9c3 0%, #fbbf24 44%, #f97316 100%) !important;
+  box-shadow:
+    0 0 0 2px rgba(15, 23, 42, 0.24),
+    0 0 15px rgba(251, 191, 36, 0.72) !important;
+}
+
+.piece.selected {
+  outline-color: rgba(56, 189, 248, 0.56) !important;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.22),
+    0 0 20px rgba(56, 189, 248, 0.36) !important;
+}
+
+@media (max-width: 760px) {
+  .theme-toggle {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .theme-toggle button {
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .group {
+    margin-bottom: 10px;
   }
 }
