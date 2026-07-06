@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v36";
+  const ASSET_WARMUP_VERSION = "20260707-v37";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -55,8 +55,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260707-mobile-v16",
-    "/app.js?v=20260706-mobile-v23",
+    "/styles.css?v=20260707-mobile-v18",
+    "/app.js?v=20260706-mobile-v26",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -1045,7 +1045,7 @@
       state.adminUsers.forEach((user) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = `admin-user-card ${state.adminSelectedUserId === user.id ? "active" : ""}`;
+        button.className = `admin-user-card ${state.adminSelectedUserId === user.id ? "active" : ""} ${user.online ? "online" : "offline"}`;
         button.addEventListener("click", () => {
           state.adminSelectedUserId = user.id;
           renderAdminState();
@@ -1064,7 +1064,10 @@
         const detail = document.createElement("span");
         const roleLabel = user.role === "admin" ? " • Quản trị" : "";
         detail.textContent = `${user.historyCount || 0} ván${roleLabel}`;
-        meta.append(name, username, detail);
+        const presence = document.createElement("span");
+        presence.className = `admin-presence ${user.online ? "online" : "offline"}`;
+        presence.textContent = user.online ? "Online" : "Offline";
+        meta.append(name, username, detail, presence);
         button.append(avatar, meta);
         dom.adminUsersList.appendChild(button);
       });
@@ -1087,7 +1090,7 @@
   function renderAdminWatchPanel(user) {
     if (!dom.adminHistoryList || !user) return;
     const panel = document.createElement("div");
-    panel.className = "admin-watch-card";
+    panel.className = `admin-watch-card ${user.online ? "online" : "offline"}`;
     const route = routeLabel(user.currentActivity?.route || "");
     const action = user.currentActivity?.action || "Chưa có hoạt động mới";
     const seen = user.lastSeenAt ? formatDate(user.lastSeenAt) : "Chưa rõ";

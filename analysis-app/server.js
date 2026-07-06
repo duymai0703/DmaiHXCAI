@@ -2394,6 +2394,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const room = createRoom(user, { yourMinutes, opponentMinutes, side, incrementSeconds });
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: `Tạo phòng ${room.key}` });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2417,6 +2418,12 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const room = joinRoom(user, key);
+      const access = roomAccessForUser(room, user.id);
+      touchUserActivity(user, {
+        route: "room",
+        roomKey: room.key,
+        action: access.role === "spectator" ? `Đang xem phòng ${room.key}` : `Vào phòng ${room.key}`
+      });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2429,6 +2436,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 404, { ok: false, error: "ROOM_NOT_FOUND" });
         return;
       }
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đang ở phòng ${room.key}` });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2437,7 +2445,9 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
-      applyMoveInRoom(room, side, String(body.move || ""));
+      const move = String(body.move || "");
+      applyMoveInRoom(room, side, move);
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đi quân ${move}` });
       await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -2447,7 +2457,13 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
-      sendRoomRequest(room, side, String(body.type || ""));
+      const requestType = String(body.type || "");
+      sendRoomRequest(room, side, requestType);
+      touchUserActivity(user, {
+        route: "room",
+        roomKey: room.key,
+        action: requestType === "draw" ? "Gửi yêu cầu cầu hòa" : "Gửi yêu cầu đi lại"
+      });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2456,7 +2472,13 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
-      answerRoomRequest(room, side, Boolean(body.accept));
+      const accepted = Boolean(body.accept);
+      answerRoomRequest(room, side, accepted);
+      touchUserActivity(user, {
+        route: "room",
+        roomKey: room.key,
+        action: accepted ? "Đồng ý yêu cầu của đối thủ" : "Từ chối yêu cầu của đối thủ"
+      });
       await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -2467,6 +2489,7 @@ const server = http.createServer(async (req, res) => {
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
       resignRoom(room, side);
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: "Xin thua" });
       await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -2476,7 +2499,9 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
-      setStartReady(room, side, Boolean(body.ready));
+      const ready = Boolean(body.ready);
+      setStartReady(room, side, ready);
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: ready ? "Sẵn sàng bắt đầu" : "Hủy sẵn sàng" });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2485,7 +2510,9 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room, access, side } = requireRoomAndUser(req, body.key);
       requirePlayerAccess(access);
-      setRematchReady(room, side, Boolean(body.ready));
+      const ready = Boolean(body.ready);
+      setRematchReady(room, side, ready);
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: ready ? "Sẵn sàng ván mới" : "Hủy sẵn sàng ván mới" });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2494,6 +2521,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room } = requireRoomAndUser(req, body.key);
       leaveRoom(room, user.id);
+      touchUserActivity(user, { route: "match", roomKey: "", action: `Rời phòng ${room.key}` });
       await flushUserPersistence();
       json(res, 200, { ok: true });
       return;
@@ -2503,6 +2531,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const { user, room } = requireRoomAndUser(req, body.key);
       appendChatMessage(room, user, body.text);
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: "Nhắn tin trong phòng" });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }

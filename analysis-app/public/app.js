@@ -27,6 +27,7 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
+const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
 const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v20";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
@@ -148,6 +149,7 @@ if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
 preventDoubleTapZoom();
 const assetWarmupPromise = warmAnalysisAssets();
+startAnalysisActivityHeartbeat();
 init();
 
 function bindClick(id, handler) {
@@ -199,6 +201,31 @@ function preventDoubleTapZoom() {
     }
     lastTouchEnd = now;
   }, { passive: false });
+}
+
+function startAnalysisActivityHeartbeat() {
+  reportAnalysisActivity("Đang dùng phần mềm phân tích");
+  window.setInterval(() => {
+    reportAnalysisActivity("Đang dùng phần mềm phân tích");
+  }, 12000);
+}
+
+function reportAnalysisActivity(action = "Đang dùng phần mềm phân tích") {
+  const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
+  if (!token) return;
+  fetch("/api/activity", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      route: "analysis",
+      roomKey: "",
+      action
+    }),
+    cache: "no-store"
+  }).catch(() => {});
 }
 
 function scheduleBoardDraw() {
@@ -546,6 +573,7 @@ async function downloadNetwork() {
 }
 
 async function startManualAnalysis() {
+  reportAnalysisActivity("Bấm phân tích bằng Pikafish");
   stopAutoPlay(true);
   cancelScheduledAnalysisRefresh();
   state.analysisMode = true;
@@ -1077,6 +1105,7 @@ function makeMove(move, { manual = true } = {}) {
     draw();
   }
   refreshCloudBook();
+  if (manual) reportAnalysisActivity(`Đi thử nước ${move}`);
   if (manual && state.analysisMode) {
     scheduleAnalysisRefresh(0);
   }

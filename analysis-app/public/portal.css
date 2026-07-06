@@ -2812,6 +2812,52 @@ textarea:focus {
   min-height: 38px;
 }
 
+.admin-user-card.online {
+  border-color: rgba(34, 197, 94, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 0 1px rgba(34, 197, 94, 0.22),
+    0 0 22px rgba(34, 197, 94, 0.28) !important;
+}
+
+.admin-user-card.online .avatar {
+  box-shadow:
+    0 0 0 3px rgba(34, 197, 94, 0.74),
+    0 0 18px rgba(34, 197, 94, 0.5) !important;
+}
+
+.admin-presence {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.admin-presence.online {
+  background: rgba(34, 197, 94, 0.16);
+  color: #58f28a !important;
+  border: 1px solid rgba(34, 197, 94, 0.42);
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.22);
+}
+
+.admin-presence.offline {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.admin-watch-card.online {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 22px rgba(34, 197, 94, 0.16);
+}
+
 :root[data-theme="dark"] .chat-item,
 :root[data-theme="dark"] .chat-item.mine {
   background: linear-gradient(180deg, rgba(15, 29, 48, 0.96), rgba(7, 14, 25, 0.96)) !important;
