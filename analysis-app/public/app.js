@@ -94,6 +94,7 @@ const state = {
   assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
   moveAnimation: null,
   moveAnimationTimer: 0,
+  moveAnimationRunning: false,
   lastAnimatedMoveKey: "",
   activeMoveSlotEl: null
 };
@@ -942,6 +943,7 @@ function clearMoveAnimation({ preserveKey = false } = {}) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
+  state.moveAnimationRunning = false;
   hideMoveAnimationElements();
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
@@ -954,6 +956,7 @@ function primeMoveAnimation(animation) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
+  state.moveAnimationRunning = false;
   hideMoveAnimationElements();
   state.moveAnimation = animation;
   state.lastAnimatedMoveKey = animation.moveKey;
@@ -989,6 +992,7 @@ function finalizeMoveAnimation(animation) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
+  state.moveAnimationRunning = false;
   hideMoveAnimationElements();
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
@@ -1013,6 +1017,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   const movingSlotEl = pieceSlots[animation.fromIndex];
   if (!movingSlotEl) return;
   state.activeMoveSlotEl = movingSlotEl;
+  state.moveAnimationRunning = false;
   movingSlotEl.style.transition = "none";
   movingSlotEl.style.transform = "translate(-50%, -50%)";
 
@@ -1020,6 +1025,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   movingSlotEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}`;
   movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
+  state.moveAnimationRunning = true;
 
   state.moveAnimationTimer = window.setTimeout(() => {
     finalizeMoveAnimation(animation);
@@ -1478,9 +1484,12 @@ function drawPieces() {
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
         if (state.moveAnimation && state.moveAnimation.fromIndex === index) {
+          const keepRunningTransform = state.moveAnimationRunning && state.activeMoveSlotEl === el;
           state.activeMoveSlotEl = el;
-          el.style.transition = "none";
-          el.style.transform = "translate(-50%, -50%)";
+          if (!keepRunningTransform) {
+            el.style.transition = "none";
+            el.style.transform = "translate(-50%, -50%)";
+          }
         } else {
           el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";
