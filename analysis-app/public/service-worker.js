@@ -1,17 +1,23 @@
-const CACHE_NAME = "dmaihxcai-shell-v56";
+const CACHE_NAME = "dmaihxcai-shell-v57";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260706-room-v25",
-  "/portal.js?v=20260706-room-v37",
-  "/styles.css?v=20260706-mobile-v15",
+  "/portal.css?v=20260707-room-v26",
+  "/portal.js?v=20260707-room-v38",
+  "/styles.css?v=20260707-mobile-v16",
   "/app.js?v=20260706-mobile-v23",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
   "/assets/board/board-skin-dark.svg",
   "/assets/board/board-skin-light.svg",
+  "/assets/posters/darkmagi1.png",
+  "/assets/posters/darkmagi2.png",
+  "/assets/posters/darkmagi3.png",
+  "/assets/posters/blueeye1.png",
+  "/assets/posters/blueeye2.png",
+  "/assets/posters/blueeye3.png",
   "/assets/icons/back.png",
   "/assets/icons/icon-192.png",
   "/assets/icons/header-logo.png"

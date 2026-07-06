@@ -2691,3 +2691,95 @@ textarea:focus {
     font-size: 11px;
   }
 }
+
+.nav-back,
+.nav-back:hover,
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible {
+  width: 56px !important;
+  min-width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent url("/assets/icons/back.png") center / contain no-repeat !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  outline: none !important;
+}
+
+.nav-back:hover,
+.nav-back:focus-visible {
+  transform: scale(1.04);
+  filter: brightness(1.08) drop-shadow(0 0 12px rgba(56, 189, 248, 0.34));
+}
+
+:root[data-theme="dark"] .launcher-card:nth-child(1) {
+  --poster-image: url("/assets/posters/darkmagi1.png");
+}
+
+:root[data-theme="dark"] .launcher-card:nth-child(2) {
+  --poster-image: url("/assets/posters/darkmagi2.png");
+}
+
+:root[data-theme="dark"] .launcher-card:nth-child(3) {
+  --poster-image: url("/assets/posters/darkmagi3.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(1) {
+  --poster-image: url("/assets/posters/blueeye1.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(2) {
+  --poster-image: url("/assets/posters/blueeye2.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(3) {
+  --poster-image: url("/assets/posters/blueeye3.png");
+}
+
+:root[data-theme="light"] {
+  --app-background:
+    radial-gradient(circle at 14% 10%, rgba(142, 226, 255, 0.42), transparent 30%),
+    radial-gradient(circle at 82% 14%, rgba(199, 241, 255, 0.48), transparent 26%),
+    radial-gradient(circle at 48% 88%, rgba(79, 172, 254, 0.2), transparent 34%),
+    linear-gradient(135deg, #f6fcff 0%, #e8f8ff 46%, #d5efff 100%);
+  --panel: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(217, 244, 255, 0.97));
+  --panel-strong: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(207, 238, 255, 0.98));
+  --board-bg: linear-gradient(145deg, #f7fdff 0%, #bfeeff 48%, #84d4ff 100%);
+  --board-border: #0597cf;
+  --board-shadow:
+    inset 0 0 0 2px rgba(3, 139, 214, 0.22),
+    inset 0 16px 28px rgba(255, 255, 255, 0.48),
+    0 24px 44px rgba(31, 125, 174, 0.26),
+    0 0 30px rgba(92, 225, 255, 0.24);
+}
+
+.launcher-card.has-poster::before {
+  filter: blur(2.4px) brightness(0.72) saturate(1.12) !important;
+}
+
+:root[data-theme="light"] .launcher-card.has-poster::before {
+  filter: blur(2px) brightness(0.88) saturate(1.05) contrast(1.04) !important;
+}
+
+.room-board {
+  box-shadow:
+    var(--board-shadow),
+    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.board-skin-layer {
+  filter:
+    drop-shadow(0 0 3px rgba(91, 206, 255, 0.44))
+    drop-shadow(0 0 8px rgba(91, 206, 255, 0.18));
+}
+
+:root[data-theme="light"] .board-skin-layer {
+  filter:
+    drop-shadow(0 0 3px rgba(3, 139, 214, 0.34))
+    drop-shadow(0 0 8px rgba(92, 225, 255, 0.22));
+}
