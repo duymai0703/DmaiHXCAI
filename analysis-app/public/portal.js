@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v35";
+  const ASSET_WARMUP_VERSION = "20260707-v36";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1602,7 +1602,7 @@
 
   function isAdminShortcutName(displayName) {
     const normalized = normalizeDisplayNameInput(displayName).toLowerCase();
-    return normalized === "admin" || normalized === "dmaihxcai admin";
+    return normalized === "ad";
   }
 
   async function tryAdminShortcutLogin(displayName, key) {

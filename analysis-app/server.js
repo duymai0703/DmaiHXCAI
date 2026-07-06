@@ -33,10 +33,10 @@ const PRESENCE_TTL_MS = 1000 * 30;
 const ROOM_START_DELAY_MS = 2000;
 const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
-const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "admin");
-const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "Admin@123456");
+const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
+const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "1234");
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_PASSWORD);
-const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "DmaiHXCAI Admin");
+const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "ad");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
 const DEVICE_AVATAR_PATHS = new Set([
   "/assets/device-avatars/goku.png",
@@ -654,7 +654,7 @@ function touchUserActivity(user, activity = {}) {
 
 function isAdminQuickLoginName(displayName) {
   const safeName = normalizePersonName(displayName).toLowerCase();
-  return safeName === ADMIN_USERNAME || safeName === normalizePersonName(ADMIN_DISPLAY_NAME).toLowerCase();
+  return [ADMIN_USERNAME, normalizePersonName(ADMIN_DISPLAY_NAME).toLowerCase()].includes(safeName);
 }
 
 function isAdminRoomKey(value) {
@@ -674,8 +674,18 @@ function ensureAdminUser() {
       existing.role = "admin";
       changed = true;
     }
-    if (!existing.displayName) {
+    if (existing.username !== ADMIN_USERNAME) {
+      existing.username = ADMIN_USERNAME;
+      changed = true;
+    }
+    if (existing.displayName !== ADMIN_DISPLAY_NAME) {
       existing.displayName = ADMIN_DISPLAY_NAME;
+      changed = true;
+    }
+    if (!verifyPassword(ADMIN_PASSWORD, existing)) {
+      const passwordInfo = hashPassword(ADMIN_PASSWORD);
+      existing.passwordSalt = passwordInfo.salt;
+      existing.passwordHash = passwordInfo.hash;
       changed = true;
     }
     if (!existing.avatarSeed) {
