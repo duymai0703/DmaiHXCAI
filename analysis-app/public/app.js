@@ -182,6 +182,12 @@ function applyTheme(theme, { persist = false } = {}) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", active ? "true" : "false");
   });
+  state.lastArrowFrame = "";
+  drawArrowLayer();
+}
+
+function currentTheme() {
+  return normalizeTheme(document.documentElement.dataset.theme || "dark");
 }
 
 function preventDoubleTapZoom() {
@@ -1508,11 +1514,11 @@ function drawPieces() {
 function drawArrowLayer() {
   const rect = boardEl.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
-  const signature = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${suggestion.color}`).join("|")}`;
+  const signature = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}|${currentTheme()}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${resolveSuggestionColor(suggestion)}`).join("|")}`;
   if (signature === state.lastArrowFrame) return;
   state.lastArrowFrame = signature;
   clearArrowCanvas();
-  state.suggestions.forEach((suggestion) => drawArrow(suggestion.move, suggestion.color));
+  state.suggestions.forEach((suggestion) => drawArrow(suggestion.move, resolveSuggestionColor(suggestion)));
 }
 
 function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
@@ -1769,10 +1775,23 @@ function buildSuggestionGroup(arrowMoves, board) {
     const from = uciToSquare(move.slice(0, 2));
     const piece = replay[from.y]?.[from.x] || "";
     if (!piece) return null;
-    const color = pieceColor(piece) === "w" ? "rgba(200, 26, 191, 0.94)" : "rgba(36, 93, 210, 0.92)";
+    const side = pieceColor(piece);
+    const color = suggestionArrowColor(side);
     applyMoveToBoard(replay, move);
-    return { move, color };
+    return { move, color, side };
   }).filter(Boolean);
+}
+
+function suggestionArrowColor(side) {
+  if (currentTheme() === "light") {
+    return side === "w" ? "rgba(200, 26, 191, 0.94)" : "rgba(36, 93, 210, 0.92)";
+  }
+  return side === "w" ? "rgba(255, 85, 231, 0.98)" : "rgba(255, 218, 74, 0.98)";
+}
+
+function resolveSuggestionColor(suggestion) {
+  if (!suggestion?.side && currentTheme() === "light" && suggestion?.color) return suggestion.color;
+  return suggestionArrowColor(suggestion?.side || "");
 }
 
 function formatPv(pv, startBoard, startSide) {

@@ -186,10 +186,10 @@ button.active {
 
 .shell {
   display: grid;
-  grid-template-columns: minmax(320px, 0.92fr) minmax(620px, 1.08fr);
+  grid-template-columns: minmax(380px, 1.08fr) minmax(540px, 0.92fr);
   align-items: start;
   gap: 12px;
-  width: min(1420px, 100%);
+  width: min(1500px, 100%);
   min-height: calc(100vh - 62px);
   margin: 0 auto;
   padding: 18px;
@@ -256,7 +256,7 @@ h2 {
 .board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 682px);
+  width: min(100%, 730px);
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background:
@@ -840,7 +840,7 @@ input:not([type]) {
 
 @media (min-width: 921px) {
   .board {
-    width: min(100%, 682px, calc((100vh - 110px) * 0.9));
+    width: min(100%, 742px, calc((100vh - 92px) * 0.9));
   }
 }
 
@@ -1885,7 +1885,17 @@ select,
     drop-shadow(0 0 8px rgba(91, 206, 255, 0.18));
 }
 
+:root[data-theme="dark"] .board-skin-layer {
+  opacity: 0.68;
+  filter:
+    brightness(0.82)
+    saturate(0.82)
+    drop-shadow(0 0 1.4px rgba(91, 206, 255, 0.22))
+    drop-shadow(0 0 4px rgba(91, 206, 255, 0.08));
+}
+
 :root[data-theme="light"] .board-skin-layer {
+  opacity: 1;
   filter:
     drop-shadow(0 0 3px rgba(3, 139, 214, 0.34))
     drop-shadow(0 0 8px rgba(92, 225, 255, 0.22));
