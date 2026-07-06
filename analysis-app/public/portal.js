@@ -11,7 +11,7 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260706-v30";
+  const ASSET_WARMUP_VERSION = "20260706-v31";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -31,10 +31,6 @@
     "/assets/device-avatars/gojo.png",
     "/assets/device-avatars/sungjinwoo.png"
   ];
-  const PIECE_NAMES = {
-    R: "\u8eca", N: "\u99ac", B: "\u76f8", A: "\u4ed5", K: "\u5e25", C: "\u70ae", P: "\u5175",
-    r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
-  };
   const PIECE_IMAGES = {
     R: "assets/pieces/red-rook.png",
     N: "assets/pieces/red-knight.png",
@@ -59,9 +55,10 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260706-mobile-v13",
-    "/app.js?v=20260706-mobile-v21",
-    BOARD_SKIN_ASSET
+    "/styles.css?v=20260706-mobile-v14",
+    "/app.js?v=20260706-mobile-v22",
+    BOARD_SKIN_ASSET,
+    ...Object.values(PIECE_IMAGES)
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS];
@@ -587,39 +584,6 @@
 
   function isCompactMobile() {
     return window.matchMedia("(max-width: 760px)").matches;
-  }
-
-  function applyPortalPieceSkin(el, piece, { useImages = false } = {}) {
-    if (!el) return;
-    const label = piece ? (PIECE_NAMES[piece] || piece) : "";
-    el.classList.toggle("image-piece", useImages);
-    el.classList.toggle("text-piece", !useImages);
-    if (label) {
-      el.dataset.label = label;
-    } else {
-      delete el.dataset.label;
-    }
-    const image = el.querySelector(".piece-skin");
-    if (useImages) {
-      if (image) {
-        image.src = piece ? (PIECE_IMAGES[piece] || "") : "";
-        image.alt = label;
-      }
-    } else if (image) {
-      image.removeAttribute("src");
-      image.alt = "";
-    }
-  }
-
-  function clearPortalPieceSkin(el) {
-    if (!el) return;
-    el.classList.remove("image-piece", "text-piece", "red", "black");
-    delete el.dataset.label;
-    const image = el.querySelector(".piece-skin");
-    if (image) {
-      image.removeAttribute("src");
-      image.alt = "";
-    }
   }
 
   function setupRoomMobileDock() {
@@ -1174,7 +1138,6 @@
     dom.reviewMotionPiece.style.top = "0px";
     dom.reviewMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
     dom.reviewMotionPiece.setAttribute("aria-hidden", "true");
-    clearPortalPieceSkin(dom.reviewMotionPiece);
   }
 
   function primeReviewMoveAnimation(animation) {
@@ -1655,7 +1618,6 @@
       dom.roomMotionPiece.style.top = "0px";
       dom.roomMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
       dom.roomMotionPiece.setAttribute("aria-hidden", "true");
-      clearPortalPieceSkin(dom.roomMotionPiece);
     }
     if (dom.roomCapturePiece) {
       dom.roomCapturePiece.style.transition = "none";
@@ -1664,7 +1626,6 @@
       dom.roomCapturePiece.style.top = "0px";
       dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
       dom.roomCapturePiece.setAttribute("aria-hidden", "true");
-      clearPortalPieceSkin(dom.roomCapturePiece);
     }
   }
 
@@ -1719,7 +1680,6 @@
       primeRoomMoveAnimation(animation);
     }
 
-    const toPixel = squareToPixel(animation.to);
     const { pieceSlots } = ensureRoomSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
@@ -1727,26 +1687,10 @@
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = "translate(-50%, -50%)";
 
-    if (animation.capturedPiece && dom.roomCapturePiece) {
-      const captureIsRed = animation.capturedPiece === animation.capturedPiece.toUpperCase();
-      applyPortalPieceSkin(dom.roomCapturePiece, animation.capturedPiece);
-      dom.roomCapturePiece.classList.toggle("red", captureIsRed);
-      dom.roomCapturePiece.classList.toggle("black", !captureIsRed);
-      dom.roomCapturePiece.style.left = `${toPixel.x}px`;
-      dom.roomCapturePiece.style.top = `${toPixel.y}px`;
-      dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
-      dom.roomCapturePiece.classList.remove("fading");
-      dom.roomCapturePiece.classList.add("is-visible");
-      dom.roomCapturePiece.setAttribute("aria-hidden", "false");
-    }
-
     void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel);
-    if (animation.capturedPiece && dom.roomCapturePiece) {
-      dom.roomCapturePiece.classList.add("fading");
-    }
 
     state.roomAnimationTimer = window.setTimeout(() => {
       finalizeRoomMoveAnimation(animation);
@@ -2119,10 +2063,18 @@
         state.roomHintSlots.push(hint);
 
         const piece = document.createElement("div");
-        piece.className = "piece text-piece";
+        piece.className = "piece image-piece";
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
         piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "sync";
+        image.loading = "eager";
+        image.fetchPriority = "high";
+        image.draggable = false;
+        piece.appendChild(image);
         pieceFragment.appendChild(piece);
         state.roomPieceSlots.push(piece);
       }
@@ -2184,10 +2136,18 @@
       for (let x = 0; x < 9; x += 1) {
         const pixel = reviewSquareToPixel({ x, y });
         const piece = document.createElement("div");
-        piece.className = "piece text-piece";
+        piece.className = "piece image-piece";
         piece.style.left = `${pixel.x}px`;
         piece.style.top = `${pixel.y}px`;
         piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "sync";
+        image.loading = "eager";
+        image.fetchPriority = "high";
+        image.draggable = false;
+        piece.appendChild(image);
         fragment.appendChild(piece);
         state.reviewPieceSlots.push(piece);
       }
@@ -2271,18 +2231,20 @@
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
           }
-          clearPortalPieceSkin(el);
           el.setAttribute("aria-hidden", "true");
         } else {
           el.classList.add("is-visible");
-          const isRed = piece === piece.toUpperCase();
-          el.classList.toggle("red", isRed);
-          el.classList.toggle("black", !isRed);
           el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
           el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
-          if (el.dataset.piece !== piece) el.dataset.piece = piece;
-          applyPortalPieceSkin(el, piece);
-          el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+          if (el.dataset.piece !== piece) {
+            el.dataset.piece = piece;
+            const image = el.querySelector(".piece-skin");
+            if (image) {
+              image.src = PIECE_IMAGES[piece];
+              image.alt = piece;
+            }
+            el.setAttribute("aria-label", piece);
+          }
           if (state.roomAnimation && state.roomAnimation.fromIndex === index) {
             state.activeRoomMoveSlotEl = el;
             el.style.transition = "none";
@@ -2380,7 +2342,6 @@
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
           }
-          clearPortalPieceSkin(el);
           [...el.childNodes]
             .filter((node) => !node.classList || !node.classList.contains("piece-skin"))
             .forEach((node) => node.remove());
@@ -2390,12 +2351,15 @@
 
         el.classList.add("is-visible");
         el.classList.remove("review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
-        const isRed = piece === piece.toUpperCase();
-        el.classList.toggle("red", isRed);
-        el.classList.toggle("black", !isRed);
-        if (el.dataset.piece !== piece) el.dataset.piece = piece;
-        applyPortalPieceSkin(el, piece);
-        el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+        if (el.dataset.piece !== piece) {
+          el.dataset.piece = piece;
+          const image = el.querySelector(".piece-skin");
+          if (image) {
+            image.src = PIECE_IMAGES[piece];
+            image.alt = piece;
+          }
+          el.setAttribute("aria-label", piece);
+        }
         if (state.reviewAnimation && state.reviewAnimation.fromIndex === index) {
           state.activeReviewMoveSlotEl = el;
           el.style.transition = "none";

@@ -1250,25 +1250,11 @@ a {
 
 .piece {
   position: absolute;
-  display: grid;
-  place-items: center;
   width: var(--piece-size);
   height: var(--piece-size);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: 1.5px solid rgba(0, 0, 0, 0.32);
-  background: #191919;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 3px 4px rgba(0, 0, 0, 0.32);
-  font-weight: 700;
-  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
-  font-size: clamp(18px, 4vw, 34px);
-  line-height: 1;
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.28),
-    0 0 1px rgba(255, 255, 255, 0.18);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -1282,128 +1268,22 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-.piece.red {
-  color: #fff;
-  border-color: rgba(116, 15, 22, 0.48);
-  background: #b11e29;
-}
-
-.piece.black {
-  color: #fff;
-  background: #191919;
-}
-
-.piece.text-piece::before,
-.motion-piece.text-piece::before {
-  content: attr(data-label);
-  position: relative;
-  z-index: 1;
-  transform: translateY(-2%);
-  color: #fffdf4;
-  font-weight: 900;
-  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
-  font-size: clamp(22px, 4.7vw, 42px);
-  line-height: 0.92;
-  -webkit-text-stroke: 0.55px rgba(255, 255, 255, 0.62);
-  paint-order: stroke fill;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.2),
-    0 2px 2px rgba(0, 0, 0, 0.3),
-    0 0 5px rgba(255, 255, 255, 0.2);
-}
-
-.piece.text-piece .piece-skin,
-.motion-piece.text-piece .piece-skin {
-  display: none;
-}
-
-.piece.text-piece,
-.motion-piece.text-piece {
-  overflow: hidden;
-  border: 0;
-  filter:
-    drop-shadow(0 7px 7px rgba(0, 0, 0, 0.28))
-    drop-shadow(0 1px 1px rgba(255, 238, 200, 0.1));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -7px 9px rgba(0, 0, 0, 0.24),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-    inset 0 0 0 5px rgba(0, 0, 0, 0.24),
-    0 2px 2px rgba(255, 240, 212, 0.1);
-}
-
-.piece.text-piece.red,
-.motion-piece.text-piece.red {
-  color: #fff;
-  background:
-    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.42) 0 7%, transparent 19%),
-    radial-gradient(circle at 58% 70%, rgba(88, 8, 13, 0.34) 0 26%, transparent 48%),
-    radial-gradient(circle at 50% 45%, #fb2735 0 42%, #df1828 58%, #ad111c 74%, #771017 100%);
-  box-shadow:
-    inset 0 2px 0 rgba(255, 212, 214, 0.36),
-    inset 0 -8px 10px rgba(76, 7, 11, 0.42),
-    inset 0 0 0 2px rgba(255, 118, 125, 0.32),
-    inset 0 0 0 5px rgba(118, 9, 15, 0.48),
-    0 7px 11px rgba(43, 18, 11, 0.34);
-}
-
-.piece.text-piece.black,
-.motion-piece.text-piece.black {
-  color: #fff;
-  background:
-    radial-gradient(circle at 32% 20%, rgba(255, 255, 255, 0.2) 0 8%, transparent 21%),
-    radial-gradient(circle at 55% 72%, rgba(0, 0, 0, 0.48) 0 30%, transparent 52%),
-    radial-gradient(circle at 50% 43%, #2a2a29 0 43%, #171715 59%, #0a0a09 78%, #020202 100%);
-  box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -8px 10px rgba(0, 0, 0, 0.62),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-    inset 0 0 0 5px rgba(0, 0, 0, 0.52),
-    0 7px 11px rgba(0, 0, 0, 0.34);
-}
-
 .motion-layer {
   overflow: visible;
 }
 
 .motion-piece {
   position: absolute;
-  display: grid;
-  place-items: center;
   width: var(--piece-size);
   height: var(--piece-size);
   aspect-ratio: 1;
   left: 0;
   top: 0;
-  border-radius: 50%;
-  border: 1.5px solid rgba(0, 0, 0, 0.32);
-  background: #191919;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 3px 4px rgba(0, 0, 0, 0.32);
-  font-weight: 700;
-  font-family: "KaiTi", "STKaiti", "SimSun", "Noto Serif CJK SC", serif;
-  font-size: clamp(18px, 4vw, 34px);
-  line-height: 1;
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.28),
-    0 0 1px rgba(255, 255, 255, 0.18);
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -50%) translate3d(0, 0, 0);
   pointer-events: none;
   will-change: transform, opacity;
-}
-
-.motion-piece.red {
-  color: #fff;
-  border-color: rgba(116, 15, 22, 0.48);
-  background: #b11e29;
-}
-
-.motion-piece.black {
-  color: #fff;
-  background: #191919;
 }
 
 .motion-piece.is-visible {
