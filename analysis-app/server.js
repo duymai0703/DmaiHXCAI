@@ -1768,7 +1768,7 @@ function normalizedReviewScore(line) {
 
 function reviewGradeForMove(actualMove, bestMove, bestScore, actualScore) {
   if (!actualMove || !bestMove) {
-    return { key: "okay", label: "Khá yếu", delta: 0 };
+    return { key: "okay", label: "Không hay", delta: 0 };
   }
   const delta = Math.max(0, Number(bestScore || 0) - Number(actualScore || 0));
   if (actualMove === bestMove || delta <= 14) {
@@ -1778,7 +1778,7 @@ function reviewGradeForMove(actualMove, bestMove, bestScore, actualScore) {
     return { key: "good", label: "Khá ổn", delta };
   }
   if (delta <= 180) {
-    return { key: "okay", label: "Khá yếu", delta };
+    return { key: "okay", label: "Không hay", delta };
   }
   return { key: "bad", label: "Rất yếu", delta };
 }
@@ -1801,7 +1801,7 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
   const safeMoveTime = Math.max(80, Math.min(1200, Number(movetime) || 180));
   let currentFen = sanitizeFen(startFen || XiangqiCore.START_FEN);
   const items = [];
-  let bookStillAvailable = true;
+  let cloudBookAvailable = true;
 
   for (let index = 0; index < safePlies.length; index += 1) {
     const ply = safePlies[index];
@@ -1840,9 +1840,10 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
       } catch {}
     }
 
-    const bookMoves = bookStillAvailable ? await topCloudBookMovesForReview(currentFen) : [];
-    if (bookStillAvailable && !bookMoves.length) bookStillAvailable = false;
-    const inBook = bookMoves.includes(ply.move);
+    const withinBookWindow = Math.floor(index / 2) < 10;
+    const bookMoves = withinBookWindow && cloudBookAvailable ? await topCloudBookMovesForReview(currentFen) : [];
+    if (withinBookWindow && cloudBookAvailable && !bookMoves.length) cloudBookAvailable = false;
+    const inBook = withinBookWindow && (ply.move === (best.bestMove || "") || bookMoves.includes(ply.move));
     const grade = inBook
       ? { key: "book", label: "Book", delta: 0 }
       : reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);

@@ -217,7 +217,10 @@ button.active {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  image-rendering: auto;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
+  padding: 2px;
   border: 1px solid rgba(246, 207, 112, 0.42);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
   flex: 0 0 auto;

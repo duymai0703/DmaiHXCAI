@@ -155,7 +155,10 @@ a {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  image-rendering: auto;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
+  padding: 2px;
   border: 1px solid rgba(246, 207, 112, 0.45);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   flex: 0 0 auto;
@@ -1408,6 +1411,7 @@ a {
 
 .piece.review-badge {
   overflow: visible;
+  z-index: 18 !important;
 }
 
 .review-badge-icon {
@@ -1421,6 +1425,8 @@ a {
   background: #fff center / cover no-repeat;
   border: 1px solid rgba(255, 255, 255, 0.82);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+  pointer-events: none;
 }
 
 .piece.review-grade-brilliant .review-badge-icon {

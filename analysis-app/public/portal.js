@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v43";
+  const ASSET_WARMUP_VERSION = "20260708-v44";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -51,20 +51,20 @@
     book: { key: "book", label: "Book", image: "/assets/review-badges/book.png" },
     brilliant: { key: "brilliant", label: "Ưu việt", image: "/assets/review-badges/sao.png" },
     good: { key: "good", label: "Khá ổn", image: "/assets/review-badges/like.png" },
-    okay: { key: "okay", label: "Khá yếu", image: "/assets/review-badges/bang.png" },
+    okay: { key: "okay", label: "Không hay", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Rất yếu", image: "/assets/review-badges/x.png" }
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260707-mobile-v24",
-    "/app.js?v=20260706-mobile-v32",
+    "/styles.css?v=20260708-mobile-v25",
+    "/app.js?v=20260708-mobile-v33",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
   ];
   const THEME_LOGO_ASSETS = [
-    "/assets/icons/logow.png",
-    "/assets/icons/logob.png"
+    "/assets/icons/logow-header.png",
+    "/assets/icons/logob-header.png"
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
@@ -341,7 +341,7 @@
   }
 
   function updateBrandLogo(theme) {
-    const logo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
+    const logo = theme === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
     document.querySelectorAll(".brand-mark").forEach((image) => {
       if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
         image.src = logo;
@@ -1490,7 +1490,7 @@
 
     renderReviewEvalBar(analysis);
     const recommendText = analysis.grade === "book"
-      ? "Nước này trùng 1-2 phương án đầu của data book."
+      ? "Nước này nằm trong book mở đầu: trùng gợi ý Pikafish hoặc nhóm nước đầu của data book."
       : analysis.grade === "brilliant"
       ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
       : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
