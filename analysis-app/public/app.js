@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v28";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v29";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1012,6 +1012,8 @@ function primeMoveAnimation(animation) {
 function hideMoveAnimationElements() {
   if (state.activeMoveSlotEl) {
     state.activeMoveSlotEl.style.transition = "none";
+    state.activeMoveSlotEl.classList.remove("is-visible");
+    state.activeMoveSlotEl.setAttribute("aria-hidden", "true");
     state.activeMoveSlotEl.style.transform = "translate(-50%, -50%)";
   }
   if (movingPieceEl) {
@@ -1066,7 +1068,9 @@ function finalizeMoveAnimation(animation) {
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
-  draw(true);
+  drawPieces();
+  renderHistory();
+  drawArrowLayer();
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {

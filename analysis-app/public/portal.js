@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260708-v45";
+  const ASSET_WARMUP_VERSION = "20260708-v46";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -57,7 +57,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260708-mobile-v26",
-    "/app.js?v=20260708-mobile-v34",
+    "/app.js?v=20260708-mobile-v35",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -246,7 +246,6 @@
     reviewAnalyzeBtn: byId("reviewAnalyzeBtn"),
     reviewInsight: byId("reviewInsight"),
     reviewEvalBar: byId("reviewEvalBar"),
-    reviewEvalText: byId("reviewEvalText"),
     reviewEvalRed: byId("reviewEvalRed"),
     reviewEvalBlack: byId("reviewEvalBlack"),
     reviewMoveMeta: byId("reviewMoveMeta"),
@@ -1499,9 +1498,8 @@
   }
 
   function renderReviewEvalBar(analysis) {
-    if (!dom.reviewEvalBar || !dom.reviewEvalText || !dom.reviewEvalRed || !dom.reviewEvalBlack) return;
+    if (!dom.reviewEvalBar || !dom.reviewEvalRed || !dom.reviewEvalBlack) return;
     if (!analysis || !Number.isFinite(Number(analysis.redScore))) {
-      dom.reviewEvalText.textContent = "Chưa phân tích";
       dom.reviewEvalRed.style.height = "50%";
       dom.reviewEvalBlack.style.height = "50%";
       return;
@@ -1510,12 +1508,6 @@
     const redShare = reviewRedShare(score);
     dom.reviewEvalRed.style.height = `${redShare}%`;
     dom.reviewEvalBlack.style.height = `${100 - redShare}%`;
-    if (score === 0) {
-      dom.reviewEvalText.textContent = "0";
-      return;
-    }
-    const sideText = score > 0 ? "Đỏ" : "Đen";
-    dom.reviewEvalText.textContent = `${sideText} ${formatReviewEval(score)}`;
   }
 
   function reviewRedShare(score) {
