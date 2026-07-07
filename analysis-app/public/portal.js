@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260708-v46";
+  const ASSET_WARMUP_VERSION = "20260708-v47";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -57,7 +57,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260708-mobile-v26",
-    "/app.js?v=20260708-mobile-v35",
+    "/app.js?v=20260708-mobile-v36",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -93,6 +93,7 @@
     booting: true,
     lobbyMode: "join",
     createSide: "w",
+    botSide: "w",
     room: null,
     roomKey: localStorage.getItem(STORAGE_ROOM) || "",
     roomBoard: XiangqiCore.parseFenState(START_FEN).board,
@@ -186,18 +187,27 @@
     openLibraryBtn: byId("openLibraryBtn"),
     showJoinRoom: byId("showJoinRoom"),
     showCreateRoom: byId("showCreateRoom"),
+    showBotRoom: byId("showBotRoom"),
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
+    botRoomForm: byId("botRoomForm"),
     joinDisplayName: byId("joinDisplayName"),
     joinRoomKey: byId("joinRoomKey"),
     createDisplayName: byId("createDisplayName"),
+    botDisplayName: byId("botDisplayName"),
     yourTimeRange: byId("yourTimeRange"),
     yourTimeRangeValue: byId("yourTimeRangeValue"),
     opponentTimeRange: byId("opponentTimeRange"),
     opponentTimeRangeValue: byId("opponentTimeRangeValue"),
     incrementSelect: byId("incrementSelect"),
+    botTimeRange: byId("botTimeRange"),
+    botTimeRangeValue: byId("botTimeRangeValue"),
+    botLevelSelect: byId("botLevelSelect"),
+    botIncrementSelect: byId("botIncrementSelect"),
     pickRed: byId("pickRed"),
     pickBlack: byId("pickBlack"),
+    botPickRed: byId("botPickRed"),
+    botPickBlack: byId("botPickBlack"),
     matchHubMessage: byId("matchHubMessage"),
     roomKeyLabel: byId("roomKeyLabel"),
     copyRoomKeyBtn: byId("copyRoomKeyBtn"),
@@ -359,12 +369,17 @@
     dom.openLibraryBtn.addEventListener("click", () => goRoute("library"));
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
+    dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
+    dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
+    dom.botTimeRange.addEventListener("input", updateTimeLabels);
     dom.pickRed.addEventListener("click", () => setCreateSide("w"));
     dom.pickBlack.addEventListener("click", () => setCreateSide("b"));
+    dom.botPickRed.addEventListener("click", () => setBotSide("w"));
+    dom.botPickBlack.addEventListener("click", () => setBotSide("b"));
     dom.resumeRoomBtn.addEventListener("click", () => {
       if (state.room) goRoute("room");
       else void resumeStoredRoom();
@@ -719,11 +734,13 @@
   }
 
   function setLobbyMode(mode) {
-    state.lobbyMode = mode === "create" ? "create" : "join";
+    state.lobbyMode = ["create", "bot"].includes(mode) ? mode : "join";
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
+    dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
+    dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     setMessage(dom.matchHubMessage, "");
   }
 
@@ -733,11 +750,19 @@
     dom.pickBlack.classList.toggle("active", state.createSide === "b");
   }
 
+  function setBotSide(side) {
+    state.botSide = side === "b" ? "b" : "w";
+    dom.botPickRed.classList.toggle("active", state.botSide === "w");
+    dom.botPickBlack.classList.toggle("active", state.botSide === "b");
+  }
+
   function updateTimeLabels() {
     const yourMinutes = Number(dom.yourTimeRange.value || 10);
     const opponentMinutes = Number(dom.opponentTimeRange.value || 10);
+    const botMinutes = Number(dom.botTimeRange.value || 10);
     dom.yourTimeRangeValue.textContent = `${yourMinutes} phút`;
     dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phút`;
+    dom.botTimeRangeValue.textContent = `${botMinutes} phút`;
   }
 
   function normalizeRoute(hash) {
@@ -1629,6 +1654,37 @@
     }
   }
 
+  async function onCreateBotRoom(event) {
+    event.preventDefault();
+    const checkedName = validateDisplayNameInput(dom.botDisplayName.value);
+    if (!checkedName.ok) {
+      setMessage(dom.matchHubMessage, checkedName.message);
+      return;
+    }
+    const displayName = checkedName.value;
+    dom.botDisplayName.value = displayName;
+    setMessage(dom.matchHubMessage, "Đang tạo bàn đánh máy...", "info");
+    try {
+      await ensureGuestSession(displayName);
+      const payload = await api("/api/rooms/create-bot", {
+        method: "POST",
+        body: {
+          displayName,
+          minutes: Number(dom.botTimeRange.value || 10),
+          incrementSeconds: Number(dom.botIncrementSelect.value || 0),
+          botLevel: Number(dom.botLevelSelect.value || 1),
+          side: state.botSide
+        }
+      });
+      applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
+      goRoute("room");
+      setMessage(dom.matchHubMessage, "");
+      showToast("Đã tạo bàn đánh với máy.");
+    } catch (error) {
+      setMessage(dom.matchHubMessage, error.message || "Không thể tạo bàn đánh máy.");
+    }
+  }
+
   async function onJoinRoom(event) {
     event.preventDefault();
     const checkedName = validateDisplayNameInput(dom.joinDisplayName.value);
@@ -2024,12 +2080,13 @@
     dom.topPlayerName.textContent = topPlayer ? topPlayer.displayName || topPlayer.username : "Đang chờ đối thủ";
     dom.bottomPlayerName.textContent = bottomPlayer ? bottomPlayer.displayName || bottomPlayer.username : "Đang chờ người chơi";
 
+    const isBotRoom = room.mode === "bot";
     const canAct = room.role === "player" && room.status === "active" && !state.roomActionBusy;
-    dom.undoRequestBtn.disabled = !canAct || Number(room.allowances?.undoRemaining || 0) <= 0 || Boolean(room.pendingRequest);
-    dom.drawRequestBtn.disabled = !canAct || Number(room.allowances?.drawRemaining || 0) <= 0 || Boolean(room.pendingRequest);
+    dom.undoRequestBtn.disabled = isBotRoom || !canAct || Number(room.allowances?.undoRemaining || 0) <= 0 || Boolean(room.pendingRequest);
+    dom.drawRequestBtn.disabled = isBotRoom || !canAct || Number(room.allowances?.drawRemaining || 0) <= 0 || Boolean(room.pendingRequest);
     dom.resignBtn.disabled = !canAct;
 
-    const showReadyButton = room.role === "player" && (room.status === "ready" || room.status === "finished");
+    const showReadyButton = !isBotRoom && room.role === "player" && (room.status === "ready" || room.status === "finished");
     dom.roomReadyBtn.classList.toggle("hidden", !showReadyButton);
     if (room.status === "finished") {
       dom.roomReadyBtn.textContent = room.rematchReady?.you ? "Đã sẵn sàng ván mới" : "Sẵn sàng ván mới";
@@ -3160,6 +3217,8 @@
   }
 
   function roomStatusText(room) {
+    if (room.mode === "bot" && room.status === "starting") return "Đánh với máy";
+    if (room.mode === "bot" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Bot đang nghĩ";
     if (room.status === "waiting") return "Đang chờ đối thủ";
     if (room.status === "ready") return "Chờ sẵn sàng";
     if (room.status === "starting") return "Bắt đầu";
@@ -3175,6 +3234,19 @@
     const incrementLabel = Number(room.incrementSeconds || 0) > 0
       ? `, tích lũy ${room.incrementSeconds} giây/nước`
       : "";
+    if (room.mode === "bot") {
+      const botName = room.bot?.name || "Bot";
+      const botLevel = Number(room.bot?.level || 1);
+      if (room.status === "starting") {
+        return `Bạn đang đánh với ${botName} cấp ${botLevel}. Ván sẽ bắt đầu sau bảng đếm.`;
+      }
+      if (room.status === "finished") {
+        return "Ván đánh máy đã kết thúc. Bạn có thể out phòng để tạo ván mới.";
+      }
+      return room.yourTurn
+        ? `Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}, đấu ${botName} cấp ${botLevel}. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.`
+        : `${botName} cấp ${botLevel} đang suy nghĩ. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.`;
+    }
 
     if (room.status === "waiting") {
       return `Bên ta ${formatClockSetup(yourClockMs)}, bên địch ${formatClockSetup(opponentClockMs)}${incrementLabel}. Hệ thống đang chờ đủ hai người chơi.`;

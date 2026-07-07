@@ -29,7 +29,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v37">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v38">
   </head>
   <body>
     <header class="portal-header">
@@ -107,6 +107,7 @@
             <div class="dual-actions">
               <button id="showJoinRoom" class="secondary-button active" type="button">Vào phòng đấu</button>
               <button id="showCreateRoom" class="secondary-button" type="button">Tạo phòng đấu</button>
+              <button id="showBotRoom" class="secondary-button" type="button">Đánh với máy</button>
             </div>
 
             <form id="joinRoomForm" class="subpanel">
@@ -159,6 +160,53 @@
               </div>
 
               <button class="primary-button" type="submit">Tạo phòng</button>
+            </form>
+
+            <form id="botRoomForm" class="subpanel hidden">
+              <label>
+                <span>Tên của bạn</span>
+                <input id="botDisplayName" type="text" maxlength="15" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+              </label>
+
+              <label class="range-field">
+                <span>Thời gian mỗi bên</span>
+                <input id="botTimeRange" type="range" min="1" max="20" value="10">
+                <strong id="botTimeRangeValue">10 phút</strong>
+              </label>
+
+              <label>
+                <span>Chọn bot</span>
+                <select id="botLevelSelect">
+                  <option value="1">Trọng Phúc - cấp 1</option>
+                  <option value="2">Văn Phương - cấp 2</option>
+                  <option value="3">Tùng Em - cấp 3</option>
+                  <option value="4">Hà Duy - cấp 4</option>
+                  <option value="5">Jack 97 - cấp 5</option>
+                  <option value="6">Minh Trìu - cấp 6</option>
+                  <option value="7">Duy Mai - cấp 7</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Tích lũy sau mỗi nước</span>
+                <select id="botIncrementSelect">
+                  <option value="0">0 giây</option>
+                  <option value="1">1 giây</option>
+                  <option value="2">2 giây</option>
+                  <option value="3" selected>3 giây</option>
+                  <option value="5">5 giây</option>
+                </select>
+              </label>
+
+              <div class="side-pick">
+                <span>Chọn bên</span>
+                <div class="choice-row">
+                  <button id="botPickRed" class="secondary-button active" type="button">Đỏ</button>
+                  <button id="botPickBlack" class="secondary-button" type="button">Đen</button>
+                </div>
+              </div>
+
+              <button class="primary-button" type="submit">Bắt đầu đánh máy</button>
             </form>
 
             <p id="matchHubMessage" class="form-message" aria-live="polite"></p>
@@ -438,7 +486,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v50"></script>
+    <script src="/portal.js?v=20260708-room-v51"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

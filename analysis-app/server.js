@@ -47,6 +47,17 @@ const DEVICE_AVATAR_PATHS = new Set([
   "/assets/device-avatars/gojo.png",
   "/assets/device-avatars/sungjinwoo.png"
 ]);
+const BOT_PLAYERS = [
+  { level: 1, depth: 1, name: "Trọng Phúc" },
+  { level: 2, depth: 2, name: "Văn Phương" },
+  { level: 3, depth: 3, name: "Tùng Em" },
+  { level: 4, depth: 4, name: "Hà Duy" },
+  { level: 5, depth: 5, name: "Jack 97" },
+  { level: 6, depth: 6, name: "Minh Trìu" },
+  { level: 7, depth: 7, name: "Duy Mai" }
+];
+const BOT_USER_PREFIX = "bot-level-";
+const botMoveJobs = new Map();
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -823,7 +834,38 @@ function adminUserSummary(user) {
   };
 }
 
+function botIdForLevel(level) {
+  const safeLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Number(level) || 1));
+  return `${BOT_USER_PREFIX}${safeLevel}`;
+}
+
+function botDefinition(levelOrId) {
+  const level = typeof levelOrId === "string" && levelOrId.startsWith(BOT_USER_PREFIX)
+    ? Number(levelOrId.slice(BOT_USER_PREFIX.length))
+    : Number(levelOrId);
+  return BOT_PLAYERS.find((bot) => bot.level === level) || BOT_PLAYERS[0];
+}
+
+function isBotUserId(userId) {
+  return typeof userId === "string" && userId.startsWith(BOT_USER_PREFIX);
+}
+
+function botSnapshot(levelOrId) {
+  const bot = botDefinition(levelOrId);
+  return {
+    id: botIdForLevel(bot.level),
+    username: `bot-${bot.level}`,
+    displayName: bot.name,
+    avatarSeed: `bot${bot.level}`,
+    avatarUrl: "",
+    role: "bot",
+    botLevel: bot.level,
+    botDepth: bot.depth
+  };
+}
+
 function roomPlayerSnapshot(userId) {
+  if (isBotUserId(userId)) return botSnapshot(userId);
   const user = users.find((item) => item.id === userId);
   if (!user) return null;
   return {
@@ -1036,6 +1078,44 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
   return room;
 }
 
+function createBotRoom(user, { minutes = 10, side = "w", incrementSeconds = 0, botLevel = 1 } = {}) {
+  const color = side === "b" ? "b" : "w";
+  const botSide = oppositeSide(color);
+  const bot = botDefinition(botLevel);
+  const botId = botIdForLevel(bot.level);
+  const safeMinutes = clampRoomMinutes(minutes, 10);
+  const room = createRoom(user, {
+    yourMinutes: safeMinutes,
+    opponentMinutes: safeMinutes,
+    side: color,
+    incrementSeconds
+  });
+  room.mode = "bot";
+  room.bot = {
+    side: botSide,
+    userId: botId,
+    level: bot.level,
+    depth: bot.depth,
+    name: bot.name
+  };
+  room.players[botSide] = botId;
+  room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
+  room.playerTimeMs[botId] = safeMinutes * 60 * 1000;
+  room.pendingOpponentTimeMs = safeMinutes * 60 * 1000;
+  syncRoomPlayerProfile(room, botSide, botSnapshot(bot.level));
+  syncVisibleClockSetup(room);
+  room.clocks = {
+    w: startingClockMsForSide(room, "w"),
+    b: startingClockMsForSide(room, "b")
+  };
+  room.initialClocks = { ...room.clocks };
+  resetRoomForGame(room);
+  touchPresence(room, user.id, "player");
+  room.updatedAt = Date.now();
+  saveRooms();
+  return room;
+}
+
 function userSideInRoom(room, userId) {
   if (room.players?.w === userId) return "w";
   if (room.players?.b === userId) return "b";
@@ -1178,8 +1258,8 @@ function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw"
 }
 
 function recordRoomHistory(room) {
-  const red = room.players?.w ? users.find((item) => item.id === room.players.w) : null;
-  const black = room.players?.b ? users.find((item) => item.id === room.players.b) : null;
+  const red = room.players?.w && !isBotUserId(room.players.w) ? users.find((item) => item.id === room.players.w) : null;
+  const black = room.players?.b && !isBotUserId(room.players.b) ? users.find((item) => item.id === room.players.b) : null;
   if (red) appendHistory(red, buildHistoryEntry(room, "w", black));
   if (black) appendHistory(black, buildHistoryEntry(room, "b", red));
   saveUsers();
@@ -1283,6 +1363,13 @@ function roomStateForUser(room, user) {
   const spectators = activeSpectatorIds(room).map(roomPlayerSnapshot).filter(Boolean);
   return {
     key: room.key,
+    mode: room.mode === "bot" ? "bot" : "human",
+    bot: room.mode === "bot" ? {
+      side: botSideInRoom(room),
+      level: Number(room.bot?.level || 1),
+      depth: Number(room.bot?.depth || room.bot?.level || 1),
+      name: room.bot?.name || botDefinition(room.bot?.level || 1).name
+    } : null,
     status: room.status,
     timeControlMinutes: Math.round(room.timeControlMs / 60000),
     clockSetupMs: room.visibleClockSetupMs || {
@@ -1384,6 +1471,82 @@ function applyMoveInRoom(room, side, move) {
     finishRoom(room, gameState);
   } else {
     saveRooms();
+  }
+}
+
+function botSideInRoom(room) {
+  const side = room?.bot?.side;
+  return side === "w" || side === "b" ? side : "";
+}
+
+function isBotTurn(room) {
+  const botSide = botSideInRoom(room);
+  return Boolean(room && room.mode === "bot" && botSide && room.status === "active" && !room.result && !room.pendingRequest && room.sideToMove === botSide);
+}
+
+function firstLegalMoveForSide(board, side) {
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const piece = board[y]?.[x] || "";
+      if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
+      const from = XiangqiCore.squareToUci({ x, y });
+      const targets = XiangqiCore.getLegalMovesForSquare(board, { x, y }, side);
+      if (targets.length) return from + XiangqiCore.squareToUci(targets[0]);
+    }
+  }
+  return "";
+}
+
+async function maybeRunBotTurn(room) {
+  if (!room || room.mode !== "bot") return;
+  const key = room.key;
+  if (botMoveJobs.has(key)) {
+    await botMoveJobs.get(key);
+    return;
+  }
+  const job = runBotTurn(room).finally(() => botMoveJobs.delete(key));
+  botMoveJobs.set(key, job);
+  await job;
+}
+
+async function runBotTurn(room) {
+  materializeRoomClock(room);
+  if (!isBotTurn(room)) return;
+  const side = botSideInRoom(room);
+  const parsed = XiangqiCore.parseFenState(room.boardFen);
+  const gameState = XiangqiCore.determineGameState(parsed.board, side);
+  if (gameState.finished) {
+    finishRoom(room, gameState);
+    return;
+  }
+
+  const bot = room.bot || {};
+  const depth = Math.max(1, Math.min(7, Number(bot.depth || bot.level || 1)));
+  let move = "";
+  try {
+    const result = await engine.analyze({
+      fen: room.boardFen,
+      depth,
+      multipv: 1,
+      movetime: 0
+    });
+    move = /^[a-i][0-9][a-i][0-9]$/.test(result?.bestMove || "") ? result.bestMove : "";
+  } catch (error) {
+    console.warn(`Bot engine failed in room ${room.key}: ${error.message}`);
+  }
+  if (!move || !XiangqiCore.isLegalMove(parsed.board, move, side)) {
+    move = firstLegalMoveForSide(parsed.board, side);
+  }
+  if (!move) {
+    finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "no-moves" });
+    return;
+  }
+  try {
+    applyMoveInRoom(room, side, move);
+    room.lastBotMoveAt = Date.now();
+    saveRooms();
+  } catch (error) {
+    console.warn(`Bot move failed in room ${room.key}: ${error.message}`);
   }
 }
 
@@ -2396,6 +2559,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/current") {
       const user = requireUser(req);
       const room = currentRoomForUser(user.id);
+      if (room) await maybeRunBotTurn(room);
       json(res, 200, { ok: true, room: room ? roomStateForUser(room, user) : null });
       return;
     }
@@ -2419,6 +2583,29 @@ const server = http.createServer(async (req, res) => {
       }
       const room = createRoom(user, { yourMinutes, opponentMinutes, side, incrementSeconds });
       touchUserActivity(user, { route: "room", roomKey: room.key, action: `Tạo phòng ${room.key}` });
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/create-bot" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
+      if (requestedDisplayName) {
+        updateUserDisplayName(user, requestedDisplayName);
+        await flushUserPersistence();
+      }
+      const minutes = clampRoomMinutes(body.minutes, 10);
+      const side = body.side === "b" ? "b" : "w";
+      const incrementSeconds = clampIncrementSeconds(body.incrementSeconds, 0);
+      const botLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Number(body.botLevel) || 1));
+      const current = currentRoomForUser(user.id);
+      if (current && current.status !== "finished") {
+        json(res, 400, { ok: false, error: "Bạn đang ở trong một phòng khác." });
+        return;
+      }
+      const room = createBotRoom(user, { minutes, side, incrementSeconds, botLevel });
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đánh với máy cấp ${botLevel}` });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }
@@ -2460,6 +2647,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 404, { ok: false, error: "ROOM_NOT_FOUND" });
         return;
       }
+      await maybeRunBotTurn(room);
       touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đang ở phòng ${room.key}` });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
@@ -2471,6 +2659,7 @@ const server = http.createServer(async (req, res) => {
       requirePlayerAccess(access);
       const move = String(body.move || "");
       applyMoveInRoom(room, side, move);
+      await maybeRunBotTurn(room);
       touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đi quân ${move}` });
       await flushUserPersistence();
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
