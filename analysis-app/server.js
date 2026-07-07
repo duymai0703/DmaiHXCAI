@@ -339,7 +339,7 @@ function loadRooms() {
     room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
     room.hiddenClockBonusMs = Math.max(
       0,
-      Number(Object.prototype.hasOwnProperty.call(room, "hiddenClockBonusMs") ? room.hiddenClockBonusMs : 0)
+      Number(Object.prototype.hasOwnProperty.call(room, "hiddenClockBonusMs") ? room.hiddenClockBonusMs : ROOM_HIDDEN_CLOCK_BONUS_MS)
     );
     room.incrementSeconds = clampIncrementSeconds(room.incrementSeconds, 0);
     room.incrementMs = room.incrementSeconds * 1000;

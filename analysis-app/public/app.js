@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v21";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v22";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -47,7 +47,7 @@ const ANALYSIS_BLOCKING_ASSETS = [
   ...Object.values(PIECE_IMAGES)
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
-  "/assets/icons/back.png",
+  "/assets/icons/backgr.png",
   "/assets/icons/header-logo.png",
   "/assets/icons/icon-192.png"
 ];
@@ -1038,11 +1038,13 @@ function finalizeMoveAnimation(animation) {
     state.moveAnimationTimer = 0;
   }
   state.moveAnimationRunning = false;
-  hideMoveAnimationElements();
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
   draw(true);
+  window.requestAnimationFrame(() => {
+    if (!state.moveAnimation) hideMoveAnimationElements();
+  });
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {
@@ -1518,21 +1520,21 @@ function drawPieces() {
         }
         el.setAttribute("aria-hidden", "true");
       } else {
-        el.classList.add("is-visible");
         const isRed = piece === piece.toUpperCase();
-        el.classList.toggle("red", isRed);
-        el.classList.toggle("black", !isRed);
-        el.classList.toggle("selected", Boolean(state.selected && state.selected.x === x && state.selected.y === y));
-        el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
         if (el.dataset.piece !== piece) {
           el.dataset.piece = piece;
           const image = el.querySelector(".piece-skin");
           if (image) {
-            image.src = PIECE_IMAGES[piece];
+            const source = PIECE_IMAGES[piece];
+            if (image.getAttribute("src") !== source) image.src = source;
             image.alt = PIECE_NAMES[piece] || piece;
           }
           el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
         }
+        el.classList.toggle("red", isRed);
+        el.classList.toggle("black", !isRed);
+        el.classList.toggle("selected", Boolean(state.selected && state.selected.x === x && state.selected.y === y));
+        el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
         if (state.moveAnimation && state.moveAnimation.fromIndex === index) {
           const keepRunningTransform = state.moveAnimationRunning && state.activeMoveSlotEl === el;
           state.activeMoveSlotEl = el;
@@ -1544,6 +1546,7 @@ function drawPieces() {
           el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";
         }
+        el.classList.add("is-visible");
         el.setAttribute("aria-hidden", "false");
       }
 

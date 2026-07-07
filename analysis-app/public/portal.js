@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v38";
+  const ASSET_WARMUP_VERSION = "20260707-v39";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -55,8 +55,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260707-mobile-v19",
-    "/app.js?v=20260706-mobile-v27",
+    "/styles.css?v=20260707-mobile-v20",
+    "/app.js?v=20260706-mobile-v28",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -106,6 +106,7 @@
     activityTimer: 0,
     roomPollBusy: false,
     roomActionBusy: false,
+    roomTimeoutSyncAt: 0,
     modalConfirm: null,
     lastBoardFrame: "",
     lastPieceFrame: "",
@@ -2668,6 +2669,10 @@
     clearTurnFlash();
     settleRoomAnimationNow();
     const side = state.room.yourSide;
+    if (visibleClockFor(side) <= 0) {
+      requestRoomTimeoutSync();
+      return;
+    }
     const previousRoom = cloneJsonValue(state.room);
     const previousBoard = state.roomBoard.map((row) => row.slice());
     const previousSyncedAt = state.roomSyncedAt;
@@ -2920,12 +2925,14 @@
     state.roomClockTimer = null;
   }
 
-  async function pollRoomState() {
-    if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room" || state.roomActionBusy || state.roomAnimation) return;
+  async function pollRoomState({ force = false } = {}) {
+    if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room") return;
+    if (!force && (state.roomActionBusy || state.roomAnimation)) return;
     state.roomPollBusy = true;
     try {
       const payload = await api(`/api/rooms/state?key=${encodeURIComponent(state.roomKey)}`);
-      if (state.roomActionBusy || state.roomAnimation || state.route !== "room") return;
+      if (!force && (state.roomActionBusy || state.roomAnimation || state.route !== "room")) return;
+      if (force && state.route !== "room") return;
       applyRoomState(payload.room, { forceBoard: false, keepSelection: true });
     } catch (error) {
       if (/ROOM_NOT_FOUND|Không tìm thấy phòng/i.test(error.message || "")) {
@@ -2956,8 +2963,14 @@
     }
     const bottomSide = room.role === "player" ? room.yourSide : "w";
     const topSide = oppositeSide(bottomSide);
-    paintClock(dom.topClock, visibleClockFor(topSide), room.status === "active" && room.sideToMove === topSide);
-    paintClock(dom.bottomClock, visibleClockFor(bottomSide), room.status === "active" && room.sideToMove === bottomSide);
+    const topVisible = visibleClockFor(topSide);
+    const bottomVisible = visibleClockFor(bottomSide);
+    paintClock(dom.topClock, topVisible, room.status === "active" && room.sideToMove === topSide);
+    paintClock(dom.bottomClock, bottomVisible, room.status === "active" && room.sideToMove === bottomSide);
+    if (room.status === "active" && !room.result) {
+      const activeVisible = room.sideToMove === topSide ? topVisible : bottomVisible;
+      if (activeVisible <= 0) requestRoomTimeoutSync();
+    }
   }
 
   function paintClock(element, milliseconds, active) {
@@ -2990,8 +3003,21 @@
 
   function visibleClockFor(side) {
     if (!state.room) return 0;
+    const live = liveClockFor(side);
     const hiddenBonus = Math.max(0, Number(state.room.hiddenClockBonusMs || 0));
-    return Math.max(0, liveClockFor(side) - hiddenBonus);
+    const visibleSetup = Math.max(0, Number(state.room.clockSetupMs?.[side] || 0));
+    if (hiddenBonus > 0 && visibleSetup > 0) {
+      const actualSetup = visibleSetup + hiddenBonus;
+      return Math.max(0, live * (visibleSetup / actualSetup));
+    }
+    return Math.max(0, live);
+  }
+
+  function requestRoomTimeoutSync() {
+    const now = Date.now();
+    if (now - Number(state.roomTimeoutSyncAt || 0) < 450) return;
+    state.roomTimeoutSyncAt = now;
+    void pollRoomState({ force: true });
   }
 
   function renderProfileAfterApiFailure() {

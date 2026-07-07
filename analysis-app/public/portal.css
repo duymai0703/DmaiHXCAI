@@ -2082,7 +2082,7 @@ body {
   min-height: 56px;
   border: 0;
   border-radius: 0;
-  background: transparent url("/assets/icons/back.png") center / contain no-repeat;
+  background: transparent url("/assets/icons/backgr.png") center / contain no-repeat;
   box-shadow: none;
   font-size: 0;
   color: transparent;
@@ -2096,7 +2096,7 @@ body {
 .nav-back:focus,
 .nav-back:focus-visible {
   background-color: transparent;
-  background-image: url("/assets/icons/back.png");
+  background-image: url("/assets/icons/backgr.png");
   border: 0;
   color: transparent;
   box-shadow: none;
@@ -2704,7 +2704,7 @@ textarea:focus {
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  background: transparent url("/assets/icons/back.png") center / contain no-repeat !important;
+  background: transparent url("/assets/icons/backgr.png") center / contain no-repeat !important;
   box-shadow: none !important;
   color: transparent !important;
   font-size: 0 !important;
