@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260708-v44";
+  const ASSET_WARMUP_VERSION = "20260708-v45";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -56,8 +56,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260708-mobile-v25",
-    "/app.js?v=20260708-mobile-v33",
+    "/styles.css?v=20260708-mobile-v26",
+    "/app.js?v=20260708-mobile-v34",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -1475,7 +1475,7 @@
     const currentIndex = state.reviewCursor - 1;
     if (currentIndex < 0) {
       renderReviewEvalBar(null);
-      dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Tiếp theo để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
+      dom.reviewInsight.innerHTML = "";
       return;
     }
 
@@ -1502,14 +1502,14 @@
     if (!dom.reviewEvalBar || !dom.reviewEvalText || !dom.reviewEvalRed || !dom.reviewEvalBlack) return;
     if (!analysis || !Number.isFinite(Number(analysis.redScore))) {
       dom.reviewEvalText.textContent = "Chưa phân tích";
-      dom.reviewEvalRed.style.width = "50%";
-      dom.reviewEvalBlack.style.width = "50%";
+      dom.reviewEvalRed.style.height = "50%";
+      dom.reviewEvalBlack.style.height = "50%";
       return;
     }
     const score = Number(analysis.redScore);
     const redShare = reviewRedShare(score);
-    dom.reviewEvalRed.style.width = `${redShare}%`;
-    dom.reviewEvalBlack.style.width = `${100 - redShare}%`;
+    dom.reviewEvalRed.style.height = `${redShare}%`;
+    dom.reviewEvalBlack.style.height = `${100 - redShare}%`;
     if (score === 0) {
       dom.reviewEvalText.textContent = "0";
       return;

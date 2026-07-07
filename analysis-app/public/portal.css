@@ -155,10 +155,10 @@ a {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  object-fit: contain;
+  object-fit: cover;
   image-rendering: auto;
-  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
-  padding: 2px;
+  background: transparent;
+  padding: 0;
   border: 1px solid rgba(246, 207, 112, 0.45);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   flex: 0 0 auto;
@@ -943,17 +943,44 @@ a {
 .review-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  width: min(100%, 620px);
+  margin-top: 10px;
 }
 
 .review-insight {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.review-insight:empty {
+  display: none;
+}
+
+.review-playback {
+  display: grid;
+  justify-content: center;
+  justify-items: start;
+  width: 100%;
+  gap: 0;
+}
+
+.review-board-row {
+  display: grid;
+  grid-template-columns: minmax(0, 620px) 74px;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
+  width: min(100%, 708px);
 }
 
 .review-eval-card {
-  margin: 12px 0 16px;
-  padding: 12px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-self: stretch;
+  width: 74px;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 9px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(230, 244, 255, 0.92));
@@ -965,25 +992,33 @@ a {
 .review-eval-head,
 .review-eval-labels {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 5px;
   color: #162233;
+  text-align: center;
 }
 
 .review-eval-head strong {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .review-eval-head span {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
   font-weight: 900;
   color: #0b1726;
+  line-height: 1.1;
 }
 
 .review-eval-track {
   display: flex;
-  height: 24px;
-  margin: 10px 0 7px;
+  flex-direction: column-reverse;
+  width: 24px;
+  height: 100%;
+  min-height: 0;
+  margin: 10px auto;
   overflow: hidden;
   border-radius: 999px;
   border: 2px solid rgba(255, 255, 255, 0.9);
@@ -996,9 +1031,9 @@ a {
 .review-eval-red,
 .review-eval-black {
   display: block;
-  width: 50%;
-  height: 100%;
-  transition: width 0.32s ease;
+  width: 100%;
+  height: 50%;
+  transition: height 0.32s ease;
 }
 
 .review-eval-red {
@@ -1012,11 +1047,14 @@ a {
 .review-eval-labels {
   font-size: 12px;
   font-weight: 900;
+  min-height: 42px;
 }
 
 .review-board-wrap {
   display: grid;
   place-items: center;
+  min-width: 0;
+  width: 100%;
 }
 
 .room-panel {
@@ -2052,6 +2090,34 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .review-board-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .review-eval-card {
+    width: 54px;
+    padding: 8px 6px;
+    border-radius: 12px;
+  }
+
+  .review-eval-track {
+    width: 18px;
+    margin-block: 7px;
+  }
+
+  .review-eval-head strong,
+  .review-eval-head span,
+  .review-eval-labels {
+    font-size: 10px;
+  }
+
+  .review-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
   .profile-editor {
     align-items: stretch;
     flex-direction: column;
@@ -2423,6 +2489,11 @@ textarea:focus {
 .piece.image-piece::before,
 .piece.image-piece::after {
   display: none;
+}
+
+.piece.image-piece.in-check::after,
+.piece.image-piece.checkmated::after {
+  display: block;
 }
 
 .piece.selected {

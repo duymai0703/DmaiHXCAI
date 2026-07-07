@@ -29,7 +29,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v35">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v36">
   </head>
   <body>
     <header class="portal-header">
@@ -345,40 +345,44 @@
               <span id="reviewResultBadge" class="room-status-badge">Lịch sử</span>
             </div>
 
-            <div class="review-controls">
-              <button id="reviewPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
-              <button id="reviewNextBtn" class="secondary-button" type="button">Tiếp theo</button>
-              <button id="reviewAnalyzeBtn" class="primary-button" type="button">Phân tích</button>
-            </div>
-
             <div id="reviewInsight" class="notice-card review-insight">
               Tua lại từng nước để xem diễn biến của ván cờ.
             </div>
 
-            <div id="reviewEvalBar" class="review-eval-card" aria-live="polite">
-              <div class="review-eval-head">
-                <strong>Đánh giá</strong>
-                <span id="reviewEvalText">Chưa phân tích</span>
-              </div>
-              <div class="review-eval-track" aria-hidden="true">
-                <span id="reviewEvalRed" class="review-eval-red"></span>
-                <span id="reviewEvalBlack" class="review-eval-black"></span>
-              </div>
-              <div class="review-eval-labels">
-                <span>Đỏ</span>
-                <span>Đen</span>
-              </div>
-            </div>
-
-            <div class="review-board-wrap">
-              <div id="reviewBoard" class="room-board review-board">
-                <div class="board-skin-layer" aria-hidden="true"></div>
-                <canvas id="reviewBoardCanvas"></canvas>
-                <canvas id="reviewArrowCanvas"></canvas>
-                <div id="reviewPieces"></div>
-                <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
-                  <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+            <div class="review-playback">
+              <div class="review-board-row">
+                <div class="review-board-wrap">
+                  <div id="reviewBoard" class="room-board review-board">
+                    <div class="board-skin-layer" aria-hidden="true"></div>
+                    <canvas id="reviewBoardCanvas"></canvas>
+                    <canvas id="reviewArrowCanvas"></canvas>
+                    <div id="reviewPieces"></div>
+                    <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
+                      <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
+                    </div>
+                  </div>
                 </div>
+
+                <div id="reviewEvalBar" class="review-eval-card" aria-live="polite">
+                  <div class="review-eval-head">
+                    <strong>Đánh giá</strong>
+                    <span id="reviewEvalText">Chưa phân tích</span>
+                  </div>
+                  <div class="review-eval-track" aria-hidden="true">
+                    <span id="reviewEvalRed" class="review-eval-red"></span>
+                    <span id="reviewEvalBlack" class="review-eval-black"></span>
+                  </div>
+                  <div class="review-eval-labels">
+                    <span>Đen</span>
+                    <span>Đỏ</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="review-controls">
+                <button id="reviewAnalyzeBtn" class="primary-button" type="button">Phân tích</button>
+                <button id="reviewPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
+                <button id="reviewNextBtn" class="secondary-button" type="button">Tiếp theo</button>
               </div>
             </div>
           </section>
@@ -442,7 +446,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v48"></script>
+    <script src="/portal.js?v=20260708-room-v49"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

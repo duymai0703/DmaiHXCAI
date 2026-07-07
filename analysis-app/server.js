@@ -1841,12 +1841,17 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
     }
 
     const withinBookWindow = Math.floor(index / 2) < 10;
+    const baseGrade = reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);
     const bookMoves = withinBookWindow && cloudBookAvailable ? await topCloudBookMovesForReview(currentFen) : [];
     if (withinBookWindow && cloudBookAvailable && !bookMoves.length) cloudBookAvailable = false;
-    const inBook = withinBookWindow && (ply.move === (best.bestMove || "") || bookMoves.includes(ply.move));
+    const inBook = withinBookWindow && (
+      baseGrade.key === "brilliant" ||
+      ply.move === (best.bestMove || "") ||
+      bookMoves.includes(ply.move)
+    );
     const grade = inBook
       ? { key: "book", label: "Book", delta: 0 }
-      : reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);
+      : baseGrade;
     items.push({
       index,
       side,
