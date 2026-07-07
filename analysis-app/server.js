@@ -337,12 +337,9 @@ function loadRooms() {
     room.chat = Array.isArray(room.chat) ? room.chat.slice(-MAX_CHAT_MESSAGES) : [];
     room.presence = room.presence && typeof room.presence === "object" ? room.presence : {};
     room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
-    room.hiddenClockBonusMs = Math.max(
-      0,
-      Number(Object.prototype.hasOwnProperty.call(room, "hiddenClockBonusMs") ? room.hiddenClockBonusMs : ROOM_HIDDEN_CLOCK_BONUS_MS)
-    );
     room.incrementSeconds = clampIncrementSeconds(room.incrementSeconds, 0);
     room.incrementMs = room.incrementSeconds * 1000;
+    room.hiddenClockBonusMs = room.incrementSeconds === 0 ? ROOM_HIDDEN_CLOCK_BONUS_MS : 0;
     if (room.players?.w && !room.playerTimeMs[room.players.w]) room.playerTimeMs[room.players.w] = room.timeControlMs || 0;
     if (room.players?.b && !room.playerTimeMs[room.players.b]) room.playerTimeMs[room.players.b] = room.timeControlMs || 0;
     room.pendingOpponentTimeMs = Number(room.pendingOpponentTimeMs || room.timeControlMs || 0);
@@ -980,7 +977,7 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
   const yourTimeMs = clampRoomMinutes(yourMinutes, 10) * 60 * 1000;
   const opponentTimeMs = clampRoomMinutes(opponentMinutes, 10) * 60 * 1000;
   const safeIncrementSeconds = clampIncrementSeconds(incrementSeconds, 0);
-  const hiddenBonusMs = ROOM_HIDDEN_CLOCK_BONUS_MS;
+  const hiddenBonusMs = safeIncrementSeconds === 0 ? ROOM_HIDDEN_CLOCK_BONUS_MS : 0;
   const visibleClockSetupMs = {
     w: color === "w" ? yourTimeMs : opponentTimeMs,
     b: color === "b" ? yourTimeMs : opponentTimeMs

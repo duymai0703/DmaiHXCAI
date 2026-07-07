@@ -1398,12 +1398,14 @@ a {
 
 .hint {
   position: absolute;
-  width: 3.9%;
+  width: 2.8%;
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: #ffd447;
-  box-shadow: 0 0 0 2px rgba(72, 42, 0, 0.25), 0 0 10px rgba(255, 212, 71, 0.7);
+  background: radial-gradient(circle at 35% 35%, #dcfce7 0%, #4ade80 48%, #16a34a 100%);
+  box-shadow:
+    0 0 0 1px rgba(5, 46, 22, 0.34),
+    0 0 10px rgba(34, 197, 94, 0.7);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -2031,7 +2033,7 @@ a {
   }
 
   .hint {
-    width: 4.2%;
+    width: 3%;
   }
 
   .room-move-list li {
@@ -2360,10 +2362,11 @@ textarea:focus {
 }
 
 .hint {
-  background: radial-gradient(circle at 35% 35%, #ffe7ae 0%, #f8be4f 45%, #a86213 100%);
+  width: 2.8%;
+  background: radial-gradient(circle at 35% 35%, #dcfce7 0%, #4ade80 48%, #16a34a 100%);
   box-shadow:
-    0 0 0 2px rgba(92, 54, 10, 0.28),
-    0 0 14px rgba(255, 208, 92, 0.66);
+    0 0 0 1px rgba(5, 46, 22, 0.34),
+    0 0 12px rgba(34, 197, 94, 0.66);
 }
 
 .profile-modal-card {

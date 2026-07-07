@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v23";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v24";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1031,6 +1031,18 @@ function paintMotionPiece(element, piece) {
   }
 }
 
+function setPieceSlotImage(el, piece) {
+  if (!el || !piece) return;
+  el.dataset.piece = piece;
+  const image = el.querySelector(".piece-skin");
+  if (image) {
+    const source = PIECE_IMAGES[piece];
+    if (image.getAttribute("src") !== source) image.src = source;
+    image.alt = PIECE_NAMES[piece] || piece;
+  }
+  el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+}
+
 function finalizeMoveAnimation(animation) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   if (state.moveAnimationTimer) {
@@ -1504,11 +1516,14 @@ function drawPieces() {
       }
       const el = pieceSlots[index];
       if (!piece) {
+        if (animation && index === animation.toIndex) {
+          setPieceSlotImage(el, animation.piece);
+        }
         el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
         el.style.transition = "none";
         el.style.transform = "translate(-50%, -50%)";
-        if (el.dataset.piece) {
+        if (el.dataset.piece && !(animation && index === animation.toIndex)) {
           el.dataset.piece = "";
           el.removeAttribute("aria-label");
         }
@@ -1516,14 +1531,7 @@ function drawPieces() {
       } else {
         const isRed = piece === piece.toUpperCase();
         if (el.dataset.piece !== piece) {
-          el.dataset.piece = piece;
-          const image = el.querySelector(".piece-skin");
-          if (image) {
-            const source = PIECE_IMAGES[piece];
-            if (image.getAttribute("src") !== source) image.src = source;
-            image.alt = PIECE_NAMES[piece] || piece;
-          }
-          el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+          setPieceSlotImage(el, piece);
         }
         el.classList.toggle("red", isRed);
         el.classList.toggle("black", !isRed);
@@ -1578,9 +1586,7 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
   const dir = { x: Math.cos(angle), y: Math.sin(angle) };
   const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
-  const capturesPiece = Boolean(state.board[toSquare.y]?.[toSquare.x]);
-  const pieceRadius = rect.width * pieceRatio / 2;
-  const stopBeforeTarget = capturesPiece ? pieceRadius + Math.max(4, ctx.lineWidth * 0.5) : 0;
+  const stopBeforeTarget = 0;
   const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
   const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.92) : Math.max(58, rect.width / 12);
   const halfWidth = isMobileBoard ? Math.max(9, head * 0.18) : Math.max(12, head * 0.2);
