@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v25";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v26";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -180,6 +180,7 @@ function applyTheme(theme, { persist = false } = {}) {
   const normalized = normalizeTheme(theme);
   document.documentElement.dataset.theme = normalized;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+  updateBrandLogo(normalized);
   if (persist) writeStorage(THEME_STORAGE_KEY, normalized);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     const active = button.dataset.themeChoice === normalized;
@@ -188,6 +189,15 @@ function applyTheme(theme, { persist = false } = {}) {
   });
   state.lastArrowFrame = "";
   drawArrowLayer();
+}
+
+function updateBrandLogo(theme) {
+  const logo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
+  document.querySelectorAll(".brand-mark").forEach((image) => {
+    if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
+      image.src = logo;
+    }
+  });
 }
 
 function currentTheme() {

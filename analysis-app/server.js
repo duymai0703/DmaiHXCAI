@@ -1768,19 +1768,31 @@ function normalizedReviewScore(line) {
 
 function reviewGradeForMove(actualMove, bestMove, bestScore, actualScore) {
   if (!actualMove || !bestMove) {
-    return { key: "okay", label: "Tạm", delta: 0 };
+    return { key: "okay", label: "Khá yếu", delta: 0 };
   }
   const delta = Math.max(0, Number(bestScore || 0) - Number(actualScore || 0));
   if (actualMove === bestMove || delta <= 14) {
     return { key: "brilliant", label: "Ưu việt", delta };
   }
   if (delta <= 70) {
-    return { key: "good", label: "Tốt", delta };
+    return { key: "good", label: "Khá ổn", delta };
   }
   if (delta <= 180) {
-    return { key: "okay", label: "Tạm", delta };
+    return { key: "okay", label: "Khá yếu", delta };
   }
-  return { key: "bad", label: "Tệ", delta };
+  return { key: "bad", label: "Rất yếu", delta };
+}
+
+async function topCloudBookMovesForReview(fen) {
+  try {
+    const result = await Promise.race([
+      queryCloudBook(fen),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud book timeout")), 1400))
+    ]);
+    return Array.isArray(result.moves) ? result.moves.slice(0, 2).map((entry) => entry.move) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = [], depth = 8, movetime = 180 }) {
@@ -1789,6 +1801,7 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
   const safeMoveTime = Math.max(80, Math.min(1200, Number(movetime) || 180));
   let currentFen = sanitizeFen(startFen || XiangqiCore.START_FEN);
   const items = [];
+  let bookStillAvailable = true;
 
   for (let index = 0; index < safePlies.length; index += 1) {
     const ply = safePlies[index];
@@ -1827,7 +1840,12 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
       } catch {}
     }
 
-    const grade = reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);
+    const bookMoves = bookStillAvailable ? await topCloudBookMovesForReview(currentFen) : [];
+    if (bookStillAvailable && !bookMoves.length) bookStillAvailable = false;
+    const inBook = bookMoves.includes(ply.move);
+    const grade = inBook
+      ? { key: "book", label: "Book", delta: 0 }
+      : reviewGradeForMove(ply.move, best.bestMove || "", bestScore, actualScore);
     items.push({
       index,
       side,
@@ -1839,7 +1857,10 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
       actualScore,
       delta: grade.delta,
       grade: grade.key,
-      gradeLabel: grade.label
+      gradeLabel: grade.label,
+      bookMoves,
+      inBook,
+      redScore: side === "w" ? actualScore : -actualScore
     });
 
     if (!XiangqiCore.isLegalMove(boardBefore, ply.move, side)) {

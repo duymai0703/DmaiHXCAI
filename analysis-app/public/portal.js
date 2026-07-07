@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260707-v42";
+  const ASSET_WARMUP_VERSION = "20260707-v43";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -48,15 +48,16 @@
     p: "assets/pieces/black-pawn.png"
   };
   const REVIEW_BADGES = {
+    book: { key: "book", label: "Book", image: "/assets/review-badges/book.png" },
     brilliant: { key: "brilliant", label: "Ưu việt", image: "/assets/review-badges/sao.png" },
-    good: { key: "good", label: "Tốt", image: "/assets/review-badges/like.png" },
-    okay: { key: "okay", label: "Tạm", image: "/assets/review-badges/bang.png" },
-    bad: { key: "bad", label: "Tệ", image: "/assets/review-badges/x.png" }
+    good: { key: "good", label: "Khá ổn", image: "/assets/review-badges/like.png" },
+    okay: { key: "okay", label: "Khá yếu", image: "/assets/review-badges/bang.png" },
+    bad: { key: "bad", label: "Rất yếu", image: "/assets/review-badges/x.png" }
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260707-mobile-v23",
-    "/app.js?v=20260706-mobile-v31",
+    "/styles.css?v=20260707-mobile-v24",
+    "/app.js?v=20260706-mobile-v32",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     ...Object.values(PIECE_IMAGES)
@@ -65,6 +66,7 @@
     "/assets/icons/logow.png",
     "/assets/icons/logob.png"
   ];
+  const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
     "/assets/posters/darkmagi1.png",
     "/assets/posters/darkmagi2.png",
@@ -74,7 +76,7 @@
     "/assets/posters/white3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 228;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 
@@ -243,6 +245,10 @@
     reviewNextBtn: byId("reviewNextBtn"),
     reviewAnalyzeBtn: byId("reviewAnalyzeBtn"),
     reviewInsight: byId("reviewInsight"),
+    reviewEvalBar: byId("reviewEvalBar"),
+    reviewEvalText: byId("reviewEvalText"),
+    reviewEvalRed: byId("reviewEvalRed"),
+    reviewEvalBlack: byId("reviewEvalBlack"),
     reviewMoveMeta: byId("reviewMoveMeta"),
     reviewBoard: byId("reviewBoard"),
     reviewBoardCanvas: byId("reviewBoardCanvas"),
@@ -325,11 +331,21 @@
     const normalized = normalizeTheme(theme);
     document.documentElement.dataset.theme = normalized;
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+    updateBrandLogo(normalized);
     if (persist) writePersistentValue(STORAGE_THEME, normalized);
     document.querySelectorAll("[data-theme-choice]").forEach((button) => {
       const active = button.dataset.themeChoice === normalized;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function updateBrandLogo(theme) {
+    const logo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
+    document.querySelectorAll(".brand-mark").forEach((image) => {
+      if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
+        image.src = logo;
+      }
     });
   }
 
@@ -1433,6 +1449,7 @@
       dom.reviewResultBadge.textContent = "Lịch sử";
       dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
       dom.reviewInsight.textContent = "Tua lại từng nước để xem diễn biến của ván cờ.";
+      renderReviewEvalBar(null);
       dom.reviewPrevBtn.disabled = true;
       dom.reviewNextBtn.disabled = true;
       dom.reviewAnalyzeBtn.disabled = true;
@@ -1457,6 +1474,7 @@
 
     const currentIndex = state.reviewCursor - 1;
     if (currentIndex < 0) {
+      renderReviewEvalBar(null);
       dom.reviewInsight.innerHTML = "<strong>Bắt đầu ván cờ</strong><div>Hãy bấm Tiếp theo để đi từng nước, hoặc bấm Phân tích để Pikafish quét toàn bộ ván.</div>";
       return;
     }
@@ -1465,15 +1483,51 @@
     const analysis = state.reviewAnalysis[currentIndex] || null;
     const moveTitle = currentPly?.notation || currentPly?.move || `Nước ${currentIndex + 1}`;
     if (!analysis) {
+      renderReviewEvalBar(null);
       dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle}</strong><div>Ván đang ở sau nước này. Bấm Phân tích để xem chất lượng và nước đề xuất.</div>`;
       return;
     }
 
-    const recommendText = analysis.grade === "brilliant"
+    renderReviewEvalBar(analysis);
+    const recommendText = analysis.grade === "book"
+      ? "Nước này trùng 1-2 phương án đầu của data book."
+      : analysis.grade === "brilliant"
       ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
       : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
     const badge = reviewBadgeForGrade(analysis.grade);
     dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} - ${analysis.gradeLabel || badge.label || "Đã phân tích"}</strong><div>${recommendText}</div>`;
+  }
+
+  function renderReviewEvalBar(analysis) {
+    if (!dom.reviewEvalBar || !dom.reviewEvalText || !dom.reviewEvalRed || !dom.reviewEvalBlack) return;
+    if (!analysis || !Number.isFinite(Number(analysis.redScore))) {
+      dom.reviewEvalText.textContent = "Chưa phân tích";
+      dom.reviewEvalRed.style.width = "50%";
+      dom.reviewEvalBlack.style.width = "50%";
+      return;
+    }
+    const score = Number(analysis.redScore);
+    const redShare = reviewRedShare(score);
+    dom.reviewEvalRed.style.width = `${redShare}%`;
+    dom.reviewEvalBlack.style.width = `${100 - redShare}%`;
+    if (score === 0) {
+      dom.reviewEvalText.textContent = "0";
+      return;
+    }
+    const sideText = score > 0 ? "Đỏ" : "Đen";
+    dom.reviewEvalText.textContent = `${sideText} ${formatReviewEval(score)}`;
+  }
+
+  function reviewRedShare(score) {
+    if (Math.abs(score) >= 31999) return score > 0 ? 100 : 0;
+    const clamped = Math.max(-1500, Math.min(1500, score));
+    return Math.max(0, Math.min(100, Math.round(50 + (clamped / 1500) * 50)));
+  }
+
+  function formatReviewEval(score) {
+    if (Math.abs(score) >= 31999) return score > 0 ? "+31999" : "-31999";
+    const value = Math.round(score);
+    return value > 0 ? `+${value}` : String(value);
   }
 
   function renderReviewMoveList() {
@@ -2542,7 +2596,7 @@
         const el = slots[index];
         if (!piece) {
           el.classList.remove("is-visible");
-          el.classList.remove("in-check", "review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
+          el.classList.remove("in-check", "review-current", "review-badge", "review-grade-book", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
           el.style.transition = "none";
           el.style.transform = "translate(-50%, -50%)";
           if (el.dataset.piece) {
@@ -2557,7 +2611,7 @@
         }
 
         el.classList.add("is-visible");
-        el.classList.remove("review-current", "review-badge", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
+        el.classList.remove("review-current", "review-badge", "review-grade-book", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
         if (el.dataset.piece !== piece) {
           el.dataset.piece = piece;
           const image = el.querySelector(".piece-skin");
@@ -2597,7 +2651,7 @@
     const currentIndex = state.reviewCursor - 1;
     if (currentIndex < 0) return;
     const analysis = state.reviewAnalysis[currentIndex];
-    if (!analysis || analysis.grade === "brilliant" || !/^[a-i][0-9][a-i][0-9]$/.test(analysis.bestMove || "")) return;
+    if (!analysis || analysis.grade === "brilliant" || analysis.grade === "book" || !/^[a-i][0-9][a-i][0-9]$/.test(analysis.bestMove || "")) return;
 
     const canvas = dom.reviewArrowCanvas;
     const ctx = canvas.getContext("2d");

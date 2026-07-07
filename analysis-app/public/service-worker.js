@@ -1,12 +1,12 @@
-const CACHE_NAME = "dmaihxcai-shell-v67";
+const CACHE_NAME = "dmaihxcai-shell-v68";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260707-room-v33",
-  "/portal.js?v=20260707-room-v46",
-  "/styles.css?v=20260707-mobile-v23",
-  "/app.js?v=20260706-mobile-v31",
+  "/portal.css?v=20260707-room-v34",
+  "/portal.js?v=20260707-room-v47",
+  "/styles.css?v=20260707-mobile-v24",
+  "/app.js?v=20260706-mobile-v32",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -22,7 +22,12 @@ const STATIC_ASSETS = [
   "/assets/icons/icon-192.png",
   "/assets/icons/header-logo.png",
   "/assets/icons/logow.png",
-  "/assets/icons/logob.png"
+  "/assets/icons/logob.png",
+  "/assets/review-badges/book.png",
+  "/assets/review-badges/sao.png",
+  "/assets/review-badges/like.png",
+  "/assets/review-badges/bang.png",
+  "/assets/review-badges/x.png"
 ];
 
 self.addEventListener("install", (event) => {
