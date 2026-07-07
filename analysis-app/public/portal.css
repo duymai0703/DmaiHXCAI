@@ -2526,6 +2526,10 @@ body {
 }
 
 .theme-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 34px;
   padding: 0 12px;
   border: 0;
@@ -2535,6 +2539,26 @@ body {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.theme-toggle button::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border-radius: 50%;
+  background: center / cover no-repeat;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.34),
+    0 5px 12px rgba(0, 0, 0, 0.22);
+}
+
+.theme-toggle button[data-theme-choice="light"]::before {
+  background-image: url("/assets/icons/logow.png");
+}
+
+.theme-toggle button[data-theme-choice="dark"]::before {
+  background-image: url("/assets/icons/logob.png");
 }
 
 .theme-toggle button:hover,
@@ -2692,6 +2716,12 @@ textarea:focus {
     min-height: 30px;
     padding: 0 8px;
     font-size: 11px;
+  }
+
+  .theme-toggle button::before {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
   }
 }
 

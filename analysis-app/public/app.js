@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v24";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v25";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -49,6 +49,8 @@ const ANALYSIS_BLOCKING_ASSETS = [
 const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/backgr.png",
   "/assets/icons/header-logo.png",
+  "/assets/icons/logow.png",
+  "/assets/icons/logob.png",
   "/assets/icons/icon-192.png"
 ];
 let wakePromise = null;
