@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v22";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v23";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1038,13 +1038,11 @@ function finalizeMoveAnimation(animation) {
     state.moveAnimationTimer = 0;
   }
   state.moveAnimationRunning = false;
+  hideMoveAnimationElements();
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
   draw(true);
-  window.requestAnimationFrame(() => {
-    if (!state.moveAnimation) hideMoveAnimationElements();
-  });
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {
@@ -1060,18 +1058,13 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     primeMoveAnimation(animation);
   }
 
-  const movingSlotEl = movingPieceEl;
+  const { pieceSlots } = ensureBoardSlots();
+  const movingSlotEl = pieceSlots[animation.fromIndex];
   if (!movingSlotEl) return;
-  const fromPos = squareToPixel(animation.from);
-  state.activeMoveSlotEl = null;
+  state.activeMoveSlotEl = movingSlotEl;
   state.moveAnimationRunning = false;
-  paintMotionPiece(movingSlotEl, animation.piece);
-  movingSlotEl.style.left = `${fromPos.x}px`;
-  movingSlotEl.style.top = `${fromPos.y}px`;
   movingSlotEl.style.transition = "none";
-  movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
-  movingSlotEl.classList.add("is-visible");
-  movingSlotEl.setAttribute("aria-hidden", "false");
+  movingSlotEl.style.transform = "translate(-50%, -50%)";
 
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
@@ -1506,7 +1499,8 @@ function drawPieces() {
       const animation = state.moveAnimation;
       let piece = state.board[y][x];
       if (animation) {
-        if (index === animation.fromIndex || index === animation.toIndex) piece = "";
+        if (index === animation.fromIndex) piece = animation.piece;
+        else if (index === animation.toIndex) piece = "";
       }
       const el = pieceSlots[index];
       if (!piece) {
