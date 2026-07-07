@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000" fill="none">
   <defs>
     <filter id="lineGlow" x="-8%" y="-8%" width="116%" height="116%">
-      <feGaussianBlur stdDeviation="1.8" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.56 0 0 0 0 1 0 0 0 0.7 0"/>
+      <feGaussianBlur stdDeviation="1.0" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.56 0 0 0 0 1 0 0 0 0.46 0"/>
       <feMerge>
         <feMergeNode/>
         <feMergeNode in="SourceGraphic"/>
@@ -10,7 +10,7 @@
     </filter>
   </defs>
   <rect width="900" height="1000" fill="transparent"/>
-  <g stroke="#038bd6" stroke-opacity="0.9" stroke-width="4.1" stroke-linecap="round" filter="url(#lineGlow)">
+  <g stroke="#038bd6" stroke-opacity="0.9" stroke-width="3.15" stroke-linecap="butt" filter="url(#lineGlow)">
     <line x1="63" y1="63" x2="63" y2="451.444"/>
     <line x1="63" y1="548.556" x2="63" y2="937"/>
     <line x1="159.75" y1="63" x2="159.75" y2="451.444"/>

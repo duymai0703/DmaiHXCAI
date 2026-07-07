@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --app-vh: 1vh;
-  --board-skin: url("/assets/board/board-skin-dark.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg");
   --ink: #201913;
   --muted: #6c5d4f;
   --paper: #f4ead7;
@@ -2402,7 +2402,7 @@ textarea:focus {
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --board-skin: url("/assets/board/board-skin-dark.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg");
   --ink: #eef8ff;
   --muted: #93abc2;
   --paper: #0d1624;
@@ -2426,13 +2426,13 @@ textarea:focus {
     linear-gradient(135deg, #040812 0%, #091426 50%, #02050a 100%);
   --header-bg: linear-gradient(180deg, rgba(7, 13, 24, 0.96), rgba(3, 8, 16, 0.94));
   --header-line: rgba(56, 189, 248, 0.42);
-  --board-bg: linear-gradient(145deg, #1b2f42 0%, #264f66 48%, #0d1b2a 100%);
-  --board-border: #5ed5ff;
+  --board-bg: linear-gradient(145deg, #f7fdff 0%, #bfeeff 48%, #84d4ff 100%);
+  --board-border: #0597cf;
   --board-shadow:
-    inset 0 0 0 2px rgba(199, 240, 255, 0.18),
-    inset 0 16px 26px rgba(255, 255, 255, 0.05),
+    inset 0 0 0 2px rgba(3, 139, 214, 0.22),
+    inset 0 16px 28px rgba(255, 255, 255, 0.48),
     0 28px 58px rgba(0, 0, 0, 0.46),
-    0 0 34px rgba(56, 189, 248, 0.16);
+    0 0 30px rgba(92, 225, 255, 0.24);
   --focus-ring: rgba(56, 189, 248, 0.22);
   --shadow: 0 24px 54px rgba(0, 0, 0, 0.42);
 }
@@ -2778,6 +2778,7 @@ textarea:focus {
     drop-shadow(0 0 8px rgba(91, 206, 255, 0.18));
 }
 
+:root[data-theme="dark"] .board-skin-layer,
 :root[data-theme="light"] .board-skin-layer {
   filter:
     drop-shadow(0 0 3px rgba(3, 139, 214, 0.34))

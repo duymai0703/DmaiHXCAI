@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v20";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260706-v21";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1020,6 +1020,17 @@ function hideMoveAnimationElements() {
   }
 }
 
+function paintMotionPiece(element, piece) {
+  if (!element || !piece) return;
+  element.dataset.piece = piece;
+  const image = element.querySelector(".piece-skin");
+  if (image) {
+    const source = PIECE_IMAGES[piece];
+    if (image.getAttribute("src") !== source) image.src = source;
+    image.alt = PIECE_NAMES[piece] || piece;
+  }
+}
+
 function finalizeMoveAnimation(animation) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   if (state.moveAnimationTimer) {
@@ -1047,13 +1058,18 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     primeMoveAnimation(animation);
   }
 
-  const { pieceSlots } = ensureBoardSlots();
-  const movingSlotEl = pieceSlots[animation.fromIndex];
+  const movingSlotEl = movingPieceEl;
   if (!movingSlotEl) return;
-  state.activeMoveSlotEl = movingSlotEl;
+  const fromPos = squareToPixel(animation.from);
+  state.activeMoveSlotEl = null;
   state.moveAnimationRunning = false;
+  paintMotionPiece(movingSlotEl, animation.piece);
+  movingSlotEl.style.left = `${fromPos.x}px`;
+  movingSlotEl.style.top = `${fromPos.y}px`;
   movingSlotEl.style.transition = "none";
-  movingSlotEl.style.transform = "translate(-50%, -50%)";
+  movingSlotEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+  movingSlotEl.classList.add("is-visible");
+  movingSlotEl.setAttribute("aria-hidden", "false");
 
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
@@ -1488,8 +1504,7 @@ function drawPieces() {
       const animation = state.moveAnimation;
       let piece = state.board[y][x];
       if (animation) {
-        if (index === animation.fromIndex) piece = animation.piece;
-        else if (index === animation.toIndex) piece = "";
+        if (index === animation.fromIndex || index === animation.toIndex) piece = "";
       }
       const el = pieceSlots[index];
       if (!piece) {
@@ -1812,14 +1827,11 @@ function buildSuggestionGroup(arrowMoves, board) {
 }
 
 function suggestionArrowColor(side) {
-  if (currentTheme() === "light") {
-    return side === "w" ? "rgba(200, 26, 191, 0.94)" : "rgba(36, 93, 210, 0.92)";
-  }
-  return side === "w" ? "rgba(255, 85, 231, 0.98)" : "rgba(255, 218, 74, 0.98)";
+  return side === "w" ? "rgba(200, 26, 191, 0.94)" : "rgba(36, 93, 210, 0.92)";
 }
 
 function resolveSuggestionColor(suggestion) {
-  if (!suggestion?.side && currentTheme() === "light" && suggestion?.color) return suggestion.color;
+  if (!suggestion?.side && suggestion?.color) return suggestion.color;
   return suggestionArrowColor(suggestion?.side || "");
 }
 
