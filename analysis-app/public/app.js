@@ -39,7 +39,7 @@ const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v48";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v49";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -70,11 +70,15 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb3-light.png",
   "/assets/icons/mb4-light.png",
   "/assets/icons/mb5-light.png",
+  "/assets/icons/cole-light.png",
+  "/assets/icons/guom-light.png",
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
   "/assets/icons/mb3-dark.png",
   "/assets/icons/mb4-dark.png",
   "/assets/icons/mb5-dark.png",
+  "/assets/icons/cole-dark.png",
+  "/assets/icons/guom-dark.png",
   "/assets/icons/logow.png",
   "/assets/icons/logob.png",
   "/assets/effects/sat-cutout.png"
@@ -573,6 +577,9 @@ function handleMobileAction(action) {
       break;
     case "flip":
       toggleFlipBoard();
+      break;
+    case "cole":
+    case "guom":
       break;
     default:
       break;

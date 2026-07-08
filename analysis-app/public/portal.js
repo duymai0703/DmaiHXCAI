@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v63";
+  const ASSET_WARMUP_VERSION = "20260709-v64";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -65,8 +65,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v43",
-    "/app.js?v=20260709-mobile-v54",
+    "/styles.css?v=20260709-mobile-v44",
+    "/app.js?v=20260709-mobile-v55",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -75,11 +75,15 @@
     "/assets/icons/mb3-light.png",
     "/assets/icons/mb4-light.png",
     "/assets/icons/mb5-light.png",
+    "/assets/icons/cole-light.png",
+    "/assets/icons/guom-light.png",
     "/assets/icons/mb1-dark.png",
     "/assets/icons/mb2-dark.png",
     "/assets/icons/mb3-dark.png",
     "/assets/icons/mb4-dark.png",
     "/assets/icons/mb5-dark.png",
+    "/assets/icons/cole-dark.png",
+    "/assets/icons/guom-dark.png",
     "/assets/icons/logow.png",
     "/assets/icons/logob.png",
     "/assets/effects/sat-cutout.png",
