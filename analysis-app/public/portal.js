@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v62";
+  const ASSET_WARMUP_VERSION = "20260709-v63";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,7 +66,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260709-mobile-v43",
-    "/app.js?v=20260709-mobile-v53",
+    "/app.js?v=20260709-mobile-v54",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -2807,24 +2807,22 @@
     const from = reviewSquareToPixel(uciToSquare(analysis.bestMove.slice(0, 2)));
     const toSquare = uciToSquare(analysis.bestMove.slice(2, 4));
     const to = reviewSquareToPixel(toSquare);
-    const contextBoard = state.reviewContextBoard || state.reviewBoard;
     const pieceRatio = Number.parseFloat(getComputedStyle(dom.reviewBoard).getPropertyValue("--piece-size")) / 100 || 0.086;
     const isMobileBoard = rect.width <= 460;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.lineWidth = isMobileBoard ? Math.max(7, rect.width * pieceRatio * 0.18) : Math.max(11, rect.width / 66);
+    ctx.lineWidth = isMobileBoard ? Math.max(3.8, rect.width * pieceRatio * 0.072) : Math.max(4.2, rect.width / 160);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
     const dir = { x: Math.cos(angle), y: Math.sin(angle) };
     const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
-    const capturesPiece = Boolean(contextBoard[toSquare.y]?.[toSquare.x]);
-    const pieceRadius = rect.width * pieceRatio / 2;
-    const stopBeforeTarget = capturesPiece ? pieceRadius + Math.max(4, ctx.lineWidth * 0.5) : 0;
+    const stopBeforeTarget = 0;
     const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
-    const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.92) : Math.max(58, rect.width / 12);
-    const halfWidth = isMobileBoard ? Math.max(9, head * 0.18) : Math.max(12, head * 0.2);
+    const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.82) : Math.max(50, rect.width / 14.6);
+    const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
-    const palette = arrowPalette("rgba(164, 55, 205, 0.94)");
+    const reviewSide = state.reviewGame?.plies?.[currentIndex]?.side || (currentIndex % 2 === 0 ? "w" : "b");
+    const palette = arrowPalette(reviewSide === "w" ? "rgba(118, 190, 82, 0.9)" : "rgba(211, 20, 197, 0.92)");
     drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
   }
 
@@ -3590,18 +3588,19 @@
   }
 
   function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
-    const gradient = ctx.createLinearGradient(from.x, from.y, tip.x, tip.y);
-    gradient.addColorStop(0, palette.start);
-    gradient.addColorStop(0.55, palette.mid);
-    gradient.addColorStop(1, palette.end);
-
     ctx.save();
-    ctx.shadowColor = palette.glow;
-    ctx.shadowBlur = Math.max(10, ctx.lineWidth * 1.2);
-    ctx.strokeStyle = gradient;
-    ctx.fillStyle = gradient;
-    line(ctx, from.x, from.y, base.x, base.y);
+    const shaftWidth = ctx.lineWidth;
+    const outlineWidth = shaftWidth + Math.max(1.2, shaftWidth * 0.34);
+    const innerHeadWidth = halfWidth * 0.86;
 
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = palette.edge;
+    ctx.fillStyle = palette.edge;
+    ctx.lineWidth = outlineWidth;
+    line(ctx, from.x, from.y, base.x, base.y);
     ctx.beginPath();
     ctx.moveTo(tip.x, tip.y);
     ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
@@ -3609,33 +3608,36 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.shadowBlur = 0;
+    ctx.strokeStyle = palette.fill;
+    ctx.fillStyle = palette.fill;
+    ctx.lineWidth = shaftWidth;
+    line(ctx, from.x, from.y, base.x, base.y);
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(base.x + normal.x * innerHeadWidth, base.y + normal.y * innerHeadWidth);
+    ctx.lineTo(base.x - normal.x * innerHeadWidth, base.y - normal.y * innerHeadWidth);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.strokeStyle = palette.highlight;
-    ctx.lineWidth = Math.max(1.5, ctx.lineWidth * 0.18);
+    ctx.lineWidth = Math.max(0.8, shaftWidth * 0.2);
+    ctx.lineCap = "round";
     line(
       ctx,
-      from.x - normal.x * ctx.lineWidth * 0.8,
-      from.y - normal.y * ctx.lineWidth * 0.8,
-      base.x - normal.x * ctx.lineWidth * 0.8,
-      base.y - normal.y * ctx.lineWidth * 0.8
+      from.x - normal.x * shaftWidth * 0.2,
+      from.y - normal.y * shaftWidth * 0.2,
+      base.x - normal.x * shaftWidth * 0.2,
+      base.y - normal.y * shaftWidth * 0.2
     );
-
-    ctx.beginPath();
-    ctx.moveTo(tip.x - normal.x * 1.5, tip.y - normal.y * 1.5);
-    ctx.lineTo(base.x, base.y);
-    ctx.lineTo(base.x - normal.x * halfWidth * 0.42, base.y - normal.y * halfWidth * 0.42);
-    ctx.stroke();
     ctx.restore();
   }
 
   function arrowPalette(color) {
     const base = parseArrowColor(color);
     return {
-      start: rgbaString(mixArrowColor(base, 0.26, 255, 0.85)),
-      mid: rgbaString({ ...base, a: 0.96 }),
-      end: rgbaString(mixArrowColor(base, 0.18, 0, 0.98)),
-      glow: rgbaString({ ...base, a: 0.42 }),
-      highlight: "rgba(255, 245, 220, 0.3)"
+      fill: rgbaString({ ...base, a: 0.9 }),
+      edge: rgbaString(mixArrowColor(base, 0.42, 0, 0.58)),
+      highlight: "rgba(255, 255, 240, 0.32)"
     };
   }
 

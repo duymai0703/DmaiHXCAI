@@ -39,7 +39,7 @@ const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v47";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v48";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1949,7 +1949,7 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const pieceRatio = Number.parseFloat(getComputedStyle(boardEl).getPropertyValue("--piece-size")) / 100 || 0.086;
   const isMobileBoard = rect.width <= 460;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.lineWidth = isMobileBoard ? Math.max(5.2, rect.width * pieceRatio * 0.1) : Math.max(6.2, rect.width / 108);
+  ctx.lineWidth = isMobileBoard ? Math.max(3.8, rect.width * pieceRatio * 0.072) : Math.max(4.2, rect.width / 160);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -1957,8 +1957,8 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
   const stopBeforeTarget = 0;
   const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
-  const head = isMobileBoard ? Math.max(32, rect.width * pieceRatio * 0.78) : Math.max(46, rect.width / 15);
-  const halfWidth = isMobileBoard ? Math.max(13, head * 0.36) : Math.max(16, head * 0.34);
+  const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.82) : Math.max(50, rect.width / 14.6);
+  const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
   const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
   const palette = arrowPalette(color);
   drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
@@ -2685,59 +2685,19 @@ function line(ctx, x1, y1, x2, y2) {
 }
 
 function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
-  const gradient = ctx.createLinearGradient(from.x, from.y, tip.x, tip.y);
-  gradient.addColorStop(0, palette.start);
-  gradient.addColorStop(0.48, palette.mid);
-  gradient.addColorStop(1, palette.end);
-
   ctx.save();
   const shaftWidth = ctx.lineWidth;
-  const shadowOffset = Math.max(0.9, shaftWidth * 0.18);
-  const outlineWidth = shaftWidth + Math.max(1.4, shaftWidth * 0.32);
-  const headWing = halfWidth;
+  const outlineWidth = shaftWidth + Math.max(1.2, shaftWidth * 0.34);
+  const innerHeadWidth = halfWidth * 0.86;
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  ctx.shadowBlur = 0;
 
-  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
-  ctx.shadowBlur = Math.max(2.4, shaftWidth * 0.48);
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-  ctx.lineWidth = outlineWidth;
-  line(
-    ctx,
-    from.x + shadowOffset,
-    from.y + shadowOffset,
-    base.x + shadowOffset,
-    base.y + shadowOffset
-  );
-  ctx.beginPath();
-  ctx.moveTo(tip.x + shadowOffset, tip.y + shadowOffset);
-  ctx.lineTo(base.x + shadowOffset + normal.x * headWing, base.y + shadowOffset + normal.y * headWing);
-  ctx.lineTo(base.x + shadowOffset - normal.x * headWing, base.y + shadowOffset - normal.y * headWing);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.shadowColor = palette.glow;
-  ctx.shadowBlur = Math.max(3.6, shaftWidth * 0.52);
   ctx.strokeStyle = palette.edge;
   ctx.fillStyle = palette.edge;
   ctx.lineWidth = outlineWidth;
   line(ctx, from.x, from.y, base.x, base.y);
-
-  ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(base.x + normal.x * headWing, base.y + normal.y * headWing);
-  ctx.lineTo(base.x - normal.x * headWing, base.y - normal.y * headWing);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = gradient;
-  ctx.fillStyle = gradient;
-  ctx.lineWidth = shaftWidth;
-  line(ctx, from.x, from.y, base.x, base.y);
-
   ctx.beginPath();
   ctx.moveTo(tip.x, tip.y);
   ctx.lineTo(base.x + normal.x * halfWidth, base.y + normal.y * halfWidth);
@@ -2745,34 +2705,36 @@ function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
   ctx.closePath();
   ctx.fill();
 
-  ctx.shadowBlur = 0;
+  ctx.strokeStyle = palette.fill;
+  ctx.fillStyle = palette.fill;
+  ctx.lineWidth = shaftWidth;
+  line(ctx, from.x, from.y, base.x, base.y);
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(base.x + normal.x * innerHeadWidth, base.y + normal.y * innerHeadWidth);
+  ctx.lineTo(base.x - normal.x * innerHeadWidth, base.y - normal.y * innerHeadWidth);
+  ctx.closePath();
+  ctx.fill();
+
   ctx.strokeStyle = palette.highlight;
-  ctx.lineWidth = Math.max(1.2, shaftWidth * 0.22);
+  ctx.lineWidth = Math.max(0.8, shaftWidth * 0.2);
   ctx.lineCap = "round";
   line(
     ctx,
-    from.x - normal.x * shaftWidth * 0.24,
-    from.y - normal.y * shaftWidth * 0.24,
-    base.x - normal.x * shaftWidth * 0.24,
-    base.y - normal.y * shaftWidth * 0.24
+    from.x - normal.x * shaftWidth * 0.2,
+    from.y - normal.y * shaftWidth * 0.2,
+    base.x - normal.x * shaftWidth * 0.2,
+    base.y - normal.y * shaftWidth * 0.2
   );
-
-  ctx.beginPath();
-  ctx.moveTo(tip.x - normal.x * 0.9, tip.y - normal.y * 0.9);
-  ctx.lineTo(base.x - normal.x * halfWidth * 0.48, base.y - normal.y * halfWidth * 0.48);
-  ctx.stroke();
   ctx.restore();
 }
 
 function arrowPalette(color) {
   const base = parseArrowColor(color);
   return {
-    start: rgbaString(mixArrowColor(base, 0.18, 255, 0.84)),
-    mid: rgbaString({ ...base, a: 0.9 }),
-    end: rgbaString(mixArrowColor(base, 0.1, 0, 0.92)),
-    edge: rgbaString(mixArrowColor(base, 0.24, 0, 0.52)),
-    glow: rgbaString({ ...base, a: 0.22 }),
-    highlight: "rgba(255, 255, 230, 0.34)"
+    fill: rgbaString({ ...base, a: 0.9 }),
+    edge: rgbaString(mixArrowColor(base, 0.42, 0, 0.58)),
+    highlight: "rgba(255, 255, 240, 0.32)"
   };
 }
 
