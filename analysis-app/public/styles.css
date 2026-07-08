@@ -2769,3 +2769,46 @@ select,
     color: #d21f38 !important;
   }
 }
+
+@media (max-width: 760px) {
+  .cloud-group h2 {
+    grid-template-columns: minmax(0, 1fr) 56px !important;
+    gap: 4px !important;
+    width: min(100%, 246px) !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  .cloud-book {
+    width: min(100%, 246px) !important;
+    gap: 0 !important;
+  }
+
+  .cloud-row,
+  .cloud-placeholder,
+  .cloud-empty {
+    grid-template-columns: minmax(0, 1fr) 56px !important;
+    min-height: 24px !important;
+    padding: 2px 2px !important;
+    border-color: transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .cloud-row:hover,
+  .cloud-row:active {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 720px) {
+  .cloud-row,
+  .cloud-placeholder,
+  .cloud-empty {
+    min-height: 22px !important;
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+  }
+}

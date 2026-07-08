@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v40";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v41";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1167,25 +1167,33 @@ function primeMoveAnimation(animation) {
   state.lastPieceFrame = "";
 }
 
-function hideMoveAnimationElements({ resetActiveSlot = true } = {}) {
+function overlayRestTransform() {
+  return "translate(-50%, -50%) translate3d(0, 0, 0)";
+}
+
+function hideMoveAnimationElements({
+  resetActiveSlot = true,
+  resetMovingPiece = true,
+  resetCapturePiece = true
+} = {}) {
   if (resetActiveSlot && state.activeMoveSlotEl) {
     state.activeMoveSlotEl.style.transition = "none";
     state.activeMoveSlotEl.style.transform = pieceRestTransform();
   }
-  if (movingPieceEl) {
+  if (resetMovingPiece && movingPieceEl) {
     movingPieceEl.style.transition = "none";
     movingPieceEl.classList.remove("is-visible");
     movingPieceEl.style.left = "0px";
     movingPieceEl.style.top = "0px";
-    movingPieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    movingPieceEl.style.transform = overlayRestTransform();
     movingPieceEl.setAttribute("aria-hidden", "true");
   }
-  if (capturePieceEl) {
+  if (resetCapturePiece && capturePieceEl) {
     capturePieceEl.style.transition = "none";
     capturePieceEl.classList.remove("is-visible", "fading");
     capturePieceEl.style.left = "0px";
     capturePieceEl.style.top = "0px";
-    capturePieceEl.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+    capturePieceEl.style.transform = overlayRestTransform();
     capturePieceEl.setAttribute("aria-hidden", "true");
   }
 }
@@ -1265,6 +1273,26 @@ function prepareMoveDestinationHandoff(animation) {
   targetSlotEl.setAttribute("aria-hidden", "false");
 }
 
+function showMoveLandingShield(animation) {
+  if (!animation || !movingPieceEl) return;
+  const toPos = squareToPixel(animation.to);
+  paintMotionPiece(movingPieceEl, animation.piece);
+  movingPieceEl.style.transition = "none";
+  movingPieceEl.style.left = `${toPos.x}px`;
+  movingPieceEl.style.top = `${toPos.y}px`;
+  movingPieceEl.style.transform = overlayRestTransform();
+  movingPieceEl.classList.add("is-visible");
+  movingPieceEl.setAttribute("aria-hidden", "false");
+}
+
+function hideMoveLandingShieldSoon() {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      hideMoveAnimationElements({ resetActiveSlot: false });
+    });
+  });
+}
+
 function finalizeMoveAnimation(animation) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   const afterComplete = typeof state.moveAnimation.afterComplete === "function"
@@ -1278,9 +1306,10 @@ function finalizeMoveAnimation(animation) {
   }
   state.moveAnimationRunning = false;
   if (useMobileHandoff) {
+    showMoveLandingShield(animation);
     prepareMoveDestinationHandoff(animation);
   }
-  hideMoveAnimationElements({ resetActiveSlot: false });
+  hideMoveAnimationElements({ resetActiveSlot: false, resetMovingPiece: !useMobileHandoff });
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
@@ -1295,6 +1324,9 @@ function finalizeMoveAnimation(animation) {
     if (afterComplete) afterComplete();
     if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
       requestQueuedCursorStep();
+    }
+    if (useMobileHandoff) {
+      hideMoveLandingShieldSoon();
     }
   };
   if (useMobileHandoff) {
@@ -1326,6 +1358,9 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   }
   state.activeMoveSlotEl = movingSlotEl;
   state.moveAnimationRunning = false;
+  if (isCompactMobile()) {
+    paintMotionPiece(movingPieceEl, animation.piece);
+  }
   movingSlotEl.style.transition = "none";
   movingSlotEl.style.transform = pieceRestTransform();
 
