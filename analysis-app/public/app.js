@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v36";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v37";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -114,6 +114,7 @@ const state = {
   moveAnimationRunning: false,
   lastAnimatedMoveKey: "",
   activeMoveSlotEl: null,
+  manualMoveFrame: 0,
   lastCheckmateEffectKey: "",
   checkmateEffectTimer: 0
 };
@@ -774,6 +775,12 @@ function requestQueuedCursorStep() {
   state.queuedCursorFrame = window.requestAnimationFrame(applyQueuedCursorTarget);
 }
 
+function clearManualMoveFrame() {
+  if (!state.manualMoveFrame) return;
+  cancelAnimationFrame(state.manualMoveFrame);
+  state.manualMoveFrame = 0;
+}
+
 function toggleAuto() {
   cancelScheduledAnalysisRefresh();
   stopScoreAnimation();
@@ -1237,6 +1244,9 @@ function setPieceSlotImage(el, piece) {
 
 function finalizeMoveAnimation(animation) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+  const afterComplete = typeof state.moveAnimation.afterComplete === "function"
+    ? state.moveAnimation.afterComplete
+    : null;
   if (state.moveAnimationTimer) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
@@ -1249,13 +1259,14 @@ function finalizeMoveAnimation(animation) {
   drawPieces();
   renderHistory();
   drawArrowLayer();
+  if (afterComplete) afterComplete();
   if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
     requestQueuedCursorStep();
   }
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {
-  if (!animation) return;
+  if (!animation) return false;
   if (prepared) {
     if (state.moveAnimationTimer) {
       clearTimeout(state.moveAnimationTimer);
@@ -1272,7 +1283,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   if (!movingSlotEl) {
     clearMoveAnimation({ preserveKey: true });
     drawPieces();
-    return;
+    return false;
   }
   state.activeMoveSlotEl = movingSlotEl;
   state.moveAnimationRunning = false;
@@ -1282,7 +1293,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) {
     clearMoveAnimation({ preserveKey: true });
-    return;
+    return false;
   }
   const duration = analysisMoveDurationMs();
   movingSlotEl.style.transition = `transform ${duration}ms ${ANALYSIS_MOVE_EASING}`;
@@ -1292,9 +1303,10 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   state.moveAnimationTimer = window.setTimeout(() => {
     finalizeMoveAnimation(animation);
   }, duration + 8);
+  return true;
 }
 
-function makeMove(move, { manual = true } = {}) {
+function makeMove(move, { manual = true, settledVisual = false } = {}) {
   if (state.gameOver) return;
   if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return;
   clearQueuedCursorNavigation();
@@ -1304,6 +1316,19 @@ function makeMove(move, { manual = true } = {}) {
   const piece = getPiece(from);
   if (!piece) return;
   if (!isLegalMove(move, state.side)) return;
+  if (manual && !settledVisual && (state.selected || state.hints.length)) {
+    clearManualMoveFrame();
+    state.selected = null;
+    state.hints = [];
+    state.lastPieceFrame = "";
+    drawPieces();
+    state.manualMoveFrame = window.requestAnimationFrame(() => {
+      state.manualMoveFrame = 0;
+      makeMove(move, { manual, settledVisual: true });
+    });
+    return;
+  }
+  clearManualMoveFrame();
   const moveAnimation = buildMoveAnimation(state.board, move, `${state.cursor + 1}:${move}`);
   if (manual) {
     stopScoreAnimation();
@@ -1325,19 +1350,25 @@ function makeMove(move, { manual = true } = {}) {
   if (state.gameOver) stopAutoPlay();
   state.selected = null;
   state.hints = [];
+  const finishMoveEffects = () => {
+    if (state.gameOver) maybeShowCheckmateEffect();
+    else clearCheckmateEffectKey();
+    refreshCloudBook();
+    if (manual) reportAnalysisActivity(`Manual move ${move}`);
+    if (manual && state.analysisMode) {
+      scheduleAnalysisRefresh(ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS);
+    }
+  };
   if (moveAnimation) {
+    moveAnimation.afterComplete = finishMoveEffects;
     primeMoveAnimation(moveAnimation);
     draw(true);
-    startMoveAnimation(moveAnimation, { prepared: true });
+    if (!startMoveAnimation(moveAnimation, { prepared: true })) {
+      finishMoveEffects();
+    }
   } else {
     draw();
-  }
-  if (state.gameOver) maybeShowCheckmateEffect();
-  else clearCheckmateEffectKey();
-  refreshCloudBook();
-  if (manual) reportAnalysisActivity(`Đi thử nước ${move}`);
-  if (manual && state.analysisMode) {
-    scheduleAnalysisRefresh(ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS);
+    finishMoveEffects();
   }
 }
 
@@ -1374,6 +1405,7 @@ function applyQueuedCursorTarget() {
 }
 
 function queueCursorTarget(target) {
+  clearManualMoveFrame();
   const clamped = Math.max(0, Math.min(state.moves.length, target));
   if (clamped === state.cursor && !state.queuedCursorFrame && !state.moveAnimation) return;
   state.queuedCursorTarget = clamped;
@@ -1394,6 +1426,7 @@ function redo() {
 
 function reset() {
   clearQueuedCursorNavigation();
+  clearManualMoveFrame();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   clearCheckmateEffectKey();
@@ -1443,6 +1476,7 @@ function updateEditorUi() {
 
 function toggleEditMode() {
   clearQueuedCursorNavigation();
+  clearManualMoveFrame();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   state.editMode = !state.editMode;
@@ -1458,6 +1492,7 @@ function toggleEditMode() {
 
 function clearBoard() {
   clearQueuedCursorNavigation();
+  clearManualMoveFrame();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   clearCheckmateEffectKey();
@@ -1485,6 +1520,7 @@ function loadFenFromPrompt() {
   if (input === null) return;
   try {
     clearQueuedCursorNavigation();
+    clearManualMoveFrame();
     cancelScheduledAnalysisRefresh();
     const parsed = parseFenInput(input);
     clearMoveAnimation();
@@ -1550,6 +1586,7 @@ function showToast(message) {
 function setSideToMove() {
   if (!sideToMoveEl) return;
   clearQueuedCursorNavigation();
+  clearManualMoveFrame();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   clearCheckmateEffectKey();
@@ -1566,6 +1603,7 @@ function setSideToMove() {
 
 function editBoardSquare(square) {
   clearQueuedCursorNavigation();
+  clearManualMoveFrame();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   clearCheckmateEffectKey();
