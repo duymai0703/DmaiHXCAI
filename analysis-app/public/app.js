@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v37";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v38";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1163,8 +1163,8 @@ function primeMoveAnimation(animation) {
   state.lastPieceFrame = "";
 }
 
-function hideMoveAnimationElements() {
-  if (state.activeMoveSlotEl) {
+function hideMoveAnimationElements({ resetActiveSlot = true } = {}) {
+  if (resetActiveSlot && state.activeMoveSlotEl) {
     state.activeMoveSlotEl.style.transition = "none";
     state.activeMoveSlotEl.style.transform = "translate(-50%, -50%)";
   }
@@ -1247,18 +1247,23 @@ function finalizeMoveAnimation(animation) {
   const afterComplete = typeof state.moveAnimation.afterComplete === "function"
     ? state.moveAnimation.afterComplete
     : null;
+  const activeSlotEl = state.activeMoveSlotEl;
   if (state.moveAnimationTimer) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
   state.moveAnimationRunning = false;
-  hideMoveAnimationElements();
+  hideMoveAnimationElements({ resetActiveSlot: false });
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
   drawPieces();
   renderHistory();
   drawArrowLayer();
+  if (activeSlotEl) {
+    activeSlotEl.style.transition = "none";
+    activeSlotEl.style.transform = "translate(-50%, -50%)";
+  }
   if (afterComplete) afterComplete();
   if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
     requestQueuedCursorStep();

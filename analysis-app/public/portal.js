@@ -57,7 +57,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260708-mobile-v35",
-    "/app.js?v=20260708-mobile-v43",
+    "/app.js?v=20260708-mobile-v44",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/icons/mb1-light.png",
