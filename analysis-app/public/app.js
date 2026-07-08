@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v34";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v35";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -725,6 +725,11 @@ function clearQueuedCursorNavigation() {
   state.queuedCursorTarget = null;
 }
 
+function requestQueuedCursorStep() {
+  if (state.queuedCursorFrame || state.moveAnimationRunning || state.moveAnimation) return;
+  state.queuedCursorFrame = window.requestAnimationFrame(applyQueuedCursorTarget);
+}
+
 function toggleAuto() {
   cancelScheduledAnalysisRefresh();
   stopScoreAnimation();
@@ -992,6 +997,7 @@ function escapeHtml(value) {
 
 function onBoardClick(event) {
   event.preventDefault();
+  if (state.moveAnimation || state.moveAnimationRunning) return;
   const square = eventToSquare(event);
   if (!square) return;
   if (state.editMode) {
@@ -1034,6 +1040,41 @@ function buildMoveAnimation(board, move, moveKey) {
     fromIndex: from.y * 9 + from.x,
     toIndex: to.y * 9 + to.x
   };
+}
+
+function buildDirectionalMoveAnimation(board, move, moveKey, { reverse = false } = {}) {
+  if (!board || !/^[a-i][0-9][a-i][0-9]$/.test(move)) return null;
+  const rawFrom = uciToSquare(move.slice(0, 2));
+  const rawTo = uciToSquare(move.slice(2, 4));
+  const from = reverse ? rawTo : rawFrom;
+  const to = reverse ? rawFrom : rawTo;
+  const piece = board[from.y]?.[from.x] || "";
+  if (!piece) return null;
+  const capturedPiece = reverse ? "" : (board[to.y]?.[to.x] || "");
+  return {
+    move,
+    moveKey,
+    piece,
+    capturedPiece,
+    from,
+    to,
+    fromIndex: from.y * 9 + from.x,
+    toIndex: to.y * 9 + to.x
+  };
+}
+
+function buildCursorMoveAnimation(previousCursor, nextCursor, sourceBoard) {
+  if (Math.abs(nextCursor - previousCursor) !== 1) return null;
+  const movingForward = nextCursor > previousCursor;
+  const moveIndex = movingForward ? previousCursor : nextCursor;
+  const move = state.moves[moveIndex];
+  if (!move) return null;
+  return buildDirectionalMoveAnimation(
+    sourceBoard,
+    move,
+    `cursor:${moveIndex + 1}:${movingForward ? "f" : "b"}:${move}`,
+    { reverse: !movingForward }
+  );
 }
 
 function moveAnimationTravelTransform(animation) {
@@ -1163,6 +1204,9 @@ function finalizeMoveAnimation(animation) {
   drawPieces();
   renderHistory();
   drawArrowLayer();
+  if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
+    requestQueuedCursorStep();
+  }
 }
 
 function startMoveAnimation(animation, { prepared = false } = {}) {
@@ -1248,19 +1292,40 @@ function makeMove(move, { manual = true } = {}) {
 function applyQueuedCursorTarget() {
   state.queuedCursorFrame = 0;
   const target = state.queuedCursorTarget;
-  state.queuedCursorTarget = null;
-  if (!Number.isInteger(target) || target === state.cursor) return;
-  clearMoveAnimation();
-  state.cursor = target;
-  rebuildPosition({ immediateDraw: true, analysisDelay: ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS });
+  if (!Number.isInteger(target)) return;
+  if (state.moveAnimationRunning || state.moveAnimation) {
+    requestQueuedCursorStep();
+    return;
+  }
+  if (target === state.cursor) {
+    state.queuedCursorTarget = null;
+    return;
+  }
+  const previousCursor = state.cursor;
+  const nextCursor = previousCursor + Math.sign(target - previousCursor);
+  const previousBoard = state.board.map((row) => row.slice());
+  const navigationAnimation = buildCursorMoveAnimation(previousCursor, nextCursor, previousBoard);
+  state.cursor = nextCursor;
+  if (state.cursor === target) state.queuedCursorTarget = null;
+  if (navigationAnimation) primeMoveAnimation(navigationAnimation);
+  rebuildPosition({
+    immediateDraw: true,
+    analysisDelay: ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS,
+    preserveQueuedNavigation: true,
+    preserveMoveAnimation: Boolean(navigationAnimation)
+  });
+  if (navigationAnimation) {
+    startMoveAnimation(navigationAnimation, { prepared: true });
+  } else if (state.queuedCursorTarget !== null) {
+    requestQueuedCursorStep();
+  }
 }
 
 function queueCursorTarget(target) {
   const clamped = Math.max(0, Math.min(state.moves.length, target));
-  if (clamped === state.cursor && !state.queuedCursorFrame) return;
+  if (clamped === state.cursor && !state.queuedCursorFrame && !state.moveAnimation) return;
   state.queuedCursorTarget = clamped;
-  if (state.queuedCursorFrame) return;
-  state.queuedCursorFrame = window.requestAnimationFrame(applyQueuedCursorTarget);
+  requestQueuedCursorStep();
 }
 
 function undo() {
@@ -1483,10 +1548,15 @@ function isEditorPieceAllowed(piece, square) {
   return true;
 }
 
-function rebuildPosition({ immediateDraw = false, analysisDelay = 0 } = {}) {
-  clearQueuedCursorNavigation();
+function rebuildPosition({
+  immediateDraw = false,
+  analysisDelay = 0,
+  preserveQueuedNavigation = false,
+  preserveMoveAnimation = false
+} = {}) {
+  if (!preserveQueuedNavigation) clearQueuedCursorNavigation();
   cancelScheduledAnalysisRefresh();
-  clearMoveAnimation();
+  if (!preserveMoveAnimation) clearMoveAnimation();
   stopScoreAnimation();
   state.board = parseFen(START_FEN);
   state.side = "w";
@@ -1636,9 +1706,6 @@ function drawPieces() {
       }
       const el = pieceSlots[index];
       if (!piece) {
-        if (animation && index === animation.toIndex) {
-          setPieceSlotImage(el, animation.piece);
-        }
         el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
         el.style.transition = "none";

@@ -56,8 +56,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260708-mobile-v32",
-    "/app.js?v=20260708-mobile-v40",
+    "/styles.css?v=20260708-mobile-v33",
+    "/app.js?v=20260708-mobile-v41",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/icons/mb1-light.png",

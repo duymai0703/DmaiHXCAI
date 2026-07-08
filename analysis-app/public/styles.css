@@ -1733,27 +1733,27 @@ select {
   #arrowCanvas,
   #pieces,
   #motionLayer {
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    will-change: transform;
+    transform: none;
+    -webkit-transform: none;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+    will-change: auto;
   }
 
   .piece,
   .motion-piece {
-    transform: translate(-50%, -50%) translate3d(0, 0, 0);
-    -webkit-transform: translate(-50%, -50%) translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    will-change: transform;
+    transform: translate(-50%, -50%);
+    -webkit-transform: translate(-50%, -50%);
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+    will-change: auto;
   }
 
   .piece-skin {
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    transform: none;
+    -webkit-transform: none;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
   }
 
   .panel {
