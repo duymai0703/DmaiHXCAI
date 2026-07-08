@@ -2808,32 +2808,31 @@ select,
   }
 
   .board-skin-layer {
-    filter:
-      contrast(1.18)
-      saturate(1.12)
-      drop-shadow(0 0 1px rgba(6, 42, 60, 0.42)) !important;
+    filter: none !important;
   }
 
   .cloud-group h2 {
-    grid-template-columns: 72px 46px 68px 78px !important;
-    gap: 7px !important;
-    width: min(100%, 292px) !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    grid-template-columns: 1.06fr 0.78fr 1.02fr 1.12fr !important;
+    justify-items: center !important;
+    gap: 0 !important;
+    width: min(calc(100vw - 26px), 356px) !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
   }
 
   .cloud-book {
-    width: min(100%, 292px) !important;
+    width: min(calc(100vw - 26px), 356px) !important;
     gap: 0 !important;
   }
 
   .cloud-row,
   .cloud-placeholder,
   .cloud-empty {
-    grid-template-columns: 72px 46px 68px 78px !important;
-    gap: 7px !important;
+    grid-template-columns: 1.06fr 0.78fr 1.02fr 1.12fr !important;
+    justify-items: center !important;
+    gap: 0 !important;
     min-height: 24px !important;
-    padding: 2px 2px !important;
+    padding: 2px 4px !important;
     border-color: transparent !important;
     border-radius: 0 !important;
     background: transparent !important;
@@ -2851,16 +2850,19 @@ select,
   .cloud-score,
   .cloud-win,
   .cloud-note {
+    display: block !important;
     white-space: nowrap;
+    width: 100%;
+    text-align: center !important;
   }
 
   .cloud-score,
   .cloud-win {
-    text-align: right !important;
+    text-align: center !important;
   }
 
   .cloud-note {
-    text-align: left !important;
+    text-align: center !important;
   }
 
   .cloud-row:hover,

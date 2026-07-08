@@ -1,16 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000" fill="none">
-  <defs>
-    <filter id="lineCrisp" x="-4%" y="-4%" width="108%" height="108%">
-      <feGaussianBlur stdDeviation="0.25" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.02 0 0 0 0 0.28 0 0 0 0 0.42 0 0 0 0.25 0"/>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
   <rect width="900" height="1000" fill="transparent"/>
-  <g stroke="#124b68" stroke-opacity="0.98" stroke-width="4.2" stroke-linecap="butt" filter="url(#lineCrisp)">
+  <g stroke="#171717" stroke-opacity="0.82" stroke-width="2.05" stroke-linecap="butt">
     <line x1="63" y1="63" x2="63" y2="451.444"/>
     <line x1="63" y1="548.556" x2="63" y2="937"/>
     <line x1="159.75" y1="63" x2="159.75" y2="451.444"/>
@@ -44,7 +34,7 @@
     <line x1="353.25" y1="742.778" x2="546.75" y2="937"/>
     <line x1="546.75" y1="742.778" x2="353.25" y2="937"/>
   </g>
-  <g fill="#183f52" fill-opacity="0.94" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle" filter="url(#lineCrisp)">
+  <g fill="#171717" fill-opacity="0.68" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle">
     <text x="256" y="518">&#26970;&#27827;</text>
     <text x="644" y="518">&#28450;&#30028;</text>
   </g>
