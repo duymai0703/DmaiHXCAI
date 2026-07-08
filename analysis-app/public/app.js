@@ -35,10 +35,11 @@ const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
+const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v44";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v45";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -2036,7 +2037,7 @@ function renderCloudBook(result) {
   }
   const replay = cloneBoard(state.board);
   const side = state.side;
-  const rows = result.moves.slice(0, 7).map((entry) => {
+  const rows = result.moves.slice(0, CLOUD_MOVE_LIMIT).map((entry) => {
     const score = scoreFromCloud(entry.score);
     return `<button class="cloud-row" data-move="${entry.move}">
       <span class="cloud-move">${formatMove(entry.move, replay, side)}</span>
@@ -2051,7 +2052,7 @@ function renderCloudBook(result) {
 
 function renderCloudPlaceholders() {
   if (!cloudBookEl) return;
-  cloudBookEl.innerHTML = Array.from({ length: 7 }, () => (
+  cloudBookEl.innerHTML = Array.from({ length: CLOUD_MOVE_LIMIT }, () => (
     `<div class="cloud-row cloud-placeholder" aria-hidden="true">
       <span class="cloud-move">&nbsp;</span>
       <span class="cloud-score">&nbsp;</span>
@@ -2113,7 +2114,7 @@ function renderCloudPlaceholders() {
 
 function renderCloudBook(result) {
   if (!cloudBookEl) return;
-  const entries = Array.isArray(result?.moves) ? result.moves.filter(isReliableCloudMove).slice(0, 7) : [];
+  const entries = Array.isArray(result?.moves) ? result.moves.filter(isReliableCloudMove).slice(0, CLOUD_MOVE_LIMIT) : [];
   if (!entries.length) {
     renderCloudPlaceholders();
     return;
@@ -2122,13 +2123,14 @@ function renderCloudBook(result) {
   const side = state.side;
   const rows = entries.map((entry) => {
     const score = scoreFromCloud(entry.score);
-    return `<button class="cloud-row" data-move="${entry.move}">
+    const cls = scoreClass(score);
+    return `<button class="cloud-row ${cls}" data-move="${entry.move}">
       <span class="cloud-move">${formatMove(entry.move, replay, side)}</span>
-      <span class="cloud-score ${scoreClass(score)}">${formatEval(score)}</span>
-      <span class="cloud-win ${scoreClass(score)}">${formatCloudWinRate(score)}</span>
-      <span class="cloud-note ${scoreClass(score)}">${cloudNote(score)}</span>
+      <span class="cloud-score ${cls}">${formatEval(score)}</span>
+      <span class="cloud-win ${cls}">${formatCloudWinRate(score)}</span>
+      <span class="cloud-note ${cls}">${cloudNote(score)}</span>
     </button>`;
-  }).join("") + cloudPlaceholderRows(7 - entries.length);
+  }).join("") + cloudPlaceholderRows(CLOUD_MOVE_LIMIT - entries.length);
   cloudBookEl.innerHTML = rows;
   cloudBookEl.querySelectorAll("button.cloud-row").forEach((row) => {
     row.addEventListener("click", () => makeMove(row.dataset.move));

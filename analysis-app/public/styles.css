@@ -2891,15 +2891,15 @@ select,
   .cloud-row,
   .cloud-placeholder,
   .cloud-empty {
-    grid-template-columns: 1.05fr 0.68fr 1.02fr 1.25fr !important;
+    grid-template-columns: 0.96fr 0.66fr 1fr 1.04fr !important;
     column-gap: 0 !important;
-    width: min(calc(100vw - 24px), 370px) !important;
+    width: min(calc(100vw - 22px), 368px) !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
 
   .cloud-book {
-    width: min(calc(100vw - 24px), 370px) !important;
+    width: min(calc(100vw - 22px), 368px) !important;
   }
 
   .cloud-group h2 {
@@ -2925,8 +2925,35 @@ select,
     justify-self: stretch !important;
     text-align: center !important;
     font-weight: 400 !important;
+    font-family: inherit !important;
     letter-spacing: 0 !important;
     overflow: hidden;
     text-overflow: clip;
+  }
+
+  .cloud-group h2 span:nth-child(4),
+  .cloud-note {
+    text-align: left !important;
+    padding-left: 4px !important;
+  }
+
+  .cloud-row.equal .cloud-move,
+  .cloud-row.equal .cloud-score,
+  .cloud-row.equal .cloud-win,
+  .cloud-row.equal .cloud-note,
+  .cloud-score.equal,
+  .cloud-win.equal,
+  .cloud-note.equal {
+    color: #28b84c !important;
+  }
+
+  :root[data-theme="dark"] .cloud-row.equal .cloud-move,
+  :root[data-theme="dark"] .cloud-row.equal .cloud-score,
+  :root[data-theme="dark"] .cloud-row.equal .cloud-win,
+  :root[data-theme="dark"] .cloud-row.equal .cloud-note,
+  :root[data-theme="dark"] .cloud-score.equal,
+  :root[data-theme="dark"] .cloud-win.equal,
+  :root[data-theme="dark"] .cloud-note.equal {
+    color: #47e86f !important;
   }
 }
