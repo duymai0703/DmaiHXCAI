@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260708-v56";
+  const ASSET_WARMUP_VERSION = "20260708-v57";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -47,6 +47,15 @@
     c: "assets/pieces/black-cannon.png",
     p: "assets/pieces/black-pawn.png"
   };
+  const MOBILE_RED_PIECE_IMAGES = {
+    R: "assets/pieces/mobile-red-rook.png",
+    N: "assets/pieces/mobile-red-knight.png",
+    B: "assets/pieces/mobile-red-elephant.png",
+    A: "assets/pieces/mobile-red-advisor.png",
+    K: "assets/pieces/mobile-red-king.png",
+    C: "assets/pieces/mobile-red-cannon.png",
+    P: "assets/pieces/mobile-red-pawn.png"
+  };
   const REVIEW_BADGES = {
     book: { key: "book", label: "Book", image: "/assets/review-badges/book.png" },
     brilliant: { key: "brilliant", label: "Ưu việt", image: "/assets/review-badges/sao.png" },
@@ -56,10 +65,11 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260708-mobile-v38",
-    "/app.js?v=20260708-mobile-v47",
+    "/styles.css?v=20260708-mobile-v39",
+    "/app.js?v=20260708-mobile-v48",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
+    "/assets/board/board-skin-mobile.svg",
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
     "/assets/icons/mb3-light.png",
@@ -73,7 +83,8 @@
     "/assets/icons/logow.png",
     "/assets/icons/logob.png",
     "/assets/effects/sat-cutout.png",
-    ...Object.values(PIECE_IMAGES)
+    ...Object.values(PIECE_IMAGES),
+    ...Object.values(MOBILE_RED_PIECE_IMAGES)
   ];
   const THEME_LOGO_ASSETS = [
     "/assets/icons/logow-header.png",

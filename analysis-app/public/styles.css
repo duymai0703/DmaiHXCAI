@@ -766,6 +766,12 @@ input:not([type]) {
   text-align: right;
 }
 
+.cloud-win,
+.cloud-note,
+.cloud-extra-heading {
+  display: none;
+}
+
 .cloud-rank {
   display: none;
   color: var(--muted);
@@ -2731,6 +2737,21 @@ select,
   .cloud-score.equal {
     color: var(--muted) !important;
   }
+
+  .cloud-win.positive,
+  .cloud-note.positive {
+    color: #38bdf8 !important;
+  }
+
+  .cloud-win.negative,
+  .cloud-note.negative {
+    color: #ff4d6d !important;
+  }
+
+  .cloud-win.equal,
+  .cloud-note.equal {
+    color: var(--muted) !important;
+  }
 }
 
 @media (max-width: 760px) and (max-height: 720px) {
@@ -2768,32 +2789,78 @@ select,
   :root[data-theme="light"] .cloud-score.negative {
     color: #d21f38 !important;
   }
+
+  :root[data-theme="light"] .cloud-win.positive,
+  :root[data-theme="light"] .cloud-note.positive {
+    color: #1766b7 !important;
+  }
+
+  :root[data-theme="light"] .cloud-win.negative,
+  :root[data-theme="light"] .cloud-note.negative {
+    color: #d21f38 !important;
+  }
 }
 
 @media (max-width: 760px) {
+  .board {
+    --board-skin: url("/assets/board/board-skin-mobile.svg") !important;
+    --piece-size: 10.95% !important;
+  }
+
+  .board-skin-layer {
+    filter:
+      contrast(1.18)
+      saturate(1.12)
+      drop-shadow(0 0 1px rgba(6, 42, 60, 0.42)) !important;
+  }
+
   .cloud-group h2 {
-    grid-template-columns: minmax(0, 1fr) 56px !important;
-    gap: 4px !important;
-    width: min(100%, 246px) !important;
-    padding-left: 2px !important;
-    padding-right: 2px !important;
+    grid-template-columns: 72px 46px 68px 78px !important;
+    gap: 7px !important;
+    width: min(100%, 292px) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   .cloud-book {
-    width: min(100%, 246px) !important;
+    width: min(100%, 292px) !important;
     gap: 0 !important;
   }
 
   .cloud-row,
   .cloud-placeholder,
   .cloud-empty {
-    grid-template-columns: minmax(0, 1fr) 56px !important;
+    grid-template-columns: 72px 46px 68px 78px !important;
+    gap: 7px !important;
     min-height: 24px !important;
     padding: 2px 2px !important;
     border-color: transparent !important;
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+  }
+
+  .cloud-extra-heading,
+  .cloud-win,
+  .cloud-note {
+    display: block !important;
+  }
+
+  .cloud-group h2 span,
+  .cloud-move,
+  .cloud-score,
+  .cloud-win,
+  .cloud-note {
+    white-space: nowrap;
+  }
+
+  .cloud-score,
+  .cloud-win {
+    text-align: right !important;
+  }
+
+  .cloud-note {
+    text-align: left !important;
   }
 
   .cloud-row:hover,
