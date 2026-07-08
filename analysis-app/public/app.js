@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v32";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v33";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -52,11 +52,16 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/logow-header.png",
   "/assets/icons/logob-header.png",
   "/assets/icons/icon-192.png",
-  "/assets/icons/mb1.png",
-  "/assets/icons/mb2.png",
-  "/assets/icons/mb3.png",
-  "/assets/icons/mb4.png",
-  "/assets/icons/mb5.png",
+  "/assets/icons/mb1-light.png",
+  "/assets/icons/mb2-light.png",
+  "/assets/icons/mb3-light.png",
+  "/assets/icons/mb4-light.png",
+  "/assets/icons/mb5-light.png",
+  "/assets/icons/mb1-dark.png",
+  "/assets/icons/mb2-dark.png",
+  "/assets/icons/mb3-dark.png",
+  "/assets/icons/mb4-dark.png",
+  "/assets/icons/mb5-dark.png",
   "/assets/icons/logow.png",
   "/assets/icons/logob.png"
 ];
@@ -219,6 +224,18 @@ function updateBrandLogo(theme) {
       image.src = mobileLogo;
     }
     button.setAttribute("aria-label", theme === "light" ? "Đổi sang giao diện bóng đêm" : "Đổi sang giao diện ánh sáng");
+  });
+  updateMobileActionIcons(theme);
+}
+
+function updateMobileActionIcons(theme) {
+  const suffix = theme === "light" ? "light" : "dark";
+  document.querySelectorAll("[data-mobile-icon]").forEach((button) => {
+    const key = button.getAttribute("data-mobile-icon");
+    const image = button.querySelector("img");
+    if (!key || !(image instanceof HTMLImageElement)) return;
+    const nextSrc = `/assets/icons/${key}-${suffix}.png`;
+    if (!image.src.endsWith(nextSrc)) image.src = nextSrc;
   });
 }
 

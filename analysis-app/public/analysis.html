@@ -21,7 +21,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260708-mobile-v28">
+    <link rel="stylesheet" href="/styles.css?v=20260708-mobile-v29">
   </head>
   <body>
     <header class="app-header">
@@ -43,11 +43,11 @@
       <section class="board-zone">
         <div class="mobile-top-toolbar" aria-label="Điều khiển phân tích nhanh">
           <button class="mobile-theme-btn" type="button" data-theme-toggle title="Đổi giao diện" aria-label="Đổi giao diện"><img src="/assets/icons/logob.png" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="reset" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/icons/mb1.png" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="undo" title="Hoàn tác" aria-label="Hoàn tác"><img src="/assets/icons/mb2.png" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="redo" title="Tiếp theo" aria-label="Tiếp theo"><img src="/assets/icons/mb3.png" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="analysis" title="Phân tích" aria-label="Phân tích"><img src="/assets/icons/mb4.png" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="flip" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/icons/mb5.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="reset" data-mobile-icon="mb1" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/icons/mb1-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="undo" data-mobile-icon="mb2" title="Hoàn tác" aria-label="Hoàn tác"><img src="/assets/icons/mb2-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="redo" data-mobile-icon="mb3" title="Tiếp theo" aria-label="Tiếp theo"><img src="/assets/icons/mb3-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="analysis" data-mobile-icon="mb4" title="Phân tích" aria-label="Phân tích"><img src="/assets/icons/mb4-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="flip" data-mobile-icon="mb5" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/icons/mb5-dark.png" alt="" draggable="false"></button>
         </div>
         <div id="mobileScoreStrip" class="mobile-score-strip">Điểm 0</div>
         <div id="board" class="board" aria-label="Bàn cờ tướng">
@@ -145,7 +145,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260708-mobile-v38"></script>
+    <script src="/app.js?v=20260708-mobile-v39"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
