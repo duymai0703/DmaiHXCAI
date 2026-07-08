@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v31";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v32";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -51,7 +51,14 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/header-logo.png",
   "/assets/icons/logow-header.png",
   "/assets/icons/logob-header.png",
-  "/assets/icons/icon-192.png"
+  "/assets/icons/icon-192.png",
+  "/assets/icons/mb1.png",
+  "/assets/icons/mb2.png",
+  "/assets/icons/mb3.png",
+  "/assets/icons/mb4.png",
+  "/assets/icons/mb5.png",
+  "/assets/icons/logow.png",
+  "/assets/icons/logob.png"
 ];
 let wakePromise = null;
 
@@ -111,6 +118,7 @@ const capturePieceEl = document.getElementById("capturePiece");
 const movingPieceEl = document.getElementById("movingPiece");
 const analysisEl = document.getElementById("analysis");
 const cloudBookEl = document.getElementById("cloudBook");
+const mobileScoreStripEl = document.getElementById("mobileScoreStrip");
 const historyEl = document.getElementById("history");
 const engineStatusEl = document.getElementById("engineStatus");
 const networkStatusEl = document.getElementById("networkStatus");
@@ -129,6 +137,7 @@ const assetPreloadPercentEl = document.getElementById("assetPreloadPercent");
 const assetPreloadBarEl = document.getElementById("assetPreloadBar");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
+const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")];
 
 setupThemeControls();
 window.addEventListener("resize", onViewportResize, { passive: true });
@@ -166,6 +175,11 @@ function setupThemeControls() {
       applyTheme(button.dataset.themeChoice, { persist: true });
     });
   });
+  mobileThemeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyTheme(currentTheme() === "light" ? "dark" : "light", { persist: true });
+    });
+  });
 }
 
 function readTheme() {
@@ -197,6 +211,14 @@ function updateBrandLogo(theme) {
     if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
       image.src = logo;
     }
+  });
+  const mobileLogo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
+  mobileThemeButtons.forEach((button) => {
+    const image = button.querySelector("img");
+    if (image instanceof HTMLImageElement && !image.src.endsWith(mobileLogo)) {
+      image.src = mobileLogo;
+    }
+    button.setAttribute("aria-label", theme === "light" ? "Đổi sang giao diện bóng đêm" : "Đổi sang giao diện ánh sáng");
   });
 }
 
@@ -814,6 +836,7 @@ function renderPendingAnalysis() {
   banner.className = "score-banner equal";
   banner.innerHTML = `<span>Đánh giá</span><strong>...</strong><small>Engine đang phân tích · Góc nhìn ${viewerName()}</small>`;
   analysisEl.appendChild(banner);
+  renderMobileScoreStrip(null, "Engine đang phân tích");
 }
 
 function applyAnalysisSnapshot(result, board, side, { pending = false } = {}) {
@@ -847,6 +870,7 @@ function renderScore(score, source = "", { pending = false } = {}) {
   banner.className = `score-banner ${scoreClass(score)}`;
   banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(previousScore ?? score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}${pending ? " · đang đào sâu" : ""}</small>`;
   analysisEl.appendChild(banner);
+  renderMobileScoreStrip(previousScore ?? score, `${signText}${pending ? " · đang đào sâu" : ""}`);
   if (previousScore === null || previousScore === score) {
     state.shownScore = score;
     return;
@@ -864,6 +888,7 @@ function tweenScoreBanner(banner, fromScore, toScore) {
   const strong = banner.querySelector("strong");
   if (!strong) {
     state.shownScore = toScore;
+    renderMobileScoreStrip(toScore);
     return;
   }
   const startedAt = performance.now();
@@ -874,6 +899,7 @@ function tweenScoreBanner(banner, fromScore, toScore) {
     const current = Math.round(fromScore + (toScore - fromScore) * eased);
     banner.className = `score-banner ${scoreClass(current)}`;
     strong.textContent = formatEval(current);
+    renderMobileScoreStrip(current);
     if (progress < 1) {
       state.scoreAnimation = requestAnimationFrame(step);
       return;
@@ -882,8 +908,18 @@ function tweenScoreBanner(banner, fromScore, toScore) {
     state.shownScore = toScore;
     banner.className = `score-banner ${scoreClass(toScore)}`;
     strong.textContent = formatEval(toScore);
+    renderMobileScoreStrip(toScore);
   };
   state.scoreAnimation = requestAnimationFrame(step);
+}
+
+function renderMobileScoreStrip(score, note = "") {
+  if (!mobileScoreStripEl) return;
+  const isNumber = Number.isFinite(score);
+  const scoreText = isNumber ? formatEval(score) : "...";
+  const noteText = note || (isNumber ? (score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng") : "Đang chờ");
+  mobileScoreStripEl.className = `mobile-score-strip ${isNumber ? scoreClass(score) : "equal"}`;
+  mobileScoreStripEl.textContent = `Điểm ${scoreText} · ${noteText}`;
 }
 
 function scoreForViewer(line, sideToMove) {
@@ -1692,7 +1728,6 @@ function renderCloudBook(result) {
     return `<button class="cloud-row" data-move="${entry.move}">
       <span class="cloud-move">${formatMove(entry.move, replay, side)}</span>
       <span class="cloud-score ${scoreClass(score)}">${formatEval(score)}</span>
-      <span class="cloud-rank">${escapeHtml(entry.rank || "")}</span>
     </button>`;
   }).join("");
   cloudBookEl.innerHTML = rows;
@@ -1707,7 +1742,6 @@ function renderCloudPlaceholders() {
     `<div class="cloud-row cloud-placeholder" aria-hidden="true">
       <span class="cloud-move">&nbsp;</span>
       <span class="cloud-score">&nbsp;</span>
-      <span class="cloud-rank">&nbsp;</span>
     </div>`
   )).join("");
 }
@@ -1738,7 +1772,6 @@ function cloudPlaceholderRows(count) {
     `<div class="cloud-row cloud-placeholder" aria-hidden="true">
       <span class="cloud-move">&nbsp;</span>
       <span class="cloud-score">&nbsp;</span>
-      <span class="cloud-rank">&nbsp;</span>
     </div>`
   )).join("");
 }
@@ -1762,7 +1795,6 @@ function renderCloudBook(result) {
     return `<button class="cloud-row" data-move="${entry.move}">
       <span class="cloud-move">${formatMove(entry.move, replay, side)}</span>
       <span class="cloud-score ${scoreClass(score)}">${formatEval(score)}</span>
-      <span class="cloud-rank">${escapeHtml(entry.rank || "")}</span>
     </button>`;
   }).join("") + cloudPlaceholderRows(7 - entries.length);
   cloudBookEl.innerHTML = rows;

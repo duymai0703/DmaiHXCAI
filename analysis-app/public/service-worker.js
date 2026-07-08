@@ -1,12 +1,12 @@
-const CACHE_NAME = "dmaihxcai-shell-v73";
+const CACHE_NAME = "dmaihxcai-shell-v74";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
   "/portal.css?v=20260708-room-v38",
-  "/portal.js?v=20260708-room-v52",
-  "/styles.css?v=20260708-mobile-v27",
-  "/app.js?v=20260708-mobile-v37",
+  "/portal.js?v=20260708-room-v53",
+  "/styles.css?v=20260708-mobile-v28",
+  "/app.js?v=20260708-mobile-v38",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -25,6 +25,11 @@ const STATIC_ASSETS = [
   "/assets/icons/logob.png",
   "/assets/icons/logow-header.png",
   "/assets/icons/logob-header.png",
+  "/assets/icons/mb1.png",
+  "/assets/icons/mb2.png",
+  "/assets/icons/mb3.png",
+  "/assets/icons/mb4.png",
+  "/assets/icons/mb5.png",
   "/assets/review-badges/book.png",
   "/assets/review-badges/sao.png",
   "/assets/review-badges/like.png",
