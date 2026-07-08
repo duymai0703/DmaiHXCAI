@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v30";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v31";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -466,6 +466,10 @@ function syncViewportHeight() {
 
 function isCompactMobile() {
   return window.matchMedia("(max-width: 760px)").matches;
+}
+
+function analysisMoveDurationMs() {
+  return isCompactMobile() ? 150 : ANALYSIS_MOVE_ANIMATION_MS;
 }
 
 function setupMobileActionStrip() {
@@ -1094,13 +1098,14 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
 
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
-  movingSlotEl.style.transition = `transform ${ANALYSIS_MOVE_ANIMATION_MS}ms ${ANALYSIS_MOVE_EASING}`;
+  const duration = analysisMoveDurationMs();
+  movingSlotEl.style.transition = `transform ${duration}ms ${ANALYSIS_MOVE_EASING}`;
   movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
   state.moveAnimationRunning = true;
 
   state.moveAnimationTimer = window.setTimeout(() => {
     finalizeMoveAnimation(animation);
-  }, ANALYSIS_MOVE_ANIMATION_MS + 8);
+  }, duration + 8);
 }
 
 function makeMove(move, { manual = true } = {}) {
