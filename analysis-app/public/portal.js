@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v64";
+  const ASSET_WARMUP_VERSION = "20260709-v65";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -65,11 +65,13 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v44",
-    "/app.js?v=20260709-mobile-v55",
+    "/styles.css?v=20260709-mobile-v45",
+    "/app.js?v=20260709-mobile-v56",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
+    "/assets/board/board-skin-gold.svg",
+    "/assets/board/board-skin-stone.svg",
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
     "/assets/icons/mb3-light.png",

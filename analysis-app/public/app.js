@@ -37,9 +37,10 @@ const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
+const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v49";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v50";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -56,6 +57,8 @@ const ANALYSIS_BLOCKING_ASSETS = [
   "/assets/board/board-skin-dark.svg",
   "/assets/board/board-skin-light.svg",
   "/assets/board/board-skin-mobile.svg",
+  "/assets/board/board-skin-gold.svg",
+  "/assets/board/board-skin-stone.svg",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES)
 ];
@@ -166,8 +169,11 @@ const assetPreloadBarEl = document.getElementById("assetPreloadBar");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")];
+const boardSkinMenuEl = document.getElementById("boardSkinMenu");
+const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-choice]")];
 
 setupThemeControls();
+setupBoardSkinControls();
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
 document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
@@ -216,6 +222,44 @@ function readTheme() {
 
 function normalizeTheme(theme) {
   return theme === "light" ? "light" : "dark";
+}
+
+function setupBoardSkinControls() {
+  applyBoardSkin(readBoardSkin());
+  boardSkinChoiceButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyBoardSkin(button.dataset.boardSkinChoice, { persist: true });
+      hideBoardSkinMenu();
+    });
+  });
+}
+
+function readBoardSkin() {
+  return normalizeBoardSkin(readStorage(BOARD_SKIN_STORAGE_KEY) || document.documentElement.dataset.boardSkin || "ice");
+}
+
+function normalizeBoardSkin(skin) {
+  return skin === "gold" || skin === "stone" ? skin : "ice";
+}
+
+function applyBoardSkin(skin, { persist = false } = {}) {
+  const normalized = normalizeBoardSkin(skin);
+  document.documentElement.dataset.boardSkin = normalized;
+  if (persist) writeStorage(BOARD_SKIN_STORAGE_KEY, normalized);
+  boardSkinChoiceButtons.forEach((button) => {
+    const active = normalizeBoardSkin(button.dataset.boardSkinChoice) === normalized;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function toggleBoardSkinMenu() {
+  if (!boardSkinMenuEl) return;
+  boardSkinMenuEl.classList.toggle("hidden");
+}
+
+function hideBoardSkinMenu() {
+  if (boardSkinMenuEl) boardSkinMenuEl.classList.add("hidden");
 }
 
 function applyTheme(theme, { persist = false } = {}) {
@@ -549,6 +593,7 @@ function setupMobileActionStrip() {
 }
 
 function handleMobileAction(action) {
+  if (action !== "cole") hideBoardSkinMenu();
   switch (action) {
     case "analysis":
       setMobilePanel("analysis");
@@ -579,6 +624,8 @@ function handleMobileAction(action) {
       toggleFlipBoard();
       break;
     case "cole":
+      toggleBoardSkinMenu();
+      break;
     case "guom":
       break;
     default:
