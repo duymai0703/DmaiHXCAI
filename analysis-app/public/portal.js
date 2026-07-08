@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v61";
+  const ASSET_WARMUP_VERSION = "20260709-v62";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,7 +66,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260709-mobile-v43",
-    "/app.js?v=20260709-mobile-v52",
+    "/app.js?v=20260709-mobile-v53",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
