@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v38";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v39";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -516,6 +516,10 @@ function isCompactMobile() {
 
 function analysisMoveDurationMs() {
   return ANALYSIS_MOVE_ANIMATION_MS;
+}
+
+function pieceRestTransform() {
+  return isCompactMobile() ? "translate3d(-50%, -50%, 0)" : "translate(-50%, -50%)";
 }
 
 function setupMobileActionStrip() {
@@ -1130,12 +1134,12 @@ function buildCursorMoveAnimation(previousCursor, nextCursor, sourceBoard) {
 }
 
 function moveAnimationTravelTransform(animation) {
-  if (!animation) return "translate(-50%, -50%)";
+  if (!animation) return pieceRestTransform();
   const fromPos = squareToPixel(animation.from);
   const toPos = squareToPixel(animation.to);
   const deltaX = toPos.x - fromPos.x;
   const deltaY = toPos.y - fromPos.y;
-  return `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  return `${pieceRestTransform()} translate3d(${deltaX}px, ${deltaY}px, 0)`;
 }
 
 function clearMoveAnimation({ preserveKey = false } = {}) {
@@ -1166,7 +1170,7 @@ function primeMoveAnimation(animation) {
 function hideMoveAnimationElements({ resetActiveSlot = true } = {}) {
   if (resetActiveSlot && state.activeMoveSlotEl) {
     state.activeMoveSlotEl.style.transition = "none";
-    state.activeMoveSlotEl.style.transform = "translate(-50%, -50%)";
+    state.activeMoveSlotEl.style.transform = pieceRestTransform();
   }
   if (movingPieceEl) {
     movingPieceEl.style.transition = "none";
@@ -1242,31 +1246,61 @@ function setPieceSlotImage(el, piece) {
   el.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
 }
 
+function prepareMoveDestinationHandoff(animation) {
+  if (!animation) return;
+  const { pieceSlots } = ensureBoardSlots();
+  const targetSlotEl = pieceSlots[animation.toIndex];
+  if (!targetSlotEl) return;
+  const piece = animation.piece;
+  const isRed = piece === piece.toUpperCase();
+  const checkedSides = getCheckedSides();
+  setPieceSlotImage(targetSlotEl, piece);
+  targetSlotEl.classList.toggle("red", isRed);
+  targetSlotEl.classList.toggle("black", !isRed);
+  targetSlotEl.classList.remove("selected");
+  targetSlotEl.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[pieceColor(piece)]);
+  targetSlotEl.style.transition = "none";
+  targetSlotEl.style.transform = pieceRestTransform();
+  targetSlotEl.classList.add("is-visible");
+  targetSlotEl.setAttribute("aria-hidden", "false");
+}
+
 function finalizeMoveAnimation(animation) {
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
   const afterComplete = typeof state.moveAnimation.afterComplete === "function"
     ? state.moveAnimation.afterComplete
     : null;
   const activeSlotEl = state.activeMoveSlotEl;
+  const useMobileHandoff = isCompactMobile();
   if (state.moveAnimationTimer) {
     clearTimeout(state.moveAnimationTimer);
     state.moveAnimationTimer = 0;
   }
   state.moveAnimationRunning = false;
+  if (useMobileHandoff) {
+    prepareMoveDestinationHandoff(animation);
+  }
   hideMoveAnimationElements({ resetActiveSlot: false });
   state.moveAnimation = null;
   state.activeMoveSlotEl = null;
   state.lastPieceFrame = "";
-  drawPieces();
-  renderHistory();
-  drawArrowLayer();
-  if (activeSlotEl) {
-    activeSlotEl.style.transition = "none";
-    activeSlotEl.style.transform = "translate(-50%, -50%)";
-  }
-  if (afterComplete) afterComplete();
-  if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
-    requestQueuedCursorStep();
+  const finish = () => {
+    drawPieces();
+    renderHistory();
+    drawArrowLayer();
+    if (activeSlotEl) {
+      activeSlotEl.style.transition = "none";
+      activeSlotEl.style.transform = pieceRestTransform();
+    }
+    if (afterComplete) afterComplete();
+    if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
+      requestQueuedCursorStep();
+    }
+  };
+  if (useMobileHandoff) {
+    window.requestAnimationFrame(finish);
+  } else {
+    finish();
   }
 }
 
@@ -1293,7 +1327,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   state.activeMoveSlotEl = movingSlotEl;
   state.moveAnimationRunning = false;
   movingSlotEl.style.transition = "none";
-  movingSlotEl.style.transform = "translate(-50%, -50%)";
+  movingSlotEl.style.transform = pieceRestTransform();
 
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) {
@@ -1804,7 +1838,7 @@ function drawPieces() {
         el.classList.remove("is-visible");
         el.classList.remove("selected", "in-check", "red", "black");
         el.style.transition = "none";
-        el.style.transform = "translate(-50%, -50%)";
+        el.style.transform = pieceRestTransform();
         if (el.dataset.piece && !(animation && index === animation.toIndex)) {
           el.dataset.piece = "";
           el.removeAttribute("aria-label");
@@ -1824,11 +1858,11 @@ function drawPieces() {
           state.activeMoveSlotEl = el;
           if (!keepRunningTransform) {
             el.style.transition = "none";
-            el.style.transform = "translate(-50%, -50%)";
+            el.style.transform = pieceRestTransform();
           }
         } else {
           el.style.transition = "none";
-          el.style.transform = "translate(-50%, -50%)";
+          el.style.transform = pieceRestTransform();
         }
         el.classList.add("is-visible");
         el.setAttribute("aria-hidden", "false");

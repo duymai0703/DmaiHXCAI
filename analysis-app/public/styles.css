@@ -2573,3 +2573,44 @@ select,
     display: none !important;
   }
 }
+
+@media (max-width: 760px) {
+  #pieces,
+  #motionLayer {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: transform !important;
+    contain: layout paint style;
+  }
+
+  .piece,
+  .motion-piece {
+    visibility: visible !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    will-change: transform, opacity !important;
+    contain: layout style;
+  }
+
+  .piece:not(.is-visible),
+  .motion-piece:not(.is-visible) {
+    opacity: 0 !important;
+  }
+
+  .piece.is-visible,
+  .motion-piece.is-visible {
+    opacity: 1 !important;
+  }
+
+  .piece-skin {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: transform;
+  }
+}
