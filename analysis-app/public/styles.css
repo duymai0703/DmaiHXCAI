@@ -2614,3 +2614,158 @@ select,
     will-change: transform;
   }
 }
+
+@media (max-width: 760px) {
+  .board-zone {
+    background:
+      radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+      radial-gradient(circle at 82% 8%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 28%),
+      var(--machine-panel) !important;
+    box-shadow:
+      inset 0 -1px 0 var(--line),
+      0 8px 22px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .mobile-top-toolbar {
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 24%, color-mix(in srgb, var(--accent-2) 10%, transparent)),
+      var(--header-bg) !important;
+    border-bottom-color: var(--header-line) !important;
+    box-shadow:
+      inset 0 -1px 0 color-mix(in srgb, var(--accent) 36%, transparent),
+      0 8px 18px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .mobile-top-toolbar .mobile-action-btn,
+  .mobile-top-toolbar .mobile-theme-btn {
+    background: var(--control-bg) !important;
+    border: 1px solid color-mix(in srgb, var(--line) 72%, transparent) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.08),
+      0 0 12px color-mix(in srgb, var(--accent) 16%, transparent) !important;
+  }
+
+  .mobile-score-strip {
+    min-height: 22px !important;
+    background: var(--machine-cell) !important;
+    border-color: var(--line) !important;
+    color: var(--ink) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 14px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  }
+
+  .panel,
+  .panel-shell,
+  .panel-side-col,
+  .cloud-group {
+    background:
+      radial-gradient(circle at 24% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 36%),
+      var(--machine-panel) !important;
+  }
+
+  .cloud-group {
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    border-top: 1px solid var(--line) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 -8px 18px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .cloud-group h2 {
+    grid-template-columns: minmax(0, 1fr) 68px !important;
+    gap: 6px !important;
+    width: min(100%, 340px) !important;
+    margin: 0 auto !important;
+    padding: 0 6px 4px !important;
+    color: var(--ink) !important;
+    font-size: 13px !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0 !important;
+    text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
+  .cloud-book {
+    display: grid !important;
+    align-content: start !important;
+    gap: 3px !important;
+    width: min(100%, 340px) !important;
+    overflow: hidden !important;
+  }
+
+  .cloud-row,
+  .cloud-placeholder,
+  .cloud-empty {
+    grid-template-columns: minmax(0, 1fr) 68px !important;
+    min-height: 28px !important;
+    padding: 3px 6px !important;
+    border: 1px solid color-mix(in srgb, var(--line) 50%, transparent) !important;
+    border-radius: 7px !important;
+    background: var(--machine-cell) !important;
+    color: var(--ink) !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 10px color-mix(in srgb, var(--accent) 8%, transparent) !important;
+  }
+
+  .cloud-move {
+    color: var(--accent) !important;
+  }
+
+  .cloud-score {
+    color: var(--ink) !important;
+    text-align: right !important;
+  }
+
+  .cloud-score.positive {
+    color: #38bdf8 !important;
+  }
+
+  .cloud-score.negative {
+    color: #ff4d6d !important;
+  }
+
+  .cloud-score.equal {
+    color: var(--muted) !important;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 720px) {
+  .cloud-group {
+    padding-top: 4px !important;
+  }
+
+  .cloud-group h2 {
+    padding-bottom: 3px !important;
+    font-size: 12px !important;
+  }
+
+  .cloud-book {
+    gap: 2px !important;
+  }
+
+  .cloud-row,
+  .cloud-placeholder,
+  .cloud-empty {
+    min-height: 25px !important;
+    padding: 2px 6px !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-theme="light"] .cloud-move {
+    color: #1766b7 !important;
+  }
+
+  :root[data-theme="light"] .cloud-score.positive {
+    color: #1766b7 !important;
+  }
+
+  :root[data-theme="light"] .cloud-score.negative {
+    color: #d21f38 !important;
+  }
+}

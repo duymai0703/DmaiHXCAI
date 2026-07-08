@@ -29,7 +29,7 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v39";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v40";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -1816,6 +1816,7 @@ function ensureBoardSlots() {
 function drawPieces() {
   const { pieceSlots, hintSlots } = ensureBoardSlots();
   if (!pieceSlots.length || !hintSlots.length) return;
+  const keepHiddenPieceSkins = isCompactMobile();
   const checkedSides = getCheckedSides();
   const selectionKey = state.selected ? squareToUci(state.selected) : "";
   const hintKey = state.hints.map(squareToUci).join(",");
@@ -1839,7 +1840,7 @@ function drawPieces() {
         el.classList.remove("selected", "in-check", "red", "black");
         el.style.transition = "none";
         el.style.transform = pieceRestTransform();
-        if (el.dataset.piece && !(animation && index === animation.toIndex)) {
+        if (!keepHiddenPieceSkins && el.dataset.piece && !(animation && index === animation.toIndex)) {
           el.dataset.piece = "";
           el.removeAttribute("aria-label");
         }
