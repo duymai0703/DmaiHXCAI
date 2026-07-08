@@ -21,7 +21,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260708-mobile-v31">
+    <link rel="stylesheet" href="/styles.css?v=20260708-mobile-v32">
   </head>
   <body>
     <header class="app-header">
@@ -59,6 +59,7 @@
             <div id="capturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
             <div id="movingPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
           </div>
+          <div id="checkmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
         </div>
       </section>
 
@@ -145,7 +146,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260708-mobile-v39"></script>
+    <script src="/app.js?v=20260708-mobile-v40"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

@@ -29,7 +29,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v38">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v39">
   </head>
   <body>
     <header class="portal-header">
@@ -277,6 +277,7 @@
                   <div id="roomCapturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                   <div id="roomMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                 </div>
+                <div id="roomCheckmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
                 <div id="roomBoardOverlay" class="room-board-overlay hidden">
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
@@ -408,6 +409,7 @@
                     <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
                       <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
+                    <div id="reviewCheckmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
                   </div>
                 </div>
 
@@ -486,7 +488,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v56"></script>
+    <script src="/portal.js?v=20260708-room-v58"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

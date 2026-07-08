@@ -325,6 +325,56 @@ h2 {
   z-index: 4;
 }
 
+.checkmate-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 7;
+  width: 68%;
+  max-width: 520px;
+  aspect-ratio: 1046 / 775;
+  transform: translate(-50%, -50%) scale(0.88);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  filter:
+    drop-shadow(0 8px 14px rgba(0, 0, 0, 0.38))
+    drop-shadow(0 0 18px rgba(255, 34, 34, 0.22));
+}
+
+.checkmate-burst img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.checkmate-burst.show {
+  visibility: visible;
+  animation: satBurstFade 3000ms cubic-bezier(0.18, 0.84, 0.22, 1) forwards;
+}
+
+@keyframes satBurstFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7) rotate(-4deg);
+  }
+  9% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05) rotate(0deg);
+  }
+  24% {
+    opacity: 0.96;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.08) rotate(0deg);
+  }
+}
+
 .piece {
   position: absolute;
   display: grid;

@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260708-v52";
+  const ASSET_WARMUP_VERSION = "20260708-v53";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -56,8 +56,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260708-mobile-v31",
-    "/app.js?v=20260708-mobile-v39",
+    "/styles.css?v=20260708-mobile-v32",
+    "/app.js?v=20260708-mobile-v40",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/icons/mb1-light.png",
@@ -72,6 +72,7 @@
     "/assets/icons/mb5-dark.png",
     "/assets/icons/logow.png",
     "/assets/icons/logob.png",
+    "/assets/effects/sat-cutout.png",
     ...Object.values(PIECE_IMAGES)
   ];
   const THEME_LOGO_ASSETS = [
@@ -160,7 +161,11 @@
     roomAnimationRunning: false,
     lastAnimatedRoomMoveKey: "",
     activeRoomMoveSlotEl: null,
-    activeReviewMoveSlotEl: null
+    activeReviewMoveSlotEl: null,
+    roomCheckmateEffectKey: "",
+    roomCheckmateEffectTimer: 0,
+    reviewCheckmateEffectKey: "",
+    reviewCheckmateEffectTimer: 0
   };
 
   const dom = {
@@ -240,6 +245,7 @@
     roomMotionLayer: byId("roomMotionLayer"),
     roomCapturePiece: byId("roomCapturePiece"),
     roomMotionPiece: byId("roomMotionPiece"),
+    roomCheckmateBurst: byId("roomCheckmateBurst"),
     roomBoardOverlay: byId("roomBoardOverlay"),
     roomOverlayTitle: byId("roomOverlayTitle"),
     roomOverlayText: byId("roomOverlayText"),
@@ -277,6 +283,7 @@
     reviewPieces: byId("reviewPieces"),
     reviewMotionLayer: byId("reviewMotionLayer"),
     reviewMotionPiece: byId("reviewMotionPiece"),
+    reviewCheckmateBurst: byId("reviewCheckmateBurst"),
     reviewMoveList: byId("reviewMoveList"),
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
@@ -1277,6 +1284,7 @@
     state.reviewLastPieceFrame = "";
     state.reviewPieceSlots = null;
     state.reviewSlotLayoutKey = "";
+    clearReviewCheckmateEffectKey();
     rebuildReviewBoard();
     closeProfileModal();
     goRoute("review");
@@ -1438,6 +1446,7 @@
       clearReviewMoveAnimation();
     }
     renderReviewState(true);
+    maybeShowReviewCheckmateEffect();
     if (animation) startReviewMoveAnimation(animation, { prepared: true });
   }
 
@@ -1800,6 +1809,7 @@
       state.roomSlotLayoutKey = "";
       state.lastAnimatedRoomMoveKey = "";
       clearRoomMoveAnimation();
+      clearRoomCheckmateEffectKey();
       clearTurnFlash();
       renderRoomState({ forceBoard: true, keepSelection: false });
       updateResumeButton();
@@ -1820,6 +1830,8 @@
 
     updateResumeButton();
     renderRoomState({ forceBoard, keepSelection });
+    if (room.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
+    else clearRoomCheckmateEffectKey();
     if (incomingAnimation) startRoomMoveAnimation(incomingAnimation, { prepared: true });
     if (shouldFlashTurn) triggerTurnFlash();
     else if (room.role !== "player" || !room.yourTurn || room.status !== "active" || room.result) clearTurnFlash();
@@ -2013,6 +2025,68 @@
     state.roomAnimationTimer = window.setTimeout(() => {
       finalizeRoomMoveAnimation(animation);
     }, ROOM_MOVE_ANIMATION_MS + 8);
+  }
+
+  function hideBoardBurst(el, timerKey) {
+    if (state[timerKey]) {
+      clearTimeout(state[timerKey]);
+      state[timerKey] = 0;
+    }
+    if (!el) return;
+    el.classList.remove("show");
+    el.setAttribute("aria-hidden", "true");
+  }
+
+  function showBoardBurst(el, timerKey) {
+    if (!el) return;
+    if (state[timerKey]) {
+      clearTimeout(state[timerKey]);
+      state[timerKey] = 0;
+    }
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.setAttribute("aria-hidden", "false");
+    el.classList.add("show");
+    state[timerKey] = window.setTimeout(() => {
+      el.classList.remove("show");
+      el.setAttribute("aria-hidden", "true");
+      state[timerKey] = 0;
+    }, 3050);
+  }
+
+  function clearRoomCheckmateEffectKey() {
+    state.roomCheckmateEffectKey = "";
+    hideBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer");
+  }
+
+  function maybeShowRoomCheckmateEffect() {
+    const room = state.room;
+    if (!room?.result || room.result.reason !== "checkmate") return;
+    const key = `${room.key || ""}:${room.result.endedAt || ""}:${room.moves?.length || 0}:${room.boardFen || ""}`;
+    if (key && key === state.roomCheckmateEffectKey) return;
+    state.roomCheckmateEffectKey = key;
+    showBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer");
+  }
+
+  function clearReviewCheckmateEffectKey() {
+    state.reviewCheckmateEffectKey = "";
+    hideBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer");
+  }
+
+  function maybeShowReviewCheckmateEffect() {
+    if (!state.reviewGame || !state.reviewBoard) {
+      clearReviewCheckmateEffectKey();
+      return;
+    }
+    const result = XiangqiCore.determineGameState(state.reviewBoard, state.reviewSideToMove || "w");
+    if (!result.finished || result.reason !== "checkmate") {
+      clearReviewCheckmateEffectKey();
+      return;
+    }
+    const key = `${state.reviewGame.id || state.reviewGame.endedAt || ""}:${state.reviewCursor}:${boardSignature(state.reviewBoard)}`;
+    if (key && key === state.reviewCheckmateEffectKey) return;
+    state.reviewCheckmateEffectKey = key;
+    showBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer");
   }
 
   function updateResumeButton() {
@@ -2317,6 +2391,8 @@
     renderRoomOverlay();
     renderRoomMobilePanels();
     drawRoomPieces(true);
+    if (state.room?.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
+    else clearRoomCheckmateEffectKey();
   }
 
   function drawRoomScene(forceBoard, immediate = false) {

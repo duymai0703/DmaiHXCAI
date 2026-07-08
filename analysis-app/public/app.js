@@ -29,12 +29,12 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v33";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v34";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
-const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 180;
+const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -63,7 +63,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb4-dark.png",
   "/assets/icons/mb5-dark.png",
   "/assets/icons/logow.png",
-  "/assets/icons/logob.png"
+  "/assets/icons/logob.png",
+  "/assets/effects/sat-cutout.png"
 ];
 let wakePromise = null;
 
@@ -111,7 +112,9 @@ const state = {
   moveAnimationTimer: 0,
   moveAnimationRunning: false,
   lastAnimatedMoveKey: "",
-  activeMoveSlotEl: null
+  activeMoveSlotEl: null,
+  lastCheckmateEffectKey: "",
+  checkmateEffectTimer: 0
 };
 
 const boardEl = document.getElementById("board");
@@ -121,6 +124,7 @@ const piecesEl = document.getElementById("pieces");
 const motionLayerEl = document.getElementById("motionLayer");
 const capturePieceEl = document.getElementById("capturePiece");
 const movingPieceEl = document.getElementById("movingPiece");
+const checkmateBurstEl = document.getElementById("checkmateBurst");
 const analysisEl = document.getElementById("analysis");
 const cloudBookEl = document.getElementById("cloudBook");
 const mobileScoreStripEl = document.getElementById("mobileScoreStrip");
@@ -508,7 +512,7 @@ function isCompactMobile() {
 }
 
 function analysisMoveDurationMs() {
-  return isCompactMobile() ? 150 : ANALYSIS_MOVE_ANIMATION_MS;
+  return ANALYSIS_MOVE_ANIMATION_MS;
 }
 
 function setupMobileActionStrip() {
@@ -1089,6 +1093,39 @@ function hideMoveAnimationElements() {
   }
 }
 
+function hideCheckmateEffect() {
+  if (state.checkmateEffectTimer) {
+    clearTimeout(state.checkmateEffectTimer);
+    state.checkmateEffectTimer = 0;
+  }
+  if (checkmateBurstEl) {
+    checkmateBurstEl.classList.remove("show");
+    checkmateBurstEl.setAttribute("aria-hidden", "true");
+  }
+}
+
+function clearCheckmateEffectKey() {
+  state.lastCheckmateEffectKey = "";
+  hideCheckmateEffect();
+}
+
+function maybeShowCheckmateEffect({ force = false } = {}) {
+  if (!state.gameOver || !state.checkmatedSide || !checkmateBurstEl) return;
+  const key = `${state.cursor}:${state.checkmatedSide}:${boardSignature(state.board)}`;
+  if (!force && state.lastCheckmateEffectKey === key) return;
+  state.lastCheckmateEffectKey = key;
+  if (state.checkmateEffectTimer) clearTimeout(state.checkmateEffectTimer);
+  checkmateBurstEl.classList.remove("show");
+  void checkmateBurstEl.offsetWidth;
+  checkmateBurstEl.setAttribute("aria-hidden", "false");
+  checkmateBurstEl.classList.add("show");
+  state.checkmateEffectTimer = window.setTimeout(() => {
+    checkmateBurstEl.classList.remove("show");
+    checkmateBurstEl.setAttribute("aria-hidden", "true");
+    state.checkmateEffectTimer = 0;
+  }, 3050);
+}
+
 function paintMotionPiece(element, piece) {
   if (!element || !piece) return;
   element.dataset.piece = piece;
@@ -1199,6 +1236,8 @@ function makeMove(move, { manual = true } = {}) {
   } else {
     draw();
   }
+  if (state.gameOver) maybeShowCheckmateEffect();
+  else clearCheckmateEffectKey();
   refreshCloudBook();
   if (manual) reportAnalysisActivity(`Đi thử nước ${move}`);
   if (manual && state.analysisMode) {
@@ -1240,6 +1279,7 @@ function reset() {
   clearQueuedCursorNavigation();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
+  clearCheckmateEffectKey();
   state.moves = [];
   state.cursor = 0;
   rebuildPosition({ immediateDraw: true, analysisDelay: 0 });
@@ -1303,6 +1343,7 @@ function clearBoard() {
   clearQueuedCursorNavigation();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
+  clearCheckmateEffectKey();
   stopAutoPlay();
   stopScoreAnimation();
   state.board = emptyBoard();
@@ -1330,6 +1371,7 @@ function loadFenFromPrompt() {
     cancelScheduledAnalysisRefresh();
     const parsed = parseFenInput(input);
     clearMoveAnimation();
+    clearCheckmateEffectKey();
     stopAutoPlay();
     stopScoreAnimation();
     state.board = parsed.board;
@@ -1347,6 +1389,7 @@ function loadFenFromPrompt() {
     state.gameOver = Boolean(state.checkmatedSide);
     if (sideToMoveEl) sideToMoveEl.value = state.side;
     draw(true);
+    if (state.gameOver) maybeShowCheckmateEffect();
     refreshCloudBook();
     if (state.analysisMode) {
       scheduleAnalysisRefresh(0);
@@ -1392,6 +1435,7 @@ function setSideToMove() {
   clearQueuedCursorNavigation();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
+  clearCheckmateEffectKey();
   stopScoreAnimation();
   state.side = sideToMoveEl.value === "b" ? "b" : "w";
   state.moves = [];
@@ -1407,6 +1451,7 @@ function editBoardSquare(square) {
   clearQueuedCursorNavigation();
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
+  clearCheckmateEffectKey();
   const piece = state.editorPiece;
   if (piece && !isEditorPieceAllowed(piece, square)) return;
   stopScoreAnimation();
@@ -1423,6 +1468,7 @@ function editBoardSquare(square) {
   state.checkmatedSide = getCheckmatedSide();
   state.gameOver = Boolean(state.checkmatedSide);
   draw(true);
+  if (state.gameOver) maybeShowCheckmateEffect();
   refreshCloudBook();
 }
 
@@ -1458,6 +1504,8 @@ function rebuildPosition({ immediateDraw = false, analysisDelay = 0 } = {}) {
   state.checkmatedSide = getCheckmatedSide();
   state.gameOver = Boolean(state.checkmatedSide);
   draw(immediateDraw);
+  if (state.gameOver) maybeShowCheckmateEffect();
+  else clearCheckmateEffectKey();
   refreshCloudBook();
   if (state.analysisMode) {
     scheduleAnalysisRefresh(analysisDelay);
