@@ -2039,7 +2039,7 @@ button:hover {
 }
 
 button.active,
-.analyze-button {
+.analyze-button.active {
   background: var(--control-active) !important;
   border-color: rgba(255, 255, 255, 0.28) !important;
   color: #10151d !important;
@@ -2408,6 +2408,7 @@ select,
   }
 
   .mobile-top-toolbar .mobile-action-btn:active,
+  .mobile-top-toolbar .mobile-action-btn.active,
   .mobile-top-toolbar .mobile-theme-btn:active {
     background: var(--control-active) !important;
     transform: none !important;

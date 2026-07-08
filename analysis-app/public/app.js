@@ -29,12 +29,13 @@ const ANALYSIS_MAX_MS = 10000;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v35";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260708-v36";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
+const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -126,6 +127,7 @@ const capturePieceEl = document.getElementById("capturePiece");
 const movingPieceEl = document.getElementById("movingPiece");
 const checkmateBurstEl = document.getElementById("checkmateBurst");
 const analysisEl = document.getElementById("analysis");
+const analyzeBtn = document.getElementById("analyzeBtn");
 const cloudBookEl = document.getElementById("cloudBook");
 const mobileScoreStripEl = document.getElementById("mobileScoreStrip");
 const historyEl = document.getElementById("history");
@@ -155,7 +157,7 @@ document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
 bindClick("saveEngineBtn", saveEnginePath);
 bindClick("buildEngineBtn", buildEngine);
 bindClick("downloadNetBtn", downloadNetwork);
-document.getElementById("analyzeBtn").addEventListener("click", startManualAnalysis);
+analyzeBtn.addEventListener("click", () => toggleManualAnalysis().catch(() => {}));
 bindClick("bestMoveBtn", playBestMove);
 document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("redoBtn").addEventListener("click", redo);
@@ -525,7 +527,7 @@ function handleMobileAction(action) {
   switch (action) {
     case "analysis":
       setMobilePanel("analysis");
-      startManualAnalysis().catch(() => {});
+      toggleManualAnalysis().catch(() => {});
       break;
     case "cloud":
       setMobilePanel("cloud");
@@ -582,6 +584,7 @@ function renderMobilePanelState() {
   mobileActionButtons.forEach((button) => {
     button.classList.remove("active");
   });
+  updateAnalysisToggleState();
 }
 
 async function refreshStatus() {
@@ -636,12 +639,53 @@ async function startManualAnalysis() {
   stopAutoPlay(true);
   cancelScheduledAnalysisRefresh();
   state.analysisMode = true;
+  updateAnalysisToggleState();
   return runAnalysis({ activateMode: true, autoPlay: false });
+}
+
+function stopManualAnalysis() {
+  cancelScheduledAnalysisRefresh();
+  stopAutoPlay(true);
+  stopScoreAnimation();
+  state.analysisMode = false;
+  state.bestMove = "";
+  state.suggestions = [];
+  state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.shownScore = null;
+  state.analysisRequest++;
+  clearArrow();
+  renderScore(0, "ChÆ°a phÃ¢n tÃ­ch");
+  updateAnalysisToggleState();
+}
+
+function toggleManualAnalysis() {
+  if (state.analysisMode) {
+    stopManualAnalysis();
+    return Promise.resolve();
+  }
+  return startManualAnalysis();
+}
+
+function updateAnalysisToggleState() {
+  if (analyzeBtn) {
+    analyzeBtn.classList.toggle("active", state.analysisMode);
+    analyzeBtn.setAttribute("aria-pressed", state.analysisMode ? "true" : "false");
+  }
+  mobileActionButtons.forEach((button) => {
+    if (button.dataset.mobileAction === "analysis") {
+      button.classList.toggle("active", state.analysisMode);
+      button.setAttribute("aria-pressed", state.analysisMode ? "true" : "false");
+    }
+  });
 }
 
 async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
   cancelScheduledAnalysisRefresh();
-  if (activateMode) state.analysisMode = true;
+  if (activateMode) {
+    state.analysisMode = true;
+    updateAnalysisToggleState();
+  }
   const requestId = ++state.analysisRequest;
   const boardBefore = cloneBoard(state.board);
   const sideBefore = state.side;
@@ -740,6 +784,7 @@ function toggleAuto() {
     state.suggestionOptions = [];
     state.bestMove = "";
     state.lastAnalysis = null;
+    updateAnalysisToggleState();
   }
   document.getElementById("autoBtn").textContent = state.auto ? "Dừng" : "Bắt đầu";
   document.getElementById("autoBtn").classList.toggle("active", state.auto);
@@ -1224,14 +1269,21 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
 
   const { pieceSlots } = ensureBoardSlots();
   const movingSlotEl = pieceSlots[animation.fromIndex];
-  if (!movingSlotEl) return;
+  if (!movingSlotEl) {
+    clearMoveAnimation({ preserveKey: true });
+    drawPieces();
+    return;
+  }
   state.activeMoveSlotEl = movingSlotEl;
   state.moveAnimationRunning = false;
   movingSlotEl.style.transition = "none";
   movingSlotEl.style.transform = "translate(-50%, -50%)";
 
   void movingSlotEl.offsetWidth;
-  if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) return;
+  if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) {
+    clearMoveAnimation({ preserveKey: true });
+    return;
+  }
   const duration = analysisMoveDurationMs();
   movingSlotEl.style.transition = `transform ${duration}ms ${ANALYSIS_MOVE_EASING}`;
   movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
@@ -1285,7 +1337,7 @@ function makeMove(move, { manual = true } = {}) {
   refreshCloudBook();
   if (manual) reportAnalysisActivity(`Đi thử nước ${move}`);
   if (manual && state.analysisMode) {
-    scheduleAnalysisRefresh(0);
+    scheduleAnalysisRefresh(ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS);
   }
 }
 
