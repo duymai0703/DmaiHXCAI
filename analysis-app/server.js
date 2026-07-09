@@ -33,6 +33,8 @@ const PRESENCE_TTL_MS = 1000 * 30;
 const ROOM_START_DELAY_MS = 2000;
 const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
+const ENGINE_SCORE_SENSITIVITY = 2.35;
+const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "1234");
@@ -1939,6 +1941,15 @@ function normalizedReviewScore(line) {
   return raw.value;
 }
 
+function scaleEngineScoreForDisplay(score) {
+  const value = Number(score || 0);
+  if (!Number.isFinite(value) || value === 0) return 0;
+  if (Math.abs(value) >= 31999) return value > 0 ? 31999 : -31999;
+  const sign = Math.sign(value);
+  const scaled = Math.round(Math.abs(value) * ENGINE_SCORE_SENSITIVITY);
+  return sign * Math.min(ENGINE_SCORE_DISPLAY_LIMIT, scaled);
+}
+
 function reviewGradeForMove(actualMove, bestMove, bestScore, actualScore) {
   if (!actualMove || !bestMove) {
     return { key: "okay", label: "Không hay", delta: 0 };
@@ -2039,7 +2050,7 @@ async function analyzeHistoryGame({ startFen = XiangqiCore.START_FEN, plies = []
       gradeLabel: grade.label,
       bookMoves,
       inBook,
-      redScore: side === "w" ? actualScore : -actualScore
+      redScore: side === "w" ? scaleEngineScoreForDisplay(actualScore) : -scaleEngineScoreForDisplay(actualScore)
     });
 
     if (!XiangqiCore.isLegalMove(boardBefore, ply.move, side)) {

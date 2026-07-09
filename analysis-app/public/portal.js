@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v75";
+  const ASSET_WARMUP_VERSION = "20260709-v76";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,8 +66,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v52",
-    "/app.js?v=20260709-mobile-v60",
+    "/styles.css?v=20260709-mobile-v53",
+    "/app.js?v=20260709-mobile-v61",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -110,6 +110,7 @@
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 228;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
+  const REVIEW_EVAL_BAR_LIMIT = 2000;
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
@@ -1683,8 +1684,8 @@
 
   function reviewRedShare(score) {
     if (Math.abs(score) >= 31999) return score > 0 ? 100 : 0;
-    const clamped = Math.max(-1500, Math.min(1500, score));
-    return Math.max(0, Math.min(100, Math.round(50 + (clamped / 1500) * 50)));
+    const clamped = Math.max(-REVIEW_EVAL_BAR_LIMIT, Math.min(REVIEW_EVAL_BAR_LIMIT, score));
+    return Math.max(0, Math.min(100, Math.round(50 + (clamped / REVIEW_EVAL_BAR_LIMIT) * 50)));
   }
 
   function formatReviewEval(score) {
@@ -2072,6 +2073,7 @@
     if (resetActiveSlot && state.activeRoomMoveSlotEl) {
       state.activeRoomMoveSlotEl.style.transition = "none";
       state.activeRoomMoveSlotEl.style.transform = roomPieceRestTransform();
+      state.activeRoomMoveSlotEl.style.opacity = "";
     }
     if (resetMovingPiece && dom.roomMotionPiece) {
       dom.roomMotionPiece.style.transition = "none";
@@ -2105,7 +2107,7 @@
   }
 
   function useRoomMobileHandoff() {
-    return isMobileRoomEntry && isCompactMobile();
+    return isCompactMobile();
   }
 
   function roomPieceImageFor(piece) {
@@ -2166,7 +2168,9 @@
   function hideRoomMoveLandingShieldSoon() {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        hideRoomAnimationElements({ resetActiveSlot: false });
+        window.setTimeout(() => {
+          hideRoomAnimationElements({ resetActiveSlot: false });
+        }, useRoomMobileHandoff() ? 72 : 0);
       });
     });
   }
@@ -2193,6 +2197,7 @@
       if (movedSlotEl) {
         movedSlotEl.style.transition = "none";
         movedSlotEl.style.transform = roomPieceRestTransform();
+        movedSlotEl.style.opacity = "";
       }
       if (useMobileHandoff) hideRoomMoveLandingShieldSoon();
       else hideRoomAnimationElements({ resetActiveSlot: false });
@@ -2231,15 +2236,38 @@
     const { pieceSlots } = ensureRoomSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
+    const mobileOverlayMove = useRoomMobileHandoff() && dom.roomMotionPiece;
     state.activeRoomMoveSlotEl = movingSlotEl;
     state.roomAnimationRunning = false;
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = roomPieceRestTransform();
+    movingSlotEl.style.opacity = "";
 
-    void movingSlotEl.offsetWidth;
-    if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
-    movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
+    if (mobileOverlayMove) {
+      const fromPos = squareToPixel(animation.from);
+      paintRoomMotionPiece(dom.roomMotionPiece, animation.piece);
+      dom.roomMotionPiece.style.transition = "none";
+      dom.roomMotionPiece.style.left = `${fromPos.x}px`;
+      dom.roomMotionPiece.style.top = `${fromPos.y}px`;
+      dom.roomMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
+      dom.roomMotionPiece.classList.add("is-visible");
+      dom.roomMotionPiece.setAttribute("aria-hidden", "false");
+      movingSlotEl.style.opacity = "0";
+    }
+
+    void (mobileOverlayMove ? dom.roomMotionPiece : movingSlotEl).offsetWidth;
+    if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) {
+      movingSlotEl.style.opacity = "";
+      hideRoomAnimationElements({ resetActiveSlot: false });
+      return;
+    }
+    if (mobileOverlayMove) {
+      dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+      dom.roomMotionPiece.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
+    } else {
+      movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+      movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
+    }
     state.roomAnimationRunning = true;
 
     state.roomAnimationTimer = window.setTimeout(() => {

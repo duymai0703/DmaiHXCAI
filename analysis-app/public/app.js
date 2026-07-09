@@ -40,13 +40,15 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v54";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v55";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
+const ENGINE_SCORE_SENSITIVITY = 2.35;
+const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
@@ -1139,7 +1141,7 @@ function scoreForViewer(line, sideToMove) {
   const viewerSide = state.flipped ? "b" : "w";
   const multiplier = sideToMove === viewerSide ? 1 : -1;
   if (raw.kind === "mate") return Math.sign(raw.value || 1) * multiplier * 31999;
-  return scaleAdvantageScore(raw.value * multiplier, 2.25, 2000);
+  return scaleAdvantageScore(raw.value * multiplier, ENGINE_SCORE_SENSITIVITY, ENGINE_SCORE_DISPLAY_LIMIT);
 }
 
 function parseEngineScore(score) {

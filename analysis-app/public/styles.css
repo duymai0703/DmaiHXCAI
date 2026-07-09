@@ -261,7 +261,7 @@ h2 {
 .board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 730px);
+  width: min(100%, clamp(560px, 44vw, 680px));
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background:

@@ -764,7 +764,7 @@ a {
 .room-board {
   --piece-size: 10.7%;
   position: relative;
-  width: min(100%, 620px);
+  width: min(100%, clamp(520px, 42vw, 600px));
   aspect-ratio: 9 / 10;
   margin: 0 auto;
   background:
@@ -1074,11 +1074,11 @@ a {
 
 .review-board-row {
   display: grid;
-  grid-template-columns: minmax(0, 620px) 52px;
+  grid-template-columns: minmax(0, 600px) 52px;
   align-items: stretch;
   justify-content: center;
   gap: 14px;
-  width: min(100%, 686px);
+  width: min(100%, 666px);
 }
 
 .review-eval-card {
@@ -1985,16 +1985,60 @@ a {
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece {
     transform: translate3d(-50%, -50%, 0);
+    visibility: visible !important;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     will-change: transform;
     contain: layout style paint;
   }
 
-  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece-skin {
+  body.portal-mobile-mode[data-route="room"] .room-board .piece {
+    visibility: visible !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomPieces,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMotionLayer,
+  body.portal-mobile-mode[data-route="room"] #roomPieces,
+  body.portal-mobile-mode[data-route="room"] #roomMotionLayer {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: transform !important;
+    contain: layout paint style;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece:not(.is-visible),
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece:not(.is-visible),
+  body.portal-mobile-mode[data-route="room"] .room-board .piece:not(.is-visible),
+  body.portal-mobile-mode[data-route="room"] .room-board .motion-piece:not(.is-visible) {
+    opacity: 0 !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece.is-visible,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece.is-visible,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece.is-visible,
+  body.portal-mobile-mode[data-route="room"] .room-board .motion-piece.is-visible {
+    opacity: 1 !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece,
+  body.portal-mobile-mode[data-route="room"] .room-board .motion-piece {
+    visibility: visible !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    will-change: transform, opacity !important;
+    contain: layout style;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece-skin,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece-skin {
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    will-change: transform;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .board-badge {
