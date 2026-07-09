@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260709-v3";
-  const ASSET_WARMUP_VERSION = "20260709-v81";
+  const ASSET_WARMUP_VERSION = "20260710-v82";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -1243,12 +1243,17 @@
       button.type = "button";
       button.className = `avatar-choice${url === activeUrl ? " active" : ""}`;
       button.setAttribute("aria-label", "Chọn ảnh đại diện");
-      button.style.backgroundImage = `url("${url}")`;
+      const image = document.createElement("img");
+      image.src = url;
+      image.alt = "";
+      image.decoding = "async";
+      image.draggable = false;
       button.addEventListener("click", () => {
         state.selectedAvatarUrl = url;
         paintAvatar(dom.profileAvatarLarge, { ...(state.user || {}), avatarUrl: url }, "D");
         renderAvatarChoices();
       });
+      button.appendChild(image);
       dom.avatarChoices.appendChild(button);
     });
   }

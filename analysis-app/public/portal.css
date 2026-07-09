@@ -2647,14 +2647,15 @@ a {
 }
 
 .avatar-choice {
+  display: grid;
+  place-items: center;
   aspect-ratio: 1;
   min-height: 0;
+  padding: 4px;
+  overflow: hidden;
   border-radius: 18px;
   border: 2px solid rgba(219, 183, 114, 0.28);
-  background-color: rgba(255, 250, 242, 0.92);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: rgba(255, 250, 242, 0.92) !important;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.18),
     0 10px 20px rgba(0, 0, 0, 0.16);
@@ -2664,6 +2665,7 @@ a {
 
 .avatar-choice:hover {
   transform: translateY(-1px);
+  background: rgba(255, 243, 218, 0.98) !important;
   border-color: rgba(246, 162, 60, 0.86);
 }
 
@@ -2672,6 +2674,16 @@ a {
   box-shadow:
     0 0 0 3px rgba(246, 162, 60, 0.22),
     0 12px 26px rgba(0, 0, 0, 0.22);
+}
+
+.avatar-choice img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .history-panel {
