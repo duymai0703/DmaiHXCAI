@@ -40,14 +40,14 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v56";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v57";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
-const ANALYSIS_DISPLAY_DEPTH_BOOST = 8;
+const ANALYSIS_DISPLAY_DEPTH_BOOST = 10;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
@@ -1207,7 +1207,7 @@ function renderMobileScoreStrip(score) {
   const depthText = state.mobileAnalysisDepth > 0 ? String(state.mobileAnalysisDepth) : "...";
   const timeText = `${analysisElapsedSeconds()}s`;
   mobileScoreStripEl.className = `mobile-score-strip ${isNumber ? scoreClass(score) : "equal"}`;
-  mobileScoreStripEl.textContent = `\u0110\u1ed9 s\u00e2u: ${depthText} \u00b7 \u0110i\u1ec3m: ${scoreText} \u00b7 Th\u1eddi gian: ${timeText}`;
+  mobileScoreStripEl.textContent = `\u0110\u1ed9 s\u00e2u: ${depthText} \u0110i\u1ec3m: ${scoreText} Th\u1eddi gian: ${timeText}`;
 }
 
 function scoreForViewer(line, sideToMove) {

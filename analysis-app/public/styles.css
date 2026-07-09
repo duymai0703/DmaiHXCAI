@@ -3171,7 +3171,7 @@ select,
   .cloud-row,
   .cloud-placeholder,
   .cloud-empty {
-    grid-template-columns: 0.96fr 0.66fr 1fr 1.04fr !important;
+    grid-template-columns: 0.92fr 0.64fr 0.94fr 1.2fr !important;
     column-gap: 0 !important;
     width: min(calc(100vw - 22px), 368px) !important;
     margin-left: auto !important;
@@ -3213,8 +3213,8 @@ select,
 
   .cloud-group h2 span:nth-child(4),
   .cloud-note {
-    text-align: left !important;
-    padding-left: 4px !important;
+    text-align: center !important;
+    padding-left: 0 !important;
   }
 
   .cloud-row.equal .cloud-move,
@@ -3265,12 +3265,33 @@ select,
 
 @media (max-width: 760px) {
   .cloud-group h2 {
-    grid-template-columns: 0.96fr 0.66fr 1fr 1.04fr !important;
+    grid-template-columns: 0.92fr 0.64fr 0.94fr 1.2fr !important;
   }
 
   .cloud-title-main {
-    grid-column: 1 / 3 !important;
+    grid-column: auto !important;
     text-align: center !important;
+  }
+
+  .cloud-title-main::before {
+    content: "N\01B0\1EDB c \0111 i";
+  }
+
+  .cloud-title-main {
+    font-size: 0 !important;
+  }
+
+  .cloud-title-main::before {
+    font-size: 15px !important;
+  }
+
+  .cloud-group h2::after {
+    content: "\0110 i\1EC3 m" !important;
+    display: block !important;
+    grid-column: 2;
+    grid-row: 1;
+    text-align: center;
+    font-size: 15px;
   }
 
   .cloud-group h2 .cloud-extra-heading:nth-child(2) {

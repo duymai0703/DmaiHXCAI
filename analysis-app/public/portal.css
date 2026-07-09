@@ -1983,7 +1983,9 @@ a {
       0 0 0 1px rgba(255, 255, 255, 0.08) !important;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomPieces,
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMotionLayer,
+  body.portal-mobile-mode[data-route="room"] #roomPieces,
   body.portal-mobile-mode[data-route="room"] #roomMotionLayer {
     transform: translateZ(0) !important;
     -webkit-transform: translateZ(0) !important;
@@ -1993,17 +1995,23 @@ a {
     contain: layout paint style;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece:not(.is-visible),
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece:not(.is-visible),
+  body.portal-mobile-mode[data-route="room"] .room-board .piece:not(.is-visible),
   body.portal-mobile-mode[data-route="room"] .room-board .motion-piece:not(.is-visible) {
     opacity: 0 !important;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece.is-visible,
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece.is-visible,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece.is-visible,
   body.portal-mobile-mode[data-route="room"] .room-board .motion-piece.is-visible {
     opacity: 1 !important;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece,
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece,
   body.portal-mobile-mode[data-route="room"] .room-board .motion-piece {
     visibility: visible !important;
     backface-visibility: hidden !important;
@@ -2014,9 +2022,12 @@ a {
     contain: layout style;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece .piece-skin,
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .motion-piece .piece-skin,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece .piece-skin,
   body.portal-mobile-mode[data-route="room"] .room-board .motion-piece .piece-skin {
     transform: translateZ(0);
+    -webkit-transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     will-change: transform;

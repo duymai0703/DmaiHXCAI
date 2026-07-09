@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v78";
+  const ASSET_WARMUP_VERSION = "20260709-v79";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,8 +66,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v53",
-    "/app.js?v=20260709-mobile-v62",
+    "/styles.css?v=20260709-mobile-v54",
+    "/app.js?v=20260709-mobile-v63",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -2195,7 +2195,7 @@
     state.activeRoomMoveSlotEl = null;
     state.lastPieceFrame = "";
     const finish = () => {
-      drawRoomPieces(true);
+      drawRoomPieces();
       if (movedSlotEl) {
         movedSlotEl.style.transition = "none";
         movedSlotEl.style.transform = roomPieceRestTransform();
@@ -2219,7 +2219,7 @@
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
     state.lastPieceFrame = "";
-    drawRoomPieces(true);
+    drawRoomPieces();
   }
 
   function startRoomMoveAnimation(animation, { prepared = false } = {}) {
@@ -2673,7 +2673,7 @@
     renderMoveList();
     renderRoomOverlay();
     renderRoomMobilePanels();
-    drawRoomPieces(true);
+    drawRoomPieces();
     if (state.room?.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
     else clearRoomCheckmateEffectKey();
   }
@@ -2920,13 +2920,12 @@
           }
           el.setAttribute("aria-hidden", "true");
         } else {
-          el.classList.add("is-visible");
-          el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
-          el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
           const image = el.querySelector(".piece-skin");
           if (el.dataset.piece !== piece || (image && image.getAttribute("src") !== roomPieceImageFor(piece))) {
             setRoomPieceSlotImage(el, piece);
           }
+          el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
+          el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
           if (state.roomAnimation && state.roomAnimation.fromIndex === index) {
             const keepRunningTransform = state.roomAnimationRunning && state.activeRoomMoveSlotEl === el;
             state.activeRoomMoveSlotEl = el;
@@ -2938,6 +2937,7 @@
             el.style.transition = "none";
             el.style.transform = roomPieceRestTransform();
           }
+          el.classList.add("is-visible");
           el.setAttribute("aria-hidden", "false");
         }
 
@@ -3143,13 +3143,13 @@
       return;
     }
 
-    drawRoomPieces(true);
+    drawRoomPieces();
   }
 
   function clearSelection() {
     state.selectedSquare = null;
     state.hints = [];
-    drawRoomPieces(true);
+    drawRoomPieces();
   }
 
   async function sendMove(move) {
