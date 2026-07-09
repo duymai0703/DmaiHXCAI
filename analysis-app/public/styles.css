@@ -3317,7 +3317,7 @@ select,
 
 @media (max-width: 760px) {
   .cloud-group h2 {
-    grid-template-columns: 0.92fr 0.64fr 0.94fr 1.2fr !important;
+    grid-template-columns: 1.02fr 0.68fr 0.98fr 1.45fr !important;
   }
 
   .cloud-title-main {
@@ -3352,5 +3352,28 @@ select,
 
   .cloud-group h2 .cloud-extra-heading:nth-child(3) {
     grid-column: 4;
+  }
+
+  .cloud-group h2,
+  .cloud-row,
+  .cloud-placeholder,
+  .cloud-empty {
+    grid-template-columns: 1.02fr 0.68fr 0.98fr 1.45fr !important;
+    box-sizing: border-box !important;
+  }
+
+  .cloud-group h2 span,
+  .cloud-row span {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .cloud-group h2 .cloud-extra-heading:nth-child(3),
+  .cloud-note {
+    justify-self: center !important;
+    text-align: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    transform: translateX(-4px);
   }
 }

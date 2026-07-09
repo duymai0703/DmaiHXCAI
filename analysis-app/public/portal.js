@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260709-v3";
-  const ASSET_WARMUP_VERSION = "20260710-v82";
+  const ASSET_WARMUP_VERSION = "20260710-v83";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -70,8 +70,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v55",
-    "/app.js?v=20260709-mobile-v64",
+    "/styles.css?v=20260710-mobile-v56",
+    "/app.js?v=20260710-mobile-v65",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -174,6 +174,8 @@
     lastChatSignature: "",
     resizeTimer: null,
     lastBoardSizeKey: "",
+    lastViewportWidth: Math.round(window.innerWidth || 0),
+    lastViewportHeight: Math.round(window.innerHeight || 0),
     roomMobilePanel: "",
     roomMobileMenuOpen: false,
     roomChatToastTimer: 0,
@@ -830,7 +832,11 @@
   }
 
   function syncViewportHeight() {
-    document.documentElement.style.setProperty("--app-vh", `${window.innerHeight * 0.01}px`);
+    const width = Math.round(window.innerWidth || 0);
+    const height = Math.round(window.innerHeight || 0);
+    state.lastViewportWidth = width;
+    state.lastViewportHeight = height;
+    document.documentElement.style.setProperty("--app-vh", `${height * 0.01}px`);
   }
 
   function isCompactMobile() {
@@ -3964,10 +3970,27 @@
     if (state.resizeTimer) clearTimeout(state.resizeTimer);
     state.resizeTimer = window.setTimeout(() => {
       state.resizeTimer = null;
+      if (shouldIgnoreMobileRoomHeightResize()) return;
       syncViewportHeight();
       renderRoomMobilePanels();
       onResize();
     }, 120);
+  }
+
+  function shouldIgnoreMobileRoomHeightResize() {
+    if (!isCompactMobile() || state.route !== "room" || dom.roomView.classList.contains("hidden")) return false;
+    if (!state.lastBoardSizeKey) return false;
+    const width = Math.round(window.innerWidth || 0);
+    const height = Math.round(window.innerHeight || 0);
+    const previousWidth = state.lastViewportWidth || width;
+    const previousHeight = state.lastViewportHeight || height;
+    const widthDelta = Math.abs(width - previousWidth);
+    const heightDelta = Math.abs(height - previousHeight);
+    if (widthDelta <= 2 && heightDelta > 2) {
+      state.lastViewportHeight = height;
+      return true;
+    }
+    return false;
   }
 
   function onResize() {

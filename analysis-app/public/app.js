@@ -41,7 +41,7 @@ const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v58";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v59";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -2334,10 +2334,8 @@ async function refreshCloudBook() {
 }
 
 function scoreFromCloud(score) {
-  const value = Number.isFinite(score) ? score : 0;
-  const viewerSide = state.flipped ? "b" : "w";
-  const oriented = state.side === viewerSide ? value : -value;
-  return scaleAdvantageScore(oriented, 1.65, 1500);
+  const value = Number(score);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function cloudWinRate(score) {
