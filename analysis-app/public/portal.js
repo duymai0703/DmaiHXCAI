@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v72";
+  const ASSET_WARMUP_VERSION = "20260709-v73";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -328,6 +328,9 @@
   const roomMobilePanelButtons = [...document.querySelectorAll("[data-room-mobile-mode]")];
   const roomMobileActionButtons = [...document.querySelectorAll("[data-room-mobile-action]")];
   const roomMobilePanels = [...document.querySelectorAll("[data-room-mobile-panel]")];
+  const portalBoardSkinButton = byId("portalBoardSkinBtn");
+  const portalBoardSkinMenu = byId("portalBoardSkinMenu");
+  const portalBoardSkinChoices = [...document.querySelectorAll("[data-portal-board-skin]")];
 
   const mobileUserAgent = navigator.userAgent || "";
   const isIpadDesktop = /macintosh/i.test(mobileUserAgent) && Number(navigator.maxTouchPoints || 0) > 1;
@@ -341,7 +344,7 @@
   document.body.classList.toggle("mobile-room-entry", isMobileRoomEntry);
 
   initThemeControls();
-  applyPortalBoardSkin(readPortalBoardSkin());
+  initPortalBoardSkinControls();
   bindEvents();
   preventDoubleTapZoom();
   const assetWarmupPromise = warmPortalAssets();
@@ -385,8 +388,46 @@
     return skin === "gold" || skin === "stone" || skin === "pink" ? skin : "ice";
   }
 
-  function applyPortalBoardSkin(skin) {
-    document.documentElement.dataset.boardSkin = normalizeBoardSkin(skin);
+  function initPortalBoardSkinControls() {
+    applyPortalBoardSkin(readPortalBoardSkin());
+    portalBoardSkinButton?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      togglePortalBoardSkinMenu();
+    });
+    portalBoardSkinChoices.forEach((button) => {
+      button.addEventListener("click", () => {
+        applyPortalBoardSkin(button.dataset.portalBoardSkin, { persist: true });
+        hidePortalBoardSkinMenu();
+      });
+    });
+    document.addEventListener("click", (event) => {
+      if (!portalBoardSkinMenu || portalBoardSkinMenu.classList.contains("hidden")) return;
+      if (portalBoardSkinMenu.contains(event.target) || portalBoardSkinButton?.contains(event.target)) return;
+      hidePortalBoardSkinMenu();
+    });
+  }
+
+  function applyPortalBoardSkin(skin, { persist = false } = {}) {
+    const normalized = normalizeBoardSkin(skin);
+    document.documentElement.dataset.boardSkin = normalized;
+    if (persist) writePersistentValue(STORAGE_BOARD_SKIN, normalized);
+    portalBoardSkinChoices.forEach((button) => {
+      const active = normalizeBoardSkin(button.dataset.portalBoardSkin) === normalized;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function togglePortalBoardSkinMenu() {
+    if (!portalBoardSkinMenu) return;
+    const nextHidden = !portalBoardSkinMenu.classList.contains("hidden");
+    portalBoardSkinMenu.classList.toggle("hidden", nextHidden);
+    portalBoardSkinButton?.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+  }
+
+  function hidePortalBoardSkinMenu() {
+    portalBoardSkinMenu?.classList.add("hidden");
+    portalBoardSkinButton?.setAttribute("aria-expanded", "false");
   }
 
   function normalizeTheme(theme) {
@@ -1976,13 +2017,17 @@
     };
   }
 
-  function directionalAnimationTravelTransform(animation, pixelForSquare) {
-    if (!animation) return "translate(-50%, -50%)";
+  function directionalAnimationTravelTransform(animation, pixelForSquare, restTransform = "translate(-50%, -50%)") {
+    if (!animation) return restTransform;
     const fromPixel = pixelForSquare(animation.from);
     const toPixel = pixelForSquare(animation.to);
     const deltaX = toPixel.x - fromPixel.x;
     const deltaY = toPixel.y - fromPixel.y;
-    return `translate(-50%, -50%) translate3d(${deltaX}px, ${deltaY}px, 0)`;
+    return `${restTransform} translate3d(${deltaX}px, ${deltaY}px, 0)`;
+  }
+
+  function roomPieceRestTransform() {
+    return isMobileRoomEntry ? "translate3d(-50%, -50%, 0)" : "translate(-50%, -50%)";
   }
 
   function clearRoomMoveAnimation({ preserveKey = false } = {}) {
@@ -2000,14 +2045,14 @@
   function hideRoomMoveAnimationElements() {
     if (state.activeRoomMoveSlotEl) {
       state.activeRoomMoveSlotEl.style.transition = "none";
-      state.activeRoomMoveSlotEl.style.transform = "translate(-50%, -50%)";
+      state.activeRoomMoveSlotEl.style.transform = roomPieceRestTransform();
     }
     if (dom.roomMotionPiece) {
       dom.roomMotionPiece.style.transition = "none";
       dom.roomMotionPiece.classList.remove("is-visible");
       dom.roomMotionPiece.style.left = "0px";
       dom.roomMotionPiece.style.top = "0px";
-      dom.roomMotionPiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+      dom.roomMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
       dom.roomMotionPiece.setAttribute("aria-hidden", "true");
     }
     if (dom.roomCapturePiece) {
@@ -2015,7 +2060,7 @@
       dom.roomCapturePiece.classList.remove("is-visible", "fading");
       dom.roomCapturePiece.style.left = "0px";
       dom.roomCapturePiece.style.top = "0px";
-      dom.roomCapturePiece.style.transform = "translate(-50%, -50%) translate3d(0, 0, 0)";
+      dom.roomCapturePiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
       dom.roomCapturePiece.setAttribute("aria-hidden", "true");
     }
   }
@@ -2047,7 +2092,7 @@
     drawRoomPieces(true);
     if (movedSlotEl) {
       movedSlotEl.style.transition = "none";
-      movedSlotEl.style.transform = "translate(-50%, -50%)";
+      movedSlotEl.style.transform = roomPieceRestTransform();
     }
     hideRoomMoveAnimationElements();
   }
@@ -2085,12 +2130,12 @@
     state.activeRoomMoveSlotEl = movingSlotEl;
     state.roomAnimationRunning = false;
     movingSlotEl.style.transition = "none";
-    movingSlotEl.style.transform = "translate(-50%, -50%)";
+    movingSlotEl.style.transform = roomPieceRestTransform();
 
     void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel);
+    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
     state.roomAnimationRunning = true;
 
     state.roomAnimationTimer = window.setTimeout(() => {
@@ -2704,7 +2749,7 @@
           el.classList.remove("is-visible");
           el.classList.remove("selected", "in-check");
           el.style.transition = "none";
-          el.style.transform = "translate(-50%, -50%)";
+          el.style.transform = roomPieceRestTransform();
           if (el.dataset.piece) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
@@ -2728,11 +2773,11 @@
             state.activeRoomMoveSlotEl = el;
             if (!keepRunningTransform) {
               el.style.transition = "none";
-              el.style.transform = "translate(-50%, -50%)";
+              el.style.transform = roomPieceRestTransform();
             }
           } else {
             el.style.transition = "none";
-            el.style.transform = "translate(-50%, -50%)";
+            el.style.transform = roomPieceRestTransform();
           }
           el.setAttribute("aria-hidden", "false");
         }

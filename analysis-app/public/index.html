@@ -34,7 +34,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v43">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v44">
   </head>
   <body>
     <header class="portal-header">
@@ -49,8 +49,27 @@
 
       <div id="headerProfile" class="header-profile">
         <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
+          <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false">Bàn cờ</button>
           <button type="button" data-theme-choice="light" aria-pressed="false">Ánh sáng</button>
           <button type="button" data-theme-choice="dark" aria-pressed="false">Bóng đêm</button>
+        </div>
+        <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
+          <button type="button" data-portal-board-skin="ice" role="menuitem">
+            <span class="skin-swatch skin-swatch-ice" aria-hidden="true"></span>
+            Xanh băng
+          </button>
+          <button type="button" data-portal-board-skin="gold" role="menuitem">
+            <span class="skin-swatch skin-swatch-gold" aria-hidden="true"></span>
+            Vàng cổ
+          </button>
+          <button type="button" data-portal-board-skin="stone" role="menuitem">
+            <span class="skin-swatch skin-swatch-stone" aria-hidden="true"></span>
+            Trắng đá
+          </button>
+          <button type="button" data-portal-board-skin="pink" role="menuitem">
+            <span class="skin-swatch skin-swatch-pink" aria-hidden="true"></span>
+            Hồng nhạt
+          </button>
         </div>
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
         <button id="profileButton" class="profile-button avatar-only" type="button" aria-label="Ảnh đại diện thiết bị">
@@ -499,7 +518,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v65"></script>
+    <script src="/portal.js?v=20260708-room-v66"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
