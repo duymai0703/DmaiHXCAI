@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v68";
+  const ASSET_WARMUP_VERSION = "20260709-v69";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,7 +66,7 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v48",
+    "/styles.css?v=20260709-mobile-v49",
     "/app.js?v=20260709-mobile-v59",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
@@ -892,6 +892,10 @@
   }
 
   function handleBack() {
+    if (isMobileRoomEntry && state.route === "room") {
+      void leaveRoomFromMobileBack();
+      return;
+    }
     if (isMobileRoomEntry && state.route === "match") {
       window.location.href = "/analysis";
       return;
@@ -3145,6 +3149,36 @@
       state.roomActionBusy = false;
       renderRoomMeta();
       showToast(error.message || "Không thể rời phòng.");
+    }
+  }
+
+  async function leaveRoomFromMobileBack() {
+    const room = state.room;
+    if (!room) {
+      applyRoomState(null, { forceBoard: true, keepSelection: false });
+      goRoute("match", true);
+      return;
+    }
+    if (state.roomActionBusy) return;
+    state.roomActionBusy = true;
+    renderRoomMeta();
+    try {
+      if (room.status !== "finished") {
+        await api("/api/rooms/leave", {
+          method: "POST",
+          body: { key: room.key }
+        });
+      }
+    } catch {
+      // Back on mobile is an escape hatch: clear the local room even if the network hiccups.
+    } finally {
+      state.roomActionBusy = false;
+      applyRoomState(null, { forceBoard: true, keepSelection: false });
+      try {
+        await refreshHistory();
+      } catch {}
+      goRoute("match", true);
+      showToast("Đã rời phòng.");
     }
   }
 
