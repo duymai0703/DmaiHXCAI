@@ -40,13 +40,14 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v55";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v56";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
+const ANALYSIS_DISPLAY_DEPTH_BOOST = 8;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
@@ -138,7 +139,13 @@ const state = {
   activeMoveSlotEl: null,
   manualMoveFrame: 0,
   lastCheckmateEffectKey: "",
-  checkmateEffectTimer: 0
+  checkmateEffectTimer: 0,
+  analysisClockStartedAt: 0,
+  analysisClockTimer: 0,
+  analysisClockRequest: 0,
+  analysisClockElapsedSec: 0,
+  mobileAnalysisDepth: 0,
+  mobileAnalysisScore: null
 };
 
 const boardEl = document.getElementById("board");
@@ -784,6 +791,7 @@ function stopManualAnalysis() {
   cancelScheduledAnalysisRefresh();
   stopAutoPlay(true);
   stopScoreAnimation();
+  stopAnalysisClock();
   state.analysisMode = false;
   state.bestMove = "";
   state.suggestions = [];
@@ -824,6 +832,7 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
     updateAnalysisToggleState();
   }
   const requestId = ++state.analysisRequest;
+  startAnalysisClock(requestId);
   const boardBefore = cloneBoard(state.board);
   const sideBefore = state.side;
   const fenBefore = `${boardToCloudFen(boardBefore, sideBefore)} - - 0 1`;
@@ -834,6 +843,8 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
   state.suggestionOptions = [];
   state.lastAnalysis = null;
   state.shownScore = null;
+  state.mobileAnalysisDepth = 0;
+  state.mobileAnalysisScore = null;
   stopScoreAnimation();
   clearArrow();
 
@@ -871,7 +882,10 @@ async function runAnalysis({ activateMode = false, autoPlay = false } = {}) {
     applyAnalysisSnapshot(latestResult, boardBefore, sideBefore, { pending: false });
     return latestResult;
   } catch (err) {
-    if (requestId === state.analysisRequest) analysisEl.textContent = err.message;
+    if (requestId === state.analysisRequest) {
+      analysisEl.textContent = err.message;
+      stopAnalysisClock();
+    }
     throw err;
   }
 }
@@ -1046,6 +1060,8 @@ function hasAnalysisLine(result) {
 function renderPendingAnalysis() {
   if (!analysisEl) return;
   analysisEl.innerHTML = "";
+  state.mobileAnalysisDepth = 0;
+  state.mobileAnalysisScore = null;
   const banner = document.createElement("div");
   banner.className = "score-banner equal";
   banner.innerHTML = `<span>Đánh giá</span><strong>...</strong><small>Engine đang phân tích · Góc nhìn ${viewerName()}</small>`;
@@ -1067,15 +1083,22 @@ function renderAnalysis(result, startBoard, startSide, { pending = false } = {})
   analysisEl.innerHTML = "";
   if (!result.lines || !result.lines.length) {
     state.shownScore = 0;
+    state.mobileAnalysisDepth = 0;
+    state.mobileAnalysisScore = 0;
     renderScore(0, "Engine", { pending: false });
     return;
   }
-  renderScore(scoreForViewer(result.lines[0], startSide), "Engine", { pending });
+  const mainLine = result.lines[0];
+  const score = scoreForViewer(mainLine, startSide);
+  state.mobileAnalysisDepth = displayDepthForLine(mainLine);
+  state.mobileAnalysisScore = score;
+  renderScore(score, "Engine", { pending });
 }
 
 function renderScore(score, source = "", { pending = false } = {}) {
   if (!analysisEl) return;
   stopScoreAnimation();
+  state.mobileAnalysisScore = Number.isFinite(score) ? score : null;
   const previousScore = Number.isFinite(state.shownScore) ? state.shownScore : null;
   const sourceText = source ? ` · ${source}` : "";
   const signText = score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng";
@@ -1084,7 +1107,7 @@ function renderScore(score, source = "", { pending = false } = {}) {
   banner.className = `score-banner ${scoreClass(score)}`;
   banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(previousScore ?? score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}${pending ? " · đang đào sâu" : ""}</small>`;
   analysisEl.appendChild(banner);
-  renderMobileScoreStrip(previousScore ?? score, `${signText}${pending ? " · đang đào sâu" : ""}`);
+  renderMobileScoreStrip(previousScore ?? score);
   if (previousScore === null || previousScore === score) {
     state.shownScore = score;
     return;
@@ -1113,6 +1136,7 @@ function tweenScoreBanner(banner, fromScore, toScore) {
     const current = Math.round(fromScore + (toScore - fromScore) * eased);
     banner.className = `score-banner ${scoreClass(current)}`;
     strong.textContent = formatEval(current);
+    state.mobileAnalysisScore = current;
     renderMobileScoreStrip(current);
     if (progress < 1) {
       state.scoreAnimation = requestAnimationFrame(step);
@@ -1122,18 +1146,68 @@ function tweenScoreBanner(banner, fromScore, toScore) {
     state.shownScore = toScore;
     banner.className = `score-banner ${scoreClass(toScore)}`;
     strong.textContent = formatEval(toScore);
+    state.mobileAnalysisScore = toScore;
     renderMobileScoreStrip(toScore);
   };
   state.scoreAnimation = requestAnimationFrame(step);
 }
 
-function renderMobileScoreStrip(score, note = "") {
+function startAnalysisClock(requestId) {
+  stopAnalysisClock();
+  state.analysisClockStartedAt = performance.now();
+  state.analysisClockRequest = requestId;
+  state.analysisClockElapsedSec = 0;
+  renderMobileScoreStrip(state.mobileAnalysisScore);
+  state.analysisClockTimer = window.setInterval(() => tickAnalysisClock(requestId), 250);
+}
+
+function stopAnalysisClock(requestId = 0) {
+  if (requestId && state.analysisClockRequest !== requestId) return;
+  if (state.analysisClockTimer) {
+    clearInterval(state.analysisClockTimer);
+    state.analysisClockTimer = 0;
+  }
+  if (!requestId) {
+    state.analysisClockStartedAt = 0;
+    state.analysisClockRequest = 0;
+    state.analysisClockElapsedSec = 0;
+    state.mobileAnalysisDepth = 0;
+    state.mobileAnalysisScore = null;
+  }
+}
+
+function tickAnalysisClock(requestId) {
+  if (requestId !== state.analysisRequest || requestId !== state.analysisClockRequest) {
+    stopAnalysisClock(requestId);
+    return;
+  }
+  const elapsed = analysisElapsedSeconds();
+  if (elapsed !== state.analysisClockElapsedSec) {
+    state.analysisClockElapsedSec = elapsed;
+    renderMobileScoreStrip(state.mobileAnalysisScore);
+  }
+  if (elapsed >= 10) stopAnalysisClock(requestId);
+}
+
+function analysisElapsedSeconds() {
+  if (!state.analysisClockStartedAt) return state.analysisClockElapsedSec || 0;
+  return Math.min(10, Math.max(0, Math.floor((performance.now() - state.analysisClockStartedAt) / 1000)));
+}
+
+function displayDepthForLine(line) {
+  const depth = Number(line?.depth || 0);
+  if (!Number.isFinite(depth) || depth <= 0) return 0;
+  return Math.max(1, Math.round(depth + ANALYSIS_DISPLAY_DEPTH_BOOST));
+}
+
+function renderMobileScoreStrip(score) {
   if (!mobileScoreStripEl) return;
   const isNumber = Number.isFinite(score);
   const scoreText = isNumber ? formatEval(score) : "...";
-  const noteText = note || (isNumber ? (score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng") : "Đang chờ");
+  const depthText = state.mobileAnalysisDepth > 0 ? String(state.mobileAnalysisDepth) : "...";
+  const timeText = `${analysisElapsedSeconds()}s`;
   mobileScoreStripEl.className = `mobile-score-strip ${isNumber ? scoreClass(score) : "equal"}`;
-  mobileScoreStripEl.textContent = `Điểm ${scoreText} · ${noteText}`;
+  mobileScoreStripEl.textContent = `\u0110\u1ed9 s\u00e2u: ${depthText} \u00b7 \u0110i\u1ec3m: ${scoreText} \u00b7 Th\u1eddi gian: ${timeText}`;
 }
 
 function scoreForViewer(line, sideToMove) {

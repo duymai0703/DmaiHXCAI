@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v77";
+  const ASSET_WARMUP_VERSION = "20260709-v78";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -67,7 +67,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260709-mobile-v53",
-    "/app.js?v=20260709-mobile-v61",
+    "/app.js?v=20260709-mobile-v62",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -2050,7 +2050,7 @@
   }
 
   function roomPieceRestTransform() {
-    return isMobileRoomEntry ? "translate3d(-50%, -50%, 0)" : "translate(-50%, -50%)";
+    return "translate(-50%, -50%)";
   }
 
   function clearRoomMoveAnimation({ preserveKey = false } = {}) {
@@ -2172,9 +2172,7 @@
   function hideRoomMoveLandingShieldSoon() {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        window.setTimeout(() => {
-          hideRoomAnimationElements({ resetActiveSlot: false });
-        }, useRoomMobileHandoff() ? 72 : 0);
+        hideRoomAnimationElements({ resetActiveSlot: false });
       });
     });
   }
@@ -2240,38 +2238,24 @@
     const { pieceSlots } = ensureRoomSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
-    const mobileOverlayMove = useRoomMobileHandoff() && dom.roomMotionPiece;
     state.activeRoomMoveSlotEl = movingSlotEl;
     state.roomAnimationRunning = false;
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = roomPieceRestTransform();
     movingSlotEl.style.opacity = "";
 
-    if (mobileOverlayMove) {
-      const fromPos = squareToPixel(animation.from);
+    if (useRoomMobileHandoff() && dom.roomMotionPiece) {
       paintRoomMotionPiece(dom.roomMotionPiece, animation.piece);
-      dom.roomMotionPiece.style.transition = "none";
-      dom.roomMotionPiece.style.left = `${fromPos.x}px`;
-      dom.roomMotionPiece.style.top = `${fromPos.y}px`;
-      dom.roomMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
-      dom.roomMotionPiece.classList.add("is-visible");
-      dom.roomMotionPiece.setAttribute("aria-hidden", "false");
-      movingSlotEl.style.opacity = "0";
     }
 
-    void (mobileOverlayMove ? dom.roomMotionPiece : movingSlotEl).offsetWidth;
+    void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) {
       movingSlotEl.style.opacity = "";
       hideRoomAnimationElements({ resetActiveSlot: false });
       return;
     }
-    if (mobileOverlayMove) {
-      dom.roomMotionPiece.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-      dom.roomMotionPiece.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
-    } else {
-      movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
-      movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
-    }
+    movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
     state.roomAnimationRunning = true;
 
     state.roomAnimationTimer = window.setTimeout(() => {
@@ -2904,6 +2888,7 @@
     state.lastPieceFrame = signature;
     const { pieceSlots, hintSlots } = ensureRoomSlots();
     if (!pieceSlots.length || !hintSlots.length) return;
+    const keepHiddenPieceSkins = isCompactMobile();
     const hintIndexes = new Set(state.hints.map((square) => square.y * 9 + square.x));
 
     for (let y = 0; y < 10; y += 1) {
@@ -2929,7 +2914,7 @@
           el.classList.remove("selected", "in-check");
           el.style.transition = "none";
           el.style.transform = roomPieceRestTransform();
-          if (el.dataset.piece) {
+          if (!keepHiddenPieceSkins && el.dataset.piece && !(animation && index === animation.toIndex)) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
           }
@@ -2938,14 +2923,9 @@
           el.classList.add("is-visible");
           el.classList.toggle("selected", Boolean(state.selectedSquare && state.selectedSquare.x === x && state.selectedSquare.y === y));
           el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
-          if (el.dataset.piece !== piece) {
-            el.dataset.piece = piece;
-            const image = el.querySelector(".piece-skin");
-            if (image) {
-              image.src = PIECE_IMAGES[piece];
-              image.alt = piece;
-            }
-            el.setAttribute("aria-label", piece);
+          const image = el.querySelector(".piece-skin");
+          if (el.dataset.piece !== piece || (image && image.getAttribute("src") !== roomPieceImageFor(piece))) {
+            setRoomPieceSlotImage(el, piece);
           }
           if (state.roomAnimation && state.roomAnimation.fromIndex === index) {
             const keepRunningTransform = state.roomAnimationRunning && state.activeRoomMoveSlotEl === el;
