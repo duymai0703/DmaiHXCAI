@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260709-v3";
-  const ASSET_WARMUP_VERSION = "20260710-v84";
+  const ASSET_WARMUP_VERSION = "20260710-v85";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -2236,6 +2236,7 @@
     resetCapturePiece = true
   } = {}) {
     if (resetActiveSlot && state.activeRoomMoveSlotEl) {
+      state.activeRoomMoveSlotEl.classList.remove("room-moving-piece");
       state.activeRoomMoveSlotEl.style.transition = "none";
       state.activeRoomMoveSlotEl.style.transform = roomPieceRestTransform();
       state.activeRoomMoveSlotEl.style.opacity = "";
@@ -2272,7 +2273,7 @@
   }
 
   function useRoomMobileHandoff() {
-    return isCompactMobile();
+    return false;
   }
 
   function roomPieceImageFor(piece) {
@@ -2316,6 +2317,14 @@
     targetSlotEl.style.transition = "none";
     targetSlotEl.style.transform = roomPieceRestTransform();
     targetSlotEl.setAttribute("aria-hidden", "false");
+  }
+
+  function primeRoomMoveDestinationImage(animation) {
+    if (!animation) return;
+    const { pieceSlots } = ensureRoomSlots();
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (!targetSlotEl) return;
+    setRoomPieceSlotImage(targetSlotEl, animation.piece);
   }
 
   function showRoomMoveLandingShield(animation) {
@@ -2372,6 +2381,7 @@
     const finish = () => {
       drawRoomPieces();
       if (movedSlotEl) {
+        movedSlotEl.classList.remove("room-moving-piece");
         movedSlotEl.style.transition = "none";
         movedSlotEl.style.transform = roomPieceRestTransform();
         movedSlotEl.style.opacity = "";
@@ -2413,8 +2423,10 @@
     const { pieceSlots } = ensureRoomSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
+    primeRoomMoveDestinationImage(animation);
     state.activeRoomMoveSlotEl = movingSlotEl;
     state.roomAnimationRunning = false;
+    movingSlotEl.classList.add("room-moving-piece");
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = roomPieceRestTransform();
     movingSlotEl.style.opacity = "";
@@ -2425,6 +2437,7 @@
 
     void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) {
+      movingSlotEl.classList.remove("room-moving-piece");
       movingSlotEl.style.opacity = "";
       hideRoomAnimationElements({ resetActiveSlot: false });
       return;

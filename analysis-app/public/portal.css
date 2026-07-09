@@ -2084,6 +2084,7 @@ a {
   body.portal-mobile-mode[data-route="room"] .room-board .piece:not(.is-visible),
   body.portal-mobile-mode[data-route="room"] .room-board .motion-piece:not(.is-visible) {
     opacity: 0 !important;
+    visibility: hidden !important;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece.is-visible,
@@ -2100,10 +2101,16 @@ a {
     visibility: visible !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
-    transform-style: preserve-3d;
-    -webkit-transform-style: preserve-3d;
-    will-change: transform, opacity !important;
+    transform-style: flat;
+    -webkit-transform-style: flat;
+    will-change: auto !important;
     contain: layout style;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece.room-moving-piece,
+  body.portal-mobile-mode[data-route="room"] .room-board .piece.room-moving-piece {
+    z-index: 6;
+    will-change: transform !important;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board .piece .piece-skin,
@@ -2114,7 +2121,7 @@ a {
     -webkit-transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    will-change: transform;
+    will-change: auto;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .board-badge {
