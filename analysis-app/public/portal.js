@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v74";
+  const ASSET_WARMUP_VERSION = "20260709-v75";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -2061,11 +2061,19 @@
   }
 
   function hideRoomMoveAnimationElements() {
-    if (state.activeRoomMoveSlotEl) {
+    hideRoomAnimationElements();
+  }
+
+  function hideRoomAnimationElements({
+    resetActiveSlot = true,
+    resetMovingPiece = true,
+    resetCapturePiece = true
+  } = {}) {
+    if (resetActiveSlot && state.activeRoomMoveSlotEl) {
       state.activeRoomMoveSlotEl.style.transition = "none";
       state.activeRoomMoveSlotEl.style.transform = roomPieceRestTransform();
     }
-    if (dom.roomMotionPiece) {
+    if (resetMovingPiece && dom.roomMotionPiece) {
       dom.roomMotionPiece.style.transition = "none";
       dom.roomMotionPiece.classList.remove("is-visible");
       dom.roomMotionPiece.style.left = "0px";
@@ -2073,7 +2081,7 @@
       dom.roomMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
       dom.roomMotionPiece.setAttribute("aria-hidden", "true");
     }
-    if (dom.roomCapturePiece) {
+    if (resetCapturePiece && dom.roomCapturePiece) {
       dom.roomCapturePiece.style.transition = "none";
       dom.roomCapturePiece.classList.remove("is-visible", "fading");
       dom.roomCapturePiece.style.left = "0px";
@@ -2096,23 +2104,101 @@
     state.lastPieceFrame = "";
   }
 
+  function useRoomMobileHandoff() {
+    return isMobileRoomEntry && isCompactMobile();
+  }
+
+  function roomPieceImageFor(piece) {
+    return PIECE_IMAGES[piece] || "";
+  }
+
+  function paintRoomMotionPiece(element, piece) {
+    if (!element || !piece) return;
+    element.dataset.piece = piece;
+    const image = element.querySelector(".piece-skin");
+    if (image) {
+      const source = roomPieceImageFor(piece);
+      if (source && image.getAttribute("src") !== source) image.src = source;
+      image.alt = piece;
+    }
+  }
+
+  function setRoomPieceSlotImage(el, piece) {
+    if (!el || !piece) return;
+    el.dataset.piece = piece;
+    const image = el.querySelector(".piece-skin");
+    if (image) {
+      const source = roomPieceImageFor(piece);
+      if (source && image.getAttribute("src") !== source) image.src = source;
+      image.alt = piece;
+    }
+    el.setAttribute("aria-label", piece);
+  }
+
+  function prepareRoomMoveDestinationHandoff(animation) {
+    if (!animation) return;
+    const { pieceSlots } = ensureRoomSlots();
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (!targetSlotEl) return;
+    const board = state.roomBoard;
+    const checkedSides = getCheckedSides(board);
+    setRoomPieceSlotImage(targetSlotEl, animation.piece);
+    targetSlotEl.classList.add("is-visible");
+    targetSlotEl.classList.remove("selected");
+    targetSlotEl.classList.toggle("in-check", animation.piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(animation.piece)]);
+    targetSlotEl.style.transition = "none";
+    targetSlotEl.style.transform = roomPieceRestTransform();
+    targetSlotEl.setAttribute("aria-hidden", "false");
+  }
+
+  function showRoomMoveLandingShield(animation) {
+    if (!animation || !dom.roomMotionPiece) return;
+    const toPos = squareToPixel(animation.to);
+    paintRoomMotionPiece(dom.roomMotionPiece, animation.piece);
+    dom.roomMotionPiece.style.transition = "none";
+    dom.roomMotionPiece.style.left = `${toPos.x}px`;
+    dom.roomMotionPiece.style.top = `${toPos.y}px`;
+    dom.roomMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
+    dom.roomMotionPiece.classList.add("is-visible");
+    dom.roomMotionPiece.setAttribute("aria-hidden", "false");
+  }
+
+  function hideRoomMoveLandingShieldSoon() {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        hideRoomAnimationElements({ resetActiveSlot: false });
+      });
+    });
+  }
+
   function finalizeRoomMoveAnimation(animation) {
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) return;
+    const movedSlotEl = state.activeRoomMoveSlotEl;
+    const useMobileHandoff = useRoomMobileHandoff();
     if (state.roomAnimationTimer) {
       clearTimeout(state.roomAnimationTimer);
       state.roomAnimationTimer = 0;
     }
     state.roomAnimationRunning = false;
-    const movedSlotEl = state.activeRoomMoveSlotEl;
+    if (useMobileHandoff) {
+      showRoomMoveLandingShield(animation);
+      prepareRoomMoveDestinationHandoff(animation);
+    }
+    hideRoomAnimationElements({ resetActiveSlot: false, resetMovingPiece: !useMobileHandoff });
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
     state.lastPieceFrame = "";
-    drawRoomPieces(true);
-    if (movedSlotEl) {
-      movedSlotEl.style.transition = "none";
-      movedSlotEl.style.transform = roomPieceRestTransform();
-    }
-    hideRoomMoveAnimationElements();
+    const finish = () => {
+      drawRoomPieces(true);
+      if (movedSlotEl) {
+        movedSlotEl.style.transition = "none";
+        movedSlotEl.style.transform = roomPieceRestTransform();
+      }
+      if (useMobileHandoff) hideRoomMoveLandingShieldSoon();
+      else hideRoomAnimationElements({ resetActiveSlot: false });
+    };
+    if (useMobileHandoff) window.requestAnimationFrame(finish);
+    else finish();
   }
 
   function settleRoomAnimationNow() {
