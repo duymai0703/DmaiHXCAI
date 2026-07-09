@@ -12,7 +12,7 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v66";
+  const ASSET_WARMUP_VERSION = "20260709-v67";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -65,8 +65,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v46",
-    "/app.js?v=20260709-mobile-v57",
+    "/styles.css?v=20260709-mobile-v47",
+    "/app.js?v=20260709-mobile-v58",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -3596,9 +3596,9 @@
   function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
     ctx.save();
     const shaftWidth = ctx.lineWidth;
-    const borderWidth = shaftWidth + Math.max(2, shaftWidth * 0.42);
-    const outlineWidth = shaftWidth + Math.max(1.1, shaftWidth * 0.28);
-    const borderHeadWidth = halfWidth + Math.max(1.4, shaftWidth * 0.22);
+    const borderWidth = shaftWidth + Math.max(0.75, shaftWidth * 0.13);
+    const outlineWidth = shaftWidth + Math.max(0.35, shaftWidth * 0.06);
+    const borderHeadWidth = halfWidth + Math.max(0.7, shaftWidth * 0.1);
     const innerHeadWidth = halfWidth * 0.86;
 
     ctx.lineCap = "round";
@@ -3654,7 +3654,7 @@
   function arrowPalette(color) {
     const base = parseArrowColor(color);
     return {
-      border: "rgba(12, 18, 24, 0.58)",
+      border: "rgba(16, 20, 22, 0.54)",
       fill: rgbaString({ ...base, a: 0.9 }),
       edge: rgbaString(mixArrowColor(base, 0.42, 0, 0.58)),
       highlight: "rgba(255, 255, 240, 0.32)"

@@ -40,7 +40,7 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v51";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v52";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -2741,9 +2741,9 @@ function line(ctx, x1, y1, x2, y2) {
 function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
   ctx.save();
   const shaftWidth = ctx.lineWidth;
-  const borderWidth = shaftWidth + Math.max(2, shaftWidth * 0.42);
-  const outlineWidth = shaftWidth + Math.max(1.1, shaftWidth * 0.28);
-  const borderHeadWidth = halfWidth + Math.max(1.4, shaftWidth * 0.22);
+  const borderWidth = shaftWidth + Math.max(0.75, shaftWidth * 0.13);
+  const outlineWidth = shaftWidth + Math.max(0.35, shaftWidth * 0.06);
+  const borderHeadWidth = halfWidth + Math.max(0.7, shaftWidth * 0.1);
   const innerHeadWidth = halfWidth * 0.86;
 
   ctx.lineCap = "round";
@@ -2799,7 +2799,7 @@ function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
 function arrowPalette(color) {
   const base = parseArrowColor(color);
   return {
-    border: "rgba(12, 18, 24, 0.58)",
+    border: "rgba(16, 20, 22, 0.54)",
     fill: rgbaString({ ...base, a: 0.9 }),
     edge: rgbaString(mixArrowColor(base, 0.42, 0, 0.58)),
     highlight: "rgba(255, 255, 240, 0.32)"
