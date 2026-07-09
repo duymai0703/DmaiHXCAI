@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260709-v3";
-  const ASSET_WARMUP_VERSION = "20260710-v83";
+  const ASSET_WARMUP_VERSION = "20260710-v84";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -176,6 +176,8 @@
     lastBoardSizeKey: "",
     lastViewportWidth: Math.round(window.innerWidth || 0),
     lastViewportHeight: Math.round(window.innerHeight || 0),
+    roomViewportWidth: 0,
+    roomViewportHeight: 0,
     roomMobilePanel: "",
     roomMobileMenuOpen: false,
     roomChatToastTimer: 0,
@@ -837,10 +839,24 @@
     state.lastViewportWidth = width;
     state.lastViewportHeight = height;
     document.documentElement.style.setProperty("--app-vh", `${height * 0.01}px`);
+    lockRoomViewportHeight({ force: !state.roomViewportHeight });
   }
 
   function isCompactMobile() {
     return window.matchMedia("(max-width: 760px)").matches;
+  }
+
+  function lockRoomViewportHeight({ force = false } = {}) {
+    if (!isCompactMobile() || state.route !== "room") return;
+    const width = Math.round(window.innerWidth || 0);
+    const height = Math.round(window.innerHeight || 0);
+    const previousWidth = state.roomViewportWidth || width;
+    const widthChanged = Math.abs(width - previousWidth) > 2;
+    if (force || !state.roomViewportHeight || widthChanged) {
+      state.roomViewportWidth = width;
+      state.roomViewportHeight = height;
+      document.documentElement.style.setProperty("--room-vh", `${height * 0.01}px`);
+    }
   }
 
   function setupRoomMobileDock() {
@@ -909,6 +925,9 @@
     document.body.classList.toggle("portal-mobile-mode", compact);
     document.body.classList.toggle("room-mobile-menu-open", compact && !!state.roomMobileMenuOpen);
     document.body.dataset.route = state.route || "home";
+    if (compact && state.route === "room") {
+      lockRoomViewportHeight();
+    }
     roomMobilePanels.forEach((panel) => {
       const mode = panel.dataset.roomMobilePanel || "control";
       panel.classList.toggle("is-mobile-active", !compact || (!!state.roomMobilePanel && mode === state.roomMobilePanel));

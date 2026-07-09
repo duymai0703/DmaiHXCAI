@@ -1713,8 +1713,8 @@ a {
 
 @media (max-width: 760px) {
   body.portal-mobile-mode[data-route="room"] {
-    min-height: calc(var(--app-vh, 1vh) * 100);
-    height: calc(var(--app-vh, 1vh) * 100);
+    min-height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
+    height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: auto;
@@ -1755,7 +1755,7 @@ a {
   }
 
   body.portal-mobile-mode[data-route="room"] .portal-main {
-    height: calc(var(--app-vh, 1vh) * 100 - 58px);
+    height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100 - 58px);
     padding: 10px;
     overflow: hidden;
   }
@@ -1786,7 +1786,7 @@ a {
   }
 
   body.portal-mobile-mode[data-route="room"] .room-board {
-    width: min(calc(100vw - 42px), calc((var(--app-vh, 1vh) * 100 - 58px - 308px) * 0.9), 520px);
+    width: min(calc(100vw - 42px), calc((var(--room-vh, var(--app-vh, 1vh)) * 100 - 58px - 308px) * 0.9), 520px);
     max-width: 100%;
     border-width: 3px;
   }
@@ -2010,9 +2010,14 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] {
-    min-height: calc(var(--app-vh, 1vh) * 100);
-    height: calc(var(--app-vh, 1vh) * 100);
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    min-height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
+    height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
     overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-header {
@@ -2020,7 +2025,9 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-main {
-    height: calc(var(--app-vh, 1vh) * 100);
+    position: fixed;
+    inset: 0;
+    height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
     padding: 0;
     overflow: hidden;
   }
@@ -2052,7 +2059,7 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board {
-    width: min(calc(100vw - 16px), calc((var(--app-vh, 1vh) * 100 - 160px) * 0.9), 620px);
+    width: min(calc(100vw - 16px), calc((var(--room-vh, var(--app-vh, 1vh)) * 100 - 160px) * 0.9), 620px);
     max-width: 100%;
     border-width: 3px;
     box-shadow:

@@ -15,7 +15,9 @@ const XiangqiCore = require("./public/xiangqi-core.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR = process.env.DMAIHXCAI_DATA_DIR
+  ? path.resolve(process.env.DMAIHXCAI_DATA_DIR)
+  : path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
@@ -762,6 +764,12 @@ function accessKeyEmail(slot) {
   return `${accessKeyUsername(slot)}@keys.dmaihxcai.local`;
 }
 
+function accessKeyUserId(slot, keyHash) {
+  const safeSlot = Math.max(0, Number(slot) || 0);
+  const hash = String(keyHash || "").replace(/[^a-f0-9]/gi, "").toLowerCase();
+  return `key-${String(safeSlot).padStart(3, "0")}-${hash.slice(0, 16) || "local"}`;
+}
+
 function defaultAccessKeyAvatar(seed) {
   const source = String(seed || randomBase36(8));
   let hash = 0;
@@ -774,10 +782,11 @@ function defaultAccessKeyAvatar(seed) {
 function createKeyManagedUser(entry) {
   const slot = Math.max(1, Number(entry.slot) || 1);
   const username = accessKeyUsername(slot);
+  const keyHash = hashAccessKey(entry.key);
   const passwordInfo = hashPassword(randomId(18));
   const now = nowIso();
   return {
-    id: randomId(12),
+    id: accessKeyUserId(slot, keyHash),
     email: accessKeyEmail(slot),
     username,
     passwordSalt: passwordInfo.salt,
@@ -785,7 +794,7 @@ function createKeyManagedUser(entry) {
     role: "user",
     deviceId: "",
     displayName: sanitizeAccountName(entry.name, `Tai khoan ${String(slot).padStart(3, "0")}`),
-    accessKeyHash: hashAccessKey(entry.key),
+    accessKeyHash: keyHash,
     accessKeySlot: slot,
     keyActivatedAt: "",
     avatarSeed: randomBase36(4),
@@ -863,6 +872,7 @@ function ensureAccessKeyUsers() {
 
 function ensureAdminUser() {
   const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.username === ADMIN_USERNAME);
+  const adminKeyHash = hashAccessKey(ADMIN_ACCESS_KEY);
   if (existing) {
     let changed = false;
     if (existing.role !== "admin") {
@@ -877,7 +887,6 @@ function ensureAdminUser() {
       existing.displayName = ADMIN_DISPLAY_NAME;
       changed = true;
     }
-    const adminKeyHash = hashAccessKey(ADMIN_ACCESS_KEY);
     if (existing.accessKeyHash !== adminKeyHash) {
       existing.accessKeyHash = adminKeyHash;
       changed = true;
@@ -919,7 +928,7 @@ function ensureAdminUser() {
   const passwordInfo = hashPassword(ADMIN_PASSWORD);
   const now = nowIso();
   const adminUser = {
-    id: randomId(12),
+    id: accessKeyUserId(0, hashAccessKey(ADMIN_ACCESS_KEY)),
     email: ADMIN_EMAIL,
     username: ADMIN_USERNAME,
     passwordSalt: passwordInfo.salt,
@@ -979,12 +988,71 @@ function adminRenameUser(userId, displayName) {
   return user;
 }
 
-function createAuthToken(userId) {
+function restoreUserFromAccessToken(payload) {
+  const keyHash = String(payload?.akh || "");
+  if (!keyHash) return null;
+  if (keyHash === hashAccessKey(ADMIN_ACCESS_KEY)) {
+    return ensureAdminUser();
+  }
+  if (!accessKeyEntryForHash(keyHash)) return null;
+  ensureAccessKeyUsers();
+  return users.find((item) => item.accessKeyHash === keyHash) || null;
+}
+
+function restoreAccessKeySessionState(user, payload) {
+  if (!user?.accessKeyHash || !payload?.akh || payload.akh !== user.accessKeyHash) return false;
+  let changed = false;
+  const wasUnactivated = !user.keyActivatedAt;
+  if (!user.keyActivatedAt) {
+    const restoredAt = payload.act && !Number.isNaN(Date.parse(payload.act)) ? payload.act : nowIso();
+    user.keyActivatedAt = restoredAt;
+    changed = true;
+  }
+  if (!user.lastSeenAt) {
+    user.lastSeenAt = nowIso();
+    changed = true;
+  }
+  const tokenName = sanitizeAccountName(payload.name || "", user.displayName || user.username || ADMIN_DISPLAY_NAME);
+  if (wasUnactivated || user.currentActivity?.action === "Chua kich hoat") {
+    if (tokenName && tokenName !== user.displayName) {
+      user.displayName = tokenName;
+      changed = true;
+    }
+    user.currentActivity = {
+      route: "home",
+      roomKey: "",
+      action: "Da khoi phuc phien kich hoat",
+      updatedAt: nowIso()
+    };
+    changed = true;
+  }
+  const tokenAvatar = sanitizeAvatarUrl(payload.avatar || "");
+  if (wasUnactivated && tokenAvatar && tokenAvatar !== user.avatarUrl) {
+    user.avatarUrl = tokenAvatar;
+    changed = true;
+  }
+  if (changed) saveUsers();
+  return changed;
+}
+
+function createAuthToken(userOrId) {
+  const user = typeof userOrId === "string"
+    ? users.find((item) => item.id === userOrId)
+    : userOrId;
+  const userId = typeof userOrId === "string" ? userOrId : userOrId?.id;
   const payload = {
     uid: userId,
     exp: Date.now() + TOKEN_TTL_MS,
     nonce: randomId(8)
   };
+  if (user?.accessKeyHash) {
+    payload.akh = user.accessKeyHash;
+    payload.slot = Number(user.accessKeySlot || 0);
+    payload.role = user.role === "admin" ? "admin" : "user";
+    payload.name = sanitizeAccountName(user.displayName || "", user.username || ADMIN_DISPLAY_NAME);
+    payload.avatar = sanitizeAvatarUrl(user.avatarUrl || "");
+    payload.act = user.keyActivatedAt || nowIso();
+  }
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = crypto.createHmac("sha256", TOKEN_SECRET).update(encoded).digest("base64url");
   return `${encoded}.${signature}`;
@@ -998,7 +1066,7 @@ function verifyAuthToken(token) {
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     if (!payload?.uid || Number(payload.exp) < Date.now()) return null;
-    return payload.uid;
+    return payload;
   } catch {
     return null;
   }
@@ -1011,10 +1079,15 @@ function getAuthToken(req) {
 }
 
 function getAuthenticatedUser(req) {
-  const userId = verifyAuthToken(getAuthToken(req));
-  if (!userId) return null;
-  const user = users.find((item) => item.id === userId) || null;
-  return user && user.accessKeyHash ? user : null;
+  const payload = verifyAuthToken(getAuthToken(req));
+  if (!payload?.uid) return null;
+  let user = users.find((item) => item.id === payload.uid) || null;
+  if (!user && payload.akh) {
+    user = restoreUserFromAccessToken(payload);
+  }
+  if (!user?.accessKeyHash) return null;
+  restoreAccessKeySessionState(user, payload);
+  return user;
 }
 
 function requireUser(req) {
@@ -2659,7 +2732,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       await flushUserPersistence();
-      json(res, 200, { ok: true, token: createAuthToken(user.id), user: publicUser(user) });
+      json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
       return;
     }
 
@@ -2678,7 +2751,7 @@ const server = http.createServer(async (req, res) => {
       const admin = ensureAdminUser();
       touchUserActivity(admin, { route: "admin", roomKey: "", action: "Đăng nhập quản trị nhanh" });
       await flushUserPersistence();
-      json(res, 200, { ok: true, token: createAuthToken(admin.id), user: publicUser(admin) });
+      json(res, 200, { ok: true, token: createAuthToken(admin), user: publicUser(admin) });
       return;
     }
 
@@ -2697,12 +2770,12 @@ const server = http.createServer(async (req, res) => {
           updateUserDisplayName(existing, requestedDisplayName);
           await flushUserPersistence();
         }
-        json(res, 200, { ok: true, token: createAuthToken(existing.id), user: publicUser(existing) });
+        json(res, 200, { ok: true, token: createAuthToken(existing), user: publicUser(existing) });
         return;
       }
       const guest = createGuestUser(requestedDisplayName, { deviceId, avatarUrl });
       await flushUserPersistence();
-      json(res, 200, { ok: true, token: createAuthToken(guest.id), user: publicUser(guest) });
+      json(res, 200, { ok: true, token: createAuthToken(guest), user: publicUser(guest) });
       return;
     }
 
@@ -2756,7 +2829,7 @@ const server = http.createServer(async (req, res) => {
       await saveUsers();
       json(res, 200, {
         ok: true,
-        token: createAuthToken(user.id),
+        token: createAuthToken(user),
         user: publicUser(user)
       });
       return;
@@ -2774,7 +2847,7 @@ const server = http.createServer(async (req, res) => {
       touchUserActivity(user, { route: user.role === "admin" ? "admin" : "home", roomKey: "", action: "Vừa đăng nhập" });
       json(res, 200, {
         ok: true,
-        token: createAuthToken(user.id),
+        token: createAuthToken(user),
         user: publicUser(user)
       });
       return;
@@ -2786,7 +2859,7 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { ok: false, error: "UNAUTHORIZED" });
         return;
       }
-      json(res, 200, { ok: true, token: createAuthToken(user.id), user: publicUser(user) });
+      json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
       return;
     }
 
