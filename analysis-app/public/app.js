@@ -40,7 +40,7 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v50";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v51";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -239,7 +239,7 @@ function readBoardSkin() {
 }
 
 function normalizeBoardSkin(skin) {
-  return skin === "gold" || skin === "stone" ? skin : "ice";
+  return skin === "gold" || skin === "stone" || skin === "pink" ? skin : "ice";
 }
 
 function applyBoardSkin(skin, { persist = false } = {}) {
@@ -2741,12 +2741,25 @@ function line(ctx, x1, y1, x2, y2) {
 function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
   ctx.save();
   const shaftWidth = ctx.lineWidth;
-  const outlineWidth = shaftWidth + Math.max(1.2, shaftWidth * 0.34);
+  const borderWidth = shaftWidth + Math.max(2, shaftWidth * 0.42);
+  const outlineWidth = shaftWidth + Math.max(1.1, shaftWidth * 0.28);
+  const borderHeadWidth = halfWidth + Math.max(1.4, shaftWidth * 0.22);
   const innerHeadWidth = halfWidth * 0.86;
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = palette.border;
+  ctx.fillStyle = palette.border;
+  ctx.lineWidth = borderWidth;
+  line(ctx, from.x, from.y, base.x, base.y);
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(base.x + normal.x * borderHeadWidth, base.y + normal.y * borderHeadWidth);
+  ctx.lineTo(base.x - normal.x * borderHeadWidth, base.y - normal.y * borderHeadWidth);
+  ctx.closePath();
+  ctx.fill();
 
   ctx.strokeStyle = palette.edge;
   ctx.fillStyle = palette.edge;
@@ -2786,6 +2799,7 @@ function drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette) {
 function arrowPalette(color) {
   const base = parseArrowColor(color);
   return {
+    border: "rgba(12, 18, 24, 0.58)",
     fill: rgbaString({ ...base, a: 0.9 }),
     edge: rgbaString(mixArrowColor(base, 0.42, 0, 0.58)),
     highlight: "rgba(255, 255, 240, 0.32)"
