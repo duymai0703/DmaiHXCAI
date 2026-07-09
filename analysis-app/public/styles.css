@@ -1004,16 +1004,18 @@ input:not([type]) {
   padding: 22px;
   border-radius: 22px;
   text-align: center;
-  color: var(--ink);
-  background: var(--panel-strong);
-  border: 2px solid rgba(255, 184, 77, 0.82);
-  outline: 1px solid rgba(68, 216, 255, 0.46);
-  outline-offset: 3px;
+  color: #fff4ce;
+  background:
+    linear-gradient(145deg, rgba(96, 55, 27, 0.98), rgba(43, 23, 15, 0.98)),
+    #4a2b18;
+  border: 2px solid #c99045;
+  outline: 1px solid rgba(255, 229, 154, 0.48);
+  outline-offset: 4px;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.16),
-    0 0 26px rgba(255, 184, 77, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 26px 54px rgba(0, 0, 0, 0.38);
+    0 0 0 1px rgba(66, 34, 17, 0.9),
+    0 0 28px rgba(255, 184, 77, 0.26),
+    inset 0 1px 0 rgba(255, 240, 185, 0.2),
+    0 26px 58px rgba(0, 0, 0, 0.56);
 }
 
 .mobile-room-confirm-card strong {

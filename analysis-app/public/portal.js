@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v73";
+  const ASSET_WARMUP_VERSION = "20260709-v74";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,7 +66,7 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v51",
+    "/styles.css?v=20260709-mobile-v52",
     "/app.js?v=20260709-mobile-v60",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
@@ -171,6 +171,7 @@
     lastBoardSizeKey: "",
     roomMobilePanel: "",
     roomMobileMenuOpen: false,
+    roomChatToastTimer: 0,
     roomTurnFlashTimer: 0,
     assetWarmupPending: false,
     assetWarmupProgress: 0,
@@ -251,6 +252,7 @@
     roomPeopleBadge: byId("roomPeopleBadge"),
     roomMobileBackBtn: byId("roomMobileBackBtn"),
     roomMobileMenuBtn: byId("roomMobileMenuBtn"),
+    roomChatToast: byId("roomChatToast"),
     roomSummary: byId("roomSummary"),
     topPlayerAvatar: byId("topPlayerAvatar"),
     topPlayerName: byId("topPlayerName"),
@@ -462,6 +464,17 @@
     dom.globalBackBtn.addEventListener("click", handleBack);
     if (dom.roomMobileBackBtn) dom.roomMobileBackBtn.addEventListener("click", handleBack);
     if (dom.roomMobileMenuBtn) dom.roomMobileMenuBtn.addEventListener("click", toggleRoomMobileMenu);
+    if (dom.roomPeopleBadge) {
+      dom.roomPeopleBadge.tabIndex = 0;
+      dom.roomPeopleBadge.setAttribute("role", "button");
+      dom.roomPeopleBadge.addEventListener("click", openParticipantsPanel);
+      dom.roomPeopleBadge.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openParticipantsPanel();
+        }
+      });
+    }
     dom.openMatchHub.addEventListener("click", () => goRoute("match"));
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
@@ -800,6 +813,11 @@
       default:
         break;
     }
+  }
+
+  function openParticipantsPanel() {
+    state.roomMobileMenuOpen = false;
+    setRoomMobilePanel("viewers");
   }
 
   function setRoomMobilePanel(panel) {
@@ -2309,7 +2327,8 @@
   function updateRoomPeopleBadge(room) {
     if (!dom.roomPeopleBadge) return;
     const spectators = Array.isArray(room?.spectators) ? room.spectators.length : 0;
-    const count = room ? 2 + spectators : 0;
+    const playerCount = room ? [room.players?.w, room.players?.b].filter(Boolean).length : 0;
+    const count = room ? playerCount + spectators : 0;
     const value = dom.roomPeopleBadge.querySelector("strong");
     if (value) value.textContent = String(count);
     dom.roomPeopleBadge.title = `${count} người trong phòng`;
@@ -2409,17 +2428,21 @@
     dom.viewerList.innerHTML = "";
     if (!room) return;
 
+    const participants = [];
+    if (room.players?.w) participants.push({ ...room.players.w, roleLabel: "Người chơi Đỏ" });
+    if (room.players?.b) participants.push({ ...room.players.b, roleLabel: "Người chơi Đen" });
     const viewers = Array.isArray(room.spectators) ? room.spectators : [];
-    dom.viewerSummary.textContent = viewers.length ? `${viewers.length} người đang xem` : "Chưa có người xem.";
-    if (!viewers.length) {
+    viewers.forEach((viewer) => participants.push({ ...viewer, roleLabel: "Người xem" }));
+    dom.viewerSummary.textContent = participants.length ? `${participants.length} người trong phòng` : "Chưa có người tham gia.";
+    if (!participants.length) {
       const empty = document.createElement("div");
       empty.className = "viewer-empty";
-      empty.textContent = "Hiện chưa có người xem nào trong phòng.";
+      empty.textContent = "Hiện chưa có ai trong phòng.";
       dom.viewerList.appendChild(empty);
       return;
     }
 
-    viewers.forEach((viewer) => {
+    participants.forEach((viewer) => {
       const item = document.createElement("div");
       item.className = "viewer-item";
       const avatar = document.createElement("span");
@@ -2430,7 +2453,7 @@
       const name = document.createElement("strong");
       name.textContent = viewer.displayName || viewer.username;
       const sub = document.createElement("small");
-      sub.textContent = "Người xem";
+      sub.textContent = viewer.roleLabel || "Người tham gia";
       meta.append(name, sub);
       item.append(avatar, meta);
       dom.viewerList.appendChild(item);
@@ -2478,10 +2501,40 @@
       item.append(avatar, body);
       dom.chatList.appendChild(item);
     });
+    if (signature !== previousSignature && previousSignature) {
+      showRoomChatToast(messages[messages.length - 1]);
+    }
     state.lastChatSignature = signature;
     if (shouldStick || signature !== previousSignature) {
       dom.chatList.scrollTop = dom.chatList.scrollHeight;
     }
+  }
+
+  function showRoomChatToast(entry) {
+    if (!entry || !dom.roomChatToast || state.route !== "room" || !isCompactMobile()) return;
+    if (state.roomChatToastTimer) {
+      clearTimeout(state.roomChatToastTimer);
+      state.roomChatToastTimer = 0;
+    }
+    dom.roomChatToast.innerHTML = "";
+    const avatar = document.createElement("span");
+    avatar.className = "avatar";
+    paintAvatar(avatar, entry, "C");
+    const body = document.createElement("div");
+    body.className = "room-chat-toast-body";
+    const name = document.createElement("strong");
+    name.textContent = entry.displayName || entry.username || "Người chơi";
+    const text = document.createElement("span");
+    text.textContent = entry.text || "";
+    body.append(name, text);
+    dom.roomChatToast.append(avatar, body);
+    dom.roomChatToast.classList.remove("hidden");
+    dom.roomChatToast.classList.add("show");
+    state.roomChatToastTimer = window.setTimeout(() => {
+      dom.roomChatToast.classList.remove("show");
+      dom.roomChatToast.classList.add("hidden");
+      state.roomChatToastTimer = 0;
+    }, 5000);
   }
 
   function renderMoveList() {
@@ -2739,12 +2792,20 @@
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const animation = state.roomAnimation;
+        const el = pieceSlots[index];
+        const isAnimatingFromSlot = animation && index === animation.fromIndex;
+        if (isAnimatingFromSlot && state.roomAnimationRunning && state.activeRoomMoveSlotEl === el) {
+          const mark = hintSlots[index];
+          const showHint = hintIndexes.has(index);
+          mark.classList.toggle("is-visible", showHint);
+          mark.setAttribute("aria-hidden", showHint ? "false" : "true");
+          continue;
+        }
         let piece = board[y]?.[x] || "";
         if (animation) {
           if (index === animation.fromIndex) piece = animation.piece;
           else if (index === animation.toIndex) piece = "";
         }
-        const el = pieceSlots[index];
         if (!piece) {
           el.classList.remove("is-visible");
           el.classList.remove("selected", "in-check");
