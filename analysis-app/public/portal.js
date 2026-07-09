@@ -12,8 +12,8 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
-  const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v80";
+  const DEVICE_AVATAR_VERSION = "20260709-v3";
+  const ASSET_WARMUP_VERSION = "20260709-v81";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -30,7 +30,11 @@
     "/assets/device-avatars/luffy.png",
     "/assets/device-avatars/ichigo.png",
     "/assets/device-avatars/gojo.png",
-    "/assets/device-avatars/sungjinwoo.png"
+    "/assets/device-avatars/sungjinwoo.png",
+    "/assets/device-avatars/Yugi.png",
+    "/assets/device-avatars/Kaiba.png",
+    "/assets/device-avatars/Eren.png",
+    "/assets/device-avatars/Siesta.png"
   ];
   const PIECE_IMAGES = {
     R: "assets/pieces/red-rook.png",
@@ -107,7 +111,7 @@
     "/assets/posters/white3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
   const ROOM_MOVE_ANIMATION_MS = 228;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const REVIEW_EVAL_BAR_LIMIT = 2000;
@@ -186,7 +190,8 @@
     roomCheckmateEffectKey: "",
     roomCheckmateEffectTimer: 0,
     reviewCheckmateEffectKey: "",
-    reviewCheckmateEffectTimer: 0
+    reviewCheckmateEffectTimer: 0,
+    selectedAvatarUrl: ""
   };
 
   const dom = {
@@ -313,6 +318,8 @@
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
     profileAvatarLarge: byId("profileAvatarLarge"),
+    avatarChoices: byId("avatarChoices"),
+    saveAvatarBtn: byId("saveAvatarBtn"),
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
     libraryHistoryList: byId("libraryHistoryList"),
@@ -505,6 +512,7 @@
     });
     dom.profileButton.addEventListener("click", openProfileModal);
     dom.closeProfileBtn.addEventListener("click", closeProfileModal);
+    if (dom.saveAvatarBtn) dom.saveAvatarBtn.addEventListener("click", saveSelectedAvatar);
     if (dom.openAdminBtn) dom.openAdminBtn.addEventListener("click", openAdminPanel);
     if (dom.logoutBtn) dom.logoutBtn.addEventListener("click", logout);
     dom.adminRefreshBtn.addEventListener("click", () => {
@@ -1165,6 +1173,7 @@
 
   function openProfileModal() {
     if (!state.user) return;
+    state.selectedAvatarUrl = state.user.avatarUrl || state.deviceAvatarUrl || DEVICE_AVATARS[0] || "";
     renderProfile();
     dom.profileModal.classList.remove("hidden");
   }
@@ -1202,6 +1211,7 @@
       dom.profileButton.setAttribute("aria-label", "Ảnh đại diện thiết bị");
       paintAvatar(dom.profileAvatar, deviceAvatar, "D");
       paintAvatar(dom.profileAvatarLarge, deviceAvatar, "D");
+      renderAvatarChoices();
       if (dom.openAdminBtn) dom.openAdminBtn.classList.add("hidden");
       if (dom.logoutBtn) dom.logoutBtn.classList.add("hidden");
       return;
@@ -1216,6 +1226,56 @@
     if (dom.logoutBtn) dom.logoutBtn.classList.toggle("hidden", !isAdmin());
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
+    renderAvatarChoices();
+  }
+
+  function renderAvatarChoices() {
+    if (!dom.avatarChoices) return;
+    const canChoose = Boolean(state.user && state.token);
+    dom.avatarChoices.classList.toggle("hidden", !canChoose);
+    if (dom.saveAvatarBtn) dom.saveAvatarBtn.classList.toggle("hidden", !canChoose);
+    dom.avatarChoices.innerHTML = "";
+    if (!canChoose) return;
+
+    const activeUrl = state.selectedAvatarUrl || state.user.avatarUrl || state.deviceAvatarUrl || DEVICE_AVATARS[0] || "";
+    DEVICE_AVATARS.forEach((url) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `avatar-choice${url === activeUrl ? " active" : ""}`;
+      button.setAttribute("aria-label", "Chọn ảnh đại diện");
+      button.style.backgroundImage = `url("${url}")`;
+      button.addEventListener("click", () => {
+        state.selectedAvatarUrl = url;
+        paintAvatar(dom.profileAvatarLarge, { ...(state.user || {}), avatarUrl: url }, "D");
+        renderAvatarChoices();
+      });
+      dom.avatarChoices.appendChild(button);
+    });
+  }
+
+  async function saveSelectedAvatar() {
+    if (!state.user || !state.token) return;
+    const avatarUrl = DEVICE_AVATARS.includes(state.selectedAvatarUrl) ? state.selectedAvatarUrl : "";
+    if (!avatarUrl) return;
+    if (dom.saveAvatarBtn) dom.saveAvatarBtn.disabled = true;
+    try {
+      const payload = await api("/api/profile", {
+        method: "POST",
+        body: { avatarUrl }
+      });
+      applySession(payload.user, state.token);
+      state.selectedAvatarUrl = payload.user?.avatarUrl || avatarUrl;
+      if (state.room) {
+        patchLocalUserIntoRoom();
+        renderRoomMeta();
+      }
+      renderAvatarChoices();
+      showToast("Đã lưu ảnh đại diện.");
+    } catch (error) {
+      showToast(error.message || "Không thể lưu ảnh đại diện.");
+    } finally {
+      if (dom.saveAvatarBtn) dom.saveAvatarBtn.disabled = false;
+    }
   }
 
   function renderHistory() {

@@ -44,15 +44,20 @@ const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCE
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
 const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
-const DEVICE_AVATAR_PATHS = new Set([
+const DEVICE_AVATAR_PATH_LIST = [
   "/assets/device-avatars/goku.png",
   "/assets/device-avatars/vegeta.png",
   "/assets/device-avatars/naruto.png",
   "/assets/device-avatars/luffy.png",
   "/assets/device-avatars/ichigo.png",
   "/assets/device-avatars/gojo.png",
-  "/assets/device-avatars/sungjinwoo.png"
-]);
+  "/assets/device-avatars/sungjinwoo.png",
+  "/assets/device-avatars/Yugi.png",
+  "/assets/device-avatars/Kaiba.png",
+  "/assets/device-avatars/Eren.png",
+  "/assets/device-avatars/Siesta.png"
+];
+const DEVICE_AVATAR_PATHS = new Set(DEVICE_AVATAR_PATH_LIST);
 const BOT_PLAYERS = [
   { level: 1, depth: 1, name: "Trọng Phúc" },
   { level: 2, depth: 2, name: "Văn Phương" },
@@ -757,6 +762,15 @@ function accessKeyEmail(slot) {
   return `${accessKeyUsername(slot)}@keys.dmaihxcai.local`;
 }
 
+function defaultAccessKeyAvatar(seed) {
+  const source = String(seed || randomBase36(8));
+  let hash = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = (hash * 31 + source.charCodeAt(i)) >>> 0;
+  }
+  return DEVICE_AVATAR_PATH_LIST[hash % DEVICE_AVATAR_PATH_LIST.length] || "";
+}
+
 function createKeyManagedUser(entry) {
   const slot = Math.max(1, Number(entry.slot) || 1);
   const username = accessKeyUsername(slot);
@@ -775,7 +789,7 @@ function createKeyManagedUser(entry) {
     accessKeySlot: slot,
     keyActivatedAt: "",
     avatarSeed: randomBase36(4),
-    avatarUrl: "",
+    avatarUrl: defaultAccessKeyAvatar(`${entry.key}:${slot}`),
     history: [],
     createdAt: now,
     lastSeenAt: "",
@@ -831,6 +845,10 @@ function ensureAccessKeyUsers() {
       user.keyActivatedAt = "";
       changed = true;
     }
+    if (!user.avatarUrl) {
+      user.avatarUrl = defaultAccessKeyAvatar(`${entry.key}:${slot}`);
+      changed = true;
+    }
     if (!user.avatarSeed) {
       user.avatarSeed = randomBase36(4);
       changed = true;
@@ -882,6 +900,10 @@ function ensureAdminUser() {
       existing.avatarSeed = randomBase36(4);
       changed = true;
     }
+    if (!existing.avatarUrl) {
+      existing.avatarUrl = defaultAccessKeyAvatar(ADMIN_ACCESS_KEY || ADMIN_USERNAME);
+      changed = true;
+    }
     if (!existing.createdAt) {
       existing.createdAt = nowIso();
       changed = true;
@@ -908,7 +930,7 @@ function ensureAdminUser() {
     accessKeySlot: 0,
     keyActivatedAt: "",
     avatarSeed: randomBase36(4),
-    avatarUrl: "",
+    avatarUrl: defaultAccessKeyAvatar(ADMIN_ACCESS_KEY || ADMIN_USERNAME),
     history: [],
     createdAt: now,
     lastSeenAt: "",
@@ -1125,6 +1147,20 @@ function syncRoomPlayerProfile(room, side, userOrId = room?.players?.[side]) {
   };
   room.playerProfiles[side] = snapshot || null;
   return room.playerProfiles[side];
+}
+
+function syncUserProfileIntoRooms(user) {
+  if (!user?.id) return;
+  let changed = false;
+  rooms.forEach((room) => {
+    ["w", "b"].forEach((side) => {
+      if (room.players?.[side] === user.id) {
+        syncRoomPlayerProfile(room, side, user);
+        changed = true;
+      }
+    });
+  });
+  if (changed) saveRooms();
 }
 
 function roomPlayerState(room, side) {
@@ -2765,6 +2801,7 @@ const server = http.createServer(async (req, res) => {
         ? requestedDisplayName || sanitizeOptionalDisplayName(user.displayName || "")
         : sanitizeDisplayName(requestedDisplayName || "", fallbackDisplayName);
       user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      syncUserProfileIntoRooms(user);
       await saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });
       return;

@@ -34,7 +34,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260709-room-v50">
+    <link rel="stylesheet" href="/portal.css?v=20260709-room-v51">
   </head>
   <body>
     <header class="portal-header">
@@ -497,7 +497,10 @@
             <span id="profileAvatarLarge" class="avatar avatar-large">D</span>
           </div>
 
+          <div id="avatarChoices" class="avatar-choice-grid hidden" aria-label="Chọn ảnh đại diện"></div>
+
           <div class="profile-actions">
+            <button id="saveAvatarBtn" class="primary-button hidden" type="button">Lưu ảnh đại diện</button>
             <button id="openAdminBtn" class="ghost-button hidden" type="button">Quản trị thành viên</button>
             <button id="logoutBtn" class="ghost-button hidden" type="button">Đổi phiên thiết bị</button>
           </div>
@@ -529,7 +532,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260709-room-v73"></script>
+    <script src="/portal.js?v=20260709-room-v74"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
