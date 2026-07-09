@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v70";
+  const ASSET_WARMUP_VERSION = "20260709-v71";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,7 +66,7 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v49",
+    "/styles.css?v=20260709-mobile-v50",
     "/app.js?v=20260709-mobile-v59",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
@@ -169,7 +169,8 @@
     lastChatSignature: "",
     resizeTimer: null,
     lastBoardSizeKey: "",
-    roomMobilePanel: "control",
+    roomMobilePanel: "",
+    roomMobileMenuOpen: false,
     roomTurnFlashTimer: 0,
     assetWarmupPending: false,
     assetWarmupProgress: 0,
@@ -249,6 +250,7 @@
     roomStatusBadge: byId("roomStatusBadge"),
     roomPeopleBadge: byId("roomPeopleBadge"),
     roomMobileBackBtn: byId("roomMobileBackBtn"),
+    roomMobileMenuBtn: byId("roomMobileMenuBtn"),
     roomSummary: byId("roomSummary"),
     topPlayerAvatar: byId("topPlayerAvatar"),
     topPlayerName: byId("topPlayerName"),
@@ -418,6 +420,7 @@
     window.addEventListener("hashchange", () => syncRoute(false));
     dom.globalBackBtn.addEventListener("click", handleBack);
     if (dom.roomMobileBackBtn) dom.roomMobileBackBtn.addEventListener("click", handleBack);
+    if (dom.roomMobileMenuBtn) dom.roomMobileMenuBtn.addEventListener("click", toggleRoomMobileMenu);
     dom.openMatchHub.addEventListener("click", () => goRoute("match"));
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
@@ -725,6 +728,8 @@
       button.addEventListener("click", () => {
         const mode = button.dataset.roomMobileMode || "control";
         setRoomMobilePanel(isCompactMobile() && state.roomMobilePanel === mode ? "" : mode);
+        if (isCompactMobile()) state.roomMobileMenuOpen = false;
+        renderRoomMobilePanels();
       });
     });
     roomMobileActionButtons.forEach((button) => {
@@ -764,9 +769,16 @@
     }
   }
 
+  function toggleRoomMobileMenu() {
+    state.roomMobileMenuOpen = !state.roomMobileMenuOpen;
+    if (state.roomMobileMenuOpen) state.roomMobilePanel = "";
+    renderRoomMobilePanels();
+  }
+
   function renderRoomMobilePanels() {
     const compact = isCompactMobile();
     document.body.classList.toggle("portal-mobile-mode", compact);
+    document.body.classList.toggle("room-mobile-menu-open", compact && !!state.roomMobileMenuOpen);
     document.body.dataset.route = state.route || "home";
     roomMobilePanels.forEach((panel) => {
       const mode = panel.dataset.roomMobilePanel || "control";
@@ -775,6 +787,10 @@
     roomMobilePanelButtons.forEach((button) => {
       button.classList.toggle("active", compact && button.dataset.roomMobileMode === state.roomMobilePanel);
     });
+    if (dom.roomMobileMenuBtn) {
+      dom.roomMobileMenuBtn.classList.toggle("active", compact && !!state.roomMobileMenuOpen);
+      dom.roomMobileMenuBtn.setAttribute("aria-expanded", compact && state.roomMobileMenuOpen ? "true" : "false");
+    }
   }
 
   function syncRoomMobileActionState() {

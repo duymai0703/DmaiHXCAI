@@ -3220,4 +3220,24 @@ select,
   :root[data-theme="dark"] .cloud-note.equal {
     color: #47e86f !important;
   }
+
+  :root[data-theme="light"] .mobile-score-strip,
+  :root[data-theme="light"] .mobile-score-strip.equal,
+  :root[data-theme="light"] .mobile-score-strip.positive {
+    color: #075a9d !important;
+  }
+
+  :root[data-theme="light"] .mobile-score-strip.negative {
+    color: #a30e22 !important;
+  }
+
+  :root[data-theme="light"] .cloud-row.equal .cloud-move,
+  :root[data-theme="light"] .cloud-row.equal .cloud-score,
+  :root[data-theme="light"] .cloud-row.equal .cloud-win,
+  :root[data-theme="light"] .cloud-row.equal .cloud-note,
+  :root[data-theme="light"] .cloud-score.equal,
+  :root[data-theme="light"] .cloud-win.equal,
+  :root[data-theme="light"] .cloud-note.equal {
+    color: #087a2b !important;
+  }
 }

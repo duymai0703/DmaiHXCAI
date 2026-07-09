@@ -31,7 +31,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v41">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v42">
   </head>
   <body>
     <header class="portal-header">
@@ -303,6 +303,7 @@
           </section>
 
           <aside class="room-side">
+            <button id="roomMobileMenuBtn" class="room-mobile-menu-btn" type="button" aria-label="Mở chức năng phòng">☰</button>
             <div class="room-side-topbar">
               <div class="room-key-box">
                 <span>Key phòng</span>
@@ -495,7 +496,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v63"></script>
+    <script src="/portal.js?v=20260708-room-v64"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -722,6 +722,10 @@ a {
   display: none;
 }
 
+.room-mobile-menu-btn {
+  display: none;
+}
+
 .board-stage {
   position: relative;
   width: min(100%, 820px);
@@ -1985,7 +1989,7 @@ a {
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-side-topbar {
     position: absolute;
     top: max(8px, env(safe-area-inset-top, 0px));
-    left: 8px;
+    left: auto;
     right: 8px;
     display: flex;
     align-items: center;
@@ -1995,6 +1999,7 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-key-box {
+    display: none;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 42px;
@@ -2053,6 +2058,56 @@ a {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),
       0 10px 22px rgba(0, 0, 0, 0.24);
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-mobile-menu-btn {
+    position: absolute;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    left: 8px;
+    z-index: 14;
+    display: inline-grid;
+    place-items: center;
+    width: 46px;
+    min-width: 46px;
+    height: 42px;
+    min-height: 42px;
+    padding: 0;
+    border-radius: 14px;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--ink);
+    background: var(--panel-strong);
+    border: 1px solid var(--line);
+    pointer-events: auto;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 10px 22px rgba(0, 0, 0, 0.24);
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-mobile-menu-btn.active {
+    background: var(--control-active) !important;
+    color: #211306 !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode.room-mobile-menu-open[data-route="room"] .room-side-topbar {
+    left: 10px;
+    right: 10px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    padding: 10px 10px 10px 58px;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    background: var(--panel-strong);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 18px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  body.mobile-room-entry.portal-mobile-mode.room-mobile-menu-open[data-route="room"] .room-key-box {
+    display: inline-flex;
+    background: color-mix(in srgb, var(--field-bg, rgba(255, 255, 255, 0.96)) 82%, transparent);
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-panel {
@@ -2123,20 +2178,29 @@ a {
     position: absolute;
     left: 10px;
     right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    top: calc(max(8px, env(safe-area-inset-top, 0px)) + 62px);
+    bottom: auto;
     z-index: 13;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(54px, 64px));
-    justify-content: start;
+    display: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    justify-content: stretch;
     gap: 10px;
-    padding: 0;
-    border: 0;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 18px 18px;
+    background: var(--panel-strong);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
     pointer-events: auto;
   }
 
+  body.mobile-room-entry.portal-mobile-mode.room-mobile-menu-open[data-route="room"] .room-mobile-dock {
+    display: grid;
+  }
+
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-mobile-btn {
-    min-height: 56px;
-    border-radius: 50%;
+    min-height: 48px;
+    border-radius: 14px;
     font-size: 22px;
     color: var(--ink);
     background: var(--control-bg);
