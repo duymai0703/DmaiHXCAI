@@ -40,13 +40,14 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v52";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v53";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
+const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -590,6 +591,7 @@ function setupMobileActionStrip() {
   mobileActionButtons.forEach((button) => {
     button.addEventListener("click", () => handleMobileAction(button.dataset.mobileAction || ""));
   });
+  setupMobileRoomConfirm();
 }
 
 function handleMobileAction(action) {
@@ -627,10 +629,68 @@ function handleMobileAction(action) {
       toggleBoardSkinMenu();
       break;
     case "guom":
+      showMobileRoomConfirm();
       break;
     default:
       break;
   }
+}
+
+function setupMobileRoomConfirm() {
+  if (document.getElementById("mobileRoomConfirm")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "mobileRoomConfirm";
+  overlay.className = "mobile-room-confirm hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "mobileRoomConfirmTitle");
+
+  const card = document.createElement("div");
+  card.className = "mobile-room-confirm-card";
+
+  const title = document.createElement("strong");
+  title.id = "mobileRoomConfirmTitle";
+  title.textContent = "xác nhận chuyển qua chế độ phòng đấu?";
+
+  const actions = document.createElement("div");
+  actions.className = "mobile-room-confirm-actions";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "mobile-room-confirm-cancel";
+  cancel.textContent = "Không";
+  cancel.addEventListener("click", hideMobileRoomConfirm);
+
+  const accept = document.createElement("button");
+  accept.type = "button";
+  accept.className = "mobile-room-confirm-accept";
+  accept.textContent = "Đồng ý";
+  accept.addEventListener("click", () => {
+    hideMobileRoomConfirm();
+    window.location.href = MOBILE_ROOM_ENTRY_URL;
+  });
+
+  actions.append(cancel, accept);
+  card.append(title, actions);
+  overlay.appendChild(card);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) hideMobileRoomConfirm();
+  });
+  document.body.appendChild(overlay);
+}
+
+function showMobileRoomConfirm() {
+  const overlay = document.getElementById("mobileRoomConfirm");
+  if (!overlay) return;
+  overlay.classList.remove("hidden");
+  document.body.classList.add("mobile-room-confirm-open");
+}
+
+function hideMobileRoomConfirm() {
+  const overlay = document.getElementById("mobileRoomConfirm");
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  document.body.classList.remove("mobile-room-confirm-open");
 }
 
 function toggleFlipBoard() {

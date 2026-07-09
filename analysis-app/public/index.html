@@ -20,7 +20,9 @@
       const ua = navigator.userAgent || "";
       const isIpadDesktop = /macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
       const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua) || isIpadDesktop;
-      if (isMobileDevice) {
+      const params = new URLSearchParams(window.location.search || "");
+      const wantsMobileRoom = params.has("mobileRoom");
+      if (isMobileDevice && !wantsMobileRoom) {
         window.location.replace("/analysis");
       }
     </script>
@@ -29,7 +31,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v39">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v40">
   </head>
   <body>
     <header class="portal-header">
@@ -308,6 +310,10 @@
                 <button id="copyRoomKeyBtn" class="ghost-button" type="button">Sao chép Key</button>
               </div>
               <div id="roomStatusBadge" class="room-status-badge">Đang chờ</div>
+              <div id="roomPeopleBadge" class="room-people-badge" aria-label="Số người trong phòng">
+                <span aria-hidden="true">👥</span>
+                <strong>0</strong>
+              </div>
             </div>
 
             <section class="panel-card room-panel" data-room-mobile-panel="control">
@@ -369,10 +375,10 @@
             </section>
 
             <div class="room-mobile-dock" aria-label="Điều khiển nhanh">
-              <button class="room-mobile-btn" type="button" data-room-mobile-mode="control" title="Điều khiển" aria-label="Điều khiển"><span aria-hidden="true">⌘</span></button>
-              <button class="room-mobile-btn" type="button" data-room-mobile-mode="viewers" title="Người xem" aria-label="Người xem"><span aria-hidden="true">👁</span></button>
-              <button class="room-mobile-btn" type="button" data-room-mobile-mode="chat" title="Chat" aria-label="Chat"><span aria-hidden="true">✉</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="control" title="Điều khiển" aria-label="Điều khiển"><span aria-hidden="true">☰</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="chat" title="Chat" aria-label="Chat"><span aria-hidden="true">💬</span></button>
               <button class="room-mobile-btn" type="button" data-room-mobile-mode="moves" title="Lịch sử nước đi" aria-label="Lịch sử nước đi"><span aria-hidden="true">≣</span></button>
+              <button class="room-mobile-btn" type="button" data-room-mobile-mode="viewers" title="Người xem" aria-label="Người xem"><span aria-hidden="true">👥</span></button>
               <button class="room-mobile-btn" type="button" data-room-mobile-action="ready" title="Sẵn sàng" aria-label="Sẵn sàng"><span aria-hidden="true">✓</span></button>
               <button class="room-mobile-btn" type="button" data-room-mobile-action="undo" title="Xin đi lại" aria-label="Xin đi lại"><span aria-hidden="true">↺</span><small id="roomUndoDockCount" class="room-mobile-count">2</small></button>
               <button class="room-mobile-btn" type="button" data-room-mobile-action="draw" title="Cầu hòa" aria-label="Cầu hòa"><span aria-hidden="true">=</span><small id="roomDrawDockCount" class="room-mobile-count">2</small></button>
@@ -488,7 +494,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v60"></script>
+    <script src="/portal.js?v=20260708-room-v61"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

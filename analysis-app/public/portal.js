@@ -11,8 +11,9 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
+  const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v67";
+  const ASSET_WARMUP_VERSION = "20260709-v68";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -65,8 +66,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v47",
-    "/app.js?v=20260709-mobile-v58",
+    "/styles.css?v=20260709-mobile-v48",
+    "/app.js?v=20260709-mobile-v59",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -246,6 +247,7 @@
     roomKeyLabel: byId("roomKeyLabel"),
     copyRoomKeyBtn: byId("copyRoomKeyBtn"),
     roomStatusBadge: byId("roomStatusBadge"),
+    roomPeopleBadge: byId("roomPeopleBadge"),
     roomSummary: byId("roomSummary"),
     topPlayerAvatar: byId("topPlayerAvatar"),
     topPlayerName: byId("topPlayerName"),
@@ -327,12 +329,16 @@
   const mobileUserAgent = navigator.userAgent || "";
   const isIpadDesktop = /macintosh/i.test(mobileUserAgent) && Number(navigator.maxTouchPoints || 0) > 1;
   const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent) || isIpadDesktop;
-  if (isMobileDevice) {
+  const mobileRoomParams = new URLSearchParams(window.location.search || "");
+  const isMobileRoomEntry = mobileRoomParams.has("mobileRoom");
+  if (isMobileDevice && !isMobileRoomEntry) {
     window.location.replace("/analysis");
     return;
   }
+  document.body.classList.toggle("mobile-room-entry", isMobileRoomEntry);
 
   initThemeControls();
+  applyPortalBoardSkin(readPortalBoardSkin());
   bindEvents();
   preventDoubleTapZoom();
   const assetWarmupPromise = warmPortalAssets();
@@ -366,6 +372,18 @@
 
   function readTheme() {
     return normalizeTheme(readPersistentValue(STORAGE_THEME) || document.documentElement.dataset.theme || "dark");
+  }
+
+  function readPortalBoardSkin() {
+    return normalizeBoardSkin(readPersistentValue(STORAGE_BOARD_SKIN) || document.documentElement.dataset.boardSkin || "ice");
+  }
+
+  function normalizeBoardSkin(skin) {
+    return skin === "gold" || skin === "stone" || skin === "pink" ? skin : "ice";
+  }
+
+  function applyPortalBoardSkin(skin) {
+    document.documentElement.dataset.boardSkin = normalizeBoardSkin(skin);
   }
 
   function normalizeTheme(theme) {
@@ -738,6 +756,9 @@
   function setRoomMobilePanel(panel) {
     state.roomMobilePanel = panel || "control";
     renderRoomMobilePanels();
+    if (state.roomMobilePanel === "chat" && isCompactMobile()) {
+      window.setTimeout(() => dom.chatInput?.focus({ preventScroll: true }), 80);
+    }
   }
 
   function renderRoomMobilePanels() {
@@ -823,7 +844,8 @@
 
   function syncRoute(replaceIfNeeded) {
     let route = normalizeRoute(location.hash);
-    if (state.booting) route = "home";
+    if (isMobileRoomEntry && route === "home") route = state.room ? "room" : "match";
+    if (state.booting) route = isMobileRoomEntry ? "match" : "home";
     else if (route === "room" && !state.room) route = "match";
     else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "library";
@@ -870,6 +892,10 @@
   }
 
   function handleBack() {
+    if (isMobileRoomEntry && state.route === "match") {
+      window.location.href = "/analysis";
+      return;
+    }
     if (window.history.length > 1) {
       window.history.back();
       return;
@@ -2143,6 +2169,7 @@
     if (!room) {
       dom.roomKeyLabel.textContent = "------";
       dom.roomStatusBadge.textContent = "Chưa vào phòng";
+      updateRoomPeopleBadge(null);
       dom.roomSummary.textContent = "Phòng đang được chuẩn bị.";
       dom.undoCount.textContent = "0";
       dom.drawCount.textContent = "0";
@@ -2169,6 +2196,7 @@
 
     dom.roomKeyLabel.textContent = room.key;
     dom.roomStatusBadge.textContent = roomStatusText(room);
+    updateRoomPeopleBadge(room);
     dom.roomSummary.textContent = roomSummaryText(room);
     dom.undoCount.textContent = String(room.allowances?.undoRemaining ?? 0);
     dom.drawCount.textContent = String(room.allowances?.drawRemaining ?? 0);
@@ -2202,6 +2230,15 @@
 
     renderRoomClocks();
     syncRoomMobileActionState();
+  }
+
+  function updateRoomPeopleBadge(room) {
+    if (!dom.roomPeopleBadge) return;
+    const spectators = Array.isArray(room?.spectators) ? room.spectators.length : 0;
+    const count = room ? 2 + spectators : 0;
+    const value = dom.roomPeopleBadge.querySelector("strong");
+    if (value) value.textContent = String(count);
+    dom.roomPeopleBadge.title = `${count} người trong phòng`;
   }
 
   function renderRequestState() {
