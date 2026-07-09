@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v79";
+  const ASSET_WARMUP_VERSION = "20260709-v80";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,8 +66,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v54",
-    "/app.js?v=20260709-mobile-v63",
+    "/styles.css?v=20260709-mobile-v55",
+    "/app.js?v=20260709-mobile-v64",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -326,7 +326,11 @@
     modalTitle: byId("modalTitle"),
     modalText: byId("modalText"),
     modalCancel: byId("modalCancel"),
-    modalConfirm: byId("modalConfirm")
+    modalConfirm: byId("modalConfirm"),
+    accessGate: byId("accessGate"),
+    accessKeyForm: byId("accessKeyForm"),
+    accessKeyInput: byId("accessKeyInput"),
+    accessKeyMessage: byId("accessKeyMessage")
   };
   const roomMobilePanelButtons = [...document.querySelectorAll("[data-room-mobile-mode]")];
   const roomMobileActionButtons = [...document.querySelectorAll("[data-room-mobile-action]")];
@@ -349,6 +353,7 @@
   initThemeControls();
   initPortalBoardSkinControls();
   bindEvents();
+  disableLegacyNameInputs();
   preventDoubleTapZoom();
   const assetWarmupPromise = warmPortalAssets();
   syncViewportHeight();
@@ -516,6 +521,7 @@
     dom.reviewNextBtn.addEventListener("click", () => stepReview(1));
     dom.reviewAnalyzeBtn.addEventListener("click", analyzeReviewGame);
     dom.chatForm.addEventListener("submit", onChatSubmit);
+    dom.accessKeyForm?.addEventListener("submit", onAccessKeySubmit);
     dom.modalCancel.addEventListener("click", closeModal);
     dom.modalConfirm.addEventListener("click", async () => {
       const action = state.modalConfirm;
@@ -723,7 +729,8 @@
   async function bootstrap() {
     try {
       if (!state.token) {
-        await ensureGuestSession(state.user?.displayName || "");
+        showAccessGate();
+        return;
       }
       const [session, historyPayload, currentRoom] = await Promise.all([
         api("/api/auth/me"),
@@ -740,14 +747,7 @@
       localStorage.removeItem(STORAGE_USER);
       state.token = "";
       state.user = null;
-      await ensureGuestSession("");
-      const [historyPayload, currentRoom] = await Promise.all([
-        api("/api/history"),
-        api("/api/rooms/current")
-      ]);
-      state.history = mergeHistoryLists(historyPayload.history, state.history);
-      renderHistory();
-      if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+      showAccessGate();
     }
   }
 
@@ -768,6 +768,57 @@
     });
     applySession(payload.user, payload.token);
     return payload.user;
+  }
+
+  function showAccessGate(message = "") {
+    dom.accessGate?.classList.remove("hidden");
+    document.body.classList.add("access-locked");
+    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = message;
+    window.setTimeout(() => dom.accessKeyInput?.focus({ preventScroll: true }), 60);
+  }
+
+  function hideAccessGate() {
+    dom.accessGate?.classList.add("hidden");
+    document.body.classList.remove("access-locked");
+    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "";
+  }
+
+  async function onAccessKeySubmit(event) {
+    event.preventDefault();
+    const key = String(dom.accessKeyInput?.value || "").trim();
+    if (!key) {
+      showAccessGate("Hãy nhập Key kích hoạt.");
+      return;
+    }
+    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Đang kiểm tra Key...";
+    try {
+      const payload = await api("/api/auth/key", {
+        method: "POST",
+        body: { key }
+      });
+      applySession(payload.user, payload.token);
+      hideAccessGate();
+      if (dom.accessKeyInput) dom.accessKeyInput.value = "";
+      const [historyPayload, currentRoom] = await Promise.all([
+        api("/api/history"),
+        api("/api/rooms/current")
+      ]);
+      state.history = mergeHistoryLists(historyPayload.history, state.history);
+      renderHistory();
+      if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+      if (isAdmin()) {
+        await loadAdminUsers(true);
+        goRoute("admin", true);
+      } else {
+        goRoute("home", true);
+      }
+      showToast(isAdmin() ? "Đã mở trang quản trị." : "Đã kích hoạt tài khoản.");
+    } catch (error) {
+      state.token = "";
+      localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(STORAGE_USER);
+      showAccessGate(error.message || "Key không đúng.");
+    }
   }
 
   function syncViewportHeight() {
@@ -1033,6 +1084,7 @@
       localStorage.setItem(STORAGE_TOKEN, token);
     }
     persistStoredUser(state.user);
+    if (state.user) hideAccessGate();
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
   }
@@ -1102,15 +1154,13 @@
     renderHistory();
     renderAdminState();
     renderProfile();
+    showAccessGate("Hay nhap Key kich hoat de tiep tuc.");
   }
 
   async function logout() {
     clearSession();
-    try {
-      await ensureGuestSession("");
-    } catch {}
     goRoute("home", true);
-    showToast("Đã chuyển sang phiên thiết bị mới.");
+    showToast("Da thoat phien Key tren trinh duyet nay.");
   }
 
   function openProfileModal() {
@@ -1266,10 +1316,14 @@
         const detail = document.createElement("span");
         const roleLabel = user.role === "admin" ? " • Quản trị" : "";
         detail.textContent = `${user.historyCount || 0} ván${roleLabel}`;
+        const keyDetail = document.createElement("span");
+        keyDetail.textContent = user.accessKey
+          ? `${user.accessKey} - ${user.activated ? "Đã kích hoạt" : "Chưa kích hoạt"}`
+          : "";
         const presence = document.createElement("span");
         presence.className = `admin-presence ${user.online ? "online" : "offline"}`;
         presence.textContent = user.online ? "Online" : "Offline";
-        meta.append(name, username, detail, presence);
+        meta.append(name, username, detail, keyDetail, presence);
         button.append(avatar, meta);
         dom.adminUsersList.appendChild(button);
       });
@@ -1280,13 +1334,62 @@
       ? `Lịch sử của ${selected.displayName || selected.username}`
       : "Lịch sử thành viên";
     dom.adminSelectedMeta.textContent = selected
-      ? `${selected.email || `@${selected.username}`} • Tham gia ${formatDate(selected.createdAt)}`
+      ? `${selected.email || `@${selected.username}`} • ${selected.accessKey || "No key"} • ${selected.activated ? "Đã kích hoạt" : "Chưa kích hoạt"}`
       : "Chọn một tài khoản để xem các ván đã lưu.";
     renderHistoryCollection(dom.adminHistoryList, selected?.history || [], {
       emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
       onOpen: openHistoryReview
     });
+    renderAdminRenamePanel(selected);
     renderAdminWatchPanel(selected);
+  }
+
+  function renderAdminRenamePanel(user) {
+    if (!dom.adminHistoryList || !user) return;
+    const panel = document.createElement("form");
+    panel.className = "admin-rename-card";
+    panel.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = panel.querySelector("input");
+      void renameAdminUser(user.id, input?.value || "");
+    });
+
+    const title = document.createElement("strong");
+    title.textContent = "Đổi tên tài khoản";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 24;
+    input.value = user.displayName || user.username || "";
+    input.placeholder = "Tên hiển thị";
+    const button = document.createElement("button");
+    button.className = "primary-button";
+    button.type = "submit";
+    button.textContent = "Lưu tên";
+
+    panel.append(title, input, button);
+    dom.adminHistoryList.prepend(panel);
+  }
+
+  async function renameAdminUser(userId, displayName) {
+    const name = String(displayName || "").trim();
+    if (!name) {
+      showToast("Tên không được để trống.");
+      return;
+    }
+    try {
+      const payload = await api("/api/admin/users/rename", {
+        method: "POST",
+        body: { userId, displayName: name }
+      });
+      state.adminUsers = state.adminUsers.map((user) => (
+        user.id === payload.user.id ? payload.user : user
+      ));
+      state.adminSelectedUserId = payload.user.id;
+      renderAdminState();
+      showToast("Đã lưu tên tài khoản.");
+    } catch (error) {
+      showToast(error.message || "Không thể đổi tên tài khoản.");
+    }
   }
 
   function renderAdminWatchPanel(user) {
@@ -1776,20 +1879,11 @@
 
   async function onCreateRoom(event) {
     event.preventDefault();
-    const checkedName = validateDisplayNameInput(dom.createDisplayName.value);
-    if (!checkedName.ok) {
-      setMessage(dom.matchHubMessage, checkedName.message);
-      return;
-    }
-    const displayName = checkedName.value;
-    dom.createDisplayName.value = displayName;
-    setMessage(dom.matchHubMessage, "Đang tạo phòng...", "info");
+    setMessage(dom.matchHubMessage, "Dang tao phong...", "info");
     try {
-      await ensureGuestSession(displayName);
       const payload = await api("/api/rooms/create", {
         method: "POST",
         body: {
-          displayName,
           yourMinutes: Number(dom.yourTimeRange.value || 10),
           opponentMinutes: Number(dom.opponentTimeRange.value || 10),
           incrementSeconds: Number(dom.incrementSelect.value || 0),
@@ -1799,28 +1893,19 @@
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
       setMessage(dom.matchHubMessage, "");
-      showToast("Đã tạo phòng đấu.");
+      showToast("Da tao phong dau.");
     } catch (error) {
-      setMessage(dom.matchHubMessage, error.message || "Không thể tạo phòng.");
+      setMessage(dom.matchHubMessage, error.message || "Khong the tao phong.");
     }
   }
 
   async function onCreateBotRoom(event) {
     event.preventDefault();
-    const checkedName = validateDisplayNameInput(dom.botDisplayName.value);
-    if (!checkedName.ok) {
-      setMessage(dom.matchHubMessage, checkedName.message);
-      return;
-    }
-    const displayName = checkedName.value;
-    dom.botDisplayName.value = displayName;
-    setMessage(dom.matchHubMessage, "Đang tạo bàn đánh máy...", "info");
+    setMessage(dom.matchHubMessage, "Dang tao ban danh may...", "info");
     try {
-      await ensureGuestSession(displayName);
       const payload = await api("/api/rooms/create-bot", {
         method: "POST",
         body: {
-          displayName,
           minutes: Number(dom.botTimeRange.value || 10),
           incrementSeconds: Number(dom.botIncrementSelect.value || 0),
           botLevel: Number(dom.botLevelSelect.value || 1),
@@ -1830,45 +1915,31 @@
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
       setMessage(dom.matchHubMessage, "");
-      showToast("Đã tạo bàn đánh với máy.");
+      showToast("Da tao ban danh voi may.");
     } catch (error) {
-      setMessage(dom.matchHubMessage, error.message || "Không thể tạo bàn đánh máy.");
+      setMessage(dom.matchHubMessage, error.message || "Khong the tao ban danh may.");
     }
   }
 
   async function onJoinRoom(event) {
     event.preventDefault();
-    const checkedName = validateDisplayNameInput(dom.joinDisplayName.value);
     const rawKey = dom.joinRoomKey.value.trim();
     const key = rawKey.toUpperCase();
-    if (!checkedName.ok) {
-      setMessage(dom.matchHubMessage, checkedName.message);
-      return;
-    }
-    const displayName = checkedName.value;
-    dom.joinDisplayName.value = displayName;
-    if (isAdminShortcutName(displayName)) {
-      const handled = await tryAdminShortcutLogin(displayName, rawKey);
-      if (handled) return;
-    }
-    setMessage(dom.matchHubMessage, "Đang vào phòng...", "info");
+    setMessage(dom.matchHubMessage, "Dang vao phong...", "info");
     try {
-      await ensureGuestSession(displayName);
       const payload = await api("/api/rooms/join", {
         method: "POST",
-        body: { key, displayName }
+        body: { key }
       });
-      dom.joinDisplayName.value = "";
       dom.joinRoomKey.value = "";
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
       goRoute("room");
       setMessage(dom.matchHubMessage, "");
-      showToast(payload.room.role === "spectator" ? "Đã vào phòng với vai trò người xem." : "Đã vào phòng đấu.");
+      showToast(payload.room.role === "spectator" ? "Da vao phong voi vai tro nguoi xem." : "Da vao phong dau.");
     } catch (error) {
-      setMessage(dom.matchHubMessage, error.message || "Không thể vào phòng.");
+      setMessage(dom.matchHubMessage, error.message || "Khong the vao phong.");
     }
   }
-
   function isAdminShortcutName(displayName) {
     const normalized = normalizeDisplayNameInput(displayName).toLowerCase();
     return normalized === "ad";
@@ -2174,6 +2245,20 @@
       window.requestAnimationFrame(() => {
         hideRoomAnimationElements({ resetActiveSlot: false });
       });
+    });
+  }
+
+  function disableLegacyNameInputs() {
+    const matchHelp = document.querySelector("#matchHubView .panel-heading p");
+    if (matchHelp) matchHelp.textContent = "Tài khoản đã kích hoạt bằng Key sẽ được dùng khi tạo phòng, vào phòng hoặc xem ván đấu.";
+    [dom.joinDisplayName, dom.createDisplayName, dom.botDisplayName].forEach((input) => {
+      if (!input) return;
+      input.required = false;
+      input.value = "";
+      input.tabIndex = -1;
+      input.setAttribute("aria-hidden", "true");
+      const label = input.closest("label");
+      if (label) label.style.display = "none";
     });
   }
 
@@ -4214,4 +4299,3 @@
     throw lastError || new Error("Không thể kết nối tới máy chủ.");
   }
 })();
-

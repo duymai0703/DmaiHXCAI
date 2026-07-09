@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="utf-8">
@@ -27,7 +27,7 @@
     <link rel="preload" href="/assets/board/board-skin-mobile.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-gold.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-stone.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260709-mobile-v54">
+    <link rel="stylesheet" href="/styles.css?v=20260709-mobile-v55">
   </head>
   <body>
     <header class="app-header">
@@ -164,6 +164,15 @@
         </div>
       </aside>
     </main>
+    <div id="accessGate" class="access-gate hidden" role="dialog" aria-modal="true" aria-labelledby="analysisAccessTitle">
+      <form id="accessKeyForm" class="access-gate-card">
+        <strong id="analysisAccessTitle">Nhập Key kích hoạt</strong>
+        <p>Nhập Key được cấp để mở phần mềm phân tích DmaiHXCAI.</p>
+        <input id="accessKeyInput" type="text" autocomplete="one-time-code" placeholder="VD: DHC001-3A9AFE" required>
+        <button type="submit">Kích hoạt</button>
+        <small id="accessKeyMessage" aria-live="polite"></small>
+      </form>
+    </div>
     <div id="assetPreloadOverlay" class="asset-preload-overlay hidden" role="status" aria-live="polite" aria-label="Đang tải tài nguyên">
       <div class="asset-preload-card">
         <div class="asset-preload-spinner" aria-hidden="true"></div>
@@ -176,7 +185,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260709-mobile-v63"></script>
+    <script src="/app.js?v=20260709-mobile-v64"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

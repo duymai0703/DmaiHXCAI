@@ -34,7 +34,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v49">
+    <link rel="stylesheet" href="/portal.css?v=20260709-room-v50">
   </head>
   <body>
     <header class="portal-header">
@@ -77,6 +77,16 @@
         </button>
       </div>
     </header>
+
+    <div id="accessGate" class="access-gate hidden" role="dialog" aria-modal="true" aria-labelledby="accessGateTitle">
+      <form id="accessKeyForm" class="access-gate-card">
+        <strong id="accessGateTitle">Nhập Key kích hoạt</strong>
+        <p>Nhập Key được cấp để sử dụng DmaiHXCAI trên trình duyệt này.</p>
+        <input id="accessKeyInput" type="text" autocomplete="one-time-code" placeholder="VD: DHC001-3A9AFE" required>
+        <button class="primary-button" type="submit">Kích hoạt</button>
+        <small id="accessKeyMessage" aria-live="polite"></small>
+      </form>
+    </div>
 
     <main class="portal-main">
       <section id="authView" class="view auth-view hidden" aria-hidden="true">
@@ -519,7 +529,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v72"></script>
+    <script src="/portal.js?v=20260709-room-v73"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

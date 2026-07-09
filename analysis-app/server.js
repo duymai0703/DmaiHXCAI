@@ -18,6 +18,7 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const DATA_DIR = path.join(__dirname, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
+const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
 const DATABASE_FILE = resolveDatabaseFile();
 const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
 const MONGODB_DB_NAME = String(process.env.MONGODB_DB_NAME || inferMongoDatabaseName(MONGODB_URI) || "dmaihxcai").trim() || "dmaihxcai";
@@ -35,11 +36,13 @@ const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
+const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
+const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADKEY");
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
-const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "1234");
-const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_PASSWORD);
-const ADMIN_DISPLAY_NAME = sanitizeDisplayName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "ad");
+const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCESS_KEY || "ADKEY");
+const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
+const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
 const DEVICE_AVATAR_PATHS = new Set([
   "/assets/device-avatars/goku.png",
@@ -87,6 +90,7 @@ let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.exis
 let buildJob = null;
 let downloadJob = null;
 let users = loadUsers();
+ensureAccessKeyUsers();
 ensureAdminUser();
 let rooms = loadRooms();
 
@@ -530,6 +534,7 @@ function mergeUsers(primaryUsers, fallbackUsers) {
     const email = normalizeEmail(user.email);
     const username = normalizeUsername(user.username);
     if (!email || !username || !user.passwordSalt || !user.passwordHash) return null;
+    const accessKeyHash = String(user.accessKeyHash || "").trim();
     return {
       ...user,
       id: String(user.id || randomId(12)),
@@ -537,9 +542,14 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       username,
       role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
       deviceId: sanitizeDeviceId(user.deviceId || ""),
-      displayName: user.role === "guest"
+      displayName: accessKeyHash
+        ? sanitizeAccountName(user.displayName || "", user.username || "")
+        : user.role === "guest"
         ? sanitizeOptionalDisplayName(user.displayName || "")
         : sanitizeDisplayName(user.displayName || "", user.username || ADMIN_DISPLAY_NAME),
+      accessKeyHash,
+      accessKeySlot: Math.max(0, Number(user.accessKeySlot || 0) || 0),
+      keyActivatedAt: user.keyActivatedAt && !Number.isNaN(Date.parse(user.keyActivatedAt)) ? user.keyActivatedAt : "",
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
       history: normalizeHistoryEntries(user.history),
@@ -585,6 +595,39 @@ function mergeRooms(primaryRooms, fallbackRooms) {
   return [...merged.values()];
 }
 
+function sanitizeAccessKey(value) {
+  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+}
+
+function hashAccessKey(value) {
+  const normalized = sanitizeAccessKey(value);
+  return normalized ? crypto.createHash("sha256").update(`dmaihxcai-access-key:${normalized}`).digest("hex") : "";
+}
+
+function loadAccessKeysConfig() {
+  const fallback = { adminKey: "ADKEY", adminName: "Admin", users: [] };
+  const raw = readJsonFile(ACCESS_KEYS_FILE, fallback);
+  const seen = new Set();
+  const entries = (Array.isArray(raw.users) ? raw.users : [])
+    .map((entry, index) => {
+      const key = sanitizeAccessKey(entry?.key);
+      const slot = Math.max(1, Number(entry?.slot || index + 1) || index + 1);
+      const name = sanitizeAccountName(entry?.name || "", `Tai khoan ${String(slot).padStart(3, "0")}`);
+      return { slot, key, name };
+    })
+    .filter((entry) => {
+      if (!entry.key || seen.has(entry.key)) return false;
+      seen.add(entry.key);
+      return true;
+    })
+    .slice(0, 100);
+  return {
+    adminKey: sanitizeAccessKey(raw.adminKey || fallback.adminKey),
+    adminName: sanitizeAccountName(raw.adminName || fallback.adminName, fallback.adminName),
+    users: entries
+  };
+}
+
 function normalizePersonName(value) {
   return String(value || "")
     .normalize("NFC")
@@ -611,6 +654,23 @@ function sanitizeDisplayName(value, fallback = "") {
 
 function sanitizeOptionalDisplayName(value) {
   return isValidDisplayName(value) ? normalizePersonName(value) : "";
+}
+
+function isValidAccountName(value) {
+  const text = normalizePersonName(value);
+  return Boolean(text) && Array.from(text).length <= 24 && /^(?:[\p{L}\p{N}]+(?: [\p{L}\p{N}]+)*)$/u.test(text);
+}
+
+function sanitizeAccountName(value, fallback = "") {
+  const cleaned = isValidAccountName(value) ? normalizePersonName(value) : "";
+  const fallbackClean = isValidAccountName(fallback) ? normalizePersonName(fallback) : "";
+  return cleaned || fallbackClean || "";
+}
+
+function requireAccountName(value) {
+  const text = normalizePersonName(value);
+  if (!isValidAccountName(text)) throw new Error("INVALID_DISPLAY_NAME");
+  return text;
 }
 
 function sanitizeDeviceId(value) {
@@ -678,6 +738,111 @@ function isAdminRoomKey(value) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
+function accessKeyEntryForHash(hash) {
+  return ACCESS_KEYS_CONFIG.users.find((entry) => hashAccessKey(entry.key) === hash) || null;
+}
+
+function configuredAccessKeyForUser(user) {
+  if (!user?.accessKeyHash) return "";
+  if (user.role === "admin" && user.accessKeyHash === hashAccessKey(ADMIN_ACCESS_KEY)) return ADMIN_ACCESS_KEY;
+  const entry = accessKeyEntryForHash(user.accessKeyHash);
+  return entry?.key || "";
+}
+
+function accessKeyUsername(slot) {
+  return `key${String(Math.max(1, Number(slot) || 1)).padStart(3, "0")}`;
+}
+
+function accessKeyEmail(slot) {
+  return `${accessKeyUsername(slot)}@keys.dmaihxcai.local`;
+}
+
+function createKeyManagedUser(entry) {
+  const slot = Math.max(1, Number(entry.slot) || 1);
+  const username = accessKeyUsername(slot);
+  const passwordInfo = hashPassword(randomId(18));
+  const now = nowIso();
+  return {
+    id: randomId(12),
+    email: accessKeyEmail(slot),
+    username,
+    passwordSalt: passwordInfo.salt,
+    passwordHash: passwordInfo.hash,
+    role: "user",
+    deviceId: "",
+    displayName: sanitizeAccountName(entry.name, `Tai khoan ${String(slot).padStart(3, "0")}`),
+    accessKeyHash: hashAccessKey(entry.key),
+    accessKeySlot: slot,
+    keyActivatedAt: "",
+    avatarSeed: randomBase36(4),
+    avatarUrl: "",
+    history: [],
+    createdAt: now,
+    lastSeenAt: "",
+    currentActivity: { route: "", roomKey: "", action: "Chua kich hoat", updatedAt: "" }
+  };
+}
+
+function ensureAccessKeyUsers() {
+  let changed = false;
+  ACCESS_KEYS_CONFIG.users.forEach((entry) => {
+    const keyHash = hashAccessKey(entry.key);
+    const slot = Math.max(1, Number(entry.slot) || 1);
+    const username = accessKeyUsername(slot);
+    const email = accessKeyEmail(slot);
+    let user = users.find((item) => item.accessKeyHash === keyHash)
+      || users.find((item) => item.username === username || item.email === email);
+    if (!user) {
+      users.push(createKeyManagedUser(entry));
+      changed = true;
+      return;
+    }
+    if (user.role !== "user") {
+      user.role = "user";
+      changed = true;
+    }
+    if (user.username !== username) {
+      user.username = username;
+      changed = true;
+    }
+    if (user.email !== email) {
+      user.email = email;
+      changed = true;
+    }
+    if (user.accessKeyHash !== keyHash) {
+      user.accessKeyHash = keyHash;
+      changed = true;
+    }
+    if (user.accessKeySlot !== slot) {
+      user.accessKeySlot = slot;
+      changed = true;
+    }
+    if (!user.displayName) {
+      user.displayName = sanitizeAccountName(entry.name, `Tai khoan ${String(slot).padStart(3, "0")}`);
+      changed = true;
+    } else {
+      const safeName = sanitizeAccountName(user.displayName, entry.name);
+      if (safeName !== user.displayName) {
+        user.displayName = safeName;
+        changed = true;
+      }
+    }
+    if (!("keyActivatedAt" in user)) {
+      user.keyActivatedAt = "";
+      changed = true;
+    }
+    if (!user.avatarSeed) {
+      user.avatarSeed = randomBase36(4);
+      changed = true;
+    }
+    if (!user.currentActivity) {
+      user.currentActivity = { route: "", roomKey: "", action: "Chua kich hoat", updatedAt: "" };
+      changed = true;
+    }
+  });
+  if (changed) saveUsers();
+}
+
 function ensureAdminUser() {
   const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.username === ADMIN_USERNAME);
   if (existing) {
@@ -692,6 +857,19 @@ function ensureAdminUser() {
     }
     if (existing.displayName !== ADMIN_DISPLAY_NAME) {
       existing.displayName = ADMIN_DISPLAY_NAME;
+      changed = true;
+    }
+    const adminKeyHash = hashAccessKey(ADMIN_ACCESS_KEY);
+    if (existing.accessKeyHash !== adminKeyHash) {
+      existing.accessKeyHash = adminKeyHash;
+      changed = true;
+    }
+    if (existing.accessKeySlot !== 0) {
+      existing.accessKeySlot = 0;
+      changed = true;
+    }
+    if (!("keyActivatedAt" in existing)) {
+      existing.keyActivatedAt = "";
       changed = true;
     }
     if (!verifyPassword(ADMIN_PASSWORD, existing)) {
@@ -726,6 +904,9 @@ function ensureAdminUser() {
     passwordHash: passwordInfo.hash,
     role: "admin",
     displayName: ADMIN_DISPLAY_NAME,
+    accessKeyHash: hashAccessKey(ADMIN_ACCESS_KEY),
+    accessKeySlot: 0,
+    keyActivatedAt: "",
     avatarSeed: randomBase36(4),
     avatarUrl: "",
     history: [],
@@ -736,6 +917,44 @@ function ensureAdminUser() {
   users.push(adminUser);
   saveUsers();
   return adminUser;
+}
+
+function authenticateAccessKey(value) {
+  const key = sanitizeAccessKey(value);
+  if (!key) return null;
+  const keyHash = hashAccessKey(key);
+  const now = nowIso();
+
+  if (keyHash && keyHash === hashAccessKey(ADMIN_ACCESS_KEY)) {
+    const admin = ensureAdminUser();
+    if (!admin.keyActivatedAt) admin.keyActivatedAt = now;
+    touchUserActivity(admin, { route: "admin", roomKey: "", action: "Dang nhap quan tri bang key" });
+    saveUsers();
+    return admin;
+  }
+
+  const configuredEntry = ACCESS_KEYS_CONFIG.users.find((entry) => hashAccessKey(entry.key) === keyHash);
+  if (!configuredEntry) return null;
+  ensureAccessKeyUsers();
+  const user = users.find((item) => item.accessKeyHash === keyHash);
+  if (!user) return null;
+  if (!user.keyActivatedAt) user.keyActivatedAt = now;
+  touchUserActivity(user, {
+    route: "home",
+    roomKey: "",
+    action: "Da kich hoat key"
+  });
+  saveUsers();
+  return user;
+}
+
+function adminRenameUser(userId, displayName) {
+  const user = users.find((item) => item.id === String(userId || ""));
+  if (!user) return null;
+  const nextName = requireAccountName(displayName);
+  user.displayName = nextName;
+  saveUsers();
+  return user;
 }
 
 function createAuthToken(userId) {
@@ -772,7 +991,8 @@ function getAuthToken(req) {
 function getAuthenticatedUser(req) {
   const userId = verifyAuthToken(getAuthToken(req));
   if (!userId) return null;
-  return users.find((item) => item.id === userId) || null;
+  const user = users.find((item) => item.id === userId) || null;
+  return user && user.accessKeyHash ? user : null;
 }
 
 function requireUser(req) {
@@ -803,6 +1023,8 @@ function publicUser(user) {
     username: user.username,
     role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
     displayName: user.displayName,
+    accessKeySlot: Number(user.accessKeySlot || 0),
+    keyActivatedAt: user.keyActivatedAt || "",
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
@@ -825,6 +1047,10 @@ function adminUserSummary(user) {
     username: user.username,
     role: user.role === "admin" ? "admin" : user.role === "guest" ? "guest" : "user",
     displayName: user.displayName,
+    accessKeySlot: Number(user.accessKeySlot || 0),
+    accessKey: configuredAccessKeyForUser(user),
+    keyActivatedAt: user.keyActivatedAt || "",
+    activated: Boolean(user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     createdAt: user.createdAt || nowIso(),
@@ -943,6 +1169,7 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
 }
 
 function updateUserDisplayName(user, displayName) {
+  if (user?.accessKeyHash) return false;
   const nextName = sanitizeOptionalDisplayName(displayName);
   if (!user || !nextName || user.displayName === nextName) return false;
   user.displayName = nextName;
@@ -2359,6 +2586,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/cloud") {
+      requireUser(req);
       const board = url.searchParams.get("board") || "";
       if (!/^[1-9kabnrcpKABNRCP/]+ [wb]$/.test(board)) {
         json(res, 400, { ok: false, error: "Invalid cloud FEN" });
@@ -2379,6 +2607,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/analyze" && req.method === "POST") {
+      requireUser(req);
       syncEngineInstance();
       const body = await readBody(req);
       const result = await engine.analyze(body);
@@ -2386,6 +2615,22 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/auth/key" && req.method === "POST") {
+      const body = await readBody(req);
+      const user = authenticateAccessKey(body.key || "");
+      if (!user) {
+        json(res, 401, { ok: false, error: "Key khong dung hoac chua duoc cap quyen." });
+        return;
+      }
+      await flushUserPersistence();
+      json(res, 200, { ok: true, token: createAuthToken(user.id), user: publicUser(user) });
+      return;
+    }
+
+    if (["/api/admin/quick-login", "/api/auth/guest", "/api/auth/register", "/api/auth/login"].includes(url.pathname)) {
+      json(res, 410, { ok: false, error: "Hay nhap Key kich hoat de su dung web." });
+      return;
+    }
     if (url.pathname === "/api/admin/quick-login" && req.method === "POST") {
       const body = await readBody(req);
       const displayName = requireDisplayName(body.displayName || "");
@@ -2514,7 +2759,9 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
       const fallbackDisplayName = sanitizeDisplayName(user.displayName || "", ADMIN_DISPLAY_NAME);
-      user.displayName = user.role === "guest"
+      user.displayName = user.accessKeyHash
+        ? sanitizeAccountName(user.displayName || "", user.username || ADMIN_DISPLAY_NAME)
+        : user.role === "guest"
         ? requestedDisplayName || sanitizeOptionalDisplayName(user.displayName || "")
         : sanitizeDisplayName(requestedDisplayName || "", fallbackDisplayName);
       user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
@@ -2531,6 +2778,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/admin/users") {
       requireAdmin(req);
+      ensureAccessKeyUsers();
       const list = users
         .map((user) => adminUserSummary(user))
         .sort((left, right) => {
@@ -2539,6 +2787,19 @@ const server = http.createServer(async (req, res) => {
           return (Date.parse(right.createdAt || 0) || 0) - (Date.parse(left.createdAt || 0) || 0);
         });
       json(res, 200, { ok: true, users: list });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/users/rename" && req.method === "POST") {
+      requireAdmin(req);
+      const body = await readBody(req);
+      const target = adminRenameUser(body.userId, body.displayName);
+      if (!target) {
+        json(res, 404, { ok: false, error: "Khong tim thay tai khoan." });
+        return;
+      }
+      await flushUserPersistence();
+      json(res, 200, { ok: true, user: adminUserSummary(target) });
       return;
     }
 
@@ -2588,11 +2849,6 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/create" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
-      if (requestedDisplayName) {
-        updateUserDisplayName(user, requestedDisplayName);
-        await flushUserPersistence();
-      }
       const yourMinutes = clampRoomMinutes(body.yourMinutes, 10);
       const opponentMinutes = clampRoomMinutes(body.opponentMinutes, 10);
       const side = body.side === "b" ? "b" : "w";
@@ -2611,11 +2867,6 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/create-bot" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
-      if (requestedDisplayName) {
-        updateUserDisplayName(user, requestedDisplayName);
-        await flushUserPersistence();
-      }
       const minutes = clampRoomMinutes(body.minutes, 10);
       const side = body.side === "b" ? "b" : "w";
       const incrementSeconds = clampIncrementSeconds(body.incrementSeconds, 0);
@@ -2634,11 +2885,6 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/rooms/join" && req.method === "POST") {
       const user = requireUser(req);
       const body = await readBody(req);
-      const requestedDisplayName = body.displayName ? requireDisplayName(body.displayName) : "";
-      if (requestedDisplayName) {
-        updateUserDisplayName(user, requestedDisplayName);
-        await flushUserPersistence();
-      }
       const key = String(body.key || "").trim().toUpperCase();
       if (!key) {
         json(res, 400, { ok: false, error: "Cần nhập mã phòng." });

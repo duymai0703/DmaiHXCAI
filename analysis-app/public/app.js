@@ -39,8 +39,9 @@ const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
+const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v57";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260709-v58";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -181,9 +182,14 @@ const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")];
 const boardSkinMenuEl = document.getElementById("boardSkinMenu");
 const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-choice]")];
+const accessGateEl = document.getElementById("accessGate");
+const accessKeyFormEl = document.getElementById("accessKeyForm");
+const accessKeyInputEl = document.getElementById("accessKeyInput");
+const accessKeyMessageEl = document.getElementById("accessKeyMessage");
 
 setupThemeControls();
 setupBoardSkinControls();
+if (accessKeyFormEl) accessKeyFormEl.addEventListener("submit", onAnalysisAccessKeySubmit);
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
 document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
@@ -566,8 +572,71 @@ async function init() {
   wakeBackend();
   void assetWarmupPromise.catch(() => {});
   draw();
+  const allowed = await ensureAnalysisAccess();
+  if (!allowed) return;
+  startAnalysisAfterAccess();
+}
+function startAnalysisAfterAccess() {
+  hideAccessGate();
+  reportAnalysisActivity("Đang dùng phần mềm phân tích");
   refreshCloudBook();
   void refreshStatus().catch(() => {});
+}
+
+async function ensureAnalysisAccess() {
+  const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
+  if (!token) {
+    showAccessGate();
+    return false;
+  }
+  try {
+    const payload = await api("/api/auth/me");
+    if (payload.token) writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token);
+    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    hideAccessGate();
+    return true;
+  } catch (error) {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    showAccessGate("Phiên Key đã hết hạn. Hãy nhập lại Key.");
+    return false;
+  }
+}
+
+function showAccessGate(message = "") {
+  if (!accessGateEl) return;
+  accessGateEl.classList.remove("hidden");
+  document.body.classList.add("access-locked");
+  if (accessKeyMessageEl) accessKeyMessageEl.textContent = message;
+  window.setTimeout(() => accessKeyInputEl?.focus({ preventScroll: true }), 60);
+}
+
+function hideAccessGate() {
+  accessGateEl?.classList.add("hidden");
+  document.body.classList.remove("access-locked");
+  if (accessKeyMessageEl) accessKeyMessageEl.textContent = "";
+}
+
+async function onAnalysisAccessKeySubmit(event) {
+  event.preventDefault();
+  const key = String(accessKeyInputEl?.value || "").trim();
+  if (!key) {
+    showAccessGate("Hãy nhập Key kích hoạt.");
+    return;
+  }
+  if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kiểm tra Key...";
+  try {
+    const payload = await api("/api/auth/key", { key });
+    writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
+    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    if (accessKeyInputEl) accessKeyInputEl.value = "";
+    startAnalysisAfterAccess();
+    showToast("Đã kích hoạt tài khoản.");
+  } catch (error) {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    showAccessGate(error.message || "Key không đúng.");
+  }
 }
 
 function onViewportResize() {
@@ -2986,9 +3055,13 @@ async function api(url, body) {
 
   for (let attempt = 0; attempt < 6; attempt++) {
     try {
+      const headers = {};
+      const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (body) headers["Content-Type"] = "application/json";
       const response = await fetch(target, {
         method: body ? "POST" : "GET",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
+        headers,
         body: body ? JSON.stringify(body) : undefined
       });
       const raw = await response.text();
@@ -3009,7 +3082,7 @@ async function api(url, body) {
           await wait(1200 + attempt * 900);
           continue;
         }
-        throw new Error(message);
+        throw Object.assign(new Error(response.status === 401 ? "UNAUTHORIZED" : message), { status: response.status });
       }
 
       return data;
