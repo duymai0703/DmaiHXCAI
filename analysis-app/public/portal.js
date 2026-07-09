@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v76";
+  const ASSET_WARMUP_VERSION = "20260709-v77";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -818,6 +818,10 @@
 
   function openParticipantsPanel() {
     state.roomMobileMenuOpen = false;
+    if (isCompactMobile() && state.roomMobilePanel === "viewers") {
+      setRoomMobilePanel("");
+      return;
+    }
     setRoomMobilePanel("viewers");
   }
 
