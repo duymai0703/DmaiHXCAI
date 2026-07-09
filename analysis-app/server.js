@@ -37,10 +37,10 @@ const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
-const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADKEY");
+const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADTAYDOC0703DUY");
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
-const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCESS_KEY || "ADKEY");
+const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCESS_KEY || "ADTAYDOC0703DUY");
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
 const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
@@ -605,7 +605,7 @@ function hashAccessKey(value) {
 }
 
 function loadAccessKeysConfig() {
-  const fallback = { adminKey: "ADKEY", adminName: "Admin", users: [] };
+  const fallback = { adminKey: "ADTAYDOC0703DUY", adminName: "Admin", users: [] };
   const raw = readJsonFile(ACCESS_KEYS_FILE, fallback);
   const seen = new Set();
   const entries = (Array.isArray(raw.users) ? raw.users : [])
