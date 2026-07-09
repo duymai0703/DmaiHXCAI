@@ -32,6 +32,7 @@ const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
 const ROOM_START_DELAY_MS = 2000;
 const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
+const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "1234");
@@ -377,6 +378,7 @@ function loadRooms() {
     room.boardFen = room.boardFen || XiangqiCore.START_FEN;
     room.sideToMove = room.sideToMove === "b" ? "b" : "w";
     room.status = room.status || "waiting";
+    room.turnStartedAt = Number(room.turnStartedAt || (room.status === "active" ? room.lastTickAt || room.updatedAt || now : 0));
     map.set(room.key, room);
   });
   const mergedRooms = [...map.values()];
@@ -1167,6 +1169,7 @@ function materializeRoomClock(room) {
       room.activeSide = "w";
       room.sideToMove = "w";
       room.lastTickAt = now;
+      room.turnStartedAt = now;
       room.countdownEndsAt = 0;
       room.updatedAt = now;
       saveRooms();
@@ -1176,10 +1179,11 @@ function materializeRoomClock(room) {
   if (room.status !== "active" || !room.activeSide || room.result) return;
   const now = Date.now();
   const elapsed = Math.max(0, now - Number(room.lastTickAt || now));
+  const turnElapsed = Math.max(0, now - Number(room.turnStartedAt || room.lastTickAt || now));
   if (!elapsed) return;
   room.clocks[room.activeSide] = Math.max(0, Number(room.clocks[room.activeSide] || 0) - elapsed);
   room.lastTickAt = now;
-  if (room.clocks[room.activeSide] <= 0) {
+  if (room.clocks[room.activeSide] <= 0 || turnElapsed >= ROOM_TURN_LIMIT_MS) {
     finishRoom(room, { winnerSide: oppositeSide(room.activeSide), loserSide: room.activeSide, reason: "timeout" });
   }
 }
@@ -1192,6 +1196,7 @@ function resetRoomForGame(room) {
   room.sideToMove = "w";
   room.activeSide = null;
   room.lastTickAt = null;
+  room.turnStartedAt = 0;
   room.status = "starting";
   room.moves = [];
   room.clocks = {
@@ -1242,6 +1247,7 @@ function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw"
   room.status = "finished";
   room.activeSide = null;
   room.lastTickAt = Date.now();
+  room.turnStartedAt = 0;
   room.pendingRequest = null;
   room.result = {
     winnerSide,
@@ -1378,6 +1384,8 @@ function roomStateForUser(room, user) {
     },
     hiddenClockBonusMs: hiddenClockBonusMs(room),
     incrementSeconds: clampIncrementSeconds(room.incrementSeconds, 0),
+    turnLimitMs: ROOM_TURN_LIMIT_MS,
+    turnStartedAt: Number(room.turnStartedAt || 0),
     boardFen: room.boardFen,
     sideToMove: room.sideToMove,
     role: access.role,
@@ -1463,6 +1471,7 @@ function applyMoveInRoom(room, side, move) {
   room.sideToMove = oppositeSide(side);
   room.activeSide = room.sideToMove;
   room.lastTickAt = Date.now();
+  room.turnStartedAt = room.lastTickAt;
   room.pendingRequest = null;
   room.rematchReady = { w: false, b: false };
   const gameState = XiangqiCore.determineGameState(parsed.board, room.sideToMove);
@@ -1595,6 +1604,7 @@ function answerRoomRequest(room, side, accept) {
     room.activeSide = room.sideToMove;
     room.clocks = lastMove.beforeClocks;
     room.lastTickAt = Date.now();
+    room.turnStartedAt = room.lastTickAt;
     room.updatedAt = Date.now();
     saveRooms();
     return;

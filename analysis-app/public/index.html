@@ -12,7 +12,10 @@
     <script>
       try {
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
+        const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
+        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" ? savedBoardSkin : "ice";
         document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.boardSkin = boardSkin;
         document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#eaf6ff" : "#050914");
       } catch {}
     </script>
@@ -31,7 +34,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v42">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v43">
   </head>
   <body>
     <header class="portal-header">
@@ -496,7 +499,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v64"></script>
+    <script src="/portal.js?v=20260708-room-v65"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

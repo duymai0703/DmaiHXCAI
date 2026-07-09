@@ -259,9 +259,36 @@ a {
 }
 
 .badge-avatar {
+  position: relative;
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
+  overflow: visible;
+  --turn-spent: 0turn;
+}
+
+.badge-avatar.turn-progress::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    var(--turn-spent-color, #070707) 0turn var(--turn-spent),
+    #53ff95 var(--turn-spent) 1turn
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  filter: drop-shadow(0 0 8px rgba(83, 255, 149, 0.34));
+}
+
+:root[data-theme="dark"] .badge-avatar.turn-progress::after {
+  --turn-spent-color: #f5fbff;
+}
+
+:root[data-theme="light"] .badge-avatar.turn-progress::after {
+  --turn-spent-color: #05070a;
 }
 
 .portal-main {

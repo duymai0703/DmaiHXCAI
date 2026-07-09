@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v71";
+  const ASSET_WARMUP_VERSION = "20260709-v72";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -66,8 +66,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260709-mobile-v50",
-    "/app.js?v=20260709-mobile-v59",
+    "/styles.css?v=20260709-mobile-v51",
+    "/app.js?v=20260709-mobile-v60",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -2040,11 +2040,16 @@
       state.roomAnimationTimer = 0;
     }
     state.roomAnimationRunning = false;
-    hideRoomMoveAnimationElements();
+    const movedSlotEl = state.activeRoomMoveSlotEl;
     state.roomAnimation = null;
     state.activeRoomMoveSlotEl = null;
     state.lastPieceFrame = "";
     drawRoomPieces(true);
+    if (movedSlotEl) {
+      movedSlotEl.style.transition = "none";
+      movedSlotEl.style.transform = "translate(-50%, -50%)";
+    }
+    hideRoomMoveAnimationElements();
   }
 
   function settleRoomAnimationNow() {
@@ -2182,6 +2187,7 @@
       room.status = "active";
       room.sideToMove = "w";
       room.countdownEndsAt = 0;
+      room.turnStartedAt = countdownEndsAt;
       room.yourTurn = room.role === "player" && room.yourSide === "w";
       state.roomSyncedAt = countdownEndsAt;
     }
@@ -2947,7 +2953,7 @@
     clearTurnFlash();
     settleRoomAnimationNow();
     const side = state.room.yourSide;
-    if (visibleClockFor(side) <= 0) {
+    if (visibleClockFor(side) <= 0 || turnRemainingFor(side) <= 0) {
       requestRoomTimeoutSync();
       return;
     }
@@ -2968,8 +2974,10 @@
     state.hints = [];
     state.roomBoard = localBoard;
     state.room.boardFen = XiangqiCore.boardToFen(localBoard, oppositeSide(side));
+    const nextTurnStartedAt = Date.now();
     state.room.sideToMove = oppositeSide(side);
     state.room.yourTurn = false;
+    state.room.turnStartedAt = nextTurnStartedAt;
     state.room.pendingRequest = null;
     state.room.rematchReady = { you: false, opponent: false };
     state.room.clocks = {
@@ -2989,7 +2997,7 @@
       state.room.status = "active";
       state.room.result = null;
     }
-    state.roomSyncedAt = Date.now();
+    state.roomSyncedAt = nextTurnStartedAt;
     state.roomActionBusy = true;
     if (localAnimation) primeRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();
@@ -3267,17 +3275,23 @@
       dom.bottomClock.dataset.clockLow = "0";
       dom.topClock.classList.remove("active", "low");
       dom.bottomClock.classList.remove("active", "low");
+      paintTurnProgress(dom.topPlayerAvatar, false);
+      paintTurnProgress(dom.bottomPlayerAvatar, false);
       return;
     }
     const bottomSide = room.role === "player" ? room.yourSide : "w";
     const topSide = oppositeSide(bottomSide);
     const topVisible = visibleClockFor(topSide);
     const bottomVisible = visibleClockFor(bottomSide);
-    paintClock(dom.topClock, topVisible, room.status === "active" && room.sideToMove === topSide);
-    paintClock(dom.bottomClock, bottomVisible, room.status === "active" && room.sideToMove === bottomSide);
+    const topActive = room.status === "active" && room.sideToMove === topSide && !room.result;
+    const bottomActive = room.status === "active" && room.sideToMove === bottomSide && !room.result;
+    paintClock(dom.topClock, topVisible, topActive);
+    paintClock(dom.bottomClock, bottomVisible, bottomActive);
+    paintTurnProgress(dom.topPlayerAvatar, topActive, room);
+    paintTurnProgress(dom.bottomPlayerAvatar, bottomActive, room);
     if (room.status === "active" && !room.result) {
       const activeVisible = room.sideToMove === topSide ? topVisible : bottomVisible;
-      if (activeVisible <= 0) requestRoomTimeoutSync();
+      if (activeVisible <= 0 || turnRemainingFor(room.sideToMove) <= 0) requestRoomTimeoutSync();
     }
   }
 
@@ -3300,6 +3314,20 @@
     }
   }
 
+  function paintTurnProgress(element, active, room = state.room) {
+    if (!element) return;
+    if (!active || !room || room.result || room.status !== "active") {
+      element.classList.remove("turn-progress");
+      element.style.removeProperty("--turn-spent");
+      return;
+    }
+    const limit = Math.max(1, Number(room.turnLimitMs || 120000));
+    const startedAt = Number(room.turnStartedAt || state.roomSyncedAt || Date.now());
+    const spent = Math.max(0, Math.min(limit, Date.now() - startedAt));
+    element.style.setProperty("--turn-spent", `${spent / limit}turn`);
+    element.classList.add("turn-progress");
+  }
+
   function liveClockFor(side) {
     if (!state.room) return 0;
     let value = Number(state.room.clocks?.[side] || 0);
@@ -3319,6 +3347,14 @@
       return Math.max(0, live * (visibleSetup / actualSetup));
     }
     return Math.max(0, live);
+  }
+
+  function turnRemainingFor(side) {
+    const room = state.room;
+    if (!room || room.status !== "active" || room.sideToMove !== side || room.result) return Infinity;
+    const limit = Math.max(1, Number(room.turnLimitMs || 120000));
+    const startedAt = Number(room.turnStartedAt || state.roomSyncedAt || Date.now());
+    return Math.max(0, limit - (Date.now() - startedAt));
   }
 
   function requestRoomTimeoutSync() {

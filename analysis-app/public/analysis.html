@@ -27,7 +27,7 @@
     <link rel="preload" href="/assets/board/board-skin-mobile.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-gold.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-stone.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260709-mobile-v50">
+    <link rel="stylesheet" href="/styles.css?v=20260709-mobile-v51">
   </head>
   <body>
     <header class="app-header">
@@ -40,6 +40,10 @@
         </div>
       </div>
       <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
+        <button class="desktop-board-skin-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ">
+          <img src="/assets/icons/cole-dark.png" alt="" draggable="false">
+          Bàn cờ
+        </button>
         <button type="button" data-theme-choice="light" aria-pressed="false">Ánh sáng</button>
         <button type="button" data-theme-choice="dark" aria-pressed="false">Bóng đêm</button>
       </div>
@@ -136,7 +140,7 @@
 
           <div class="panel-side-col">
             <div class="group cloud-group" data-mobile-panel="cloud">
-              <h2><span>Nước cờ</span><span>Điểm</span><span class="cloud-extra-heading">%Thắng</span><span class="cloud-extra-heading">Ghi chú</span></h2>
+              <h2><span class="cloud-title-main">Databook</span><span class="cloud-extra-heading">%Thắng</span><span class="cloud-extra-heading">Ghi chú</span></h2>
               <div id="cloudBook" class="cloud-book">Đang tải dữ liệu...</div>
             </div>
 
@@ -172,7 +176,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260709-mobile-v59"></script>
+    <script src="/app.js?v=20260709-mobile-v60"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
