@@ -13,7 +13,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260628-v2";
-  const ASSET_WARMUP_VERSION = "20260709-v69";
+  const ASSET_WARMUP_VERSION = "20260709-v70";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -248,6 +248,7 @@
     copyRoomKeyBtn: byId("copyRoomKeyBtn"),
     roomStatusBadge: byId("roomStatusBadge"),
     roomPeopleBadge: byId("roomPeopleBadge"),
+    roomMobileBackBtn: byId("roomMobileBackBtn"),
     roomSummary: byId("roomSummary"),
     topPlayerAvatar: byId("topPlayerAvatar"),
     topPlayerName: byId("topPlayerName"),
@@ -416,6 +417,7 @@
     window.addEventListener("resize", scheduleResizeRender, { passive: true });
     window.addEventListener("hashchange", () => syncRoute(false));
     dom.globalBackBtn.addEventListener("click", handleBack);
+    if (dom.roomMobileBackBtn) dom.roomMobileBackBtn.addEventListener("click", handleBack);
     dom.openMatchHub.addEventListener("click", () => goRoute("match"));
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
@@ -721,7 +723,8 @@
   function setupRoomMobileDock() {
     roomMobilePanelButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        setRoomMobilePanel(button.dataset.roomMobileMode || "control");
+        const mode = button.dataset.roomMobileMode || "control";
+        setRoomMobilePanel(isCompactMobile() && state.roomMobilePanel === mode ? "" : mode);
       });
     });
     roomMobileActionButtons.forEach((button) => {
@@ -754,7 +757,7 @@
   }
 
   function setRoomMobilePanel(panel) {
-    state.roomMobilePanel = panel || "control";
+    state.roomMobilePanel = ["control", "viewers", "chat", "moves"].includes(panel) ? panel : "";
     renderRoomMobilePanels();
     if (state.roomMobilePanel === "chat" && isCompactMobile()) {
       window.setTimeout(() => dom.chatInput?.focus({ preventScroll: true }), 80);
@@ -767,7 +770,7 @@
     document.body.dataset.route = state.route || "home";
     roomMobilePanels.forEach((panel) => {
       const mode = panel.dataset.roomMobilePanel || "control";
-      panel.classList.toggle("is-mobile-active", !compact || mode === state.roomMobilePanel);
+      panel.classList.toggle("is-mobile-active", !compact || (!!state.roomMobilePanel && mode === state.roomMobilePanel));
     });
     roomMobilePanelButtons.forEach((button) => {
       button.classList.toggle("active", compact && button.dataset.roomMobileMode === state.roomMobilePanel);

@@ -718,6 +718,10 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+.room-mobile-back {
+  display: none;
+}
+
 .board-stage {
   position: relative;
   width: min(100%, 820px);
@@ -1901,8 +1905,12 @@ a {
     overflow: hidden;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-header {
+    display: none !important;
+  }
+
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-main {
-    height: calc(var(--app-vh, 1vh) * 100 - 52px - env(safe-area-inset-top, 0px));
+    height: calc(var(--app-vh, 1vh) * 100);
     padding: 0;
     overflow: hidden;
   }
@@ -1928,13 +1936,13 @@ a {
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .board-stage {
     width: 100%;
     height: 100%;
-    padding: 76px 8px 100px;
+    padding: calc(58px + env(safe-area-inset-top, 0px)) 8px calc(94px + env(safe-area-inset-bottom, 0px));
     display: grid;
     place-items: center;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board {
-    width: min(calc(100vw - 16px), calc((var(--app-vh, 1vh) * 100 - 210px) * 0.9), 580px);
+    width: min(calc(100vw - 16px), calc((var(--app-vh, 1vh) * 100 - 160px) * 0.9), 620px);
     max-width: 100%;
     border-width: 3px;
     box-shadow:
@@ -1976,7 +1984,7 @@ a {
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-side-topbar {
     position: absolute;
-    top: 8px;
+    top: max(8px, env(safe-area-inset-top, 0px));
     left: 8px;
     right: 8px;
     display: flex;
@@ -2024,6 +2032,27 @@ a {
     background: var(--panel-strong);
     border-color: var(--line);
     color: var(--ink);
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-mobile-back {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    padding: 0;
+    border-radius: 14px;
+    font-size: 34px;
+    line-height: 1;
+    font-weight: 900;
+    color: var(--ink);
+    background: var(--panel-strong);
+    border: 1px solid var(--line);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 10px 22px rgba(0, 0, 0, 0.24);
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-panel {

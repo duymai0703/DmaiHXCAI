@@ -31,7 +31,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260708-room-v40">
+    <link rel="stylesheet" href="/portal.css?v=20260708-room-v41">
   </head>
   <body>
     <header class="portal-header">
@@ -314,6 +314,7 @@
                 <span aria-hidden="true">👥</span>
                 <strong>0</strong>
               </div>
+              <button id="roomMobileBackBtn" class="room-mobile-back" type="button" aria-label="Quay lại">‹</button>
             </div>
 
             <section class="panel-card room-panel" data-room-mobile-panel="control">
@@ -494,7 +495,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260708-room-v62"></script>
+    <script src="/portal.js?v=20260708-room-v63"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
