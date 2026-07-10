@@ -150,6 +150,7 @@
     reviewSlotLayoutKey: "",
     adminUsers: [],
     adminLicenses: [],
+    adminRawKeyAvailable: false,
     adminLicenseFilter: "",
     adminSelectedUserId: "",
     adminLoading: false,
@@ -337,6 +338,8 @@
     libraryHistoryList: byId("libraryHistoryList"),
     adminLicenseFilter: byId("adminLicenseFilter"),
     adminRefreshBtn: byId("adminRefreshBtn"),
+    adminImportKeysBtn: byId("adminImportKeysBtn"),
+    adminImportKeysInput: byId("adminImportKeysInput"),
     adminExportBtn: byId("adminExportBtn"),
     adminUsersMeta: byId("adminUsersMeta"),
     adminUsersList: byId("adminUsersList"),
@@ -541,6 +544,10 @@
       state.adminLicenseFilter = String(dom.adminLicenseFilter.value || "");
       void loadAdminUsers(true);
     });
+    dom.adminImportKeysBtn?.addEventListener("click", () => {
+      dom.adminImportKeysInput?.click();
+    });
+    dom.adminImportKeysInput?.addEventListener("change", importAdminLicenseKeys);
     dom.adminExportBtn?.addEventListener("click", exportAdminLicenseKeys);
     dom.copyRoomKeyBtn.addEventListener("click", () => copyText(state.room?.key || ""));
     dom.undoRequestBtn.addEventListener("click", () => requestRoomAction("undo"));
@@ -806,6 +813,7 @@
   function showAccessGate(message = "") {
     dom.accessGate?.classList.remove("hidden");
     document.body.classList.add("access-locked");
+    updateAccessGateMode(Boolean(state.pendingAccessKey));
     if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = message;
     window.setTimeout(() => (state.pendingAccessKey ? dom.accessNameInput : dom.accessKeyInput)?.focus({ preventScroll: true }), 60);
   }
@@ -815,8 +823,15 @@
     document.body.classList.remove("access-locked");
     if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "";
     state.pendingAccessKey = "";
-    dom.accessNameInput?.classList.add("hidden");
-    if (dom.accessKeyInput) dom.accessKeyInput.disabled = false;
+    updateAccessGateMode(false);
+  }
+
+  function updateAccessGateMode(hasPendingKey) {
+    dom.accessNameInput?.classList.toggle("hidden", !hasPendingKey);
+    if (dom.accessNameInput) dom.accessNameInput.required = Boolean(hasPendingKey);
+    if (dom.accessKeyInput) dom.accessKeyInput.readOnly = Boolean(hasPendingKey);
+    const submitButton = dom.accessKeyForm?.querySelector("button[type='submit']");
+    if (submitButton) submitButton.textContent = hasPendingKey ? "Xác nhận tên" : "Kích hoạt";
   }
 
   async function onAccessKeySubmit(event) {
@@ -847,13 +862,13 @@
           return;
         }
         state.pendingAccessKey = key;
-        if (dom.accessKeyInput) dom.accessKeyInput.disabled = true;
-        dom.accessNameInput?.classList.remove("hidden");
+        updateAccessGateMode(true);
         if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Key hợp lệ. Hãy nhập tên khách hàng.";
         window.setTimeout(() => dom.accessNameInput?.focus({ preventScroll: true }), 40);
         return;
       } catch (error) {
         state.pendingAccessKey = "";
+        updateAccessGateMode(false);
         localStorage.removeItem(STORAGE_TOKEN);
         localStorage.removeItem(LEGACY_STORAGE_TOKEN);
         localStorage.removeItem(STORAGE_USER);
@@ -893,6 +908,7 @@
     } catch (error) {
       state.token = "";
       state.pendingAccessKey = "";
+      updateAccessGateMode(false);
       localStorage.removeItem(STORAGE_TOKEN);
       localStorage.removeItem(LEGACY_STORAGE_TOKEN);
       localStorage.removeItem(STORAGE_USER);
@@ -1246,6 +1262,7 @@
     state.reviewSlotLayoutKey = "";
     state.adminUsers = [];
     state.adminLicenses = [];
+    state.adminRawKeyAvailable = false;
     state.adminLicenseFilter = "";
     state.adminSelectedUserId = "";
     state.adminLoading = false;
@@ -1365,6 +1382,26 @@
     }
   }
 
+  async function importAdminLicenseKeys(event) {
+    if (!isAdmin()) return;
+    const input = event?.target;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const rawText = await file.text();
+      const payload = await api("/api/admin/licenses/import", {
+        method: "POST",
+        body: { rawText }
+      });
+      showToast(`Đã nhập ${payload.count || 0} key gốc lên server.`);
+      await loadAdminUsers(true);
+    } catch (error) {
+      showToast(error.message || "Không thể nhập file key gốc.");
+    } finally {
+      if (input) input.value = "";
+    }
+  }
+
   function renderProfile() {
     if (!state.user) {
       const deviceAvatar = {
@@ -1481,6 +1518,7 @@
         currentRoomRole: user.currentRoomRole || ""
       })) : [];
       state.adminLicenses = Array.isArray(licensePayload.licenses) ? licensePayload.licenses : [];
+      state.adminRawKeyAvailable = Boolean(licensePayload.rawKeyAvailable);
       if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
         state.adminSelectedUserId = state.adminUsers[0]?.id || "";
       }
@@ -1523,11 +1561,12 @@
       dom.adminLicenseFilter.value = state.adminLicenseFilter;
     }
     dom.adminRefreshBtn.textContent = state.adminLoading ? "Đang tải..." : "Làm mới";
+    const rawKeyNote = state.adminRawKeyAvailable ? "Đang hiển thị key gốc." : "Chưa nhập file key gốc, key đang được che bớt.";
     dom.adminUsersMeta.textContent = state.adminUsers.length
-      ? `${state.adminUsers.length} tài khoản đã đăng ký.`
+      ? `${state.adminUsers.length} tài khoản đã đăng ký. ${rawKeyNote}`
       : state.adminLoading
         ? "Đang tải danh sách tài khoản đã đăng ký."
-        : "Chưa có tài khoản nào.";
+        : `Chưa có tài khoản nào. ${rawKeyNote}`;
 
     dom.adminUsersList.innerHTML = "";
     if (state.adminLicenses.length) {
@@ -1544,7 +1583,9 @@
         dates.textContent = license.activatedAt
           ? `Kích hoạt: ${formatDateTime(license.activatedAt)} - Còn lại: ${license.remaining?.label || "-"}`
           : "Chưa kích hoạt";
-        meta.append(title, name, dates);
+        const rawState = document.createElement("span");
+        rawState.textContent = license.hasRawKey ? "Key gốc" : `Key đã che: ${license.maskedKey || license.key || ""}`;
+        meta.append(title, name, dates, rawState);
         item.append(meta);
         dom.adminUsersList.appendChild(item);
       });

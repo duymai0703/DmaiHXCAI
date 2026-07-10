@@ -20,6 +20,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const LICENSES_FILE = path.join(DATA_DIR, "licenses.json");
 const LICENSE_EXPORT_GLOB_PREFIX = "license-export";
+const LICENSE_EXPORT_CURRENT_FILE = path.join(DATA_DIR, "license-export-current.json");
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
 const DATABASE_FILE = resolveDatabaseFile();
 const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
@@ -786,6 +787,71 @@ function maskedLicenseKey(license) {
   return `HXC-****-${tail}`;
 }
 
+function loadRawLicenseExport() {
+  const exportFile = latestLicenseExportFile();
+  if (!exportFile) return { file: "", keys: [] };
+  const data = readJsonFile(exportFile, {});
+  const keys = Array.isArray(data.keys) ? data.keys : [];
+  return { file: exportFile, keys };
+}
+
+function rawLicenseKeyMap() {
+  const map = new Map();
+  const { keys } = loadRawLicenseExport();
+  keys.forEach((entry) => {
+    const key = sanitizeAccessKey(entry?.key);
+    const keyHash = hashLicenseKey(key);
+    if (key && keyHash) map.set(keyHash, key);
+  });
+  return map;
+}
+
+function normalizeLicenseExportPayload(payload) {
+  let source = payload;
+  if (typeof payload?.rawText === "string") {
+    try {
+      source = JSON.parse(payload.rawText);
+    } catch {
+      throw new Error("INVALID_LICENSE_EXPORT");
+    }
+  }
+  const keys = Array.isArray(source?.keys)
+    ? source.keys
+    : Array.isArray(source?.licenses)
+    ? source.licenses
+    : [];
+  const catalogByHash = new Map(licenseState.licenses.map((license) => [license.keyHash, license]));
+  const seen = new Set();
+  const normalized = [];
+
+  keys.forEach((entry) => {
+    const key = sanitizeAccessKey(entry?.key || entry?.licenseKey || "");
+    const keyHash = hashLicenseKey(key);
+    const license = catalogByHash.get(keyHash);
+    if (!key || !license || seen.has(keyHash)) return;
+    seen.add(keyHash);
+    normalized.push({ slot: license.slot, key });
+  });
+
+  if (normalized.length !== licenseState.licenses.length) {
+    throw new Error("INVALID_LICENSE_EXPORT");
+  }
+
+  normalized.sort((left, right) => left.slot - right.slot);
+  return {
+    generatedAt: source?.generatedAt || nowIso(),
+    importedAt: nowIso(),
+    note: "File nay chua key goc de Admin xem va phan phoi. Khong commit cong khai.",
+    keys: normalized
+  };
+}
+
+function importLicenseExport(payload) {
+  const exportData = normalizeLicenseExportPayload(payload);
+  writeJsonFile(LICENSE_EXPORT_CURRENT_FILE, exportData);
+  return exportData;
+}
+
 function publicLicense(license) {
   const remaining = licenseTimeRemaining(license);
   return {
@@ -800,9 +866,13 @@ function publicLicense(license) {
   };
 }
 
-function adminLicenseSummary(license) {
+function adminLicenseSummary(license, rawKeys = null) {
+  const rawKey = rawKeys?.get(license.keyHash) || "";
   return {
     ...publicLicense(license),
+    key: rawKey || maskedLicenseKey(license),
+    maskedKey: maskedLicenseKey(license),
+    hasRawKey: Boolean(rawKey),
     keyId: license.id,
     userId: license.userId || ""
   };
@@ -1337,6 +1407,7 @@ function licenseErrorMessage(code) {
 
 function latestLicenseExportFile() {
   try {
+    if (fs.existsSync(LICENSE_EXPORT_CURRENT_FILE)) return LICENSE_EXPORT_CURRENT_FILE;
     const files = fs.readdirSync(DATA_DIR)
       .filter((name) => name.startsWith(LICENSE_EXPORT_GLOB_PREFIX) && name.endsWith(".json"))
       .map((name) => path.join(DATA_DIR, name))
@@ -3208,13 +3279,22 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/admin/licenses") {
       requireAdmin(req);
       const statusFilter = String(url.searchParams.get("status") || "").trim();
+      const rawKeys = rawLicenseKeyMap();
       const licenses = licenseState.licenses
         .map((license) => {
           refreshLicenseExpiry(license);
-          return adminLicenseSummary(license);
+          return adminLicenseSummary(license, rawKeys);
         })
         .filter((license) => !statusFilter || license.status === statusFilter);
-      json(res, 200, { ok: true, total: licenseState.licenses.length, licenses });
+      json(res, 200, { ok: true, total: licenseState.licenses.length, rawKeyAvailable: rawKeys.size > 0, licenses });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/licenses/import" && req.method === "POST") {
+      requireAdmin(req);
+      const body = await readBody(req);
+      const exportData = importLicenseExport(body);
+      json(res, 200, { ok: true, file: path.basename(LICENSE_EXPORT_CURRENT_FILE), count: exportData.keys.length });
       return;
     }
 
@@ -3468,6 +3548,7 @@ const server = http.createServer(async (req, res) => {
       INVALID_REQUEST: 400,
       INVALID_DISPLAY_NAME: 400,
       INVALID_CUSTOMER_NAME: 400,
+      INVALID_LICENSE_EXPORT: 400,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -3500,6 +3581,7 @@ function friendlyErrorVi(code) {
     INVALID_REQUEST: "Yêu cầu không hợp lệ.",
     INVALID_DISPLAY_NAME: "Tên người dùng chỉ được gồm chữ cái tiếng Việt và dấu cách, tối đa 15 ký tự.",
     INVALID_CUSTOMER_NAME: "Tên khách hàng không được để trống.",
+    INVALID_LICENSE_EXPORT: "File key gốc không khớp 100 license hiện tại.",
     RATE_LIMIT: "Bạn nhập Key quá nhanh. Hãy thử lại sau ít phút.",
     INVALID_SIDE: "Phòng đấu đang lỗi về bên cầm quân.",
     SPECTATOR_READ_ONLY: "Người xem chỉ có thể quan sát và chat.",

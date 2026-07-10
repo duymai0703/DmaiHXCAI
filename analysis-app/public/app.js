@@ -612,6 +612,7 @@ function showAccessGate(message = "") {
   if (!accessGateEl) return;
   accessGateEl.classList.remove("hidden");
   document.body.classList.add("access-locked");
+  updateAnalysisAccessGateMode(Boolean(pendingAnalysisAccessKey));
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = message;
   window.setTimeout(() => (pendingAnalysisAccessKey ? accessNameInputEl : accessKeyInputEl)?.focus({ preventScroll: true }), 60);
 }
@@ -621,8 +622,15 @@ function hideAccessGate() {
   document.body.classList.remove("access-locked");
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = "";
   pendingAnalysisAccessKey = "";
-  accessNameInputEl?.classList.add("hidden");
-  if (accessKeyInputEl) accessKeyInputEl.disabled = false;
+  updateAnalysisAccessGateMode(false);
+}
+
+function updateAnalysisAccessGateMode(hasPendingKey) {
+  accessNameInputEl?.classList.toggle("hidden", !hasPendingKey);
+  if (accessNameInputEl) accessNameInputEl.required = Boolean(hasPendingKey);
+  if (accessKeyInputEl) accessKeyInputEl.readOnly = Boolean(hasPendingKey);
+  const submitButton = accessKeyFormEl?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.textContent = hasPendingKey ? "Xác nhận tên" : "Kích hoạt";
 }
 
 async function onAnalysisAccessKeySubmit(event) {
@@ -635,9 +643,9 @@ async function onAnalysisAccessKeySubmit(event) {
   if (!pendingAnalysisAccessKey) {
     if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kiểm tra Key...";
     try {
-      const checked = await api("/api/license/check-key", { method: "POST", body: { key } });
+      const checked = await api("/api/license/check-key", { key });
       if (checked.admin) {
-        const payload = await api("/api/license/activate", { method: "POST", body: { key } });
+        const payload = await api("/api/license/activate", { key });
         writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
         if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
         if (accessKeyInputEl) accessKeyInputEl.value = "";
@@ -646,13 +654,13 @@ async function onAnalysisAccessKeySubmit(event) {
         return;
       }
       pendingAnalysisAccessKey = key;
-      if (accessKeyInputEl) accessKeyInputEl.disabled = true;
-      accessNameInputEl?.classList.remove("hidden");
+      updateAnalysisAccessGateMode(true);
       if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Key hợp lệ. Hãy nhập tên khách hàng.";
       window.setTimeout(() => accessNameInputEl?.focus({ preventScroll: true }), 40);
       return;
     } catch (error) {
       pendingAnalysisAccessKey = "";
+      updateAnalysisAccessGateMode(false);
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -667,7 +675,7 @@ async function onAnalysisAccessKeySubmit(event) {
   }
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kích hoạt license...";
   try {
-    const payload = await api("/api/license/activate", { method: "POST", body: { key, customerName } });
+    const payload = await api("/api/license/activate", { key, customerName });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
     if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
     if (accessKeyInputEl) accessKeyInputEl.value = "";
@@ -676,6 +684,7 @@ async function onAnalysisAccessKeySubmit(event) {
     showToast("Đã kích hoạt license.");
   } catch (error) {
     pendingAnalysisAccessKey = "";
+    updateAnalysisAccessGateMode(false);
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
