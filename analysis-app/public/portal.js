@@ -511,6 +511,9 @@
       const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
+      image.removeAttribute("role");
+      image.removeAttribute("tabindex");
+      image.removeAttribute("title");
       image.alt = "DmaiHXCAI";
       return;
     }
@@ -520,12 +523,23 @@
       const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
+      image.removeAttribute("role");
+      image.removeAttribute("tabindex");
+      image.removeAttribute("title");
       image.alt = "DmaiHXCAI";
       return;
     }
     if (!image.src.endsWith(avatarUrl)) image.src = avatarUrl;
     image.classList.add("brand-mark-avatar");
+    image.setAttribute("role", "button");
+    image.tabIndex = 0;
+    image.title = "Xem thông tin khách hàng";
     image.alt = user.displayName || user.username || "Ảnh đại diện";
+  }
+
+  function openBrandProfile() {
+    if (!shouldUseAvatarBrandMark()) return;
+    openProfileModal();
   }
 
   function bindEvents() {
@@ -534,6 +548,15 @@
     dom.globalBackBtn.addEventListener("click", handleBack);
     if (dom.roomMobileBackBtn) dom.roomMobileBackBtn.addEventListener("click", handleBack);
     if (dom.roomMobileMenuBtn) dom.roomMobileMenuBtn.addEventListener("click", toggleRoomMobileMenu);
+    if (dom.portalBrandMark) {
+      dom.portalBrandMark.addEventListener("click", openBrandProfile);
+      dom.portalBrandMark.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openBrandProfile();
+        }
+      });
+    }
     if (dom.roomPeopleBadge) {
       dom.roomPeopleBadge.tabIndex = 0;
       dom.roomPeopleBadge.setAttribute("role", "button");

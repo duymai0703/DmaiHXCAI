@@ -172,6 +172,7 @@ a {
   object-fit: cover;
   padding: 0;
   background: transparent;
+  cursor: pointer;
   border-color: rgba(255, 255, 255, 0.72);
   box-shadow:
     0 6px 18px rgba(0, 0, 0, 0.3),
@@ -2035,13 +2036,18 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-header {
-    display: none !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: grid !important;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .portal-main {
     position: fixed;
-    inset: 0;
-    height: calc(var(--room-vh, var(--app-vh, 1vh)) * 100);
+    inset: calc(52px + env(safe-area-inset-top, 0px)) 0 0 0;
+    height: auto;
     padding: 0;
     overflow: hidden;
   }
@@ -2231,7 +2237,7 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-mobile-profile-btn {
-    display: inline-grid;
+    display: none !important;
     place-items: center;
     flex: 0 0 42px;
     width: 42px;
@@ -2270,7 +2276,7 @@ a {
     line-height: 1;
     font-weight: 900;
     color: transparent;
-    background: transparent url("/assets/icons/backgr.png") center / contain no-repeat;
+    background: transparent url("/assets/icons/backgr.png") center / contain no-repeat !important;
     border: 0;
     box-shadow:
       0 10px 22px rgba(0, 0, 0, 0.24);
@@ -4008,4 +4014,20 @@ textarea:focus {
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   color: var(--text);
   font: inherit;
+}
+
+body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back,
+body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:hover,
+body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:active,
+body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus,
+body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus-visible {
+  display: none !important;
+  background-color: transparent !important;
+  background-image: url("/assets/icons/backgr.png") !important;
+  background-position: center !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  color: transparent !important;
+  border: 0 !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24) !important;
 }
