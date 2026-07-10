@@ -990,7 +990,7 @@
   }
 
   function setRoomMobilePanel(panel) {
-    state.roomMobilePanel = ["control", "viewers", "chat", "moves"].includes(panel) ? panel : "";
+    state.roomMobilePanel = ["control", "viewers", "chat"].includes(panel) ? panel : "";
     renderRoomMobilePanels();
     if (state.roomMobilePanel === "chat" && isCompactMobile()) {
       window.setTimeout(() => dom.chatInput?.focus({ preventScroll: true }), 80);
