@@ -6,7 +6,11 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { DatabaseSync } = require("node:sqlite");
+let PgPool = null;
 let MongoClient = null;
+try {
+  ({ Pool: PgPool } = require("pg"));
+} catch {}
 try {
   ({ MongoClient } = require("mongodb"));
 } catch {}
@@ -23,6 +27,8 @@ const LICENSE_EXPORT_GLOB_PREFIX = "license-export";
 const LICENSE_EXPORT_CURRENT_FILE = path.join(DATA_DIR, "license-export-current.json");
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
 const DATABASE_FILE = resolveDatabaseFile();
+const POSTGRES_URL = String(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL || "").trim();
+const POSTGRES_TABLE = sqlIdentifier(process.env.DMAIHXCAI_POSTGRES_TABLE || "app_state");
 const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
 const MONGODB_DB_NAME = String(process.env.MONGODB_DB_NAME || inferMongoDatabaseName(MONGODB_URI) || "dmaihxcai").trim() || "dmaihxcai";
 const MONGODB_COLLECTION = String(process.env.MONGODB_COLLECTION || "app_state").trim() || "app_state";
@@ -92,6 +98,7 @@ ensureDataFile(ROOMS_FILE, { rooms: [] });
 ensureDataFile(LICENSES_FILE, { licenses: [] });
 
 const stateStore = createStateStore();
+const postgresStateStore = createPostgresStateStore();
 const mongoStateStore = createMongoStateStore();
 let pendingUserPersistence = Promise.resolve();
 let licenseState = loadLicenseState();
@@ -256,6 +263,120 @@ function createStateStore() {
     },
     write(key, value) {
       upsertStatement.run(String(key), JSON.stringify(value), Date.now());
+    }
+  };
+}
+
+function sqlIdentifier(value) {
+  const safe = String(value || "app_state").trim();
+  const name = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(safe) ? safe : "app_state";
+  return `"${name.replace(/"/g, "\"\"")}"`;
+}
+
+function postgresNeedsSsl(uri) {
+  if (!uri) return false;
+  const sslMode = String(process.env.PGSSLMODE || "").trim().toLowerCase();
+  if (sslMode === "disable") return false;
+  if (sslMode === "require") return true;
+  try {
+    const parsed = new URL(uri);
+    const querySslMode = String(parsed.searchParams.get("sslmode") || "").toLowerCase();
+    if (querySslMode === "disable") return false;
+    if (querySslMode === "require" || querySslMode === "no-verify") return true;
+    return !["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+  } catch {
+    return true;
+  }
+}
+
+function createPostgresStateStore() {
+  const state = {
+    enabled: Boolean(POSTGRES_URL),
+    ready: false,
+    pool: null,
+    lastError: "",
+    tableName: POSTGRES_TABLE
+  };
+
+  return {
+    get enabled() {
+      return state.enabled;
+    },
+    get ready() {
+      return state.ready;
+    },
+    get lastError() {
+      return state.lastError;
+    },
+    get tableName() {
+      return state.tableName;
+    },
+    noteError(message) {
+      state.lastError = String(message || "");
+    },
+    async init() {
+      if (!state.enabled) return false;
+      if (state.ready && state.pool) return true;
+      if (!PgPool) {
+        state.lastError = "pg package is not installed";
+        console.warn("PostgreSQL is configured but the pg package is unavailable. Falling back to local persistence.");
+        return false;
+      }
+      try {
+        state.pool = new PgPool({
+          connectionString: POSTGRES_URL,
+          max: 5,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 8000,
+          ...(postgresNeedsSsl(POSTGRES_URL) ? { ssl: { rejectUnauthorized: false } } : {})
+        });
+        await state.pool.query(`
+          CREATE TABLE IF NOT EXISTS ${state.tableName} (
+            key TEXT PRIMARY KEY,
+            value JSONB NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
+        state.ready = true;
+        state.lastError = "";
+        console.log(`PostgreSQL persistence ready: ${state.tableName}`);
+        return true;
+      } catch (error) {
+        state.ready = false;
+        state.lastError = String(error?.message || error);
+        console.warn(`PostgreSQL persistence unavailable. Falling back to local storage. ${state.lastError}`);
+        try {
+          await state.pool?.end();
+        } catch {}
+        state.pool = null;
+        return false;
+      }
+    },
+    async read(key) {
+      if (!state.ready || !state.pool) return null;
+      const result = await state.pool.query(`SELECT value FROM ${state.tableName} WHERE key = $1`, [String(key)]);
+      return result.rows[0]?.value ?? null;
+    },
+    async write(key, value) {
+      if (!state.ready || !state.pool) return false;
+      await state.pool.query(
+        `
+          INSERT INTO ${state.tableName} (key, value, updated_at)
+          VALUES ($1, $2::jsonb, NOW())
+          ON CONFLICT (key) DO UPDATE SET
+            value = EXCLUDED.value,
+            updated_at = EXCLUDED.updated_at
+        `,
+        [String(key), JSON.stringify(cloneJsonValue(value, value))]
+      );
+      return true;
+    },
+    async close() {
+      try {
+        await state.pool?.end();
+      } catch {}
+      state.pool = null;
+      state.ready = false;
     }
   };
 }
@@ -433,13 +554,14 @@ function loadRooms() {
 function saveUsers() {
   persistUsersLocally();
   const snapshot = cloneJsonValue({ users }, { users: [] });
-  if (!mongoStateStore.ready) return Promise.resolve(false);
+  const writers = remoteStateWrites("users", snapshot);
+  if (!writers.length) return Promise.resolve(false);
   pendingUserPersistence = pendingUserPersistence
     .catch(() => false)
-    .then(() => mongoStateStore.write("users", snapshot))
+    .then(() => Promise.allSettled(writers))
+    .then((results) => results.some((result) => result.status === "fulfilled" && result.value))
     .catch((error) => {
-      mongoStateStore.noteError(error?.message || error);
-      console.warn(`MongoDB user persistence failed. Local copy is still saved. ${mongoStateStore.lastError}`);
+      console.warn(`Remote user persistence failed. Local copy is still saved. ${error?.message || error}`);
       return false;
     });
   return pendingUserPersistence;
@@ -449,6 +571,7 @@ function saveRooms() {
   const serialized = [...rooms.values()];
   stateStore.write("rooms", { rooms: serialized });
   writeJsonFile(ROOMS_FILE, { rooms: serialized });
+  persistStateRemotely("rooms", { rooms: serialized }).catch(() => {});
 }
 
 function persistUsersLocally() {
@@ -473,17 +596,25 @@ async function flushUserPersistence() {
   }
 }
 
+async function hydrateUsersFromPostgres() {
+  return hydrateStateFromRemoteStore(postgresStateStore, "PostgreSQL");
+}
+
 async function hydrateUsersFromMongo() {
-  const ready = await mongoStateStore.init();
+  return hydrateStateFromRemoteStore(mongoStateStore, "MongoDB");
+}
+
+async function hydrateStateFromRemoteStore(remoteStore, label) {
+  const ready = await remoteStore.init();
   if (!ready) return false;
   try {
-    const remote = await mongoStateStore.read("users");
+    const remote = await remoteStore.read("users");
     const remoteUsers = Array.isArray(remote?.users) ? remote.users : [];
     if (remoteUsers.length) {
       users = mergeUsers(remoteUsers, users);
     }
     persistUsersLocally();
-    const remoteLicenses = await mongoStateStore.read("licenses");
+    const remoteLicenses = await remoteStore.read("licenses");
     if (Array.isArray(remoteLicenses?.licenses)) {
       const remoteByHash = new Map();
       remoteLicenses.licenses.forEach((entry) => {
@@ -500,12 +631,14 @@ async function hydrateUsersFromMongo() {
       };
     }
     restoreLicenseStateFromUsers();
-    await mongoStateStore.write("users", { users: cloneJsonValue(users, []) });
-    await mongoStateStore.write("licenses", cloneJsonValue(licenseState, { licenses: [] }));
+    await remoteStore.write("users", { users: cloneJsonValue(users, []) });
+    await remoteStore.write("licenses", cloneJsonValue(licenseState, { licenses: [] }));
+    const serializedRooms = [...rooms.values()];
+    if (serializedRooms.length) await remoteStore.write("rooms", { rooms: serializedRooms });
     return true;
   } catch (error) {
-    mongoStateStore.noteError(error?.message || error);
-    console.warn(`MongoDB bootstrap sync failed. Keeping local users. ${mongoStateStore.lastError}`);
+    remoteStore.noteError(error?.message || error);
+    console.warn(`${label} bootstrap sync failed. Keeping local users. ${remoteStore.lastError}`);
     return false;
   }
 }
@@ -659,6 +792,33 @@ function hashAccessKey(value) {
   return normalized ? crypto.createHash("sha256").update(`dmaihxcai-access-key:${normalized}`).digest("hex") : "";
 }
 
+function remoteStateWrites(key, value) {
+  const snapshot = cloneJsonValue(value, value);
+  const writes = [];
+  if (postgresStateStore.ready) {
+    writes.push(postgresStateStore.write(key, snapshot).catch((error) => {
+      postgresStateStore.noteError(error?.message || error);
+      console.warn(`PostgreSQL ${key} persistence failed. ${postgresStateStore.lastError}`);
+      return false;
+    }));
+  }
+  if (mongoStateStore.ready) {
+    writes.push(mongoStateStore.write(key, snapshot).catch((error) => {
+      mongoStateStore.noteError(error?.message || error);
+      console.warn(`MongoDB ${key} persistence failed. ${mongoStateStore.lastError}`);
+      return false;
+    }));
+  }
+  return writes;
+}
+
+async function persistStateRemotely(key, value) {
+  const writes = remoteStateWrites(key, value);
+  if (!writes.length) return false;
+  const results = await Promise.allSettled(writes);
+  return results.some((result) => result.status === "fulfilled" && result.value);
+}
+
 function hashLicenseKey(value) {
   const normalized = sanitizeAccessKey(value);
   return normalized ? crypto.createHash("sha256").update(`dmaihxcai-license:${normalized}`).digest("hex") : "";
@@ -771,12 +931,7 @@ function persistLicenseState(state) {
   const snapshot = cloneJsonValue(state, { licenses: [] });
   stateStore.write("licenses", snapshot);
   writeJsonFile(LICENSES_FILE, snapshot);
-  if (mongoStateStore.ready) {
-    mongoStateStore.write("licenses", snapshot).catch((error) => {
-      mongoStateStore.noteError(error?.message || error);
-      console.warn(`MongoDB license persistence failed. Local copy is still saved. ${mongoStateStore.lastError}`);
-    });
-  }
+  persistStateRemotely("licenses", snapshot).catch(() => {});
 }
 
 function restoreLicenseStateFromUsers() {
@@ -3122,6 +3277,10 @@ const server = http.createServer(async (req, res) => {
         buildRunning: Boolean(buildJob),
         downloadRunning: Boolean(downloadJob),
         candidates: DEFAULT_ENGINE_CANDIDATES,
+        postgresEnabled: postgresStateStore.enabled,
+        postgresReady: postgresStateStore.ready,
+        postgresTable: postgresStateStore.tableName,
+        postgresError: postgresStateStore.lastError || "",
         mongoEnabled: mongoStateStore.enabled,
         mongoReady: mongoStateStore.ready,
         mongoDatabase: mongoStateStore.dbName,
@@ -3744,6 +3903,7 @@ async function startServer() {
   });
 
   Promise.resolve()
+    .then(() => hydrateUsersFromPostgres())
     .then(() => hydrateUsersFromMongo())
     .then(() => flushUserPersistence())
     .catch((error) => {
@@ -3758,7 +3918,10 @@ startServer().catch((error) => {
 
 function shutdownServer() {
   engine.stop();
-  Promise.resolve(mongoStateStore.close()).finally(() => process.exit(0));
+  Promise.allSettled([
+    postgresStateStore.close(),
+    mongoStateStore.close()
+  ]).finally(() => process.exit(0));
 }
 
 process.on("SIGINT", shutdownServer);
