@@ -42,7 +42,7 @@ const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v61";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v62";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -88,6 +88,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb5-dark.png",
   "/assets/icons/cole-dark.png",
   "/assets/icons/guom-dark.png",
+  "/assets/icons/sosach-light.png",
+  "/assets/icons/sosach-dark.png",
   "/assets/icons/logow.png",
   "/assets/icons/logob.png",
   "/assets/effects/sat-cutout.png"
@@ -116,6 +118,7 @@ const state = {
   gameOver: false,
   checkmatedSide: null,
   editMode: false,
+  mobileSetupMode: false,
   editorPiece: "R",
   resizeTimer: null,
   lastBoardSizeKey: "",
@@ -174,6 +177,12 @@ const copyFenBtn = document.getElementById("copyFenBtn");
 const editBoardBtn = document.getElementById("editBoardBtn");
 const clearBoardBtn = document.getElementById("clearBoardBtn");
 const sideToMoveEl = document.getElementById("sideToMove");
+const mobileSetupPanelEl = document.getElementById("mobileSetupPanel");
+const mobileSetupPaletteEl = document.getElementById("mobileSetupPalette");
+const mobileSetupSideEl = document.getElementById("mobileSetupSide");
+const mobileSetupSaveBtn = document.getElementById("mobileSetupSaveBtn");
+const mobileSetupClearBtn = document.getElementById("mobileSetupClearBtn");
+const mobileSetupCancelBtn = document.getElementById("mobileSetupCancelBtn");
 const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
 const assetPreloadTextEl = document.getElementById("assetPreloadText");
 const assetPreloadPercentEl = document.getElementById("assetPreloadPercent");
@@ -211,6 +220,10 @@ if (copyFenBtn) copyFenBtn.addEventListener("click", copyFenToClipboard);
 if (editBoardBtn) editBoardBtn.addEventListener("click", toggleEditMode);
 if (clearBoardBtn) clearBoardBtn.addEventListener("click", clearBoard);
 if (sideToMoveEl) sideToMoveEl.addEventListener("change", setSideToMove);
+if (mobileSetupSideEl) mobileSetupSideEl.addEventListener("change", setMobileSetupSide);
+if (mobileSetupSaveBtn) mobileSetupSaveBtn.addEventListener("click", saveMobileSetupPosition);
+if (mobileSetupClearBtn) mobileSetupClearBtn.addEventListener("click", clearMobileSetupBoard);
+if (mobileSetupCancelBtn) mobileSetupCancelBtn.addEventListener("click", cancelMobileSetup);
 preventDoubleTapZoom();
 const assetWarmupPromise = warmAnalysisAssets();
 startAnalysisActivityHeartbeat();
@@ -570,6 +583,7 @@ async function init() {
   syncViewportHeight();
   setupMobileActionStrip();
   renderPiecePalette();
+  renderMobileSetupPalette();
   renderMobilePanelState();
   updateEditorUi();
   wakeBackend();
@@ -752,7 +766,11 @@ function handleMobileAction(action) {
       redo();
       break;
     case "reset":
-      reset();
+      if (state.mobileSetupMode) clearMobileSetupBoard();
+      else reset();
+      break;
+    case "setup":
+      startMobileSetup();
       break;
     case "flip":
       toggleFlipBoard();
@@ -1863,18 +1881,54 @@ function renderPiecePalette() {
   });
 }
 
+function renderMobileSetupPalette() {
+  if (!mobileSetupPaletteEl) return;
+  mobileSetupPaletteEl.innerHTML = "";
+  EDITOR_PIECES.forEach((piece) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "palette-piece mobile-setup-piece";
+    button.dataset.piece = piece;
+    button.title = piece ? (PIECE_NAMES[piece] || piece) : "Xóa quân";
+    if (piece) {
+      button.style.setProperty("--piece-image", `url("${pieceImageFor(piece)}")`);
+      button.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
+    } else {
+      button.classList.add("eraser");
+      button.textContent = "×";
+      button.setAttribute("aria-label", "Xóa quân");
+    }
+    button.addEventListener("click", () => {
+      state.editorPiece = piece;
+      updateEditorUi();
+    });
+    mobileSetupPaletteEl.appendChild(button);
+  });
+}
+
 function updateEditorUi() {
   boardEl.classList.toggle("editing", state.editMode);
+  document.body.classList.toggle("mobile-setup-active", state.mobileSetupMode);
+  if (mobileSetupPanelEl) mobileSetupPanelEl.classList.toggle("hidden", !state.mobileSetupMode);
   if (editBoardBtn) {
     editBoardBtn.classList.toggle("active", state.editMode);
     editBoardBtn.textContent = state.editMode ? "Đang sửa bàn" : "Sửa bàn cờ";
   }
   if (sideToMoveEl) sideToMoveEl.value = state.side;
+  if (mobileSetupSideEl) mobileSetupSideEl.value = state.side;
   if (piecePaletteEl) {
     [...piecePaletteEl.querySelectorAll(".palette-piece")].forEach((button) => {
       button.classList.toggle("active", button.dataset.piece === state.editorPiece);
     });
   }
+  if (mobileSetupPaletteEl) {
+    [...mobileSetupPaletteEl.querySelectorAll(".palette-piece")].forEach((button) => {
+      button.classList.toggle("active", button.dataset.piece === state.editorPiece);
+    });
+  }
+  document.querySelectorAll('[data-mobile-action="setup"]').forEach((button) => {
+    button.classList.toggle("active", state.mobileSetupMode);
+  });
 }
 
 function toggleEditMode() {
@@ -1891,6 +1945,111 @@ function toggleEditMode() {
   clearArrow();
   updateEditorUi();
   draw();
+}
+
+function startMobileSetup() {
+  clearQueuedCursorNavigation();
+  clearManualMoveFrame();
+  cancelScheduledAnalysisRefresh();
+  clearMoveAnimation();
+  clearCheckmateEffectKey();
+  stopAutoPlay();
+  stopScoreAnimation();
+  hideBoardSkinMenu();
+  state.mobileSetupMode = true;
+  state.editMode = true;
+  state.board = emptyBoard();
+  state.side = "w";
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = false;
+  state.checkmatedSide = null;
+  state.editorPiece = "R";
+  clearArrow();
+  renderMobileSetupPalette();
+  updateEditorUi();
+  draw(true);
+}
+
+function cancelMobileSetup() {
+  state.mobileSetupMode = false;
+  state.editMode = false;
+  state.selected = null;
+  state.hints = [];
+  updateEditorUi();
+  reset();
+}
+
+function clearMobileSetupBoard() {
+  if (!state.mobileSetupMode) return;
+  clearQueuedCursorNavigation();
+  clearManualMoveFrame();
+  cancelScheduledAnalysisRefresh();
+  clearMoveAnimation();
+  clearCheckmateEffectKey();
+  stopScoreAnimation();
+  state.board = emptyBoard();
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = false;
+  state.checkmatedSide = null;
+  clearArrow();
+  draw(true);
+}
+
+function setMobileSetupSide() {
+  if (!mobileSetupSideEl) return;
+  state.side = mobileSetupSideEl.value === "b" ? "b" : "w";
+  state.analysisRequest++;
+  updateEditorUi();
+}
+
+function saveMobileSetupPosition() {
+  if (!state.mobileSetupMode) return;
+  if (!hasBothKings(state.board)) {
+    showToast("Cần đặt đủ Tướng đỏ và Tướng đen");
+    return;
+  }
+  clearQueuedCursorNavigation();
+  clearManualMoveFrame();
+  cancelScheduledAnalysisRefresh();
+  clearMoveAnimation();
+  clearCheckmateEffectKey();
+  stopScoreAnimation();
+  state.mobileSetupMode = false;
+  state.editMode = false;
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.checkmatedSide = getCheckmatedSide();
+  state.gameOver = Boolean(state.checkmatedSide);
+  updateEditorUi();
+  setMobilePanel("analysis");
+  draw(true);
+  if (state.gameOver) maybeShowCheckmateEffect();
+  refreshCloudBook();
+  if (state.analysisMode) scheduleAnalysisRefresh(0);
+  showToast("Đã lưu hình cờ");
 }
 
 function clearBoard() {
@@ -2013,6 +2172,7 @@ function editBoardSquare(square) {
   const piece = state.editorPiece;
   if (piece && !isEditorPieceAllowed(piece, square)) return;
   stopScoreAnimation();
+  if (piece && piece.toLowerCase() === "k") removePieceFromBoard(piece);
   state.board[square.y][square.x] = piece || "";
   state.moves = [];
   state.cursor = 0;
@@ -2027,7 +2187,27 @@ function editBoardSquare(square) {
   state.gameOver = Boolean(state.checkmatedSide);
   draw(true);
   if (state.gameOver) maybeShowCheckmateEffect();
-  refreshCloudBook();
+  if (!state.mobileSetupMode) refreshCloudBook();
+}
+
+function removePieceFromBoard(piece) {
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      if (state.board[y][x] === piece) state.board[y][x] = "";
+    }
+  }
+}
+
+function hasBothKings(board) {
+  let redKing = false;
+  let blackKing = false;
+  for (const row of board || []) {
+    for (const piece of row) {
+      if (piece === "K") redKing = true;
+      if (piece === "k") blackKing = true;
+    }
+  }
+  return redKing && blackKing;
 }
 
 function isEditorPieceAllowed(piece, square) {

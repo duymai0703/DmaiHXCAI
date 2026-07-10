@@ -27,7 +27,7 @@
     <link rel="preload" href="/assets/board/board-skin-mobile.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-gold.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-stone.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260710-mobile-v58">
+    <link rel="stylesheet" href="/styles.css?v=20260710-mobile-v59">
   </head>
   <body>
     <header class="app-header">
@@ -58,6 +58,7 @@
           <button class="mobile-action-btn" type="button" data-mobile-action="analysis" data-mobile-icon="mb4" title="Phân tích" aria-label="Phân tích"><img src="/assets/icons/mb4-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="flip" data-mobile-icon="mb5" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/icons/mb5-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="reset" data-mobile-icon="mb1" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/icons/mb1-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="setup" data-mobile-icon="sosach" title="Xếp hình cờ" aria-label="Xếp hình cờ"><img src="/assets/icons/sosach-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img src="/assets/icons/cole-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="guom" data-mobile-icon="guom" title="Gươm" aria-label="Gươm"><img src="/assets/icons/guom-dark.png" alt="" draggable="false"></button>
         </div>
@@ -90,6 +91,24 @@
             <div id="movingPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
           </div>
           <div id="checkmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
+        </div>
+        <div id="mobileSetupPanel" class="mobile-setup-panel hidden" aria-label="Xếp hình cờ">
+          <div class="mobile-setup-head">
+            <strong>Xếp hình cờ</strong>
+            <button id="mobileSetupCancelBtn" type="button" aria-label="Thoát xếp cờ">×</button>
+          </div>
+          <div id="mobileSetupPalette" class="mobile-setup-palette" aria-label="Quân cờ đặt lên bàn"></div>
+          <div class="mobile-setup-actions">
+            <label>
+              Bên đi
+              <select id="mobileSetupSide">
+                <option value="w">Đỏ</option>
+                <option value="b">Đen</option>
+              </select>
+            </label>
+            <button id="mobileSetupClearBtn" type="button">Bàn trống</button>
+            <button id="mobileSetupSaveBtn" class="primary" type="button">Lưu hình cờ</button>
+          </div>
         </div>
       </section>
 
@@ -186,7 +205,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260710-mobile-v69"></script>
+    <script src="/app.js?v=20260710-mobile-v70"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

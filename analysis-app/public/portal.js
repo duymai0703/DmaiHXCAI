@@ -14,7 +14,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v88";
+  const ASSET_WARMUP_VERSION = "20260710-v89";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -72,8 +72,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260710-mobile-v58",
-    "/app.js?v=20260710-mobile-v69",
+    "/styles.css?v=20260710-mobile-v59",
+    "/app.js?v=20260710-mobile-v70",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -86,6 +86,7 @@
     "/assets/icons/mb5-light.png",
     "/assets/icons/cole-light.png",
     "/assets/icons/guom-light.png",
+    "/assets/icons/sosach-light.png",
     "/assets/icons/mb1-dark.png",
     "/assets/icons/mb2-dark.png",
     "/assets/icons/mb3-dark.png",
@@ -93,6 +94,7 @@
     "/assets/icons/mb5-dark.png",
     "/assets/icons/cole-dark.png",
     "/assets/icons/guom-dark.png",
+    "/assets/icons/sosach-dark.png",
     "/assets/icons/logow.png",
     "/assets/icons/logob.png",
     "/assets/effects/sat-cutout.png",
