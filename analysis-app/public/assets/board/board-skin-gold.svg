@@ -3,6 +3,12 @@
     <g id="pointMark" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <path d="M-27 -10H-13V-24 M27 -10H13V-24 M-27 10H-13V24 M27 10H13V24"/>
     </g>
+    <g id="pointMarkLeftEdge" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M27 -10H13V-24 M27 10H13V24"/>
+    </g>
+    <g id="pointMarkRightEdge" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-27 -10H-13V-24 M-27 10H-13V24"/>
+    </g>
   </defs>
   <rect width="900" height="1000" fill="transparent"/>
   <g stroke="#171717" stroke-opacity="0.84" stroke-width="1.8" stroke-linecap="butt">
@@ -15,16 +21,16 @@
     <use href="#pointMark" transform="translate(740.25 257.222)"/>
     <use href="#pointMark" transform="translate(159.75 742.778)"/>
     <use href="#pointMark" transform="translate(740.25 742.778)"/>
-    <use href="#pointMark" transform="translate(63 354.333)"/>
+    <use href="#pointMarkLeftEdge" transform="translate(63 354.333)"/>
     <use href="#pointMark" transform="translate(256.5 354.333)"/>
     <use href="#pointMark" transform="translate(450 354.333)"/>
     <use href="#pointMark" transform="translate(643.5 354.333)"/>
-    <use href="#pointMark" transform="translate(837 354.333)"/>
-    <use href="#pointMark" transform="translate(63 645.667)"/>
+    <use href="#pointMarkRightEdge" transform="translate(837 354.333)"/>
+    <use href="#pointMarkLeftEdge" transform="translate(63 645.667)"/>
     <use href="#pointMark" transform="translate(256.5 645.667)"/>
     <use href="#pointMark" transform="translate(450 645.667)"/>
     <use href="#pointMark" transform="translate(643.5 645.667)"/>
-    <use href="#pointMark" transform="translate(837 645.667)"/>
+    <use href="#pointMarkRightEdge" transform="translate(837 645.667)"/>
   </g>
   <g fill="#171717" fill-opacity="0.68" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle">
     <text x="256" y="518">&#26970;&#27827;</text>

@@ -14,7 +14,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v87";
+  const ASSET_WARMUP_VERSION = "20260710-v88";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -72,8 +72,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260710-mobile-v56",
-    "/app.js?v=20260710-mobile-v66",
+    "/styles.css?v=20260710-mobile-v58",
+    "/app.js?v=20260710-mobile-v69",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -3165,9 +3165,9 @@
 
   function ensureRoomSlots() {
     if (dom.roomView.classList.contains("hidden")) return { pieceSlots: [], hintSlots: [] };
-    const rect = dom.roomBoard.getBoundingClientRect();
-    if (!rect.width || !rect.height) return { pieceSlots: [], hintSlots: [] };
-    const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
+    const metrics = boardMetrics(dom.roomBoard);
+    if (!metrics.width || !metrics.height) return { pieceSlots: [], hintSlots: [] };
+    const layoutKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${viewSide()}`;
     if (state.roomPieceSlots && state.roomHintSlots && state.roomPieceSlots.length === 90 && state.roomHintSlots.length === 90) {
       if (state.roomSlotLayoutKey !== layoutKey) {
         for (let y = 0; y < 10; y += 1) {
@@ -3252,9 +3252,9 @@
 
   function ensureReviewSlots() {
     if (dom.reviewView.classList.contains("hidden")) return [];
-    const rect = dom.reviewBoard.getBoundingClientRect();
-    if (!rect.width || !rect.height) return [];
-    const layoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}|${reviewViewSide()}`;
+    const metrics = boardMetrics(dom.reviewBoard);
+    if (!metrics.width || !metrics.height) return [];
+    const layoutKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${reviewViewSide()}`;
     if (state.reviewPieceSlots && state.reviewPieceSlots.length === 90) {
       if (state.reviewSlotLayoutKey !== layoutKey) {
         for (let y = 0; y < 10; y += 1) {
@@ -3299,10 +3299,11 @@
 
   function drawRoomBoard(force) {
     if (dom.roomView.classList.contains("hidden")) return;
-    const rect = dom.roomBoard.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    state.lastBoardSizeKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
-    const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${viewSide()}`;
+    const metrics = boardMetrics(dom.roomBoard);
+    const rect = metrics.rect;
+    if (!metrics.width || !metrics.height) return;
+    state.lastBoardSizeKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${viewSide()}`;
     if (!force && signature === state.lastBoardFrame) return;
     state.lastBoardFrame = signature;
     return;
@@ -3414,19 +3415,20 @@
 
   function drawReviewBoard(force) {
     if (dom.reviewView.classList.contains("hidden")) return;
-    const rect = dom.reviewBoard.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const signature = `${Math.round(rect.width)}x${Math.round(rect.height)}|${reviewViewSide()}`;
+    const metrics = boardMetrics(dom.reviewBoard);
+    const rect = metrics.rect;
+    if (!metrics.width || !metrics.height) return;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${reviewViewSide()}`;
     if (!force && signature === state.reviewLastBoardFrame) return;
     state.reviewLastBoardFrame = signature;
 
     const canvas = dom.reviewBoardCanvas;
     const arrowCanvas = dom.reviewArrowCanvas;
     for (const item of [canvas, arrowCanvas]) {
-      item.width = Math.round(rect.width * devicePixelRatio);
-      item.height = Math.round(rect.height * devicePixelRatio);
-      item.style.width = `${rect.width}px`;
-      item.style.height = `${rect.height}px`;
+      item.width = Math.round(metrics.width * devicePixelRatio);
+      item.height = Math.round(metrics.height * devicePixelRatio);
+      item.style.width = `${metrics.width}px`;
+      item.style.height = `${metrics.height}px`;
     }
     return;
 
@@ -3542,14 +3544,14 @@
 
     const canvas = dom.reviewArrowCanvas;
     const ctx = canvas.getContext("2d");
-    const rect = dom.reviewBoard.getBoundingClientRect();
+    const metrics = boardMetrics(dom.reviewBoard);
     const from = reviewSquareToPixel(uciToSquare(analysis.bestMove.slice(0, 2)));
     const toSquare = uciToSquare(analysis.bestMove.slice(2, 4));
     const to = reviewSquareToPixel(toSquare);
     const pieceRatio = Number.parseFloat(getComputedStyle(dom.reviewBoard).getPropertyValue("--piece-size")) / 100 || 0.086;
-    const isMobileBoard = rect.width <= 460;
+    const isMobileBoard = metrics.width <= 460;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.lineWidth = isMobileBoard ? Math.max(3.8, rect.width * pieceRatio * 0.072) : Math.max(4.2, rect.width / 160);
+    ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(4.2, metrics.width / 160);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -3557,7 +3559,7 @@
     const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
     const stopBeforeTarget = 0;
     const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
-    const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.82) : Math.max(50, rect.width / 14.6);
+    const head = isMobileBoard ? Math.max(34, metrics.width * pieceRatio * 0.82) : Math.max(50, metrics.width / 14.6);
     const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
     const reviewSide = state.reviewGame?.plies?.[currentIndex]?.side || (currentIndex % 2 === 0 ? "w" : "b");
@@ -3566,10 +3568,10 @@
   }
 
   function clearReviewArrow() {
-    const rect = dom.reviewBoard.getBoundingClientRect();
+    const metrics = boardMetrics(dom.reviewBoard);
     const ctx = dom.reviewArrowCanvas.getContext("2d");
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, metrics.width, metrics.height);
   }
 
   function onBoardPointerDown(event) {
@@ -4326,28 +4328,48 @@
   }
 
   function geometry() {
-    const rect = dom.roomBoard.getBoundingClientRect();
-    const pad = rect.width * 0.07;
-    const usableW = rect.width - pad * 2;
-    const usableH = rect.height - pad * 2;
+    const metrics = boardMetrics(dom.roomBoard);
+    const pad = metrics.width * 0.07;
+    const usableW = metrics.width - pad * 2;
+    const usableH = metrics.height - pad * 2;
     const flipped = viewSide() === "b";
     return {
-      rect,
+      rect: metrics.rect,
+      offsetX: metrics.offsetX,
+      offsetY: metrics.offsetY,
       x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
       y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
     };
   }
 
   function reviewGeometry() {
-    const rect = dom.reviewBoard.getBoundingClientRect();
-    const pad = rect.width * 0.07;
-    const usableW = rect.width - pad * 2;
-    const usableH = rect.height - pad * 2;
+    const metrics = boardMetrics(dom.reviewBoard);
+    const pad = metrics.width * 0.07;
+    const usableW = metrics.width - pad * 2;
+    const usableH = metrics.height - pad * 2;
     const flipped = reviewViewSide() === "b";
     return {
-      rect,
+      rect: metrics.rect,
+      offsetX: metrics.offsetX,
+      offsetY: metrics.offsetY,
       x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
       y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
+    };
+  }
+
+  function boardMetrics(element) {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
+    const borderRight = Number.parseFloat(style.borderRightWidth) || 0;
+    const borderTop = Number.parseFloat(style.borderTopWidth) || 0;
+    const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+    return {
+      rect,
+      offsetX: borderLeft,
+      offsetY: borderTop,
+      width: Math.max(0, element.clientWidth || rect.width - borderLeft - borderRight),
+      height: Math.max(0, element.clientHeight || rect.height - borderTop - borderBottom)
     };
   }
 
@@ -4379,7 +4401,6 @@
   }
 
   function eventToSquare(event) {
-    const rect = dom.roomBoard.getBoundingClientRect();
     const g = geometry();
     let best = null;
     let bestDistance = Infinity;
@@ -4387,14 +4408,14 @@
       for (let x = 0; x < 9; x += 1) {
         const px = g.x(x);
         const py = g.y(y);
-        const distance = Math.hypot(event.clientX - rect.left - px, event.clientY - rect.top - py);
+        const distance = Math.hypot(event.clientX - g.rect.left - g.offsetX - px, event.clientY - g.rect.top - g.offsetY - py);
         if (distance < bestDistance) {
           bestDistance = distance;
           best = { x, y };
         }
       }
     }
-    return bestDistance < rect.width / 9.4 ? best : null;
+    return bestDistance < boardMetrics(dom.roomBoard).width / 9.4 ? best : null;
   }
 
   function line(ctx, x1, y1, x2, y2) {

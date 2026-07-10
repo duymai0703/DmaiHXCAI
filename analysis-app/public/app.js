@@ -42,7 +42,7 @@ const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v60";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v61";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -2100,23 +2100,23 @@ function drawNow() {
 }
 
 function drawBoard() {
-  const rect = boardEl.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  state.lastBoardSizeKey = `${Math.round(rect.width)}`;
+  const metrics = boardMetrics(boardEl);
+  if (!metrics.width || !metrics.height) return;
+  state.lastBoardSizeKey = `${Math.round(metrics.width)}`;
   const signature = `${state.lastBoardSizeKey}|${state.flipped ? "b" : "w"}`;
   if (signature === state.lastBoardFrame) return;
   state.lastBoardFrame = signature;
   for (const canvas of [boardCanvas, arrowCanvas]) {
-    canvas.width = Math.round(rect.width * devicePixelRatio);
-    canvas.height = Math.round(rect.height * devicePixelRatio);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    canvas.width = Math.round(metrics.width * devicePixelRatio);
+    canvas.height = Math.round(metrics.height * devicePixelRatio);
+    canvas.style.width = `${metrics.width}px`;
+    canvas.style.height = `${metrics.height}px`;
   }
 }
 
 function ensureBoardSlots() {
-  const rect = boardEl.getBoundingClientRect();
-  const layoutKey = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}`;
+  const metrics = boardMetrics(boardEl);
+  const layoutKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${state.flipped ? "b" : "w"}`;
   if (state.pieceSlots && state.hintSlots && state.pieceSlots.length === 90 && state.hintSlots.length === 90) {
     if (state.slotLayoutKey !== layoutKey) {
       for (let y = 0; y < 10; y++) {
@@ -2243,9 +2243,9 @@ function drawPieces() {
 }
 
 function drawArrowLayer() {
-  const rect = boardEl.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  const signature = `${Math.round(rect.width)}|${state.flipped ? "b" : "w"}|${currentTheme()}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${resolveSuggestionColor(suggestion)}`).join("|")}`;
+  const metrics = boardMetrics(boardEl);
+  if (!metrics.width || !metrics.height) return;
+  const signature = `${Math.round(metrics.width)}|${state.flipped ? "b" : "w"}|${currentTheme()}|${boardSignature(state.board)}|${state.suggestions.map((suggestion) => `${suggestion.move}:${resolveSuggestionColor(suggestion)}`).join("|")}`;
   if (signature === state.lastArrowFrame) return;
   state.lastArrowFrame = signature;
   clearArrowCanvas();
@@ -2258,11 +2258,11 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const toSquare = uciToSquare(move.slice(2, 4));
   const to = squareToPixel(toSquare);
   const ctx = arrowCanvas.getContext("2d");
-  const rect = boardEl.getBoundingClientRect();
+  const metrics = boardMetrics(boardEl);
   const pieceRatio = Number.parseFloat(getComputedStyle(boardEl).getPropertyValue("--piece-size")) / 100 || 0.086;
-  const isMobileBoard = rect.width <= 460;
+  const isMobileBoard = metrics.width <= 460;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.lineWidth = isMobileBoard ? Math.max(3.8, rect.width * pieceRatio * 0.072) : Math.max(4.2, rect.width / 160);
+  ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(4.2, metrics.width / 160);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -2270,7 +2270,7 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
   const stopBeforeTarget = 0;
   const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
-  const head = isMobileBoard ? Math.max(34, rect.width * pieceRatio * 0.82) : Math.max(50, rect.width / 14.6);
+  const head = isMobileBoard ? Math.max(34, metrics.width * pieceRatio * 0.82) : Math.max(50, metrics.width / 14.6);
   const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
   const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
   const palette = arrowPalette(color);
@@ -2279,9 +2279,9 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
 
 function clearArrowCanvas() {
   const ctx = arrowCanvas.getContext("2d");
-  const rect = boardEl.getBoundingClientRect();
+  const metrics = boardMetrics(boardEl);
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  ctx.clearRect(0, 0, metrics.width, metrics.height);
 }
 
 function clearArrow() {
@@ -2935,13 +2935,32 @@ function applyMoveToBoard(board, move) {
 }
 
 function geometry() {
-  const rect = boardEl.getBoundingClientRect();
-  const pad = rect.width * 0.07;
-  const usableW = rect.width - pad * 2;
-  const usableH = rect.height - pad * 2;
+  const metrics = boardMetrics(boardEl);
+  const pad = metrics.width * 0.07;
+  const usableW = metrics.width - pad * 2;
+  const usableH = metrics.height - pad * 2;
   return {
+    rect: metrics.rect,
+    offsetX: metrics.offsetX,
+    offsetY: metrics.offsetY,
     x: (file) => pad + (state.flipped ? 8 - file : file) * usableW / 8,
     y: (rank) => pad + (state.flipped ? rank : 9 - rank) * usableH / 9
+  };
+}
+
+function boardMetrics(element) {
+  const rect = element.getBoundingClientRect();
+  const style = getComputedStyle(element);
+  const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
+  const borderRight = Number.parseFloat(style.borderRightWidth) || 0;
+  const borderTop = Number.parseFloat(style.borderTopWidth) || 0;
+  const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+  return {
+    rect,
+    offsetX: borderLeft,
+    offsetY: borderTop,
+    width: Math.max(0, element.clientWidth || rect.width - borderLeft - borderRight),
+    height: Math.max(0, element.clientHeight || rect.height - borderTop - borderBottom)
   };
 }
 
@@ -2951,20 +2970,19 @@ function squareToPixel(square) {
 }
 
 function eventToSquare(event) {
-  const rect = boardEl.getBoundingClientRect();
   const g = geometry();
   let best = null, bestDistance = Infinity;
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const px = g.x(x), py = g.y(y);
-      const d = Math.hypot(event.clientX - rect.left - px, event.clientY - rect.top - py);
+      const d = Math.hypot(event.clientX - g.rect.left - g.offsetX - px, event.clientY - g.rect.top - g.offsetY - py);
       if (d < bestDistance) {
         bestDistance = d;
         best = { x, y };
       }
     }
   }
-  return bestDistance < rect.width / 9.4 ? best : null;
+  return bestDistance < boardMetrics(boardEl).width / 9.4 ? best : null;
 }
 
 function squareToUci(square) {

@@ -2227,6 +2227,7 @@ a {
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-people-badge {
+    display: none !important;
     flex: 0 0 auto;
     min-height: 42px;
     padding: 0 12px;
