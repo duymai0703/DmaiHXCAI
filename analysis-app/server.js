@@ -27,7 +27,8 @@ const LICENSE_EXPORT_GLOB_PREFIX = "license-export";
 const LICENSE_EXPORT_CURRENT_FILE = path.join(DATA_DIR, "license-export-current.json");
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
 const DATABASE_FILE = resolveDatabaseFile();
-const POSTGRES_URL = String(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL || "").trim();
+const POSTGRES_URL_CONFIG = resolvePostgresUrlConfig();
+const POSTGRES_URL = POSTGRES_URL_CONFIG.value;
 const POSTGRES_TABLE = sqlIdentifier(process.env.DMAIHXCAI_POSTGRES_TABLE || "app_state");
 const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
 const MONGODB_DB_NAME = String(process.env.MONGODB_DB_NAME || inferMongoDatabaseName(MONGODB_URI) || "dmaihxcai").trim() || "dmaihxcai";
@@ -271,6 +272,60 @@ function sqlIdentifier(value) {
   const safe = String(value || "app_state").trim();
   const name = /^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(safe) ? safe : "app_state";
   return `"${name.replace(/"/g, "\"\"")}"`;
+}
+
+function resolvePostgresUrlConfig() {
+  const candidates = ["DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL"];
+  for (const name of candidates) {
+    const value = String(process.env[name] || "").trim();
+    if (value) return { name, value };
+  }
+  return { name: "", value: "" };
+}
+
+function maskPostgresUser(username) {
+  const value = String(username || "");
+  if (!value) return "";
+  if (value.length <= 18) return value;
+  return `${value.slice(0, 12)}...${value.slice(-4)}`;
+}
+
+function describePostgresConnection() {
+  const description = {
+    source: POSTGRES_URL_CONFIG.name || "",
+    configured: Boolean(POSTGRES_URL),
+    userPreview: "",
+    userHasProjectRef: false,
+    host: "",
+    port: "",
+    database: "",
+    passwordSet: false,
+    passwordPlaceholder: false,
+    kind: "",
+    parseError: ""
+  };
+  if (!POSTGRES_URL) return description;
+  description.passwordPlaceholder = /\[YOUR-PASSWORD\]/i.test(POSTGRES_URL);
+  try {
+    const parsed = new URL(POSTGRES_URL);
+    const username = decodeURIComponent(parsed.username || "");
+    const host = parsed.hostname || "";
+    description.userPreview = maskPostgresUser(username);
+    description.userHasProjectRef = /^postgres\./i.test(username);
+    description.host = host;
+    description.port = parsed.port || (parsed.protocol === "postgresql:" ? "5432" : "");
+    description.database = decodeURIComponent((parsed.pathname || "").replace(/^\/+/, ""));
+    description.passwordSet = Boolean(parsed.password);
+    description.passwordPlaceholder = description.passwordPlaceholder || /\[YOUR-PASSWORD\]/i.test(decodeURIComponent(parsed.password || ""));
+    description.kind = host.includes("pooler.supabase.com")
+      ? "supabase-pooler"
+      : host.includes(".supabase.co")
+        ? "supabase-direct"
+        : "postgres";
+  } catch (error) {
+    description.parseError = String(error?.message || error);
+  }
+  return description;
 }
 
 function postgresNeedsSsl(uri) {
@@ -3281,6 +3336,7 @@ const server = http.createServer(async (req, res) => {
         postgresReady: postgresStateStore.ready,
         postgresTable: postgresStateStore.tableName,
         postgresError: postgresStateStore.lastError || "",
+        postgresConnection: describePostgresConnection(),
         mongoEnabled: mongoStateStore.enabled,
         mongoReady: mongoStateStore.ready,
         mongoDatabase: mongoStateStore.dbName,
