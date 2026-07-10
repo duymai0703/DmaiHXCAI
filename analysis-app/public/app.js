@@ -181,7 +181,6 @@ const assetPreloadBarEl = document.getElementById("assetPreloadBar");
 const mobileActionButtons = [...document.querySelectorAll("[data-mobile-action]")];
 const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")];
-const mobileProfileAvatarEls = [...document.querySelectorAll("[data-mobile-profile-avatar] .mobile-toolbar-avatar")];
 const boardSkinMenuEl = document.getElementById("boardSkinMenu");
 const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-choice]")];
 const accessGateEl = document.getElementById("accessGate");
@@ -224,7 +223,6 @@ function bindClick(id, handler) {
 
 function setupThemeControls() {
   applyTheme(readTheme());
-  refreshMobileProfileAvatar();
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => {
       applyTheme(button.dataset.themeChoice, { persist: true });
@@ -307,7 +305,6 @@ function updateBrandLogo(theme) {
   });
   const mobileLogo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
   mobileThemeButtons.forEach((button) => {
-    if (button.hasAttribute("data-mobile-profile-avatar")) return;
     const image = button.querySelector("img");
     if (image instanceof HTMLImageElement && !image.src.endsWith(mobileLogo)) {
       image.src = mobileLogo;
@@ -315,29 +312,6 @@ function updateBrandLogo(theme) {
     button.setAttribute("aria-label", theme === "light" ? "Đổi sang giao diện bóng đêm" : "Đổi sang giao diện ánh sáng");
   });
   updateMobileActionIcons(theme);
-}
-
-function readCachedAuthUser() {
-  try {
-    return JSON.parse(readStorage(AUTH_USER_STORAGE_KEY) || "null") || null;
-  } catch {
-    return null;
-  }
-}
-
-function refreshMobileProfileAvatar(user = readCachedAuthUser()) {
-  if (!mobileProfileAvatarEls.length) return;
-  const profile = user && typeof user === "object" ? user : {};
-  const displayName = String(profile.displayName || profile.username || profile.name || "DmaiHXCAI");
-  const avatarUrl = String(profile.avatarUrl || "").trim();
-  const initial = displayName.trim().charAt(0).toUpperCase() || "D";
-  mobileProfileAvatarEls.forEach((avatar) => {
-    avatar.textContent = avatarUrl ? "" : initial;
-    avatar.classList.toggle("has-image", Boolean(avatarUrl));
-    avatar.style.backgroundImage = avatarUrl ? `url("${avatarUrl.replace(/"/g, '\\"')}")` : "";
-    avatar.closest("button")?.setAttribute("title", `${displayName} / Đổi giao diện`);
-    avatar.closest("button")?.setAttribute("aria-label", `Ảnh đại diện của ${displayName}`);
-  });
 }
 
 function updateMobileActionIcons(theme) {
@@ -623,7 +597,6 @@ async function ensureAnalysisAccess() {
     const payload = await api("/api/auth/me");
     if (payload.token) writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token);
     if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
-    refreshMobileProfileAvatar(payload.user);
     hideAccessGate();
     return true;
   } catch (error) {
@@ -675,7 +648,6 @@ async function onAnalysisAccessKeySubmit(event) {
         const payload = await api("/api/license/activate", { key });
         writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
         if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
-        refreshMobileProfileAvatar(payload.user);
         if (accessKeyInputEl) accessKeyInputEl.value = "";
         hideAccessGate();
         showToast("Đã mở trang quản trị.");
@@ -707,7 +679,6 @@ async function onAnalysisAccessKeySubmit(event) {
     const payload = await api("/api/license/activate", { key, customerName });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
     if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
-    refreshMobileProfileAvatar(payload.user);
     if (accessKeyInputEl) accessKeyInputEl.value = "";
     if (accessNameInputEl) accessNameInputEl.value = "";
     startAnalysisAfterAccess();

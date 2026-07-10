@@ -1882,32 +1882,6 @@ select {
     object-fit: contain;
   }
 
-  .mobile-profile-avatar-btn .mobile-toolbar-avatar {
-    display: inline-grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    color: #fffef9;
-    font-size: 17px;
-    font-weight: 900;
-    line-height: 1;
-    background:
-      radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.45), transparent 22%),
-      linear-gradient(135deg, #8e232a, #d2622a);
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-      0 2px 8px rgba(0, 0, 0, 0.28);
-    overflow: hidden;
-  }
-
-  .mobile-profile-avatar-btn .mobile-toolbar-avatar.has-image {
-    color: transparent;
-  }
-
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,
   .mobile-top-toolbar [data-mobile-icon="cole"] img,
   .mobile-top-toolbar [data-mobile-icon="guom"] img {
@@ -2788,32 +2762,6 @@ select,
     height: 74% !important;
     border-radius: 0 !important;
     object-fit: contain !important;
-  }
-
-  .mobile-profile-avatar-btn .mobile-toolbar-avatar {
-    display: inline-grid !important;
-    place-items: center !important;
-    width: 38px !important;
-    height: 38px !important;
-    border-radius: 50% !important;
-    color: #fffef9 !important;
-    font-size: 17px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-    background:
-      radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.45), transparent 22%),
-      linear-gradient(135deg, #8e232a, #d2622a);
-    background-position: center !important;
-    background-size: cover !important;
-    background-repeat: no-repeat !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-      0 2px 8px rgba(0, 0, 0, 0.28) !important;
-    overflow: hidden !important;
-  }
-
-  .mobile-profile-avatar-btn .mobile-toolbar-avatar.has-image {
-    color: transparent !important;
   }
 
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,

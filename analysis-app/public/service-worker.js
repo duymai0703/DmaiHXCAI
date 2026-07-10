@@ -1,12 +1,12 @@
-const CACHE_NAME = "dmaihxcai-shell-v119";
+const CACHE_NAME = "dmaihxcai-shell-v120";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260710-room-v57",
-  "/portal.js?v=20260710-room-v81",
-  "/styles.css?v=20260710-mobile-v57",
-  "/app.js?v=20260710-mobile-v67",
+  "/portal.css?v=20260710-room-v58",
+  "/portal.js?v=20260710-room-v82",
+  "/styles.css?v=20260710-mobile-v58",
+  "/app.js?v=20260710-mobile-v68",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",

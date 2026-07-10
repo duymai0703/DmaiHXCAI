@@ -168,6 +168,16 @@ a {
   flex: 0 0 auto;
 }
 
+.brand-mark.brand-mark-avatar {
+  object-fit: cover;
+  padding: 0;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
 .brand-copy strong,
 .brand-copy small {
   display: block;

@@ -220,6 +220,7 @@
     opponentBadge: byId("opponentBadge"),
     selfBadge: byId("selfBadge"),
     headerProfile: byId("headerProfile"),
+    portalBrandMark: byId("portalBrandMark"),
     resumeRoomBtn: byId("resumeRoomBtn"),
     profileButton: byId("profileButton"),
     profileAvatar: byId("profileAvatar"),
@@ -470,6 +471,10 @@
     return theme === "light" ? "light" : "dark";
   }
 
+  function currentTheme() {
+    return normalizeTheme(document.documentElement.dataset.theme || readTheme());
+  }
+
   function applyTheme(theme, { persist = false } = {}) {
     const normalized = normalizeTheme(theme);
     document.documentElement.dataset.theme = normalized;
@@ -486,10 +491,41 @@
   function updateBrandLogo(theme) {
     const logo = theme === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
     document.querySelectorAll(".brand-mark").forEach((image) => {
+      if (image.id === "portalBrandMark" && shouldUseAvatarBrandMark()) return;
       if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
         image.src = logo;
       }
+      image.classList.remove("brand-mark-avatar");
     });
+    renderPortalBrandMark();
+  }
+
+  function shouldUseAvatarBrandMark() {
+    return isCompactMobile() && (state.route === "room" || state.route === "match");
+  }
+
+  function renderPortalBrandMark() {
+    const image = dom.portalBrandMark;
+    if (!(image instanceof HTMLImageElement)) return;
+    if (!shouldUseAvatarBrandMark()) {
+      const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+      if (!image.src.endsWith(logo)) image.src = logo;
+      image.classList.remove("brand-mark-avatar");
+      image.alt = "DmaiHXCAI";
+      return;
+    }
+    const user = state.user || {};
+    const avatarUrl = user.avatarUrl || state.deviceAvatarUrl || "";
+    if (!avatarUrl) {
+      const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+      if (!image.src.endsWith(logo)) image.src = logo;
+      image.classList.remove("brand-mark-avatar");
+      image.alt = "DmaiHXCAI";
+      return;
+    }
+    if (!image.src.endsWith(avatarUrl)) image.src = avatarUrl;
+    image.classList.add("brand-mark-avatar");
+    image.alt = user.displayName || user.username || "Ảnh đại diện";
   }
 
   function bindEvents() {
@@ -1008,6 +1044,7 @@
     document.body.classList.toggle("portal-mobile-mode", compact);
     document.body.classList.toggle("room-mobile-menu-open", compact && !!state.roomMobileMenuOpen);
     document.body.dataset.route = state.route || "home";
+    renderPortalBrandMark();
     if (compact && state.route === "room") {
       lockRoomViewportHeight();
     }
@@ -1417,6 +1454,7 @@
       paintAvatar(dom.profileAvatar, deviceAvatar, "D");
       paintAvatar(dom.profileAvatarLarge, deviceAvatar, "D");
       paintAvatar(dom.roomMobileProfileAvatar, deviceAvatar, "D");
+      renderPortalBrandMark();
       renderAvatarChoices();
       if (dom.openAdminBtn) dom.openAdminBtn.classList.add("hidden");
       if (dom.logoutBtn) dom.logoutBtn.classList.add("hidden");
@@ -1433,6 +1471,7 @@
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
     paintAvatar(dom.roomMobileProfileAvatar, state.user);
+    renderPortalBrandMark();
     renderLicenseInfo();
     renderAvatarChoices();
   }
