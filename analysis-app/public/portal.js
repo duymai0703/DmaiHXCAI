@@ -14,7 +14,7 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v86";
+  const ASSET_WARMUP_VERSION = "20260710-v87";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -73,7 +73,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260710-mobile-v56",
-    "/app.js?v=20260710-mobile-v65",
+    "/app.js?v=20260710-mobile-v66",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -1094,8 +1094,9 @@
 
   function syncRoute(replaceIfNeeded) {
     let route = normalizeRoute(location.hash);
+    const mobileAdminRoute = isMobileRoomEntry && route === "admin";
     if (isMobileRoomEntry && route === "home") route = state.room ? "room" : "match";
-    if (state.booting) route = isMobileRoomEntry ? "match" : "home";
+    if (state.booting && !mobileAdminRoute) route = isMobileRoomEntry ? "match" : "home";
     else if (route === "room" && !state.room) route = "match";
     else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "library";

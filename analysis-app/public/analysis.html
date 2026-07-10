@@ -186,7 +186,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260710-mobile-v65"></script>
+    <script src="/app.js?v=20260710-mobile-v66"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
@@ -203,7 +203,14 @@
       }
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+          navigator.serviceWorker.register("/service-worker.js").then((registration) => {
+            registration.update?.();
+          }).catch(() => {});
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            if (sessionStorage.getItem("dmaihxcai-sw-reloaded") === "1") return;
+            sessionStorage.setItem("dmaihxcai-sw-reloaded", "1");
+            location.reload();
+          });
         });
       }
     </script>

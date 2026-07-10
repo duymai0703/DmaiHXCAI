@@ -42,7 +42,7 @@ const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v59";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v60";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -649,8 +649,9 @@ async function onAnalysisAccessKeySubmit(event) {
         writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
         if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
         if (accessKeyInputEl) accessKeyInputEl.value = "";
-        startAnalysisAfterAccess();
+        hideAccessGate();
         showToast("Đã mở trang quản trị.");
+        window.location.href = "/?mobileRoom=1#admin";
         return;
       }
       pendingAnalysisAccessKey = key;

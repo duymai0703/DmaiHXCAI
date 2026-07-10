@@ -546,11 +546,18 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260710-room-v79"></script>
+    <script src="/portal.js?v=20260710-room-v80"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+          navigator.serviceWorker.register("/service-worker.js").then((registration) => {
+            registration.update?.();
+          }).catch(() => {});
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            if (sessionStorage.getItem("dmaihxcai-sw-reloaded") === "1") return;
+            sessionStorage.setItem("dmaihxcai-sw-reloaded", "1");
+            location.reload();
+          });
         });
       }
     </script>
