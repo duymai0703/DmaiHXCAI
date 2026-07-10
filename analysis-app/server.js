@@ -57,7 +57,8 @@ const DEVICE_AVATAR_PATH_LIST = [
   "/assets/device-avatars/Yugi.png",
   "/assets/device-avatars/Kaiba.png",
   "/assets/device-avatars/Eren.png",
-  "/assets/device-avatars/Siesta.png"
+  "/assets/device-avatars/Siesta.png",
+  "/assets/device-avatars/Meliodas.png"
 ];
 const DEVICE_AVATAR_PATHS = new Set(DEVICE_AVATAR_PATH_LIST);
 const BOT_PLAYERS = [

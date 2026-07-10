@@ -1,10 +1,10 @@
-const CACHE_NAME = "dmaihxcai-shell-v116";
+const CACHE_NAME = "dmaihxcai-shell-v117";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260710-room-v55",
-  "/portal.js?v=20260710-room-v78",
+  "/portal.css?v=20260710-room-v56",
+  "/portal.js?v=20260710-room-v79",
   "/styles.css?v=20260710-mobile-v56",
   "/app.js?v=20260710-mobile-v65",
   "/config.js",
@@ -60,6 +60,7 @@ const STATIC_ASSETS = [
   "/assets/device-avatars/Kaiba.png",
   "/assets/device-avatars/Eren.png",
   "/assets/device-avatars/Siesta.png",
+  "/assets/device-avatars/Meliodas.png",
   "/assets/effects/sat-cutout.png",
   "/assets/review-badges/book.png",
   "/assets/review-badges/sao.png",

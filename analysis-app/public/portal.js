@@ -12,8 +12,8 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
-  const DEVICE_AVATAR_VERSION = "20260709-v3";
-  const ASSET_WARMUP_VERSION = "20260710-v85";
+  const DEVICE_AVATAR_VERSION = "20260710-v4";
+  const ASSET_WARMUP_VERSION = "20260710-v86";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -34,7 +34,8 @@
     "/assets/device-avatars/Yugi.png",
     "/assets/device-avatars/Kaiba.png",
     "/assets/device-avatars/Eren.png",
-    "/assets/device-avatars/Siesta.png"
+    "/assets/device-avatars/Siesta.png",
+    "/assets/device-avatars/Meliodas.png"
   ];
   const PIECE_IMAGES = {
     R: "assets/pieces/red-rook.png",
@@ -217,6 +218,8 @@
     resumeRoomBtn: byId("resumeRoomBtn"),
     profileButton: byId("profileButton"),
     profileAvatar: byId("profileAvatar"),
+    roomMobileProfileBtn: byId("roomMobileProfileBtn"),
+    roomMobileProfileAvatar: byId("roomMobileProfileAvatar"),
     profileName: byId("profileName"),
     profileUsername: byId("profileUsername"),
     loginTab: byId("loginTab"),
@@ -515,6 +518,7 @@
       else void resumeStoredRoom();
     });
     dom.profileButton.addEventListener("click", openProfileModal);
+    if (dom.roomMobileProfileBtn) dom.roomMobileProfileBtn.addEventListener("click", openProfileModal);
     dom.closeProfileBtn.addEventListener("click", closeProfileModal);
     if (dom.saveAvatarBtn) dom.saveAvatarBtn.addEventListener("click", saveSelectedAvatar);
     if (dom.openAdminBtn) dom.openAdminBtn.addEventListener("click", openAdminPanel);
@@ -1236,6 +1240,7 @@
       dom.profileButton.setAttribute("aria-label", "Ảnh đại diện thiết bị");
       paintAvatar(dom.profileAvatar, deviceAvatar, "D");
       paintAvatar(dom.profileAvatarLarge, deviceAvatar, "D");
+      paintAvatar(dom.roomMobileProfileAvatar, deviceAvatar, "D");
       renderAvatarChoices();
       if (dom.openAdminBtn) dom.openAdminBtn.classList.add("hidden");
       if (dom.logoutBtn) dom.logoutBtn.classList.add("hidden");
@@ -1251,6 +1256,7 @@
     if (dom.logoutBtn) dom.logoutBtn.classList.toggle("hidden", !isAdmin());
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
+    paintAvatar(dom.roomMobileProfileAvatar, state.user);
     renderAvatarChoices();
   }
 
@@ -3981,6 +3987,7 @@
   }
 
   function paintAvatar(element, userLike, fallbackLetter) {
+    if (!element) return;
     const label = userLike?.displayName || userLike?.username || fallbackLetter || "D";
     const seed = userLike?.avatarSeed || userLike?.username || label;
     const avatarUrl = userLike?.avatarUrl || "";
