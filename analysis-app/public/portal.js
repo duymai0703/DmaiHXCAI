@@ -2,7 +2,8 @@
   "use strict";
 
   const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
-  const STORAGE_TOKEN = "dmaihxcai-auth-token";
+  const STORAGE_TOKEN = "license_token";
+  const LEGACY_STORAGE_TOKEN = "dmaihxcai-auth-token";
   const STORAGE_USER = "dmaihxcai-auth-user";
   const STORAGE_ROOM = "dmaihxcai-room-key";
   const STORAGE_DEVICE_ID = "dmaihxcai-device-id";
@@ -117,7 +118,7 @@
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const REVIEW_EVAL_BAR_LIMIT = 2000;
 
-  const initialToken = localStorage.getItem(STORAGE_TOKEN) || "";
+  const initialToken = localStorage.getItem(STORAGE_TOKEN) || localStorage.getItem(LEGACY_STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
   const initialDeviceAvatar = readOrCreateDeviceAvatar(initialDeviceId);
   const state = {
@@ -128,6 +129,7 @@
     history: readStoredHistory(),
     route: "home",
     booting: true,
+    pendingAccessKey: "",
     lobbyMode: "join",
     createSide: "w",
     botSide: "w",
@@ -147,6 +149,8 @@
     reviewPieceSlots: null,
     reviewSlotLayoutKey: "",
     adminUsers: [],
+    adminLicenses: [],
+    adminLicenseFilter: "",
     adminSelectedUserId: "",
     adminLoading: false,
     adminRefreshTimer: 0,
@@ -325,12 +329,15 @@
     profileModal: byId("profileModal"),
     closeProfileBtn: byId("closeProfileBtn"),
     profileAvatarLarge: byId("profileAvatarLarge"),
+    profileLicenseInfo: byId("profileLicenseInfo"),
     avatarChoices: byId("avatarChoices"),
     saveAvatarBtn: byId("saveAvatarBtn"),
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
     libraryHistoryList: byId("libraryHistoryList"),
+    adminLicenseFilter: byId("adminLicenseFilter"),
     adminRefreshBtn: byId("adminRefreshBtn"),
+    adminExportBtn: byId("adminExportBtn"),
     adminUsersMeta: byId("adminUsersMeta"),
     adminUsersList: byId("adminUsersList"),
     adminSelectedTitle: byId("adminSelectedTitle"),
@@ -344,6 +351,7 @@
     accessGate: byId("accessGate"),
     accessKeyForm: byId("accessKeyForm"),
     accessKeyInput: byId("accessKeyInput"),
+    accessNameInput: byId("accessNameInput"),
     accessKeyMessage: byId("accessKeyMessage")
   };
   const roomMobilePanelButtons = [...document.querySelectorAll("[data-room-mobile-mode]")];
@@ -352,6 +360,9 @@
   const portalBoardSkinButton = byId("portalBoardSkinBtn");
   const portalBoardSkinMenu = byId("portalBoardSkinMenu");
   const portalBoardSkinChoices = [...document.querySelectorAll("[data-portal-board-skin]")];
+  window.setInterval(() => {
+    if (!dom.profileModal?.classList.contains("hidden")) renderLicenseInfo();
+  }, 60000);
 
   const mobileUserAgent = navigator.userAgent || "";
   const isIpadDesktop = /macintosh/i.test(mobileUserAgent) && Number(navigator.maxTouchPoints || 0) > 1;
@@ -526,6 +537,11 @@
     dom.adminRefreshBtn.addEventListener("click", () => {
       void loadAdminUsers(true);
     });
+    dom.adminLicenseFilter?.addEventListener("change", () => {
+      state.adminLicenseFilter = String(dom.adminLicenseFilter.value || "");
+      void loadAdminUsers(true);
+    });
+    dom.adminExportBtn?.addEventListener("click", exportAdminLicenseKeys);
     dom.copyRoomKeyBtn.addEventListener("click", () => copyText(state.room?.key || ""));
     dom.undoRequestBtn.addEventListener("click", () => requestRoomAction("undo"));
     dom.drawRequestBtn.addEventListener("click", () => requestRoomAction("draw"));
@@ -760,6 +776,7 @@
     } catch (error) {
       if (!/UNAUTHORIZED/i.test(String(error?.message || ""))) throw error;
       localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
       localStorage.removeItem(STORAGE_USER);
       state.token = "";
       state.user = null;
@@ -790,31 +807,75 @@
     dom.accessGate?.classList.remove("hidden");
     document.body.classList.add("access-locked");
     if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = message;
-    window.setTimeout(() => dom.accessKeyInput?.focus({ preventScroll: true }), 60);
+    window.setTimeout(() => (state.pendingAccessKey ? dom.accessNameInput : dom.accessKeyInput)?.focus({ preventScroll: true }), 60);
   }
 
   function hideAccessGate() {
     dom.accessGate?.classList.add("hidden");
     document.body.classList.remove("access-locked");
     if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "";
+    state.pendingAccessKey = "";
+    dom.accessNameInput?.classList.add("hidden");
+    if (dom.accessKeyInput) dom.accessKeyInput.disabled = false;
   }
 
   async function onAccessKeySubmit(event) {
     event.preventDefault();
-    const key = String(dom.accessKeyInput?.value || "").trim();
+    const key = String(state.pendingAccessKey || dom.accessKeyInput?.value || "").trim();
     if (!key) {
       showAccessGate("Hãy nhập Key kích hoạt.");
       return;
     }
-    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Đang kiểm tra Key...";
+    if (!state.pendingAccessKey) {
+      if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Đang kiểm tra Key...";
+      try {
+        const checked = await api("/api/license/check-key", {
+          method: "POST",
+          body: { key }
+        });
+        if (checked.admin) {
+          const payload = await api("/api/license/activate", {
+            method: "POST",
+            body: { key }
+          });
+          applySession(payload.user, payload.token);
+          hideAccessGate();
+          if (dom.accessKeyInput) dom.accessKeyInput.value = "";
+          await loadAdminUsers(true);
+          goRoute("admin", true);
+          showToast("Đã mở trang quản trị.");
+          return;
+        }
+        state.pendingAccessKey = key;
+        if (dom.accessKeyInput) dom.accessKeyInput.disabled = true;
+        dom.accessNameInput?.classList.remove("hidden");
+        if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Key hợp lệ. Hãy nhập tên khách hàng.";
+        window.setTimeout(() => dom.accessNameInput?.focus({ preventScroll: true }), 40);
+        return;
+      } catch (error) {
+        state.pendingAccessKey = "";
+        localStorage.removeItem(STORAGE_TOKEN);
+        localStorage.removeItem(LEGACY_STORAGE_TOKEN);
+        localStorage.removeItem(STORAGE_USER);
+        showAccessGate(error.message || "Key không đúng.");
+        return;
+      }
+    }
+    const customerName = String(dom.accessNameInput?.value || "").trim();
+    if (!customerName) {
+      showAccessGate("Hãy nhập tên khách hàng.");
+      return;
+    }
+    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Đang kích hoạt license...";
     try {
-      const payload = await api("/api/auth/key", {
+      const payload = await api("/api/license/activate", {
         method: "POST",
-        body: { key }
+        body: { key, customerName }
       });
       applySession(payload.user, payload.token);
       hideAccessGate();
       if (dom.accessKeyInput) dom.accessKeyInput.value = "";
+      if (dom.accessNameInput) dom.accessNameInput.value = "";
       const [historyPayload, currentRoom] = await Promise.all([
         api("/api/history"),
         api("/api/rooms/current")
@@ -828,10 +889,12 @@
       } else {
         goRoute("home", true);
       }
-      showToast(isAdmin() ? "Đã mở trang quản trị." : "Đã kích hoạt tài khoản.");
+      showToast(isAdmin() ? "Đã mở trang quản trị." : "Đã kích hoạt license.");
     } catch (error) {
       state.token = "";
+      state.pendingAccessKey = "";
       localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
       localStorage.removeItem(STORAGE_USER);
       showAccessGate(error.message || "Key không đúng.");
     }
@@ -1119,6 +1182,7 @@
     if (token) {
       state.token = token;
       localStorage.setItem(STORAGE_TOKEN, token);
+      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
     }
     persistStoredUser(state.user);
     if (state.user) hideAccessGate();
@@ -1181,23 +1245,26 @@
     state.reviewPieceSlots = null;
     state.reviewSlotLayoutKey = "";
     state.adminUsers = [];
+    state.adminLicenses = [];
+    state.adminLicenseFilter = "";
     state.adminSelectedUserId = "";
     state.adminLoading = false;
     state.lastChatSignature = "";
     localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(LEGACY_STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_ROOM);
     closeProfileModal();
     renderHistory();
     renderAdminState();
     renderProfile();
-    showAccessGate("Hay nhap Key kich hoat de tiep tuc.");
+    showAccessGate("Hãy nhập Key kích hoạt để tiếp tục.");
   }
 
   async function logout() {
     clearSession();
     goRoute("home", true);
-    showToast("Da thoat phien Key tren trinh duyet nay.");
+    showToast("Đã thoát phiên Key trên trình duyệt này.");
   }
 
   function openProfileModal() {
@@ -1205,10 +1272,62 @@
     state.selectedAvatarUrl = state.user.avatarUrl || state.deviceAvatarUrl || DEVICE_AVATARS[0] || "";
     renderProfile();
     dom.profileModal.classList.remove("hidden");
+    renderLicenseInfo();
   }
 
   function closeProfileModal() {
     dom.profileModal.classList.add("hidden");
+  }
+
+  function formatDateTime(value) {
+    const time = Date.parse(value || "");
+    if (!time) return "-";
+    return new Date(time).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function licenseRemainingLabel(license) {
+    const expiresAt = Date.parse(license?.expiresAt || "");
+    if (!expiresAt) return "-";
+    const ms = Math.max(0, expiresAt - Date.now());
+    const days = Math.floor(ms / 86400000);
+    const hours = Math.floor((ms % 86400000) / 3600000);
+    return `${days} ngày ${String(hours).padStart(2, "0")} giờ`;
+  }
+
+  function renderLicenseInfo() {
+    if (!dom.profileLicenseInfo) return;
+    const license = state.user?.license || null;
+    if (!state.user) {
+      dom.profileLicenseInfo.innerHTML = "";
+      return;
+    }
+    if (state.user.role === "admin") {
+      dom.profileLicenseInfo.innerHTML = `<div><strong>Quản trị viên</strong></div><div>Trạng thái: Đang hoạt động</div>`;
+      return;
+    }
+    dom.profileLicenseInfo.innerHTML = `
+      <div><strong>Tên khách hàng:</strong> ${escapeHtml(license?.customerName || state.user.displayName || "-")}</div>
+      <div><strong>Trạng thái:</strong> ${license?.status === "activated" ? "Đang hoạt động" : license?.status === "expired" ? "Đã hết hạn" : "Chưa kích hoạt"}</div>
+      <div><strong>Còn lại:</strong> ${licenseRemainingLabel(license)}</div>
+      <div><strong>Ngày kích hoạt:</strong> ${formatDateTime(license?.activatedAt)}</div>
+      <div><strong>Ngày hết hạn:</strong> ${formatDateTime(license?.expiresAt)}</div>
+    `;
   }
 
   async function openAdminPanel() {
@@ -1225,6 +1344,25 @@
       state.history = mergeHistoryLists(payload.history, state.history);
       renderHistory();
     } catch {}
+  }
+
+  async function exportAdminLicenseKeys() {
+    if (!isAdmin()) return;
+    try {
+      const payload = await api("/api/admin/licenses/export");
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = payload.file || "license-export.json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      showToast("Đã xuất danh sách key.");
+    } catch (error) {
+      showToast(error.message || "Không thể xuất danh sách key.");
+    }
   }
 
   function renderProfile() {
@@ -1257,14 +1395,15 @@
     paintAvatar(dom.profileAvatar, state.user);
     paintAvatar(dom.profileAvatarLarge, state.user);
     paintAvatar(dom.roomMobileProfileAvatar, state.user);
+    renderLicenseInfo();
     renderAvatarChoices();
   }
 
   function renderAvatarChoices() {
     if (!dom.avatarChoices) return;
-    const canChoose = Boolean(state.user && state.token);
-    dom.avatarChoices.classList.toggle("hidden", !canChoose);
-    if (dom.saveAvatarBtn) dom.saveAvatarBtn.classList.toggle("hidden", !canChoose);
+    const canChoose = false;
+    dom.avatarChoices.classList.toggle("hidden", true);
+    if (dom.saveAvatarBtn) dom.saveAvatarBtn.classList.toggle("hidden", true);
     dom.avatarChoices.innerHTML = "";
     if (!canChoose) return;
 
@@ -1329,7 +1468,10 @@
     state.adminLoading = true;
     renderAdminState();
     try {
-      const payload = await api("/api/admin/users");
+      const [payload, licensePayload] = await Promise.all([
+        api("/api/admin/users"),
+        api(`/api/admin/licenses${state.adminLicenseFilter ? `?status=${encodeURIComponent(state.adminLicenseFilter)}` : ""}`)
+      ]);
       state.adminUsers = Array.isArray(payload.users) ? payload.users.map((user) => ({
         ...user,
         history: normalizeHistoryList(user.history),
@@ -1338,6 +1480,7 @@
         currentRoomKey: user.currentRoomKey || "",
         currentRoomRole: user.currentRoomRole || ""
       })) : [];
+      state.adminLicenses = Array.isArray(licensePayload.licenses) ? licensePayload.licenses : [];
       if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
         state.adminSelectedUserId = state.adminUsers[0]?.id || "";
       }
@@ -1376,6 +1519,9 @@
     }
 
     dom.adminRefreshBtn.disabled = state.adminLoading;
+    if (dom.adminLicenseFilter && dom.adminLicenseFilter.value !== state.adminLicenseFilter) {
+      dom.adminLicenseFilter.value = state.adminLicenseFilter;
+    }
     dom.adminRefreshBtn.textContent = state.adminLoading ? "Đang tải..." : "Làm mới";
     dom.adminUsersMeta.textContent = state.adminUsers.length
       ? `${state.adminUsers.length} tài khoản đã đăng ký.`
@@ -1384,6 +1530,25 @@
         : "Chưa có tài khoản nào.";
 
     dom.adminUsersList.innerHTML = "";
+    if (state.adminLicenses.length) {
+      state.adminLicenses.forEach((license) => {
+        const item = document.createElement("div");
+        item.className = `admin-user-card license-card ${license.status}`;
+        const meta = document.createElement("div");
+        meta.className = "admin-user-meta";
+        const title = document.createElement("strong");
+        title.textContent = `${license.key || license.keyId} - ${license.status === "activated" ? "Đã kích hoạt" : license.status === "expired" ? "Đã hết hạn" : "Chưa sử dụng"}`;
+        const name = document.createElement("small");
+        name.textContent = license.customerName || "-";
+        const dates = document.createElement("span");
+        dates.textContent = license.activatedAt
+          ? `Kích hoạt: ${formatDateTime(license.activatedAt)} - Còn lại: ${license.remaining?.label || "-"}`
+          : "Chưa kích hoạt";
+        meta.append(title, name, dates);
+        item.append(meta);
+        dom.adminUsersList.appendChild(item);
+      });
+    }
     if (!state.adminUsers.length) {
       const emptyUsers = document.createElement("div");
       emptyUsers.className = "history-empty";

@@ -38,7 +38,8 @@ const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
-const AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
+const AUTH_TOKEN_STORAGE_KEY = "license_token";
+const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
 const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v59";
@@ -185,7 +186,9 @@ const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-c
 const accessGateEl = document.getElementById("accessGate");
 const accessKeyFormEl = document.getElementById("accessKeyForm");
 const accessKeyInputEl = document.getElementById("accessKeyInput");
+const accessNameInputEl = document.getElementById("accessNameInput");
 const accessKeyMessageEl = document.getElementById("accessKeyMessage");
+let pendingAnalysisAccessKey = "";
 
 setupThemeControls();
 setupBoardSkinControls();
@@ -584,11 +587,12 @@ function startAnalysisAfterAccess() {
 }
 
 async function ensureAnalysisAccess() {
-  const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
+  const token = readStorage(AUTH_TOKEN_STORAGE_KEY) || readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   if (!token) {
     showAccessGate();
     return false;
   }
+  writeStorage(AUTH_TOKEN_STORAGE_KEY, token);
   try {
     const payload = await api("/api/auth/me");
     if (payload.token) writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token);
@@ -597,6 +601,7 @@ async function ensureAnalysisAccess() {
     return true;
   } catch (error) {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     showAccessGate("Phiên Key đã hết hạn. Hãy nhập lại Key.");
     return false;
@@ -608,32 +613,71 @@ function showAccessGate(message = "") {
   accessGateEl.classList.remove("hidden");
   document.body.classList.add("access-locked");
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = message;
-  window.setTimeout(() => accessKeyInputEl?.focus({ preventScroll: true }), 60);
+  window.setTimeout(() => (pendingAnalysisAccessKey ? accessNameInputEl : accessKeyInputEl)?.focus({ preventScroll: true }), 60);
 }
 
 function hideAccessGate() {
   accessGateEl?.classList.add("hidden");
   document.body.classList.remove("access-locked");
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = "";
+  pendingAnalysisAccessKey = "";
+  accessNameInputEl?.classList.add("hidden");
+  if (accessKeyInputEl) accessKeyInputEl.disabled = false;
 }
 
 async function onAnalysisAccessKeySubmit(event) {
   event.preventDefault();
-  const key = String(accessKeyInputEl?.value || "").trim();
+  const key = String(pendingAnalysisAccessKey || accessKeyInputEl?.value || "").trim();
   if (!key) {
     showAccessGate("Hãy nhập Key kích hoạt.");
     return;
   }
-  if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kiểm tra Key...";
+  if (!pendingAnalysisAccessKey) {
+    if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kiểm tra Key...";
+    try {
+      const checked = await api("/api/license/check-key", { method: "POST", body: { key } });
+      if (checked.admin) {
+        const payload = await api("/api/license/activate", { method: "POST", body: { key } });
+        writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
+        if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+        if (accessKeyInputEl) accessKeyInputEl.value = "";
+        startAnalysisAfterAccess();
+        showToast("Đã mở trang quản trị.");
+        return;
+      }
+      pendingAnalysisAccessKey = key;
+      if (accessKeyInputEl) accessKeyInputEl.disabled = true;
+      accessNameInputEl?.classList.remove("hidden");
+      if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Key hợp lệ. Hãy nhập tên khách hàng.";
+      window.setTimeout(() => accessNameInputEl?.focus({ preventScroll: true }), 40);
+      return;
+    } catch (error) {
+      pendingAnalysisAccessKey = "";
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      showAccessGate(error.message || "Key không đúng.");
+      return;
+    }
+  }
+  const customerName = String(accessNameInputEl?.value || "").trim();
+  if (!customerName) {
+    showAccessGate("Hãy nhập tên khách hàng.");
+    return;
+  }
+  if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kích hoạt license...";
   try {
-    const payload = await api("/api/auth/key", { key });
+    const payload = await api("/api/license/activate", { method: "POST", body: { key, customerName } });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
     if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
     if (accessKeyInputEl) accessKeyInputEl.value = "";
+    if (accessNameInputEl) accessNameInputEl.value = "";
     startAnalysisAfterAccess();
-    showToast("Đã kích hoạt tài khoản.");
+    showToast("Đã kích hoạt license.");
   } catch (error) {
+    pendingAnalysisAccessKey = "";
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
     showAccessGate(error.message || "Key không đúng.");
   }

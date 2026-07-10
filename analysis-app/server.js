@@ -15,11 +15,11 @@ const XiangqiCore = require("./public/xiangqi-core.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
-const DATA_DIR = process.env.DMAIHXCAI_DATA_DIR
-  ? path.resolve(process.env.DMAIHXCAI_DATA_DIR)
-  : path.join(__dirname, "data");
+const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
+const LICENSES_FILE = path.join(DATA_DIR, "licenses.json");
+const LICENSE_EXPORT_GLOB_PREFIX = "license-export";
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
 const DATABASE_FILE = resolveDatabaseFile();
 const MONGODB_URI = String(process.env.MONGODB_URI || process.env.MONGO_URL || "").trim();
@@ -28,6 +28,8 @@ const MONGODB_COLLECTION = String(process.env.MONGODB_COLLECTION || "app_state")
 const PORT = Number(process.env.PORT || 5174);
 const TOKEN_SECRET = process.env.DMAIHXCAI_AUTH_SECRET || "dmaihxcai-dev-secret";
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 365 * 5;
+const LICENSE_TOKEN_SECRET = process.env.DMAIHXCAI_LICENSE_SECRET || TOKEN_SECRET;
+const LICENSE_TTL_MS = 1000 * 60 * 60 * 24 * 183;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
 const MAX_CHAT_MESSAGES = 80;
@@ -72,6 +74,7 @@ const BOT_PLAYERS = [
 ];
 const BOT_USER_PREFIX = "bot-level-";
 const botMoveJobs = new Map();
+const licenseRateMap = new Map();
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -85,20 +88,25 @@ const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 1
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
+ensureDataFile(LICENSES_FILE, { licenses: [] });
 
 const stateStore = createStateStore();
 const mongoStateStore = createMongoStateStore();
 let pendingUserPersistence = Promise.resolve();
+let licenseState = loadLicenseState();
 
 if (process.env.RENDER && !isPersistentStoragePath(DATABASE_FILE)) {
   console.warn(`Render is using ephemeral storage for SQLite at ${DATABASE_FILE}. Mount a disk and point DMAIHXCAI_DB_PATH to it if you want accounts and rooms to survive redeploys.`);
+}
+if (process.env.RENDER && !isPersistentStoragePath(LICENSES_FILE)) {
+  console.warn(`Render is using ephemeral storage for licenses at ${LICENSES_FILE}. Mount a persistent disk and set DMAIHXCAI_DATA_DIR if you want activated keys to survive deploys.`);
 }
 
 let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
 let buildJob = null;
 let downloadJob = null;
 let users = loadUsers();
-ensureAccessKeyUsers();
+pruneLegacyAccessKeyUsers();
 ensureAdminUser();
 let rooms = loadRooms();
 
@@ -136,6 +144,25 @@ function inferMongoDatabaseName(uri) {
   } catch {
     return "";
   }
+}
+
+function resolveDataDir() {
+  const explicit = String(process.env.DMAIHXCAI_DATA_DIR || "").trim();
+  if (explicit) return path.resolve(explicit);
+
+  const persistentCandidates = [
+    process.env.RENDER_DISK_PATH,
+    process.env.DMAIHXCAI_PERSIST_DIR,
+    process.env.RENDER ? "/var/data" : ""
+  ].filter(Boolean);
+
+  for (const directory of persistentCandidates) {
+    try {
+      if (fs.existsSync(directory)) return path.resolve(directory);
+    } catch {}
+  }
+
+  return path.join(__dirname, "data");
 }
 
 function ensureDataFile(filePath, fallback) {
@@ -612,28 +639,261 @@ function hashAccessKey(value) {
   return normalized ? crypto.createHash("sha256").update(`dmaihxcai-access-key:${normalized}`).digest("hex") : "";
 }
 
+function hashLicenseKey(value) {
+  const normalized = sanitizeAccessKey(value);
+  return normalized ? crypto.createHash("sha256").update(`dmaihxcai-license:${normalized}`).digest("hex") : "";
+}
+
+function isAdminLicenseKeyHash(keyHash) {
+  const hash = String(keyHash || "").trim().toLowerCase();
+  return Boolean(hash) && (
+    hash === ACCESS_KEYS_CONFIG.adminKeyHash ||
+    hash === hashLicenseKey(ADMIN_ACCESS_KEY)
+  );
+}
+
 function loadAccessKeysConfig() {
-  const fallback = { adminKey: "ADTAYDOC0703DUY", adminName: "Admin", users: [] };
+  const fallback = {
+    version: 2,
+    adminKeyHash: hashLicenseKey("ADTAYDOC0703DUY"),
+    adminName: "Admin",
+    licenses: []
+  };
   const raw = readJsonFile(ACCESS_KEYS_FILE, fallback);
   const seen = new Set();
-  const entries = (Array.isArray(raw.users) ? raw.users : [])
+  const entries = (Array.isArray(raw.licenses) ? raw.licenses : [])
     .map((entry, index) => {
-      const key = sanitizeAccessKey(entry?.key);
+      const keyHash = String(entry?.keyHash || "").trim().toLowerCase();
       const slot = Math.max(1, Number(entry?.slot || index + 1) || index + 1);
-      const name = sanitizeAccountName(entry?.name || "", `Tai khoan ${String(slot).padStart(3, "0")}`);
-      return { slot, key, name };
+      const id = String(entry?.id || `lic-${String(slot).padStart(3, "0")}`).trim();
+      return {
+        id,
+        slot,
+        keyHash,
+        status: ["unused", "activated", "expired"].includes(entry?.status) ? entry.status : "unused",
+        customerName: sanitizeAccountName(entry?.customerName || "", ""),
+        activatedAt: entry?.activatedAt && !Number.isNaN(Date.parse(entry.activatedAt)) ? entry.activatedAt : "",
+        expiresAt: entry?.expiresAt && !Number.isNaN(Date.parse(entry.expiresAt)) ? entry.expiresAt : ""
+      };
     })
     .filter((entry) => {
-      if (!entry.key || seen.has(entry.key)) return false;
-      seen.add(entry.key);
+      if (!/^[a-f0-9]{64}$/.test(entry.keyHash) || seen.has(entry.keyHash)) return false;
+      seen.add(entry.keyHash);
       return true;
     })
     .slice(0, 100);
   return {
-    adminKey: sanitizeAccessKey(raw.adminKey || fallback.adminKey),
+    adminKeyHash: /^[a-f0-9]{64}$/.test(String(raw.adminKeyHash || "").trim().toLowerCase())
+      ? String(raw.adminKeyHash).trim().toLowerCase()
+      : fallback.adminKeyHash,
     adminName: sanitizeAccountName(raw.adminName || fallback.adminName, fallback.adminName),
-    users: entries
+    licenses: entries
   };
+}
+
+function normalizeLicenseRecord(entry, fallback = {}) {
+  const keyHash = String(entry?.keyHash || fallback.keyHash || "").trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(keyHash)) return null;
+  const slot = Math.max(1, Number(entry?.slot || fallback.slot || 1) || 1);
+  const id = String(entry?.id || fallback.id || `lic-${String(slot).padStart(3, "0")}`).trim();
+  const activatedAt = entry?.activatedAt && !Number.isNaN(Date.parse(entry.activatedAt)) ? entry.activatedAt : "";
+  const expiresAt = entry?.expiresAt && !Number.isNaN(Date.parse(entry.expiresAt)) ? entry.expiresAt : "";
+  const expired = expiresAt && Date.parse(expiresAt) <= Date.now();
+  const status = expired
+    ? "expired"
+    : ["unused", "activated"].includes(entry?.status)
+    ? entry.status
+    : activatedAt
+    ? "activated"
+    : "unused";
+  return {
+    id,
+    slot,
+    keyHash,
+    status,
+    customerName: sanitizeAccountName(entry?.customerName || "", ""),
+    activatedAt,
+    expiresAt,
+    userId: String(entry?.userId || "")
+  };
+}
+
+function loadLicenseState() {
+  const stored = readJsonFile(LICENSES_FILE, { licenses: [] });
+  const storedByHash = new Map();
+  (Array.isArray(stored.licenses) ? stored.licenses : []).forEach((entry) => {
+    const normalized = normalizeLicenseRecord(entry);
+    if (normalized) storedByHash.set(normalized.keyHash, normalized);
+  });
+  const licenses = ACCESS_KEYS_CONFIG.licenses.map((catalogEntry) => {
+    const storedEntry = storedByHash.get(catalogEntry.keyHash);
+    return normalizeLicenseRecord({ ...catalogEntry, ...(storedEntry || {}) }, catalogEntry);
+  }).filter(Boolean);
+  const nextState = {
+    version: 2,
+    updatedAt: nowIso(),
+    licenses
+  };
+  writeJsonFile(LICENSES_FILE, nextState);
+  return nextState;
+}
+
+function saveLicenseState() {
+  licenseState.updatedAt = nowIso();
+  writeJsonFile(LICENSES_FILE, licenseState);
+}
+
+function licenseByHash(keyHash) {
+  return licenseState.licenses.find((entry) => entry.keyHash === String(keyHash || "").trim().toLowerCase()) || null;
+}
+
+function licenseById(licenseId) {
+  return licenseState.licenses.find((entry) => entry.id === String(licenseId || "")) || null;
+}
+
+function licenseExpiryFrom(activatedAt) {
+  const date = new Date(activatedAt || Date.now());
+  date.setMonth(date.getMonth() + 6);
+  return date.toISOString();
+}
+
+function refreshLicenseExpiry(license) {
+  if (!license || license.status !== "activated" || !license.expiresAt) return license;
+  if (Date.parse(license.expiresAt) <= Date.now()) {
+    license.status = "expired";
+    saveLicenseState();
+  }
+  return license;
+}
+
+function licenseTimeRemaining(license) {
+  refreshLicenseExpiry(license);
+  if (!license?.expiresAt || license.status !== "activated") return { expired: license?.status === "expired", ms: 0, days: 0, hours: 0, label: "" };
+  const ms = Math.max(0, Date.parse(license.expiresAt) - Date.now());
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  return {
+    expired: ms <= 0,
+    ms,
+    days,
+    hours,
+    label: `${days} ngay ${String(hours).padStart(2, "0")} gio`
+  };
+}
+
+function maskedLicenseKey(license) {
+  const tail = String(license?.keyHash || "").slice(-4).toUpperCase() || "----";
+  return `HXC-****-${tail}`;
+}
+
+function publicLicense(license) {
+  const remaining = licenseTimeRemaining(license);
+  return {
+    id: license.id,
+    slot: license.slot,
+    key: maskedLicenseKey(license),
+    status: license.status,
+    customerName: license.customerName || "",
+    activatedAt: license.activatedAt || "",
+    expiresAt: license.expiresAt || "",
+    remaining
+  };
+}
+
+function adminLicenseSummary(license) {
+  return {
+    ...publicLicense(license),
+    keyId: license.id,
+    userId: license.userId || ""
+  };
+}
+
+function validateCustomerName(value) {
+  const name = sanitizeAccountName(value, "");
+  if (!name || Array.from(name).length > 24) throw new Error("INVALID_CUSTOMER_NAME");
+  return name;
+}
+
+function createLicenseUser(license, customerName) {
+  const passwordInfo = hashPassword(randomId(18));
+  const now = nowIso();
+  return {
+    id: license.userId || `license-${license.id}-${license.keyHash.slice(0, 12)}`,
+    email: `${license.id}@licenses.dmaihxcai.local`,
+    username: license.id,
+    passwordSalt: passwordInfo.salt,
+    passwordHash: passwordInfo.hash,
+    role: "user",
+    deviceId: "",
+    displayName: customerName,
+    accessKeyHash: license.keyHash,
+    accessKeySlot: license.slot,
+    licenseId: license.id,
+    licenseExpiresAt: license.expiresAt,
+    keyActivatedAt: license.activatedAt,
+    avatarSeed: randomBase36(4),
+    avatarUrl: defaultSystemAvatar(),
+    history: [],
+    createdAt: now,
+    lastSeenAt: now,
+    currentActivity: { route: "home", roomKey: "", action: "Da kich hoat license", updatedAt: now }
+  };
+}
+
+function defaultSystemAvatar() {
+  return "/assets/device-avatars/goku.png";
+}
+
+function activateLicenseKey(key, customerName) {
+  const keyHash = hashLicenseKey(key);
+  if (!keyHash) return null;
+  const license = licenseByHash(keyHash);
+  if (!license || license.status !== "unused") return null;
+  const safeName = validateCustomerName(customerName);
+  const now = nowIso();
+  license.status = "activated";
+  license.customerName = safeName;
+  license.activatedAt = now;
+  license.expiresAt = licenseExpiryFrom(now);
+  let user = users.find((item) => item.licenseId === license.id || item.accessKeyHash === license.keyHash);
+  if (!user) {
+    user = createLicenseUser(license, safeName);
+    users.push(user);
+  } else {
+    user.displayName = safeName;
+    user.accessKeyHash = license.keyHash;
+    user.accessKeySlot = license.slot;
+    user.licenseId = license.id;
+    user.licenseExpiresAt = license.expiresAt;
+    user.keyActivatedAt = license.activatedAt;
+    if (!user.avatarUrl) user.avatarUrl = defaultSystemAvatar();
+  }
+  license.userId = user.id;
+  saveLicenseState();
+  saveUsers();
+  return user;
+}
+
+function checkLicenseKey(value) {
+  const keyHash = hashLicenseKey(value);
+  if (isAdminLicenseKeyHash(keyHash)) {
+    return { ok: true, admin: true, status: "admin" };
+  }
+  const license = licenseByHash(keyHash);
+  if (!license) return { ok: false, error: "KEY_INVALID" };
+  refreshLicenseExpiry(license);
+  if (license.status !== "unused") return { ok: false, error: license.status === "expired" ? "KEY_EXPIRED" : "KEY_USED" };
+  return { ok: true, admin: false, status: "unused", key: maskedLicenseKey(license) };
+}
+
+function pruneLegacyAccessKeyUsers() {
+  const validHashes = new Set(licenseState.licenses.map((entry) => entry.keyHash));
+  const before = users.length;
+  users = users.filter((user) => {
+    if (!user?.accessKeyHash || user.role === "admin") return true;
+    return validHashes.has(user.accessKeyHash);
+  });
+  if (users.length !== before) saveUsers();
 }
 
 function normalizePersonName(value) {
@@ -747,14 +1007,14 @@ function isAdminRoomKey(value) {
 }
 
 function accessKeyEntryForHash(hash) {
-  return ACCESS_KEYS_CONFIG.users.find((entry) => hashAccessKey(entry.key) === hash) || null;
+  return ACCESS_KEYS_CONFIG.licenses.find((entry) => entry.keyHash === hash) || null;
 }
 
 function configuredAccessKeyForUser(user) {
   if (!user?.accessKeyHash) return "";
-  if (user.role === "admin" && user.accessKeyHash === hashAccessKey(ADMIN_ACCESS_KEY)) return ADMIN_ACCESS_KEY;
-  const entry = accessKeyEntryForHash(user.accessKeyHash);
-  return entry?.key || "";
+  if (user.role === "admin" && user.accessKeyHash === hashAccessKey(ADMIN_ACCESS_KEY)) return "ADMIN";
+  const license = licenseByHash(user.accessKeyHash);
+  return license ? maskedLicenseKey(license) : "";
 }
 
 function accessKeyUsername(slot) {
@@ -780,95 +1040,8 @@ function defaultAccessKeyAvatar(seed) {
   return DEVICE_AVATAR_PATH_LIST[hash % DEVICE_AVATAR_PATH_LIST.length] || "";
 }
 
-function createKeyManagedUser(entry) {
-  const slot = Math.max(1, Number(entry.slot) || 1);
-  const username = accessKeyUsername(slot);
-  const keyHash = hashAccessKey(entry.key);
-  const passwordInfo = hashPassword(randomId(18));
-  const now = nowIso();
-  return {
-    id: accessKeyUserId(slot, keyHash),
-    email: accessKeyEmail(slot),
-    username,
-    passwordSalt: passwordInfo.salt,
-    passwordHash: passwordInfo.hash,
-    role: "user",
-    deviceId: "",
-    displayName: sanitizeAccountName(entry.name, `Tai khoan ${String(slot).padStart(3, "0")}`),
-    accessKeyHash: keyHash,
-    accessKeySlot: slot,
-    keyActivatedAt: "",
-    avatarSeed: randomBase36(4),
-    avatarUrl: defaultAccessKeyAvatar(`${entry.key}:${slot}`),
-    history: [],
-    createdAt: now,
-    lastSeenAt: "",
-    currentActivity: { route: "", roomKey: "", action: "Chua kich hoat", updatedAt: "" }
-  };
-}
-
 function ensureAccessKeyUsers() {
-  let changed = false;
-  ACCESS_KEYS_CONFIG.users.forEach((entry) => {
-    const keyHash = hashAccessKey(entry.key);
-    const slot = Math.max(1, Number(entry.slot) || 1);
-    const username = accessKeyUsername(slot);
-    const email = accessKeyEmail(slot);
-    let user = users.find((item) => item.accessKeyHash === keyHash)
-      || users.find((item) => item.username === username || item.email === email);
-    if (!user) {
-      users.push(createKeyManagedUser(entry));
-      changed = true;
-      return;
-    }
-    if (user.role !== "user") {
-      user.role = "user";
-      changed = true;
-    }
-    if (user.username !== username) {
-      user.username = username;
-      changed = true;
-    }
-    if (user.email !== email) {
-      user.email = email;
-      changed = true;
-    }
-    if (user.accessKeyHash !== keyHash) {
-      user.accessKeyHash = keyHash;
-      changed = true;
-    }
-    if (user.accessKeySlot !== slot) {
-      user.accessKeySlot = slot;
-      changed = true;
-    }
-    if (!user.displayName) {
-      user.displayName = sanitizeAccountName(entry.name, `Tai khoan ${String(slot).padStart(3, "0")}`);
-      changed = true;
-    } else {
-      const safeName = sanitizeAccountName(user.displayName, entry.name);
-      if (safeName !== user.displayName) {
-        user.displayName = safeName;
-        changed = true;
-      }
-    }
-    if (!("keyActivatedAt" in user)) {
-      user.keyActivatedAt = "";
-      changed = true;
-    }
-    if (!user.avatarUrl) {
-      user.avatarUrl = defaultAccessKeyAvatar(`${entry.key}:${slot}`);
-      changed = true;
-    }
-    if (!user.avatarSeed) {
-      user.avatarSeed = randomBase36(4);
-      changed = true;
-    }
-    if (!user.currentActivity) {
-      user.currentActivity = { route: "", roomKey: "", action: "Chua kich hoat", updatedAt: "" };
-      changed = true;
-    }
-  });
-  if (changed) saveUsers();
+  pruneLegacyAccessKeyUsers();
 }
 
 function ensureAdminUser() {
@@ -951,13 +1124,13 @@ function ensureAdminUser() {
   return adminUser;
 }
 
-function authenticateAccessKey(value) {
+function authenticateAccessKey(value, customerName = "") {
   const key = sanitizeAccessKey(value);
   if (!key) return null;
-  const keyHash = hashAccessKey(key);
+  const adminKeyHash = hashLicenseKey(key);
   const now = nowIso();
 
-  if (keyHash && keyHash === hashAccessKey(ADMIN_ACCESS_KEY)) {
+  if (isAdminLicenseKeyHash(adminKeyHash)) {
     const admin = ensureAdminUser();
     if (!admin.keyActivatedAt) admin.keyActivatedAt = now;
     touchUserActivity(admin, { route: "admin", roomKey: "", action: "Dang nhap quan tri bang key" });
@@ -965,19 +1138,7 @@ function authenticateAccessKey(value) {
     return admin;
   }
 
-  const configuredEntry = ACCESS_KEYS_CONFIG.users.find((entry) => hashAccessKey(entry.key) === keyHash);
-  if (!configuredEntry) return null;
-  ensureAccessKeyUsers();
-  const user = users.find((item) => item.accessKeyHash === keyHash);
-  if (!user) return null;
-  if (!user.keyActivatedAt) user.keyActivatedAt = now;
-  touchUserActivity(user, {
-    route: "home",
-    roomKey: "",
-    action: "Da kich hoat key"
-  });
-  saveUsers();
-  return user;
+  return activateLicenseKey(key, customerName);
 }
 
 function adminRenameUser(userId, displayName) {
@@ -990,30 +1151,42 @@ function adminRenameUser(userId, displayName) {
 }
 
 function restoreUserFromAccessToken(payload) {
-  const keyHash = String(payload?.akh || "");
-  if (!keyHash) return null;
-  if (keyHash === hashAccessKey(ADMIN_ACCESS_KEY)) {
+  if (payload?.role === "admin" || payload?.akh === hashAccessKey(ADMIN_ACCESS_KEY)) {
     return ensureAdminUser();
   }
-  if (!accessKeyEntryForHash(keyHash)) return null;
-  ensureAccessKeyUsers();
-  return users.find((item) => item.accessKeyHash === keyHash) || null;
+  const license = licenseById(payload?.licenseId) || licenseByHash(payload?.akh);
+  if (!license || license.status !== "activated") return null;
+  refreshLicenseExpiry(license);
+  if (license.status !== "activated") return null;
+  return users.find((item) => item.id === license.userId || item.accessKeyHash === license.keyHash) || null;
 }
 
 function restoreAccessKeySessionState(user, payload) {
-  if (!user?.accessKeyHash || !payload?.akh || payload.akh !== user.accessKeyHash) return false;
+  if (!user?.accessKeyHash || user.role === "admin") return false;
+  const license = licenseById(payload?.licenseId) || licenseByHash(user.accessKeyHash);
+  if (!license || license.status !== "activated") return false;
+  refreshLicenseExpiry(license);
+  if (license.status !== "activated") return false;
   let changed = false;
   const wasUnactivated = !user.keyActivatedAt;
   if (!user.keyActivatedAt) {
-    const restoredAt = payload.act && !Number.isNaN(Date.parse(payload.act)) ? payload.act : nowIso();
+    const restoredAt = license.activatedAt || (payload.act && !Number.isNaN(Date.parse(payload.act)) ? payload.act : nowIso());
     user.keyActivatedAt = restoredAt;
+    changed = true;
+  }
+  if (user.licenseId !== license.id) {
+    user.licenseId = license.id;
+    changed = true;
+  }
+  if (user.licenseExpiresAt !== license.expiresAt) {
+    user.licenseExpiresAt = license.expiresAt;
     changed = true;
   }
   if (!user.lastSeenAt) {
     user.lastSeenAt = nowIso();
     changed = true;
   }
-  const tokenName = sanitizeAccountName(payload.name || "", user.displayName || user.username || ADMIN_DISPLAY_NAME);
+  const tokenName = sanitizeAccountName(license.customerName || payload.customerName || payload.name || "", user.displayName || user.username || ADMIN_DISPLAY_NAME);
   if (wasUnactivated || user.currentActivity?.action === "Chua kich hoat") {
     if (tokenName && tokenName !== user.displayName) {
       user.displayName = tokenName;
@@ -1027,13 +1200,21 @@ function restoreAccessKeySessionState(user, payload) {
     };
     changed = true;
   }
-  const tokenAvatar = sanitizeAvatarUrl(payload.avatar || "");
-  if (wasUnactivated && tokenAvatar && tokenAvatar !== user.avatarUrl) {
-    user.avatarUrl = tokenAvatar;
-    changed = true;
-  }
+  if (!user.avatarUrl) user.avatarUrl = defaultSystemAvatar();
   if (changed) saveUsers();
   return changed;
+}
+
+function isLicenseSessionValid(user, payload) {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  const license = licenseById(payload?.licenseId || user.licenseId) || licenseByHash(user.accessKeyHash);
+  if (!license || license.status !== "activated") return false;
+  refreshLicenseExpiry(license);
+  if (license.status !== "activated") return false;
+  if (license.userId && license.userId !== user.id) return false;
+  if (Date.parse(license.expiresAt || 0) <= Date.now()) return false;
+  return true;
 }
 
 function createAuthToken(userOrId) {
@@ -1046,23 +1227,34 @@ function createAuthToken(userOrId) {
     exp: Date.now() + TOKEN_TTL_MS,
     nonce: randomId(8)
   };
-  if (user?.accessKeyHash) {
+  if (user?.role === "admin") {
     payload.akh = user.accessKeyHash;
     payload.slot = Number(user.accessKeySlot || 0);
-    payload.role = user.role === "admin" ? "admin" : "user";
+    payload.role = "admin";
     payload.name = sanitizeAccountName(user.displayName || "", user.username || ADMIN_DISPLAY_NAME);
-    payload.avatar = sanitizeAvatarUrl(user.avatarUrl || "");
     payload.act = user.keyActivatedAt || nowIso();
+  } else if (user?.accessKeyHash) {
+    const license = licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
+    if (license) {
+      payload.exp = Date.parse(license.expiresAt || 0) || Date.now();
+      payload.licenseId = license.id;
+      payload.customerName = license.customerName || user.displayName || "";
+      payload.activatedAt = license.activatedAt || user.keyActivatedAt || "";
+      payload.expiresAt = license.expiresAt || "";
+    }
+    payload.akh = user.accessKeyHash;
+    payload.slot = Number(user.accessKeySlot || 0);
+    payload.role = "user";
   }
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = crypto.createHmac("sha256", TOKEN_SECRET).update(encoded).digest("base64url");
+  const signature = crypto.createHmac("sha256", LICENSE_TOKEN_SECRET).update(encoded).digest("base64url");
   return `${encoded}.${signature}`;
 }
 
 function verifyAuthToken(token) {
   if (!token || !token.includes(".")) return null;
   const [encoded, signature] = token.split(".");
-  const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(encoded).digest("base64url");
+  const expected = crypto.createHmac("sha256", LICENSE_TOKEN_SECRET).update(encoded).digest("base64url");
   if (signature !== expected) return null;
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
@@ -1087,6 +1279,7 @@ function getAuthenticatedUser(req) {
     user = restoreUserFromAccessToken(payload);
   }
   if (!user?.accessKeyHash) return null;
+  if (!isLicenseSessionValid(user, payload)) return null;
   restoreAccessKeySessionState(user, payload);
   return user;
 }
@@ -1112,7 +1305,50 @@ function requireAdmin(req) {
   return user;
 }
 
+function clientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket?.remoteAddress || "local";
+}
+
+function assertLicenseRateLimit(req) {
+  const key = clientIp(req);
+  const now = Date.now();
+  const windowMs = 1000 * 60;
+  const maxAttempts = 20;
+  const state = licenseRateMap.get(key) || { count: 0, resetAt: now + windowMs };
+  if (state.resetAt <= now) {
+    state.count = 0;
+    state.resetAt = now + windowMs;
+  }
+  state.count += 1;
+  licenseRateMap.set(key, state);
+  if (state.count > maxAttempts) throw new Error("RATE_LIMIT");
+}
+
+function licenseErrorMessage(code) {
+  return {
+    KEY_INVALID: "Key khong dung.",
+    KEY_USED: "Key nay da duoc kich hoat va khong the dung lai.",
+    KEY_EXPIRED: "Key nay da het han.",
+    INVALID_CUSTOMER_NAME: "Ten khach hang khong duoc de trong va toi da 24 ky tu.",
+    RATE_LIMIT: "Ban nhap Key qua nhanh. Hay thu lai sau it phut."
+  }[code] || "Khong the xu ly license.";
+}
+
+function latestLicenseExportFile() {
+  try {
+    const files = fs.readdirSync(DATA_DIR)
+      .filter((name) => name.startsWith(LICENSE_EXPORT_GLOB_PREFIX) && name.endsWith(".json"))
+      .map((name) => path.join(DATA_DIR, name))
+      .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs);
+    return files[0] || "";
+  } catch {
+    return "";
+  }
+}
+
 function publicUser(user) {
+  const license = user.role === "admin" ? null : licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
   return {
     id: user.id,
     email: user.email,
@@ -1121,6 +1357,7 @@ function publicUser(user) {
     displayName: user.displayName,
     accessKeySlot: Number(user.accessKeySlot || 0),
     keyActivatedAt: user.keyActivatedAt || "",
+    license: license ? publicLicense(license) : null,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
@@ -1137,6 +1374,7 @@ function adminUserSummary(user) {
   const room = currentRoomForUser(user.id);
   const lastSeenMs = Date.parse(user.lastSeenAt || 0) || 0;
   const online = lastSeenMs > 0 && Date.now() - lastSeenMs <= PRESENCE_TTL_MS * 2;
+  const license = user.role === "admin" ? null : licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
   return {
     id: user.id,
     email: user.email,
@@ -1145,8 +1383,9 @@ function adminUserSummary(user) {
     displayName: user.displayName,
     accessKeySlot: Number(user.accessKeySlot || 0),
     accessKey: configuredAccessKeyForUser(user),
+    license: license ? adminLicenseSummary(license) : null,
     keyActivatedAt: user.keyActivatedAt || "",
-    activated: Boolean(user.keyActivatedAt),
+    activated: Boolean(license ? license.status === "activated" : user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     createdAt: user.createdAt || nowIso(),
@@ -2669,6 +2908,9 @@ const server = http.createServer(async (req, res) => {
         exists: Boolean(configuredEnginePath && fs.existsSync(configuredEnginePath)),
         databaseFile: DATABASE_FILE,
         persistentStorage: isPersistentStoragePath(DATABASE_FILE),
+        licenseFile: LICENSES_FILE,
+        licensePersistentStorage: isPersistentStoragePath(LICENSES_FILE),
+        licenseCount: licenseState.licenses.length,
         networkPath: path.join(SRC_DIR(), "pikafish.nnue"),
         networkExists: fs.existsSync(path.join(SRC_DIR(), "pikafish.nnue")),
         buildRunning: Boolean(buildJob),
@@ -2725,11 +2967,56 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/license/check-key" && req.method === "POST") {
+      assertLicenseRateLimit(req);
+      const body = await readBody(req);
+      const result = checkLicenseKey(body.key || "");
+      if (!result.ok) {
+        json(res, 401, { ok: false, error: licenseErrorMessage(result.error), code: result.error });
+        return;
+      }
+      json(res, 200, { ok: true, admin: Boolean(result.admin), status: result.status, key: result.key || "" });
+      return;
+    }
+
+    if (url.pathname === "/api/license/activate" && req.method === "POST") {
+      assertLicenseRateLimit(req);
+      const body = await readBody(req);
+      const user = authenticateAccessKey(body.key || "", body.customerName || body.displayName || "");
+      if (!user) {
+        json(res, 401, { ok: false, error: "Key khong dung, da dung, hoac ten khach hang khong hop le." });
+        return;
+      }
+      await flushUserPersistence();
+      json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
+      return;
+    }
+
+    if (url.pathname === "/api/license/verify" && req.method === "POST") {
+      const user = getAuthenticatedUser(req);
+      if (!user) {
+        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        return;
+      }
+      json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
+      return;
+    }
+
+    if (url.pathname === "/api/license/me") {
+      const user = getAuthenticatedUser(req);
+      if (!user) {
+        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        return;
+      }
+      json(res, 200, { ok: true, user: publicUser(user), license: publicUser(user).license });
+      return;
+    }
+
     if (url.pathname === "/api/auth/key" && req.method === "POST") {
       const body = await readBody(req);
-      const user = authenticateAccessKey(body.key || "");
+      const user = authenticateAccessKey(body.key || "", body.customerName || body.displayName || "");
       if (!user) {
-        json(res, 401, { ok: false, error: "Key khong dung hoac chua duoc cap quyen." });
+        json(res, 401, { ok: false, error: "Key khong dung, da dung, hoac ten khach hang khong hop le." });
         return;
       }
       await flushUserPersistence();
@@ -2874,7 +3161,11 @@ const server = http.createServer(async (req, res) => {
         : user.role === "guest"
         ? requestedDisplayName || sanitizeOptionalDisplayName(user.displayName || "")
         : sanitizeDisplayName(requestedDisplayName || "", fallbackDisplayName);
-      user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      if (user.role === "admin" || !user.accessKeyHash) {
+        user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      } else if (!user.avatarUrl) {
+        user.avatarUrl = defaultSystemAvatar();
+      }
       syncUserProfileIntoRooms(user);
       await saveUsers();
       json(res, 200, { ok: true, user: publicUser(user) });
@@ -2911,6 +3202,31 @@ const server = http.createServer(async (req, res) => {
       }
       await flushUserPersistence();
       json(res, 200, { ok: true, user: adminUserSummary(target) });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/licenses") {
+      requireAdmin(req);
+      const statusFilter = String(url.searchParams.get("status") || "").trim();
+      const licenses = licenseState.licenses
+        .map((license) => {
+          refreshLicenseExpiry(license);
+          return adminLicenseSummary(license);
+        })
+        .filter((license) => !statusFilter || license.status === statusFilter);
+      json(res, 200, { ok: true, total: licenseState.licenses.length, licenses });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/licenses/export") {
+      requireAdmin(req);
+      const exportFile = latestLicenseExportFile();
+      if (!exportFile) {
+        json(res, 404, { ok: false, error: "Khong tim thay file export key goc tren server." });
+        return;
+      }
+      const exportData = readJsonFile(exportFile, null);
+      json(res, 200, { ok: true, file: path.basename(exportFile), ...exportData });
       return;
     }
 
@@ -3151,6 +3467,8 @@ const server = http.createServer(async (req, res) => {
       SELF_REQUEST: 400,
       INVALID_REQUEST: 400,
       INVALID_DISPLAY_NAME: 400,
+      INVALID_CUSTOMER_NAME: 400,
+      RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
       EMPTY_CHAT: 400
@@ -3181,6 +3499,8 @@ function friendlyErrorVi(code) {
     SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",
     INVALID_REQUEST: "Yêu cầu không hợp lệ.",
     INVALID_DISPLAY_NAME: "Tên người dùng chỉ được gồm chữ cái tiếng Việt và dấu cách, tối đa 15 ký tự.",
+    INVALID_CUSTOMER_NAME: "Tên khách hàng không được để trống.",
+    RATE_LIMIT: "Bạn nhập Key quá nhanh. Hãy thử lại sau ít phút.",
     INVALID_SIDE: "Phòng đấu đang lỗi về bên cầm quân.",
     SPECTATOR_READ_ONLY: "Người xem chỉ có thể quan sát và chat.",
     EMPTY_CHAT: "Nội dung chat không được để trống."

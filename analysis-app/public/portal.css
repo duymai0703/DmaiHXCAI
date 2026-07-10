@@ -3977,3 +3977,26 @@ textarea:focus {
 :root[data-theme="dark"] .chat-meta small {
   color: #93abc2 !important;
 }
+
+.profile-license-info {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.admin-license-filter {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  color: var(--text);
+  font: inherit;
+}
