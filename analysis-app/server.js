@@ -107,6 +107,7 @@ let configuredEnginePath = DEFAULT_ENGINE_CANDIDATES.find((candidate) => fs.exis
 let buildJob = null;
 let downloadJob = null;
 let users = loadUsers();
+restoreLicenseStateFromUsers();
 pruneLegacyAccessKeyUsers();
 ensureAdminUser();
 let rooms = loadRooms();
@@ -482,7 +483,25 @@ async function hydrateUsersFromMongo() {
       users = mergeUsers(remoteUsers, users);
     }
     persistUsersLocally();
+    const remoteLicenses = await mongoStateStore.read("licenses");
+    if (Array.isArray(remoteLicenses?.licenses)) {
+      const remoteByHash = new Map();
+      remoteLicenses.licenses.forEach((entry) => {
+        const normalized = normalizeLicenseRecord(entry);
+        if (normalized) remoteByHash.set(normalized.keyHash, normalized);
+      });
+      licenseState = {
+        version: 2,
+        updatedAt: nowIso(),
+        licenses: ACCESS_KEYS_CONFIG.licenses.map((catalogEntry) => {
+          const remoteEntry = remoteByHash.get(catalogEntry.keyHash);
+          return normalizeLicenseRecord({ ...catalogEntry, ...(remoteEntry || {}) }, catalogEntry);
+        }).filter(Boolean)
+      };
+    }
+    restoreLicenseStateFromUsers();
     await mongoStateStore.write("users", { users: cloneJsonValue(users, []) });
+    await mongoStateStore.write("licenses", cloneJsonValue(licenseState, { licenses: [] }));
     return true;
   } catch (error) {
     mongoStateStore.noteError(error?.message || error);
@@ -720,9 +739,13 @@ function normalizeLicenseRecord(entry, fallback = {}) {
 }
 
 function loadLicenseState() {
-  const stored = readJsonFile(LICENSES_FILE, { licenses: [] });
+  const stateData = stateStore.read("licenses", { licenses: [] }, LICENSES_FILE);
+  const legacyData = readJsonFile(LICENSES_FILE, { licenses: [] });
   const storedByHash = new Map();
-  (Array.isArray(stored.licenses) ? stored.licenses : []).forEach((entry) => {
+  [
+    ...(Array.isArray(stateData.licenses) ? stateData.licenses : []),
+    ...(Array.isArray(legacyData.licenses) ? legacyData.licenses : [])
+  ].forEach((entry) => {
     const normalized = normalizeLicenseRecord(entry);
     if (normalized) storedByHash.set(normalized.keyHash, normalized);
   });
@@ -735,13 +758,66 @@ function loadLicenseState() {
     updatedAt: nowIso(),
     licenses
   };
-  writeJsonFile(LICENSES_FILE, nextState);
+  persistLicenseState(nextState);
   return nextState;
 }
 
 function saveLicenseState() {
   licenseState.updatedAt = nowIso();
-  writeJsonFile(LICENSES_FILE, licenseState);
+  persistLicenseState(licenseState);
+}
+
+function persistLicenseState(state) {
+  const snapshot = cloneJsonValue(state, { licenses: [] });
+  stateStore.write("licenses", snapshot);
+  writeJsonFile(LICENSES_FILE, snapshot);
+  if (mongoStateStore.ready) {
+    mongoStateStore.write("licenses", snapshot).catch((error) => {
+      mongoStateStore.noteError(error?.message || error);
+      console.warn(`MongoDB license persistence failed. Local copy is still saved. ${mongoStateStore.lastError}`);
+    });
+  }
+}
+
+function restoreLicenseStateFromUsers() {
+  if (!Array.isArray(users) || !users.length) return false;
+  let changed = false;
+  users.forEach((user) => {
+    if (!user || user.role === "admin" || !user.accessKeyHash) return;
+    const license = licenseByHash(user.accessKeyHash);
+    if (!license) return;
+    const activatedAt = user.keyActivatedAt || license.activatedAt || user.createdAt || nowIso();
+    const expiresAt = user.licenseExpiresAt || license.expiresAt || licenseExpiryFrom(activatedAt);
+    const expired = Date.parse(expiresAt) <= Date.now();
+    const nextStatus = expired ? "expired" : "activated";
+    if (
+      license.status !== nextStatus ||
+      license.customerName !== (user.displayName || license.customerName || "") ||
+      license.activatedAt !== activatedAt ||
+      license.expiresAt !== expiresAt ||
+      license.userId !== user.id
+    ) {
+      license.status = nextStatus;
+      license.customerName = user.displayName || license.customerName || "";
+      license.activatedAt = activatedAt;
+      license.expiresAt = expiresAt;
+      license.userId = user.id;
+      changed = true;
+    }
+    if (user.licenseId !== license.id) {
+      user.licenseId = license.id;
+      changed = true;
+    }
+    if (user.licenseExpiresAt !== expiresAt) {
+      user.licenseExpiresAt = expiresAt;
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveLicenseState();
+    persistUsersLocally();
+  }
+  return changed;
 }
 
 function licenseByHash(keyHash) {
@@ -1216,24 +1292,80 @@ function adminRenameUser(userId, displayName) {
   if (!user) return null;
   const nextName = requireAccountName(displayName);
   user.displayName = nextName;
+  const license = user.role === "admin" ? null : licenseByHash(user.accessKeyHash);
+  if (license) {
+    license.customerName = nextName;
+    saveLicenseState();
+  }
   saveUsers();
   return user;
+}
+
+function restoreLicenseFromAccessTokenPayload(payload) {
+  if (!payload?.akh || payload.role === "admin") return null;
+  const license = licenseById(payload.licenseId) || licenseByHash(payload.akh);
+  if (!license) return null;
+  const activatedAt = payload.activatedAt || payload.act || license.activatedAt || nowIso();
+  const expiresAt = payload.expiresAt || license.expiresAt || licenseExpiryFrom(activatedAt);
+  if (Date.parse(expiresAt || 0) <= Date.now()) return null;
+  const customerName = sanitizeAccountName(
+    payload.customerName || payload.name || license.customerName || "",
+    license.customerName || "Khach"
+  );
+  let changed = false;
+  if (license.status !== "activated") {
+    license.status = "activated";
+    changed = true;
+  }
+  if (license.customerName !== customerName) {
+    license.customerName = customerName;
+    changed = true;
+  }
+  if (license.activatedAt !== activatedAt) {
+    license.activatedAt = activatedAt;
+    changed = true;
+  }
+  if (license.expiresAt !== expiresAt) {
+    license.expiresAt = expiresAt;
+    changed = true;
+  }
+  if (payload.uid && license.userId !== payload.uid) {
+    license.userId = payload.uid;
+    changed = true;
+  }
+  if (changed) saveLicenseState();
+  return license;
 }
 
 function restoreUserFromAccessToken(payload) {
   if (payload?.role === "admin" || payload?.akh === hashAccessKey(ADMIN_ACCESS_KEY)) {
     return ensureAdminUser();
   }
-  const license = licenseById(payload?.licenseId) || licenseByHash(payload?.akh);
+  let license = licenseById(payload?.licenseId) || licenseByHash(payload?.akh);
+  if (!license || license.status !== "activated") {
+    license = restoreLicenseFromAccessTokenPayload(payload);
+  }
   if (!license || license.status !== "activated") return null;
   refreshLicenseExpiry(license);
   if (license.status !== "activated") return null;
-  return users.find((item) => item.id === license.userId || item.accessKeyHash === license.keyHash) || null;
+  let user = users.find((item) => item.id === license.userId || item.accessKeyHash === license.keyHash) || null;
+  if (!user && payload?.uid) {
+    license.userId = payload.uid;
+    user = createLicenseUser(license, license.customerName || payload.customerName || payload.name || "Khach");
+    user.id = payload.uid;
+    users.push(user);
+    saveLicenseState();
+    saveUsers();
+  }
+  return user;
 }
 
 function restoreAccessKeySessionState(user, payload) {
   if (!user?.accessKeyHash || user.role === "admin") return false;
-  const license = licenseById(payload?.licenseId) || licenseByHash(user.accessKeyHash);
+  let license = licenseById(payload?.licenseId) || licenseByHash(user.accessKeyHash);
+  if (!license || license.status !== "activated") {
+    license = restoreLicenseFromAccessTokenPayload(payload);
+  }
   if (!license || license.status !== "activated") return false;
   refreshLicenseExpiry(license);
   if (license.status !== "activated") return false;
@@ -1278,7 +1410,10 @@ function restoreAccessKeySessionState(user, payload) {
 function isLicenseSessionValid(user, payload) {
   if (!user) return false;
   if (user.role === "admin") return true;
-  const license = licenseById(payload?.licenseId || user.licenseId) || licenseByHash(user.accessKeyHash);
+  let license = licenseById(payload?.licenseId || user.licenseId) || licenseByHash(user.accessKeyHash);
+  if (!license || license.status !== "activated") {
+    license = restoreLicenseFromAccessTokenPayload(payload);
+  }
   if (!license || license.status !== "activated") return false;
   refreshLicenseExpiry(license);
   if (license.status !== "activated") return false;
