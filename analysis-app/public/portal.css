@@ -3418,81 +3418,96 @@ textarea:focus {
 :root[data-board-skin="ice"] {
   --board-skin: url("/assets/board/board-skin-light.svg");
   --board-bg:
-    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.62), transparent 25%),
-    radial-gradient(circle at 78% 84%, rgba(39, 154, 210, 0.18), transparent 30%),
-    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #f8fdff 0%, #bfeefe 45%, #83d5f8 100%);
+    radial-gradient(circle at 17% 12%, rgba(255, 255, 255, 0.72), transparent 24%),
+    radial-gradient(circle at 78% 84%, rgba(0, 129, 185, 0.18), transparent 31%),
+    linear-gradient(31deg, transparent 0 31%, rgba(23, 75, 92, 0.16) 31.08% 31.32%, transparent 31.48%),
+    linear-gradient(128deg, transparent 0 62%, rgba(255, 255, 255, 0.18) 62.06% 62.24%, transparent 62.42%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, 0.075) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(25deg, rgba(31, 136, 180, 0.045) 0 2px, transparent 2px 54px),
+    linear-gradient(145deg, #f5fdff 0%, #c0f2ff 45%, #86dcff 100%);
   --board-border: #078fca;
   --board-shadow:
-    inset 0 0 0 2px rgba(3, 139, 214, 0.22),
-    inset 0 18px 30px rgba(255, 255, 255, 0.5),
-    inset 0 -18px 30px rgba(18, 119, 165, 0.12),
-    0 24px 44px rgba(31, 125, 174, 0.26),
-    0 0 30px rgba(92, 225, 255, 0.24);
+    inset 0 0 0 2px rgba(3, 139, 214, 0.24),
+    inset 0 22px 34px rgba(255, 255, 255, 0.52),
+    inset 0 -22px 34px rgba(18, 119, 165, 0.14),
+    0 24px 44px rgba(31, 125, 174, 0.28),
+    0 0 32px rgba(92, 225, 255, 0.25);
 }
 
 :root[data-board-skin="gold"] {
   --board-skin: url("/assets/board/board-skin-gold.svg");
   --board-bg:
-    radial-gradient(circle at 20% 14%, rgba(255, 245, 188, 0.46), transparent 24%),
-    radial-gradient(circle at 80% 82%, rgba(196, 102, 25, 0.16), transparent 29%),
-    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 48px),
-    linear-gradient(145deg, #ffe3a3 0%, #efb058 46%, #c98231 100%);
-  --board-border: #8c5520;
+    radial-gradient(circle at 18% 12%, rgba(255, 249, 196, 0.54), transparent 24%),
+    radial-gradient(circle at 80% 84%, rgba(160, 78, 15, 0.18), transparent 30%),
+    linear-gradient(34deg, transparent 0 28%, rgba(100, 58, 22, 0.15) 28.08% 28.32%, transparent 28.5%),
+    linear-gradient(126deg, transparent 0 66%, rgba(255, 242, 176, 0.16) 66.08% 66.28%, transparent 66.46%),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 39px),
+    repeating-linear-gradient(27deg, rgba(116, 62, 18, 0.045) 0 2px, transparent 2px 52px),
+    linear-gradient(145deg, #ffe9ad 0%, #f7bd62 47%, #d88f38 100%);
+  --board-border: #92591f;
   --board-shadow:
-    inset 0 0 0 2px rgba(122, 72, 27, 0.2),
-    inset 0 18px 30px rgba(255, 244, 198, 0.38),
-    inset 0 -18px 30px rgba(128, 70, 18, 0.14),
-    0 24px 44px rgba(70, 38, 12, 0.3),
-    0 0 28px rgba(255, 190, 82, 0.22);
+    inset 0 0 0 2px rgba(122, 72, 27, 0.23),
+    inset 0 20px 34px rgba(255, 244, 198, 0.42),
+    inset 0 -20px 34px rgba(128, 70, 18, 0.16),
+    0 24px 44px rgba(70, 38, 12, 0.31),
+    0 0 30px rgba(255, 190, 82, 0.24);
 }
 
 :root[data-board-skin="emerald"] {
   --board-skin: url("/assets/board/board-skin-emerald.svg");
   --board-bg:
-    radial-gradient(circle at 18% 14%, rgba(105, 213, 187, 0.28), transparent 24%),
-    radial-gradient(circle at 82% 82%, rgba(4, 54, 47, 0.22), transparent 31%),
-    repeating-linear-gradient(112deg, rgba(255, 244, 174, 0.045) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #1f887a 0%, #126a60 48%, #075149 100%);
-  --board-border: #d2aa4d;
+    radial-gradient(circle at 17% 13%, rgba(124, 255, 217, 0.34), transparent 24%),
+    radial-gradient(circle at 82% 82%, rgba(4, 50, 45, 0.22), transparent 31%),
+    linear-gradient(33deg, transparent 0 30%, rgba(2, 40, 36, 0.2) 30.08% 30.34%, transparent 30.52%),
+    linear-gradient(125deg, transparent 0 67%, rgba(255, 232, 135, 0.12) 67.08% 67.32%, transparent 67.5%),
+    repeating-linear-gradient(94deg, rgba(255, 244, 174, 0.055) 0 1px, transparent 1px 35px),
+    repeating-linear-gradient(27deg, rgba(5, 65, 57, 0.07) 0 2px, transparent 2px 50px),
+    linear-gradient(145deg, #2bb49b 0%, #168d80 48%, #076156 100%);
+  --board-border: #e2ba52;
   --board-shadow:
-    inset 0 0 0 2px rgba(211, 171, 79, 0.3),
-    inset 0 18px 30px rgba(118, 218, 191, 0.16),
-    inset 0 -18px 30px rgba(3, 45, 39, 0.24),
+    inset 0 0 0 2px rgba(226, 186, 82, 0.34),
+    inset 0 22px 34px rgba(127, 255, 218, 0.18),
+    inset 0 -22px 34px rgba(3, 45, 39, 0.25),
     0 24px 44px rgba(0, 24, 15, 0.42),
-    0 0 30px rgba(208, 162, 60, 0.17);
+    0 0 34px rgba(225, 184, 76, 0.22);
 }
 
 :root[data-board-skin="stone"] {
   --board-skin: url("/assets/board/board-skin-stone.svg");
   --board-bg:
-    radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.34), transparent 23%),
-    radial-gradient(circle at 80% 82%, rgba(82, 90, 96, 0.16), transparent 30%),
-    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 42px),
-    linear-gradient(145deg, #d6d8d7 0%, #b7bebf 48%, #879196 100%);
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.38), transparent 24%),
+    radial-gradient(circle at 80% 82%, rgba(67, 75, 80, 0.18), transparent 30%),
+    linear-gradient(32deg, transparent 0 29%, rgba(45, 52, 56, 0.18) 29.08% 29.28%, transparent 29.48%),
+    linear-gradient(126deg, transparent 0 64%, rgba(255, 255, 255, 0.14) 64.08% 64.25%, transparent 64.42%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 38px),
+    repeating-linear-gradient(28deg, rgba(69, 78, 84, 0.05) 0 2px, transparent 2px 48px),
+    linear-gradient(145deg, #d6d7d3 0%, #aeb5b5 48%, #798489 100%);
   --board-border: #5f696f;
   --board-shadow:
-    inset 0 0 0 2px rgba(62, 69, 74, 0.18),
-    inset 0 18px 30px rgba(255, 255, 255, 0.32),
-    inset 0 -18px 30px rgba(63, 70, 75, 0.14),
-    0 24px 44px rgba(40, 50, 56, 0.24),
-    0 0 24px rgba(185, 201, 206, 0.16);
+    inset 0 0 0 2px rgba(62, 69, 74, 0.2),
+    inset 0 20px 34px rgba(255, 255, 255, 0.34),
+    inset 0 -20px 34px rgba(63, 70, 75, 0.16),
+    0 24px 44px rgba(40, 50, 56, 0.25),
+    0 0 24px rgba(185, 201, 206, 0.17);
 }
 
 :root[data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-wine.svg");
   --board-bg:
-    radial-gradient(circle at 22% 14%, rgba(255, 255, 255, 0.48), transparent 24%),
-    radial-gradient(circle at 82% 80%, rgba(190, 70, 128, 0.16), transparent 29%),
-    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #fff0f6 0%, #ffd0e0 48%, #eda0bf 100%);
-  --board-border: #b85b7c;
+    radial-gradient(circle at 18% 13%, rgba(255, 145, 147, 0.22), transparent 25%),
+    radial-gradient(circle at 82% 82%, rgba(39, 5, 16, 0.28), transparent 31%),
+    linear-gradient(33deg, transparent 0 30%, rgba(35, 3, 12, 0.2) 30.08% 30.34%, transparent 30.52%),
+    linear-gradient(125deg, transparent 0 67%, rgba(255, 220, 127, 0.12) 67.08% 67.32%, transparent 67.5%),
+    repeating-linear-gradient(94deg, rgba(255, 224, 151, 0.052) 0 1px, transparent 1px 35px),
+    repeating-linear-gradient(27deg, rgba(82, 9, 28, 0.08) 0 2px, transparent 2px 50px),
+    linear-gradient(145deg, #8f1d35 0%, #631324 48%, #3d0913 100%);
+  --board-border: #e2ba52;
   --board-shadow:
-    inset 0 0 0 2px rgba(184, 91, 124, 0.18),
-    inset 0 18px 30px rgba(255, 255, 255, 0.36),
-    inset 0 -18px 30px rgba(154, 54, 94, 0.12),
-    0 24px 44px rgba(105, 34, 63, 0.22),
-    0 0 26px rgba(255, 167, 203, 0.18);
+    inset 0 0 0 2px rgba(226, 186, 82, 0.34),
+    inset 0 22px 34px rgba(255, 162, 150, 0.13),
+    inset 0 -22px 34px rgba(37, 3, 12, 0.28),
+    0 24px 44px rgba(24, 0, 8, 0.42),
+    0 0 34px rgba(225, 184, 76, 0.2);
 }
 
 body {
@@ -3635,7 +3650,7 @@ body {
 
 .skin-swatch-emerald {
   background:
-    url("/assets/board/board-skin-emerald.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #1f887a, #075149);
+    url("/assets/board/board-skin-emerald.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #2bb49b, #076156);
 }
 
 .skin-swatch-stone {
@@ -3645,7 +3660,7 @@ body {
 
 .skin-swatch-pink {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #fff0f6, #eda0bf);
+    url("/assets/board/board-skin-wine.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #8f1d35, #3d0913);
 }
 
 .piece-skin-swatch {
@@ -3962,81 +3977,96 @@ textarea:focus {
 :root[data-theme="light"][data-board-skin="ice"] {
   --board-skin: url("/assets/board/board-skin-light.svg");
   --board-bg:
-    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.62), transparent 25%),
-    radial-gradient(circle at 78% 84%, rgba(39, 154, 210, 0.18), transparent 30%),
-    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #f8fdff 0%, #bfeefe 45%, #83d5f8 100%);
+    radial-gradient(circle at 17% 12%, rgba(255, 255, 255, 0.72), transparent 24%),
+    radial-gradient(circle at 78% 84%, rgba(0, 129, 185, 0.18), transparent 31%),
+    linear-gradient(31deg, transparent 0 31%, rgba(23, 75, 92, 0.16) 31.08% 31.32%, transparent 31.48%),
+    linear-gradient(128deg, transparent 0 62%, rgba(255, 255, 255, 0.18) 62.06% 62.24%, transparent 62.42%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, 0.075) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(25deg, rgba(31, 136, 180, 0.045) 0 2px, transparent 2px 54px),
+    linear-gradient(145deg, #f5fdff 0%, #c0f2ff 45%, #86dcff 100%);
   --board-border: #078fca;
   --board-shadow:
-    inset 0 0 0 2px rgba(3, 139, 214, 0.22),
-    inset 0 18px 30px rgba(255, 255, 255, 0.5),
-    inset 0 -18px 30px rgba(18, 119, 165, 0.12),
-    0 24px 44px rgba(31, 125, 174, 0.26),
-    0 0 30px rgba(92, 225, 255, 0.24);
+    inset 0 0 0 2px rgba(3, 139, 214, 0.24),
+    inset 0 22px 34px rgba(255, 255, 255, 0.52),
+    inset 0 -22px 34px rgba(18, 119, 165, 0.14),
+    0 24px 44px rgba(31, 125, 174, 0.28),
+    0 0 32px rgba(92, 225, 255, 0.25);
 }
 
 :root[data-theme="light"][data-board-skin="gold"] {
   --board-skin: url("/assets/board/board-skin-gold.svg");
   --board-bg:
-    radial-gradient(circle at 20% 14%, rgba(255, 245, 188, 0.46), transparent 24%),
-    radial-gradient(circle at 80% 82%, rgba(196, 102, 25, 0.16), transparent 29%),
-    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 48px),
-    linear-gradient(145deg, #ffe3a3 0%, #efb058 46%, #c98231 100%);
-  --board-border: #8c5520;
+    radial-gradient(circle at 18% 12%, rgba(255, 249, 196, 0.54), transparent 24%),
+    radial-gradient(circle at 80% 84%, rgba(160, 78, 15, 0.18), transparent 30%),
+    linear-gradient(34deg, transparent 0 28%, rgba(100, 58, 22, 0.15) 28.08% 28.32%, transparent 28.5%),
+    linear-gradient(126deg, transparent 0 66%, rgba(255, 242, 176, 0.16) 66.08% 66.28%, transparent 66.46%),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 39px),
+    repeating-linear-gradient(27deg, rgba(116, 62, 18, 0.045) 0 2px, transparent 2px 52px),
+    linear-gradient(145deg, #ffe9ad 0%, #f7bd62 47%, #d88f38 100%);
+  --board-border: #92591f;
   --board-shadow:
-    inset 0 0 0 2px rgba(122, 72, 27, 0.2),
-    inset 0 18px 30px rgba(255, 244, 198, 0.38),
-    inset 0 -18px 30px rgba(128, 70, 18, 0.14),
-    0 24px 44px rgba(70, 38, 12, 0.3),
-    0 0 28px rgba(255, 190, 82, 0.22);
+    inset 0 0 0 2px rgba(122, 72, 27, 0.23),
+    inset 0 20px 34px rgba(255, 244, 198, 0.42),
+    inset 0 -20px 34px rgba(128, 70, 18, 0.16),
+    0 24px 44px rgba(70, 38, 12, 0.31),
+    0 0 30px rgba(255, 190, 82, 0.24);
 }
 
 :root[data-theme="light"][data-board-skin="emerald"] {
   --board-skin: url("/assets/board/board-skin-emerald.svg");
   --board-bg:
-    radial-gradient(circle at 18% 14%, rgba(105, 213, 187, 0.28), transparent 24%),
-    radial-gradient(circle at 82% 82%, rgba(4, 54, 47, 0.22), transparent 31%),
-    repeating-linear-gradient(112deg, rgba(255, 244, 174, 0.045) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #1f887a 0%, #126a60 48%, #075149 100%);
-  --board-border: #d2aa4d;
+    radial-gradient(circle at 17% 13%, rgba(124, 255, 217, 0.34), transparent 24%),
+    radial-gradient(circle at 82% 82%, rgba(4, 50, 45, 0.22), transparent 31%),
+    linear-gradient(33deg, transparent 0 30%, rgba(2, 40, 36, 0.2) 30.08% 30.34%, transparent 30.52%),
+    linear-gradient(125deg, transparent 0 67%, rgba(255, 232, 135, 0.12) 67.08% 67.32%, transparent 67.5%),
+    repeating-linear-gradient(94deg, rgba(255, 244, 174, 0.055) 0 1px, transparent 1px 35px),
+    repeating-linear-gradient(27deg, rgba(5, 65, 57, 0.07) 0 2px, transparent 2px 50px),
+    linear-gradient(145deg, #2bb49b 0%, #168d80 48%, #076156 100%);
+  --board-border: #e2ba52;
   --board-shadow:
-    inset 0 0 0 2px rgba(211, 171, 79, 0.3),
-    inset 0 18px 30px rgba(118, 218, 191, 0.16),
-    inset 0 -18px 30px rgba(3, 45, 39, 0.24),
+    inset 0 0 0 2px rgba(226, 186, 82, 0.34),
+    inset 0 22px 34px rgba(127, 255, 218, 0.18),
+    inset 0 -22px 34px rgba(3, 45, 39, 0.25),
     0 24px 44px rgba(0, 24, 15, 0.42),
-    0 0 30px rgba(208, 162, 60, 0.17);
+    0 0 34px rgba(225, 184, 76, 0.22);
 }
 
 :root[data-theme="light"][data-board-skin="stone"] {
   --board-skin: url("/assets/board/board-skin-stone.svg");
   --board-bg:
-    radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.34), transparent 23%),
-    radial-gradient(circle at 80% 82%, rgba(82, 90, 96, 0.16), transparent 30%),
-    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 42px),
-    linear-gradient(145deg, #d6d8d7 0%, #b7bebf 48%, #879196 100%);
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.38), transparent 24%),
+    radial-gradient(circle at 80% 82%, rgba(67, 75, 80, 0.18), transparent 30%),
+    linear-gradient(32deg, transparent 0 29%, rgba(45, 52, 56, 0.18) 29.08% 29.28%, transparent 29.48%),
+    linear-gradient(126deg, transparent 0 64%, rgba(255, 255, 255, 0.14) 64.08% 64.25%, transparent 64.42%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 38px),
+    repeating-linear-gradient(28deg, rgba(69, 78, 84, 0.05) 0 2px, transparent 2px 48px),
+    linear-gradient(145deg, #d6d7d3 0%, #aeb5b5 48%, #798489 100%);
   --board-border: #5f696f;
   --board-shadow:
-    inset 0 0 0 2px rgba(62, 69, 74, 0.18),
-    inset 0 18px 30px rgba(255, 255, 255, 0.32),
-    inset 0 -18px 30px rgba(63, 70, 75, 0.14),
-    0 24px 44px rgba(40, 50, 56, 0.24),
-    0 0 24px rgba(185, 201, 206, 0.16);
+    inset 0 0 0 2px rgba(62, 69, 74, 0.2),
+    inset 0 20px 34px rgba(255, 255, 255, 0.34),
+    inset 0 -20px 34px rgba(63, 70, 75, 0.16),
+    0 24px 44px rgba(40, 50, 56, 0.25),
+    0 0 24px rgba(185, 201, 206, 0.17);
 }
 
 :root[data-theme="light"][data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-wine.svg");
   --board-bg:
-    radial-gradient(circle at 22% 14%, rgba(255, 255, 255, 0.48), transparent 24%),
-    radial-gradient(circle at 82% 80%, rgba(190, 70, 128, 0.16), transparent 29%),
-    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 44px),
-    linear-gradient(145deg, #fff0f6 0%, #ffd0e0 48%, #eda0bf 100%);
-  --board-border: #b85b7c;
+    radial-gradient(circle at 18% 13%, rgba(255, 145, 147, 0.22), transparent 25%),
+    radial-gradient(circle at 82% 82%, rgba(39, 5, 16, 0.28), transparent 31%),
+    linear-gradient(33deg, transparent 0 30%, rgba(35, 3, 12, 0.2) 30.08% 30.34%, transparent 30.52%),
+    linear-gradient(125deg, transparent 0 67%, rgba(255, 220, 127, 0.12) 67.08% 67.32%, transparent 67.5%),
+    repeating-linear-gradient(94deg, rgba(255, 224, 151, 0.052) 0 1px, transparent 1px 35px),
+    repeating-linear-gradient(27deg, rgba(82, 9, 28, 0.08) 0 2px, transparent 2px 50px),
+    linear-gradient(145deg, #8f1d35 0%, #631324 48%, #3d0913 100%);
+  --board-border: #e2ba52;
   --board-shadow:
-    inset 0 0 0 2px rgba(184, 91, 124, 0.18),
-    inset 0 18px 30px rgba(255, 255, 255, 0.36),
-    inset 0 -18px 30px rgba(154, 54, 94, 0.12),
-    0 24px 44px rgba(105, 34, 63, 0.22),
-    0 0 26px rgba(255, 167, 203, 0.18);
+    inset 0 0 0 2px rgba(226, 186, 82, 0.34),
+    inset 0 22px 34px rgba(255, 162, 150, 0.13),
+    inset 0 -22px 34px rgba(37, 3, 12, 0.28),
+    0 24px 44px rgba(24, 0, 8, 0.42),
+    0 0 34px rgba(225, 184, 76, 0.2);
 }
 
 .launcher-card.has-poster::before {

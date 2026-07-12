@@ -71,7 +71,7 @@ const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v68";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v69";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -95,6 +95,7 @@ const ANALYSIS_BLOCKING_ASSETS = [
   "/assets/board/board-skin-gold.svg",
   "/assets/board/board-skin-stone.svg",
   "/assets/board/board-skin-emerald.svg",
+  "/assets/board/board-skin-wine.svg",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))

@@ -15,7 +15,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v95";
+  const ASSET_WARMUP_VERSION = "20260710-v96";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -101,14 +101,15 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260710-mobile-v63",
-    "/app.js?v=20260710-mobile-v76",
+    "/styles.css?v=20260710-mobile-v64",
+    "/app.js?v=20260710-mobile-v77",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
     "/assets/board/board-skin-gold.svg",
     "/assets/board/board-skin-stone.svg",
     "/assets/board/board-skin-emerald.svg",
+    "/assets/board/board-skin-wine.svg",
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
     "/assets/icons/mb3-light.png",
