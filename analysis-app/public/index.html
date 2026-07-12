@@ -14,8 +14,11 @@
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" ? savedBoardSkin : "ice";
+        const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
+        const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
+        document.documentElement.dataset.pieceSkin = pieceSkin;
         document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#eaf6ff" : "#050914");
       } catch {}
     </script>
@@ -34,7 +37,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260710-room-v60">
+    <link rel="stylesheet" href="/portal.css?v=20260710-room-v61">
   </head>
   <body>
     <header class="portal-header">
@@ -54,6 +57,7 @@
           <button type="button" data-theme-choice="dark" aria-pressed="false">Bóng đêm</button>
         </div>
         <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
+          <div class="skin-menu-title">Màu bàn</div>
           <button type="button" data-portal-board-skin="ice" role="menuitem">
             <span class="skin-swatch skin-swatch-ice" aria-hidden="true"></span>
             Xanh băng
@@ -69,6 +73,27 @@
           <button type="button" data-portal-board-skin="pink" role="menuitem">
             <span class="skin-swatch skin-swatch-pink" aria-hidden="true"></span>
             Hồng nhạt
+          </button>
+          <div class="skin-menu-title">Bộ quân</div>
+          <button type="button" data-portal-piece-skin="default" role="menuitem">
+            <span class="piece-skin-swatch piece-skin-swatch-default" aria-hidden="true"></span>
+            Mặc định
+          </button>
+          <button type="button" data-portal-piece-skin="boquan1" role="menuitem">
+            <span class="piece-skin-swatch piece-skin-swatch-boquan1" aria-hidden="true"></span>
+            Bộ 1
+          </button>
+          <button type="button" data-portal-piece-skin="boquan2" role="menuitem">
+            <span class="piece-skin-swatch piece-skin-swatch-boquan2" aria-hidden="true"></span>
+            Bộ 2
+          </button>
+          <button type="button" data-portal-piece-skin="boquan3" role="menuitem">
+            <span class="piece-skin-swatch piece-skin-swatch-boquan3" aria-hidden="true"></span>
+            Bộ 3
+          </button>
+          <button type="button" data-portal-piece-skin="boquan4" role="menuitem">
+            <span class="piece-skin-swatch piece-skin-swatch-boquan4" aria-hidden="true"></span>
+            Bộ 4
           </button>
         </div>
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
@@ -545,7 +570,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260710-room-v84"></script>
+    <script src="/portal.js?v=20260710-room-v85"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -13,8 +13,9 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
+  const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v89";
+  const ASSET_WARMUP_VERSION = "20260710-v90";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -63,6 +64,34 @@
     C: "assets/pieces/mobile-red-cannon.png",
     P: "assets/pieces/mobile-red-pawn.png"
   };
+  const CUSTOM_PIECE_SET_KEYS = ["boquan1", "boquan2", "boquan3", "boquan4"];
+  const CUSTOM_PIECE_FILE_NAMES = {
+    R: "red-rook.png",
+    N: "red-knight.png",
+    B: "red-elephant.png",
+    A: "red-advisor.png",
+    K: "red-king.png",
+    C: "red-cannon.png",
+    P: "red-pawn.png",
+    r: "black-rook.png",
+    n: "black-knight.png",
+    b: "black-elephant.png",
+    a: "black-advisor.png",
+    k: "black-king.png",
+    c: "black-cannon.png",
+    p: "black-pawn.png"
+  };
+  const CUSTOM_PIECE_IMAGES_BY_SET = Object.fromEntries(
+    CUSTOM_PIECE_SET_KEYS.map((set) => [
+      set,
+      Object.fromEntries(
+        Object.entries(CUSTOM_PIECE_FILE_NAMES).map(([piece, file]) => [
+          piece,
+          `assets/pieces/sets/${set}/${file}`
+        ])
+      )
+    ])
+  );
   const REVIEW_BADGES = {
     book: { key: "book", label: "Book", image: "/assets/review-badges/book.png" },
     brilliant: { key: "brilliant", label: "Ưu việt", image: "/assets/review-badges/sao.png" },
@@ -72,8 +101,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260710-mobile-v59",
-    "/app.js?v=20260710-mobile-v70",
+    "/styles.css?v=20260710-mobile-v60",
+    "/app.js?v=20260710-mobile-v71",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
@@ -99,7 +128,8 @@
     "/assets/icons/logob.png",
     "/assets/effects/sat-cutout.png",
     ...Object.values(PIECE_IMAGES),
-    ...Object.values(MOBILE_RED_PIECE_IMAGES)
+    ...Object.values(MOBILE_RED_PIECE_IMAGES),
+    ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
   ];
   const THEME_LOGO_ASSETS = [
     "/assets/icons/logow-header.png",
@@ -366,6 +396,7 @@
   const portalBoardSkinButton = byId("portalBoardSkinBtn");
   const portalBoardSkinMenu = byId("portalBoardSkinMenu");
   const portalBoardSkinChoices = [...document.querySelectorAll("[data-portal-board-skin]")];
+  const portalPieceSkinChoices = [...document.querySelectorAll("[data-portal-piece-skin]")];
   window.setInterval(() => {
     if (!dom.profileModal?.classList.contains("hidden")) renderLicenseInfo();
   }, 60000);
@@ -383,6 +414,7 @@
 
   initThemeControls();
   initPortalBoardSkinControls();
+  initPortalPieceSkinControls();
   bindEvents();
   disableLegacyNameInputs();
   preventDoubleTapZoom();
@@ -423,8 +455,20 @@
     return normalizeBoardSkin(readPersistentValue(STORAGE_BOARD_SKIN) || document.documentElement.dataset.boardSkin || "ice");
   }
 
+  function readPortalPieceSkin() {
+    return normalizePieceSkin(readPersistentValue(STORAGE_PIECE_SKIN) || document.documentElement.dataset.pieceSkin || "default");
+  }
+
   function normalizeBoardSkin(skin) {
     return skin === "gold" || skin === "stone" || skin === "pink" ? skin : "ice";
+  }
+
+  function normalizePieceSkin(skin) {
+    return CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
+  }
+
+  function currentPieceSkin() {
+    return normalizePieceSkin(document.documentElement.dataset.pieceSkin || readPortalPieceSkin());
   }
 
   function initPortalBoardSkinControls() {
@@ -446,6 +490,16 @@
     });
   }
 
+  function initPortalPieceSkinControls() {
+    applyPortalPieceSkin(readPortalPieceSkin());
+    portalPieceSkinChoices.forEach((button) => {
+      button.addEventListener("click", () => {
+        applyPortalPieceSkin(button.dataset.portalPieceSkin, { persist: true });
+        hidePortalBoardSkinMenu();
+      });
+    });
+  }
+
   function applyPortalBoardSkin(skin, { persist = false } = {}) {
     const normalized = normalizeBoardSkin(skin);
     document.documentElement.dataset.boardSkin = normalized;
@@ -455,6 +509,23 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
+  }
+
+  function applyPortalPieceSkin(skin, { persist = false } = {}) {
+    const normalized = normalizePieceSkin(skin);
+    document.documentElement.dataset.pieceSkin = normalized;
+    if (persist) writePersistentValue(STORAGE_PIECE_SKIN, normalized);
+    portalPieceSkinChoices.forEach((button) => {
+      const active = normalizePieceSkin(button.dataset.portalPieceSkin) === normalized;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    state.lastPieceFrame = "";
+    state.reviewLastPieceFrame = "";
+    state.roomSlotLayoutKey = "";
+    state.reviewSlotLayoutKey = "";
+    if (dom.roomView && !dom.roomView.classList.contains("hidden")) drawRoomScene(true, true);
+    if (dom.reviewView && !dom.reviewView.classList.contains("hidden")) drawReviewScene(true, true);
   }
 
   function togglePortalBoardSkinMenu() {
@@ -2554,6 +2625,10 @@
   }
 
   function roomPieceImageFor(piece) {
+    const selectedSet = currentPieceSkin();
+    if (selectedSet !== "default") {
+      return CUSTOM_PIECE_IMAGES_BY_SET[selectedSet]?.[piece] || PIECE_IMAGES[piece] || "";
+    }
     return PIECE_IMAGES[piece] || "";
   }
 
@@ -3349,7 +3424,7 @@
     const selectionKey = state.selectedSquare ? XiangqiCore.squareToUci(state.selectedSquare) : "";
     const hintKey = state.hints.map(XiangqiCore.squareToUci).join(",");
     const animationKey = state.roomAnimation?.moveKey || "";
-    const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    const signature = `${state.room?.boardFen || START_FEN}|${viewSide()}|${currentPieceSkin()}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.lastPieceFrame) return;
     state.lastPieceFrame = signature;
     const { pieceSlots, hintSlots } = ensureRoomSlots();
@@ -3468,7 +3543,7 @@
     const currentAnalysis = currentIndex >= 0 ? state.reviewAnalysis[currentIndex] : null;
     const currentPly = currentIndex >= 0 ? state.reviewGame?.plies?.[currentIndex] : null;
     const animationKey = state.reviewAnimation?.moveKey || "";
-    const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    const signature = `${boardSignature(board)}|${reviewViewSide()}|${currentPieceSkin()}|${currentIndex}|${currentAnalysis?.grade || ""}|${currentPly?.move || ""}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.reviewLastPieceFrame) return;
     state.reviewLastPieceFrame = signature;
     const slots = ensureReviewSlots();
@@ -3503,11 +3578,11 @@
 
         el.classList.add("is-visible");
         el.classList.remove("review-current", "review-badge", "review-grade-book", "review-grade-brilliant", "review-grade-good", "review-grade-okay", "review-grade-bad");
-        if (el.dataset.piece !== piece) {
+        const image = el.querySelector(".piece-skin");
+        if (el.dataset.piece !== piece || (image && image.getAttribute("src") !== roomPieceImageFor(piece))) {
           el.dataset.piece = piece;
-          const image = el.querySelector(".piece-skin");
           if (image) {
-            image.src = PIECE_IMAGES[piece];
+            image.src = roomPieceImageFor(piece);
             image.alt = piece;
           }
           el.setAttribute("aria-label", piece);

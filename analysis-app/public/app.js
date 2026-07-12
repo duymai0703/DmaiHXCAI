@@ -29,6 +29,34 @@ const MOBILE_RED_PIECE_IMAGES = {
   C: "assets/pieces/mobile-red-cannon.png",
   P: "assets/pieces/mobile-red-pawn.png"
 };
+const CUSTOM_PIECE_SET_KEYS = ["boquan1", "boquan2", "boquan3", "boquan4"];
+const CUSTOM_PIECE_FILE_NAMES = {
+  R: "red-rook.png",
+  N: "red-knight.png",
+  B: "red-elephant.png",
+  A: "red-advisor.png",
+  K: "red-king.png",
+  C: "red-cannon.png",
+  P: "red-pawn.png",
+  r: "black-rook.png",
+  n: "black-knight.png",
+  b: "black-elephant.png",
+  a: "black-advisor.png",
+  k: "black-king.png",
+  c: "black-cannon.png",
+  p: "black-pawn.png"
+};
+const CUSTOM_PIECE_IMAGES_BY_SET = Object.fromEntries(
+  CUSTOM_PIECE_SET_KEYS.map((set) => [
+    set,
+    Object.fromEntries(
+      Object.entries(CUSTOM_PIECE_FILE_NAMES).map(([piece, file]) => [
+        piece,
+        `assets/pieces/sets/${set}/${file}`
+      ])
+    )
+  ])
+);
 const PIECE_CODES = { k: "Tg", a: "S", b: "T", r: "X", c: "P", n: "M", p: "B" };
 const EDITOR_PIECES = ["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p", ""];
 const API_RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -38,11 +66,12 @@ const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
+const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v62";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v63";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -66,7 +95,8 @@ const ANALYSIS_BLOCKING_ASSETS = [
   "/assets/board/board-skin-gold.svg",
   "/assets/board/board-skin-stone.svg",
   ...Object.values(PIECE_IMAGES),
-  ...Object.values(MOBILE_RED_PIECE_IMAGES)
+  ...Object.values(MOBILE_RED_PIECE_IMAGES),
+  ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/backgr.png",
@@ -192,6 +222,7 @@ const mobilePanels = [...document.querySelectorAll("[data-mobile-panel]")];
 const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")];
 const boardSkinMenuEl = document.getElementById("boardSkinMenu");
 const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-choice]")];
+const pieceSkinChoiceButtons = [...document.querySelectorAll("[data-piece-skin-choice]")];
 const accessGateEl = document.getElementById("accessGate");
 const accessKeyFormEl = document.getElementById("accessKeyForm");
 const accessKeyInputEl = document.getElementById("accessKeyInput");
@@ -201,6 +232,7 @@ let pendingAnalysisAccessKey = "";
 
 setupThemeControls();
 setupBoardSkinControls();
+setupPieceSkinControls();
 if (accessKeyFormEl) accessKeyFormEl.addEventListener("submit", onAnalysisAccessKeySubmit);
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
@@ -292,6 +324,45 @@ function toggleBoardSkinMenu() {
 
 function hideBoardSkinMenu() {
   if (boardSkinMenuEl) boardSkinMenuEl.classList.add("hidden");
+}
+
+function setupPieceSkinControls() {
+  applyPieceSkin(readPieceSkin());
+  pieceSkinChoiceButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyPieceSkin(button.dataset.pieceSkinChoice, { persist: true });
+      hideBoardSkinMenu();
+    });
+  });
+}
+
+function readPieceSkin() {
+  return normalizePieceSkin(readStorage(PIECE_SKIN_STORAGE_KEY) || document.documentElement.dataset.pieceSkin || "default");
+}
+
+function normalizePieceSkin(skin) {
+  return CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
+}
+
+function currentPieceSkin() {
+  return normalizePieceSkin(document.documentElement.dataset.pieceSkin || readPieceSkin());
+}
+
+function applyPieceSkin(skin, { persist = false } = {}) {
+  const normalized = normalizePieceSkin(skin);
+  document.documentElement.dataset.pieceSkin = normalized;
+  if (persist) writeStorage(PIECE_SKIN_STORAGE_KEY, normalized);
+  pieceSkinChoiceButtons.forEach((button) => {
+    const active = normalizePieceSkin(button.dataset.pieceSkinChoice) === normalized;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  state.lastPieceFrame = "";
+  state.lastArrowFrame = "";
+  state.slotLayoutKey = "";
+  renderPiecePalette();
+  renderMobileSetupPalette();
+  draw(true);
 }
 
 function applyTheme(theme, { persist = false } = {}) {
@@ -730,6 +801,10 @@ function pieceRestTransform() {
 }
 
 function pieceImageFor(piece) {
+  const selectedSet = currentPieceSkin();
+  if (selectedSet !== "default") {
+    return CUSTOM_PIECE_IMAGES_BY_SET[selectedSet]?.[piece] || PIECE_IMAGES[piece];
+  }
   return (isCompactMobile() && MOBILE_RED_PIECE_IMAGES[piece]) || PIECE_IMAGES[piece];
 }
 
@@ -1866,7 +1941,7 @@ function renderPiecePalette() {
     button.dataset.piece = piece;
     button.title = piece ? (PIECE_NAMES[piece] || piece) : "Xóa quân";
     if (piece) {
-      button.style.setProperty("--piece-image", `url("${PIECE_IMAGES[piece]}")`);
+      button.style.setProperty("--piece-image", `url("${pieceImageFor(piece)}")`);
       button.setAttribute("aria-label", PIECE_NAMES[piece] || piece);
     } else {
       button.classList.add("eraser");
@@ -2365,7 +2440,7 @@ function drawPieces() {
   const selectionKey = state.selected ? squareToUci(state.selected) : "";
   const hintKey = state.hints.map(squareToUci).join(",");
   const animationKey = state.moveAnimation?.moveKey || "";
-  const signature = `${boardSignature(state.board)}|${state.flipped ? "b" : "w"}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+  const signature = `${boardSignature(state.board)}|${state.flipped ? "b" : "w"}|${currentPieceSkin()}|${isCompactMobile() ? "m" : "d"}|${selectionKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
   if (signature === state.lastPieceFrame) return;
   state.lastPieceFrame = signature;
   const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
