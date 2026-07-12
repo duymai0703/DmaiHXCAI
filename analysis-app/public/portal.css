@@ -929,7 +929,7 @@ a {
   z-index: 7;
   width: 68%;
   max-width: 520px;
-  aspect-ratio: 1046 / 775;
+  aspect-ratio: 1100 / 800;
   transform: translate(-50%, -50%) scale(0.88);
   opacity: 0;
   visibility: hidden;
