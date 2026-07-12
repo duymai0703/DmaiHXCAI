@@ -3394,67 +3394,80 @@ textarea:focus {
 
 :root[data-board-skin="ice"] {
   --board-skin: url("/assets/board/board-skin-light.svg");
-  --board-bg: linear-gradient(145deg, #f7fdff 0%, #bfeeff 48%, #84d4ff 100%);
-  --board-border: #0597cf;
+  --board-bg:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.62), transparent 25%),
+    radial-gradient(circle at 78% 84%, rgba(39, 154, 210, 0.18), transparent 30%),
+    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #f8fdff 0%, #bfeefe 45%, #83d5f8 100%);
+  --board-border: #078fca;
   --board-shadow:
     inset 0 0 0 2px rgba(3, 139, 214, 0.22),
-    inset 0 16px 28px rgba(255, 255, 255, 0.48),
+    inset 0 18px 30px rgba(255, 255, 255, 0.5),
+    inset 0 -18px 30px rgba(18, 119, 165, 0.12),
     0 24px 44px rgba(31, 125, 174, 0.26),
     0 0 30px rgba(92, 225, 255, 0.24);
 }
 
 :root[data-board-skin="gold"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-gold.svg");
   --board-bg:
-    radial-gradient(circle at 22% 16%, rgba(255, 248, 193, 0.34), transparent 24%),
-    radial-gradient(circle at 78% 82%, rgba(197, 112, 24, 0.12), transparent 26%),
-    linear-gradient(145deg, #ffe6a6 0%, #f5bd63 48%, #d58a2e 100%);
-  --board-border: #7a481b;
+    radial-gradient(circle at 20% 14%, rgba(255, 245, 188, 0.46), transparent 24%),
+    radial-gradient(circle at 80% 82%, rgba(196, 102, 25, 0.16), transparent 29%),
+    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 48px),
+    linear-gradient(145deg, #ffe3a3 0%, #efb058 46%, #c98231 100%);
+  --board-border: #8c5520;
   --board-shadow:
-    inset 0 0 0 2px rgba(122, 72, 27, 0.22),
-    inset 0 16px 28px rgba(255, 244, 198, 0.34),
+    inset 0 0 0 2px rgba(122, 72, 27, 0.2),
+    inset 0 18px 30px rgba(255, 244, 198, 0.38),
+    inset 0 -18px 30px rgba(128, 70, 18, 0.14),
     0 24px 44px rgba(70, 38, 12, 0.3),
-    0 0 28px rgba(255, 190, 82, 0.2);
+    0 0 28px rgba(255, 190, 82, 0.22);
 }
 
 :root[data-board-skin="emerald"] {
   --board-skin: url("/assets/board/board-skin-emerald.svg");
   --board-bg:
-    radial-gradient(circle at 20% 16%, rgba(89, 220, 144, 0.28), transparent 25%),
-    radial-gradient(circle at 78% 82%, rgba(0, 53, 36, 0.26), transparent 30%),
-    linear-gradient(145deg, #0c5a3a 0%, #083d2c 52%, #042719 100%);
-  --board-border: #d0a23c;
+    radial-gradient(circle at 18% 14%, rgba(105, 213, 187, 0.28), transparent 24%),
+    radial-gradient(circle at 82% 82%, rgba(4, 54, 47, 0.22), transparent 31%),
+    repeating-linear-gradient(112deg, rgba(255, 244, 174, 0.045) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #1f887a 0%, #126a60 48%, #075149 100%);
+  --board-border: #d2aa4d;
   --board-shadow:
-    inset 0 0 0 2px rgba(208, 162, 60, 0.28),
-    inset 0 16px 30px rgba(89, 220, 144, 0.16),
+    inset 0 0 0 2px rgba(211, 171, 79, 0.3),
+    inset 0 18px 30px rgba(118, 218, 191, 0.16),
+    inset 0 -18px 30px rgba(3, 45, 39, 0.24),
     0 24px 44px rgba(0, 24, 15, 0.42),
-    0 0 30px rgba(208, 162, 60, 0.16);
+    0 0 30px rgba(208, 162, 60, 0.17);
 }
 
 :root[data-board-skin="stone"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-stone.svg");
   --board-bg:
-    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.54), transparent 25%),
-    radial-gradient(circle at 78% 82%, rgba(140, 166, 184, 0.16), transparent 28%),
-    linear-gradient(145deg, #fffefa 0%, #edf4f8 48%, #cfdce5 100%);
-  --board-border: #6a7b89;
+    radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.34), transparent 23%),
+    radial-gradient(circle at 80% 82%, rgba(82, 90, 96, 0.16), transparent 30%),
+    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 42px),
+    linear-gradient(145deg, #d6d8d7 0%, #b7bebf 48%, #879196 100%);
+  --board-border: #5f696f;
   --board-shadow:
-    inset 0 0 0 2px rgba(94, 111, 125, 0.18),
-    inset 0 16px 28px rgba(255, 255, 255, 0.5),
-    0 24px 44px rgba(40, 64, 84, 0.22),
-    0 0 26px rgba(219, 241, 255, 0.2);
+    inset 0 0 0 2px rgba(62, 69, 74, 0.18),
+    inset 0 18px 30px rgba(255, 255, 255, 0.32),
+    inset 0 -18px 30px rgba(63, 70, 75, 0.14),
+    0 24px 44px rgba(40, 50, 56, 0.24),
+    0 0 24px rgba(185, 201, 206, 0.16);
 }
 
 :root[data-board-skin="pink"] {
   --board-skin: url("/assets/board/board-skin-light.svg");
   --board-bg:
-    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.42), transparent 25%),
-    radial-gradient(circle at 82% 80%, rgba(216, 72, 128, 0.12), transparent 28%),
-    linear-gradient(145deg, #fff0f6 0%, #ffd6e4 48%, #f4a9c3 100%);
+    radial-gradient(circle at 22% 14%, rgba(255, 255, 255, 0.48), transparent 24%),
+    radial-gradient(circle at 82% 80%, rgba(190, 70, 128, 0.16), transparent 29%),
+    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #fff0f6 0%, #ffd0e0 48%, #eda0bf 100%);
   --board-border: #b85b7c;
   --board-shadow:
     inset 0 0 0 2px rgba(184, 91, 124, 0.18),
-    inset 0 16px 28px rgba(255, 255, 255, 0.34),
+    inset 0 18px 30px rgba(255, 255, 255, 0.36),
+    inset 0 -18px 30px rgba(154, 54, 94, 0.12),
     0 24px 44px rgba(105, 34, 63, 0.22),
     0 0 26px rgba(255, 167, 203, 0.18);
 }
@@ -3589,32 +3602,27 @@ body {
 
 .skin-swatch-ice {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat,
-    linear-gradient(135deg, #f7fdff, #8bdcff);
+    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #f8fdff, #83d5f8);
 }
 
 .skin-swatch-gold {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat,
-    linear-gradient(135deg, #ffe6a6, #d58a2e);
+    url("/assets/board/board-skin-gold.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #ffe3a3, #c98231);
 }
 
 .skin-swatch-emerald {
   background:
-    url("/assets/board/board-skin-emerald.svg") center / 100% 100% no-repeat,
-    linear-gradient(135deg, #126b45, #042719);
+    url("/assets/board/board-skin-emerald.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #1f887a, #075149);
 }
 
 .skin-swatch-stone {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat,
-    linear-gradient(135deg, #fffefa, #cfdce5);
+    url("/assets/board/board-skin-stone.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #d6d8d7, #879196);
 }
 
 .skin-swatch-pink {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat,
-    linear-gradient(135deg, #fff0f6, #f6a8c3);
+    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #fff0f6, #eda0bf);
 }
 
 .piece-skin-swatch {
@@ -3929,63 +3937,81 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="ice"] {
-  --board-bg: linear-gradient(145deg, #f7fdff 0%, #bfeeff 48%, #84d4ff 100%);
-  --board-border: #0597cf;
+  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-bg:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.62), transparent 25%),
+    radial-gradient(circle at 78% 84%, rgba(39, 154, 210, 0.18), transparent 30%),
+    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #f8fdff 0%, #bfeefe 45%, #83d5f8 100%);
+  --board-border: #078fca;
   --board-shadow:
     inset 0 0 0 2px rgba(3, 139, 214, 0.22),
-    inset 0 16px 28px rgba(255, 255, 255, 0.48),
+    inset 0 18px 30px rgba(255, 255, 255, 0.5),
+    inset 0 -18px 30px rgba(18, 119, 165, 0.12),
     0 24px 44px rgba(31, 125, 174, 0.26),
     0 0 30px rgba(92, 225, 255, 0.24);
 }
 
 :root[data-theme="light"][data-board-skin="gold"] {
+  --board-skin: url("/assets/board/board-skin-gold.svg");
   --board-bg:
-    radial-gradient(circle at 22% 16%, rgba(255, 248, 193, 0.34), transparent 24%),
-    radial-gradient(circle at 78% 82%, rgba(197, 112, 24, 0.12), transparent 26%),
-    linear-gradient(145deg, #ffe6a6 0%, #f5bd63 48%, #d58a2e 100%);
-  --board-border: #7a481b;
+    radial-gradient(circle at 20% 14%, rgba(255, 245, 188, 0.46), transparent 24%),
+    radial-gradient(circle at 80% 82%, rgba(196, 102, 25, 0.16), transparent 29%),
+    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 48px),
+    linear-gradient(145deg, #ffe3a3 0%, #efb058 46%, #c98231 100%);
+  --board-border: #8c5520;
   --board-shadow:
-    inset 0 0 0 2px rgba(122, 72, 27, 0.22),
-    inset 0 16px 28px rgba(255, 244, 198, 0.34),
+    inset 0 0 0 2px rgba(122, 72, 27, 0.2),
+    inset 0 18px 30px rgba(255, 244, 198, 0.38),
+    inset 0 -18px 30px rgba(128, 70, 18, 0.14),
     0 24px 44px rgba(70, 38, 12, 0.3),
-    0 0 28px rgba(255, 190, 82, 0.2);
+    0 0 28px rgba(255, 190, 82, 0.22);
 }
 
 :root[data-theme="light"][data-board-skin="emerald"] {
+  --board-skin: url("/assets/board/board-skin-emerald.svg");
   --board-bg:
-    radial-gradient(circle at 20% 16%, rgba(109, 235, 164, 0.28), transparent 25%),
-    radial-gradient(circle at 78% 82%, rgba(0, 57, 36, 0.22), transparent 30%),
-    linear-gradient(145deg, #126b45 0%, #0b4b35 52%, #06331f 100%);
-  --board-border: #d6ad46;
+    radial-gradient(circle at 18% 14%, rgba(105, 213, 187, 0.28), transparent 24%),
+    radial-gradient(circle at 82% 82%, rgba(4, 54, 47, 0.22), transparent 31%),
+    repeating-linear-gradient(112deg, rgba(255, 244, 174, 0.045) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #1f887a 0%, #126a60 48%, #075149 100%);
+  --board-border: #d2aa4d;
   --board-shadow:
-    inset 0 0 0 2px rgba(214, 173, 70, 0.28),
-    inset 0 16px 30px rgba(109, 235, 164, 0.16),
-    0 24px 44px rgba(0, 34, 22, 0.34),
-    0 0 30px rgba(214, 173, 70, 0.18);
+    inset 0 0 0 2px rgba(211, 171, 79, 0.3),
+    inset 0 18px 30px rgba(118, 218, 191, 0.16),
+    inset 0 -18px 30px rgba(3, 45, 39, 0.24),
+    0 24px 44px rgba(0, 24, 15, 0.42),
+    0 0 30px rgba(208, 162, 60, 0.17);
 }
 
 :root[data-theme="light"][data-board-skin="stone"] {
+  --board-skin: url("/assets/board/board-skin-stone.svg");
   --board-bg:
-    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.54), transparent 25%),
-    radial-gradient(circle at 78% 82%, rgba(140, 166, 184, 0.16), transparent 28%),
-    linear-gradient(145deg, #fffefa 0%, #edf4f8 48%, #cfdce5 100%);
-  --board-border: #6a7b89;
+    radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.34), transparent 23%),
+    radial-gradient(circle at 80% 82%, rgba(82, 90, 96, 0.16), transparent 30%),
+    repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 42px),
+    linear-gradient(145deg, #d6d8d7 0%, #b7bebf 48%, #879196 100%);
+  --board-border: #5f696f;
   --board-shadow:
-    inset 0 0 0 2px rgba(94, 111, 125, 0.18),
-    inset 0 16px 28px rgba(255, 255, 255, 0.5),
-    0 24px 44px rgba(40, 64, 84, 0.22),
-    0 0 26px rgba(219, 241, 255, 0.2);
+    inset 0 0 0 2px rgba(62, 69, 74, 0.18),
+    inset 0 18px 30px rgba(255, 255, 255, 0.32),
+    inset 0 -18px 30px rgba(63, 70, 75, 0.14),
+    0 24px 44px rgba(40, 50, 56, 0.24),
+    0 0 24px rgba(185, 201, 206, 0.16);
 }
 
 :root[data-theme="light"][data-board-skin="pink"] {
+  --board-skin: url("/assets/board/board-skin-light.svg");
   --board-bg:
-    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.42), transparent 25%),
-    radial-gradient(circle at 82% 80%, rgba(216, 72, 128, 0.12), transparent 28%),
-    linear-gradient(145deg, #fff0f6 0%, #ffd6e4 48%, #f4a9c3 100%);
+    radial-gradient(circle at 22% 14%, rgba(255, 255, 255, 0.48), transparent 24%),
+    radial-gradient(circle at 82% 80%, rgba(190, 70, 128, 0.16), transparent 29%),
+    repeating-linear-gradient(116deg, rgba(255, 255, 255, 0.07) 0 2px, transparent 2px 44px),
+    linear-gradient(145deg, #fff0f6 0%, #ffd0e0 48%, #eda0bf 100%);
   --board-border: #b85b7c;
   --board-shadow:
     inset 0 0 0 2px rgba(184, 91, 124, 0.18),
-    inset 0 16px 28px rgba(255, 255, 255, 0.34),
+    inset 0 18px 30px rgba(255, 255, 255, 0.36),
+    inset 0 -18px 30px rgba(154, 54, 94, 0.12),
     0 24px 44px rgba(105, 34, 63, 0.22),
     0 0 26px rgba(255, 167, 203, 0.18);
 }

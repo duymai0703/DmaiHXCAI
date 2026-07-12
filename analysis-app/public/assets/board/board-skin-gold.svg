@@ -1,22 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000" fill="none">
   <defs>
     <g id="pointMark" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M-27 -10H-13V-24 M27 -10H13V-24 M-27 10H-13V24 M27 10H13V24"/>
+      <path d="M-25 -9H-12V-22 M25 -9H12V-22 M-25 9H-12V22 M25 9H12V22"/>
     </g>
     <g id="pointMarkLeftEdge" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M27 -10H13V-24 M27 10H13V24"/>
+      <path d="M25 -9H12V-22 M25 9H12V22"/>
     </g>
     <g id="pointMarkRightEdge" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M-27 -10H-13V-24 M-27 10H-13V24"/>
+      <path d="M-25 -9H-12V-22 M-25 9H-12V22"/>
     </g>
   </defs>
   <rect width="900" height="1000" fill="transparent"/>
-  <g stroke="#171717" stroke-opacity="0.84" stroke-width="1.8" stroke-linecap="butt">
+  <g stroke="#8d652e" stroke-opacity="0.52" fill="none" stroke-linejoin="round">
+    <rect x="28" y="28" width="844" height="944" rx="12" stroke-width="5.2"/>
+    <rect x="45" y="47" width="810" height="906" rx="4" stroke-width="2.6"/>
+    <path d="M92 31C112 45 132 45 152 31M748 31C768 45 788 45 808 31M92 969C112 955 132 955 152 969M748 969C768 955 788 955 808 969" stroke-width="2.3" stroke-linecap="round"/>
+    <path d="M31 110C47 130 47 150 31 170M869 110C853 130 853 150 869 170M31 830C47 850 47 870 31 890M869 830C853 850 853 870 869 890" stroke-width="2.3" stroke-linecap="round"/>
+  </g>
+  <g stroke="#5f401f" stroke-opacity="0.78" stroke-width="1.78" stroke-linecap="butt">
     <path d="M63 63V451.444M63 548.556V937M159.75 63V451.444M159.75 548.556V937M256.5 63V451.444M256.5 548.556V937M353.25 63V451.444M353.25 548.556V937M450 63V451.444M450 548.556V937M546.75 63V451.444M546.75 548.556V937M643.5 63V451.444M643.5 548.556V937M740.25 63V451.444M740.25 548.556V937M837 63V451.444M837 548.556V937"/>
     <path d="M63 63H837M63 160.111H837M63 257.222H837M63 354.333H837M63 451.444H837M63 548.556H837M63 645.667H837M63 742.778H837M63 839.889H837M63 937H837"/>
     <path d="M353.25 63L546.75 257.222M546.75 63L353.25 257.222M353.25 742.778L546.75 937M546.75 742.778L353.25 937"/>
   </g>
-  <g stroke="#171717" stroke-opacity="0.66" stroke-width="1.7">
+  <g stroke="#5f401f" stroke-opacity="0.56" stroke-width="1.56">
     <use href="#pointMark" transform="translate(159.75 257.222)"/>
     <use href="#pointMark" transform="translate(740.25 257.222)"/>
     <use href="#pointMark" transform="translate(159.75 742.778)"/>
@@ -32,7 +38,7 @@
     <use href="#pointMark" transform="translate(643.5 645.667)"/>
     <use href="#pointMarkRightEdge" transform="translate(837 645.667)"/>
   </g>
-  <g fill="#171717" fill-opacity="0.68" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle">
+  <g fill="#5f401f" fill-opacity="0.68" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle">
     <text x="256" y="518">&#26970;&#27827;</text>
     <text x="644" y="518">&#28450;&#30028;</text>
   </g>
