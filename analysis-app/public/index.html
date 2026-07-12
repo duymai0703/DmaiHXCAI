@@ -13,7 +13,7 @@
       try {
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
-        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" ? savedBoardSkin : "ice";
+        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
         const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
@@ -37,7 +37,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
     <link rel="preload" href="/assets/board/board-skin-dark.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-light.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260710-room-v61">
+    <link rel="preload" href="/assets/board/board-skin-emerald.svg" as="image">
+    <link rel="stylesheet" href="/portal.css?v=20260710-room-v62">
   </head>
   <body>
     <header class="portal-header">
@@ -65,6 +66,10 @@
           <button type="button" data-portal-board-skin="gold" role="menuitem">
             <span class="skin-swatch skin-swatch-gold" aria-hidden="true"></span>
             Vàng cổ
+          </button>
+          <button type="button" data-portal-board-skin="emerald" role="menuitem">
+            <span class="skin-swatch skin-swatch-emerald" aria-hidden="true"></span>
+            Xanh ngọc
           </button>
           <button type="button" data-portal-board-skin="stone" role="menuitem">
             <span class="skin-swatch skin-swatch-stone" aria-hidden="true"></span>
@@ -570,7 +575,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260710-room-v85"></script>
+    <script src="/portal.js?v=20260710-room-v86"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

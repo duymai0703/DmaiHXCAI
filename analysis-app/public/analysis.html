@@ -13,7 +13,7 @@
       try {
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
-        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" ? savedBoardSkin : "ice";
+        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
         const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
@@ -30,7 +30,8 @@
     <link rel="preload" href="/assets/board/board-skin-mobile.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-gold.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-stone.svg" as="image">
-    <link rel="stylesheet" href="/styles.css?v=20260710-mobile-v60">
+    <link rel="preload" href="/assets/board/board-skin-emerald.svg" as="image">
+    <link rel="stylesheet" href="/styles.css?v=20260710-mobile-v61">
   </head>
   <body>
     <header class="app-header">
@@ -74,6 +75,10 @@
           <button type="button" data-board-skin-choice="gold" role="menuitem">
             <span class="skin-swatch skin-swatch-gold" aria-hidden="true"></span>
             Vàng cổ
+          </button>
+          <button type="button" data-board-skin-choice="emerald" role="menuitem">
+            <span class="skin-swatch skin-swatch-emerald" aria-hidden="true"></span>
+            Xanh ngọc
           </button>
           <button type="button" data-board-skin-choice="stone" role="menuitem">
             <span class="skin-swatch skin-swatch-stone" aria-hidden="true"></span>
@@ -230,7 +235,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260710-mobile-v71"></script>
+    <script src="/app.js?v=20260710-mobile-v72"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

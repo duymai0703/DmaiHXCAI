@@ -15,7 +15,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v90";
+  const ASSET_WARMUP_VERSION = "20260710-v91";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -101,13 +101,14 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260710-mobile-v60",
-    "/app.js?v=20260710-mobile-v71",
+    "/styles.css?v=20260710-mobile-v61",
+    "/app.js?v=20260710-mobile-v72",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
     "/assets/board/board-skin-gold.svg",
     "/assets/board/board-skin-stone.svg",
+    "/assets/board/board-skin-emerald.svg",
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
     "/assets/icons/mb3-light.png",
@@ -460,7 +461,7 @@
   }
 
   function normalizeBoardSkin(skin) {
-    return skin === "gold" || skin === "stone" || skin === "pink" ? skin : "ice";
+    return skin === "gold" || skin === "stone" || skin === "pink" || skin === "emerald" ? skin : "ice";
   }
 
   function normalizePieceSkin(skin) {
