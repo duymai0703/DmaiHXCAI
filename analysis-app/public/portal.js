@@ -15,7 +15,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260710-v91";
+  const ASSET_WARMUP_VERSION = "20260710-v92";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -102,7 +102,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260710-mobile-v61",
-    "/app.js?v=20260710-mobile-v72",
+    "/app.js?v=20260710-mobile-v73",
     "/assets/board/board-skin-dark.svg",
     "/assets/board/board-skin-light.svg",
     "/assets/board/board-skin-mobile.svg",
