@@ -5,6 +5,7 @@
   const STORAGE_TOKEN = "license_token";
   const LEGACY_STORAGE_TOKEN = "dmaihxcai-auth-token";
   const STORAGE_USER = "dmaihxcai-auth-user";
+  const STORAGE_ACCESS_KEY = "dmaihxcai-access-key";
   const STORAGE_ROOM = "dmaihxcai-room-key";
   const STORAGE_DEVICE_ID = "dmaihxcai-device-id";
   const STORAGE_DEVICE_AVATAR = "dmaihxcai-device-avatar";
@@ -158,6 +159,8 @@
   const state = {
     token: initialToken,
     user: initialToken ? readStoredUser() : null,
+    savedAccessKey: readPersistentValue(STORAGE_ACCESS_KEY),
+    sessionSuspended: false,
     deviceId: initialDeviceId,
     deviceAvatarUrl: initialDeviceAvatar,
     history: readStoredHistory(),
@@ -376,6 +379,8 @@
     adminImportKeysBtn: byId("adminImportKeysBtn"),
     adminImportKeysInput: byId("adminImportKeysInput"),
     adminExportBtn: byId("adminExportBtn"),
+    adminKeyLookupForm: byId("adminKeyLookupForm"),
+    adminKeyLookupInput: byId("adminKeyLookupInput"),
     adminUsersMeta: byId("adminUsersMeta"),
     adminUsersList: byId("adminUsersList"),
     adminSelectedTitle: byId("adminSelectedTitle"),
@@ -683,6 +688,7 @@
     });
     dom.adminImportKeysInput?.addEventListener("change", importAdminLicenseKeys);
     dom.adminExportBtn?.addEventListener("click", exportAdminLicenseKeys);
+    dom.adminKeyLookupForm?.addEventListener("submit", lookupAdminKey);
     dom.copyRoomKeyBtn.addEventListener("click", () => copyText(state.room?.key || ""));
     dom.undoRequestBtn.addEventListener("click", () => requestRoomAction("undo"));
     dom.drawRequestBtn.addEventListener("click", () => requestRoomAction("draw"));
@@ -902,6 +908,10 @@
   async function bootstrap() {
     try {
       if (!state.token) {
+        if (state.savedAccessKey) {
+          const restored = await restoreSessionFromSavedKey({ silent: true });
+          if (restored) return;
+        }
         showAccessGate();
         return;
       }
@@ -915,6 +925,10 @@
       renderHistory();
       if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
     } catch (error) {
+      if (isSessionReplacedError(error) && state.savedAccessKey) {
+        const restored = await restoreSessionFromSavedKey({ silent: true });
+        if (restored) return;
+      }
       if (!/UNAUTHORIZED/i.test(String(error?.message || ""))) throw error;
       localStorage.removeItem(STORAGE_TOKEN);
       localStorage.removeItem(LEGACY_STORAGE_TOKEN);
@@ -922,6 +936,31 @@
       state.token = "";
       state.user = null;
       showAccessGate();
+    }
+  }
+
+  async function restoreSessionFromSavedKey({ silent = false } = {}) {
+    const key = state.savedAccessKey || readPersistentValue(STORAGE_ACCESS_KEY);
+    if (!key) return false;
+    try {
+      const payload = await api("/api/license/activate", {
+        method: "POST",
+        body: { key, deviceId: state.deviceId }
+      }, { suppressSessionReplaced: true });
+      applySession(payload.user, payload.token, key);
+      hideAccessGate();
+      const [historyPayload, currentRoom] = await Promise.all([
+        api("/api/history"),
+        api("/api/rooms/current")
+      ]);
+      state.history = mergeHistoryLists(historyPayload.history, state.history);
+      renderHistory();
+      if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+      goRoute(isAdmin() && state.route === "admin" ? "admin" : state.route || "home", true);
+      return true;
+    } catch (error) {
+      if (!silent) showAccessGate(error.message || "Key khong dung.");
+      return false;
     }
   }
 
@@ -947,9 +986,9 @@
   function showAccessGate(message = "") {
     dom.accessGate?.classList.remove("hidden");
     document.body.classList.add("access-locked");
-    updateAccessGateMode(Boolean(state.pendingAccessKey));
+    updateAccessGateMode(false);
     if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = message;
-    window.setTimeout(() => (state.pendingAccessKey ? dom.accessNameInput : dom.accessKeyInput)?.focus({ preventScroll: true }), 60);
+    window.setTimeout(() => dom.accessKeyInput?.focus({ preventScroll: true }), 60);
   }
 
   function hideAccessGate() {
@@ -961,20 +1000,57 @@
   }
 
   function updateAccessGateMode(hasPendingKey) {
-    dom.accessNameInput?.classList.toggle("hidden", !hasPendingKey);
-    if (dom.accessNameInput) dom.accessNameInput.required = Boolean(hasPendingKey);
-    if (dom.accessKeyInput) dom.accessKeyInput.readOnly = Boolean(hasPendingKey);
+    dom.accessNameInput?.classList.add("hidden");
+    if (dom.accessNameInput) dom.accessNameInput.required = false;
+    if (dom.accessKeyInput) dom.accessKeyInput.readOnly = false;
     const submitButton = dom.accessKeyForm?.querySelector("button[type='submit']");
+    if (submitButton) submitButton.textContent = "Kich hoat";
+    return;
     if (submitButton) submitButton.textContent = hasPendingKey ? "Xác nhận tên" : "Kích hoạt";
   }
 
   async function onAccessKeySubmit(event) {
     event.preventDefault();
-    const key = String(state.pendingAccessKey || dom.accessKeyInput?.value || "").trim();
+    const key = String(dom.accessKeyInput?.value || state.savedAccessKey || "").trim();
     if (!key) {
       showAccessGate("Hãy nhập Key kích hoạt.");
       return;
     }
+    if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Dang kich hoat Key...";
+    try {
+      const payload = await api("/api/license/activate", {
+        method: "POST",
+        body: { key, deviceId: state.deviceId }
+      });
+      applySession(payload.user, payload.token, key);
+      hideAccessGate();
+      if (dom.accessKeyInput) dom.accessKeyInput.value = "";
+      if (dom.accessNameInput) dom.accessNameInput.value = "";
+      const [historyPayload, currentRoom] = await Promise.all([
+        api("/api/history"),
+        api("/api/rooms/current")
+      ]);
+      state.history = mergeHistoryLists(historyPayload.history, state.history);
+      renderHistory();
+      if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+      if (isAdmin()) {
+        await loadAdminUsers(true);
+        goRoute("admin", true);
+      } else {
+        goRoute("home", true);
+      }
+      showToast(isAdmin() ? "Da mo trang quan tri." : "Da kich hoat Key.");
+    } catch (error) {
+      state.token = "";
+      state.pendingAccessKey = "";
+      updateAccessGateMode(false);
+      localStorage.removeItem(STORAGE_TOKEN);
+      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
+      localStorage.removeItem(STORAGE_USER);
+      if (key !== state.savedAccessKey) writePersistentValue(STORAGE_ACCESS_KEY, "");
+      showAccessGate(error.message || "Key khong dung.");
+    }
+    return;
     if (!state.pendingAccessKey) {
       if (dom.accessKeyMessage) dom.accessKeyMessage.textContent = "Đang kiểm tra Key...";
       try {
@@ -1326,11 +1402,16 @@
     }).catch(() => {});
   }
 
-  function applySession(user, token) {
+  function applySession(user, token, accessKey = "") {
     state.user = user ? {
       ...user,
       avatarUrl: user.avatarUrl || state.deviceAvatarUrl
     } : null;
+    state.sessionSuspended = false;
+    if (accessKey) {
+      state.savedAccessKey = String(accessKey || "").trim();
+      writePersistentValue(STORAGE_ACCESS_KEY, state.savedAccessKey);
+    }
     if (token) {
       state.token = token;
       localStorage.setItem(STORAGE_TOKEN, token);
@@ -1668,6 +1749,40 @@
     }
   }
 
+  async function lookupAdminKey(event) {
+    event?.preventDefault?.();
+    if (!isAdmin()) return;
+    const key = String(dom.adminKeyLookupInput?.value || "").trim();
+    if (!key) {
+      showToast("Nhap Key can quan ly.");
+      return;
+    }
+    try {
+      const payload = await api("/api/admin/users/lookup-key", {
+        method: "POST",
+        body: { key }
+      });
+      const nextUser = {
+        ...payload.user,
+        history: normalizeHistoryList(payload.user?.history),
+        online: Boolean(payload.user?.online),
+        currentActivity: payload.user?.currentActivity || {},
+        currentRoomKey: payload.user?.currentRoomKey || "",
+        currentRoomRole: payload.user?.currentRoomRole || ""
+      };
+      state.adminUsers = [
+        nextUser,
+        ...state.adminUsers.filter((user) => user.id !== nextUser.id)
+      ];
+      state.adminSelectedUserId = nextUser.id;
+      if (dom.adminKeyLookupInput) dom.adminKeyLookupInput.value = "";
+      renderAdminState();
+      showToast("Da them Key vao quan tri thanh vien.");
+    } catch (error) {
+      showToast(error.message || "Khong tim thay Key.");
+    }
+  }
+
   function startAdminPolling() {
     if (!isAdmin() || state.adminRefreshTimer) return;
     state.adminRefreshTimer = window.setInterval(() => {
@@ -1707,7 +1822,7 @@
         : `Chưa có tài khoản nào. ${rawKeyNote}`;
 
     dom.adminUsersList.innerHTML = "";
-    if (state.adminLicenses.length) {
+    if (false && state.adminLicenses.length) {
       state.adminLicenses.forEach((license) => {
         const item = document.createElement("div");
         item.className = `admin-user-card license-card ${license.status}`;
@@ -1760,10 +1875,12 @@
         keyDetail.textContent = user.accessKey
           ? `${user.accessKey} - ${user.activated ? "Đã kích hoạt" : "Chưa kích hoạt"}`
           : "";
+        const sessionDetail = document.createElement("span");
+        sessionDetail.textContent = `${user.rememberedDeviceCount || 0} thiet bi da ghi nho`;
         const presence = document.createElement("span");
         presence.className = `admin-presence ${user.online ? "online" : "offline"}`;
         presence.textContent = user.online ? "Online" : "Offline";
-        meta.append(name, username, detail, keyDetail, presence);
+        meta.append(name, username, detail, keyDetail, sessionDetail, presence);
         button.append(avatar, meta);
         dom.adminUsersList.appendChild(button);
       });
@@ -4755,10 +4872,30 @@
     }, { passive: false });
   }
 
-  async function api(url, options = {}) {
+  function isSessionReplacedError(error) {
+    const code = String(error?.code || "").toUpperCase();
+    const message = String(error?.message || "");
+    return Number(error?.status) === 409 || code === "SESSION_REPLACED" || /dang nhap o noi khac|SESSION_REPLACED/i.test(message);
+  }
+
+  function handleSessionReplaced() {
+    if (state.sessionSuspended) return;
+    state.sessionSuspended = true;
+    stopRoomPolling();
+    clearRoomMoveAnimation();
+    clearReviewMoveAnimation();
+    state.token = "";
+    localStorage.removeItem(STORAGE_TOKEN);
+    localStorage.removeItem(LEGACY_STORAGE_TOKEN);
+    if (dom.accessKeyInput && state.savedAccessKey) dom.accessKeyInput.value = state.savedAccessKey;
+    showAccessGate("Tai khoan dang dang nhap o noi khac.");
+  }
+
+  async function api(url, options = {}, behavior = {}) {
     const method = options.method || (options.body !== undefined ? "POST" : "GET");
     const headers = {};
     if (state.token) headers.Authorization = `Bearer ${state.token}`;
+    if (state.deviceId) headers["X-Dmaihxcai-Device"] = state.deviceId;
     let body;
     if (options.body !== undefined) {
       headers["Content-Type"] = "application/json";
@@ -4776,7 +4913,14 @@
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.ok === false) {
-          throw Object.assign(new Error(data.error || `HTTP ${response.status}`), { status: response.status });
+          const error = Object.assign(new Error(data.error || `HTTP ${response.status}`), {
+            status: response.status,
+            code: data.code || ""
+          });
+          if (!behavior.suppressSessionReplaced && isSessionReplacedError(error)) {
+            handleSessionReplaced();
+          }
+          throw error;
         }
         return data;
       } catch (error) {
@@ -4786,7 +4930,9 @@
       }
     }
 
-    if (lastError && /UNAUTHORIZED/i.test(lastError.message || "")) {
+    if (lastError && isSessionReplacedError(lastError)) {
+      if (!behavior.suppressSessionReplaced) handleSessionReplaced();
+    } else if (lastError && /UNAUTHORIZED/i.test(lastError.message || "")) {
       clearSession();
       goRoute("home", true);
       setMessage(dom.matchHubMessage, "Phiên thiết bị đã hết hạn. Hãy thử lại.");

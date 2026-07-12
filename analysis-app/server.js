@@ -798,7 +798,23 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       history: normalizeHistoryEntries(user.history),
       createdAt: user.createdAt || nowIso(),
       lastSeenAt: user.lastSeenAt || "",
-      currentActivity: sanitizeUserActivity(user.currentActivity || {})
+      currentActivity: sanitizeUserActivity(user.currentActivity || {}),
+      adminTracked: Boolean(user.adminTracked),
+      adminTrackedAt: user.adminTrackedAt && !Number.isNaN(Date.parse(user.adminTrackedAt)) ? user.adminTrackedAt : "",
+      activeSessionId: String(user.activeSessionId || ""),
+      activeDeviceId: sanitizeDeviceId(user.activeDeviceId || ""),
+      activeSessionStartedAt: user.activeSessionStartedAt && !Number.isNaN(Date.parse(user.activeSessionStartedAt)) ? user.activeSessionStartedAt : "",
+      activeSessionSeenAt: user.activeSessionSeenAt && !Number.isNaN(Date.parse(user.activeSessionSeenAt)) ? user.activeSessionSeenAt : "",
+      rememberedDevices: Array.isArray(user.rememberedDevices)
+        ? user.rememberedDevices
+            .map((device) => ({
+              deviceId: sanitizeDeviceId(device?.deviceId || ""),
+              firstSeenAt: device?.firstSeenAt && !Number.isNaN(Date.parse(device.firstSeenAt)) ? device.firstSeenAt : "",
+              lastSeenAt: device?.lastSeenAt && !Number.isNaN(Date.parse(device.lastSeenAt)) ? device.lastSeenAt : ""
+            }))
+            .filter((device) => device.deviceId)
+            .slice(0, 12)
+        : []
     };
   }
 
@@ -996,6 +1012,17 @@ function restoreLicenseStateFromUsers() {
     if (!user || user.role === "admin" || !user.accessKeyHash) return;
     const license = licenseByHash(user.accessKeyHash);
     if (!license) return;
+    if (!user.keyActivatedAt && license.status !== "activated" && !license.activatedAt) {
+      if (license.userId !== user.id) {
+        license.userId = user.id;
+        changed = true;
+      }
+      if (user.licenseId !== license.id) {
+        user.licenseId = license.id;
+        changed = true;
+      }
+      return;
+    }
     const activatedAt = user.keyActivatedAt || license.activatedAt || user.createdAt || nowIso();
     const expiresAt = user.licenseExpiresAt || license.expiresAt || licenseExpiryFrom(activatedAt);
     const expired = Date.parse(expiresAt) <= Date.now();
@@ -1170,9 +1197,10 @@ function validateCustomerName(value) {
   return name;
 }
 
-function createLicenseUser(license, customerName) {
+function createLicenseUser(license, customerName = "") {
   const passwordInfo = hashPassword(randomId(18));
   const now = nowIso();
+  const displayName = sanitizeAccountName(customerName || license.customerName || "", defaultAccessKeyDisplayName(license.slot));
   return {
     id: license.userId || `license-${license.id}-${license.keyHash.slice(0, 12)}`,
     email: `${license.id}@licenses.dmaihxcai.local`,
@@ -1181,7 +1209,7 @@ function createLicenseUser(license, customerName) {
     passwordHash: passwordInfo.hash,
     role: "user",
     deviceId: "",
-    displayName: customerName,
+    displayName,
     accessKeyHash: license.keyHash,
     accessKeySlot: license.slot,
     licenseId: license.id,
@@ -1192,7 +1220,14 @@ function createLicenseUser(license, customerName) {
     history: [],
     createdAt: now,
     lastSeenAt: now,
-    currentActivity: { route: "home", roomKey: "", action: "Da kich hoat license", updatedAt: now }
+    currentActivity: { route: "home", roomKey: "", action: license.activatedAt ? "Da kich hoat license" : "Chua kich hoat", updatedAt: now },
+    adminTracked: false,
+    adminTrackedAt: "",
+    activeSessionId: "",
+    activeDeviceId: "",
+    activeSessionStartedAt: "",
+    activeSessionSeenAt: "",
+    rememberedDevices: []
   };
 }
 
@@ -1200,30 +1235,49 @@ function defaultSystemAvatar() {
   return "/assets/device-avatars/goku.png";
 }
 
-function activateLicenseKey(key, customerName) {
-  const keyHash = hashLicenseKey(key);
-  if (!keyHash) return null;
-  const license = licenseByHash(keyHash);
-  if (!license || license.status !== "unused") return null;
-  const safeName = validateCustomerName(customerName);
-  const now = nowIso();
-  license.status = "activated";
-  license.customerName = safeName;
-  license.activatedAt = now;
-  license.expiresAt = licenseExpiryFrom(now);
+function ensureLicenseUser(license, customerName = "") {
   let user = users.find((item) => item.licenseId === license.id || item.accessKeyHash === license.keyHash);
   if (!user) {
-    user = createLicenseUser(license, safeName);
+    user = createLicenseUser(license, customerName);
     users.push(user);
   } else {
-    user.displayName = safeName;
     user.accessKeyHash = license.keyHash;
     user.accessKeySlot = license.slot;
     user.licenseId = license.id;
-    user.licenseExpiresAt = license.expiresAt;
-    user.keyActivatedAt = license.activatedAt;
+    user.licenseExpiresAt = license.expiresAt || user.licenseExpiresAt || "";
+    user.keyActivatedAt = license.activatedAt || user.keyActivatedAt || "";
+    if (!user.displayName) {
+      user.displayName = sanitizeAccountName(customerName || license.customerName || "", defaultAccessKeyDisplayName(license.slot));
+    }
     if (!user.avatarUrl) user.avatarUrl = defaultSystemAvatar();
+    if (!Array.isArray(user.rememberedDevices)) user.rememberedDevices = [];
   }
+  license.userId = user.id;
+  return user;
+}
+
+function activateLicenseKey(key, customerName = "") {
+  const keyHash = hashLicenseKey(key);
+  if (!keyHash) return null;
+  const license = licenseByHash(keyHash);
+  if (!license) return null;
+  refreshLicenseExpiry(license);
+  if (license.status === "expired") return null;
+  const now = nowIso();
+  const requestedName = sanitizeAccountName(customerName || "", "");
+  if (license.status !== "activated") {
+    license.status = "activated";
+    license.customerName = requestedName || license.customerName || defaultAccessKeyDisplayName(license.slot);
+    license.activatedAt = now;
+    license.expiresAt = licenseExpiryFrom(now);
+  } else if (!license.customerName && requestedName) {
+    license.customerName = requestedName;
+  }
+  const user = ensureLicenseUser(license, license.customerName || requestedName);
+  user.licenseExpiresAt = license.expiresAt;
+  user.keyActivatedAt = license.activatedAt;
+  if (!user.displayName) user.displayName = license.customerName || defaultAccessKeyDisplayName(license.slot);
+  if (!license.customerName) license.customerName = user.displayName;
   license.userId = user.id;
   saveLicenseState();
   saveUsers();
@@ -1238,8 +1292,8 @@ function checkLicenseKey(value) {
   const license = licenseByHash(keyHash);
   if (!license) return { ok: false, error: "KEY_INVALID" };
   refreshLicenseExpiry(license);
-  if (license.status !== "unused") return { ok: false, error: license.status === "expired" ? "KEY_EXPIRED" : "KEY_USED" };
-  return { ok: true, admin: false, status: "unused", key: maskedLicenseKey(license) };
+  if (license.status === "expired") return { ok: false, error: "KEY_EXPIRED" };
+  return { ok: true, admin: false, status: license.status || "unused", key: maskedLicenseKey(license) };
 }
 
 function pruneLegacyAccessKeyUsers() {
@@ -1396,6 +1450,77 @@ function defaultAccessKeyAvatar(seed) {
   return DEVICE_AVATAR_PATH_LIST[hash % DEVICE_AVATAR_PATH_LIST.length] || "";
 }
 
+function defaultAccessKeyDisplayName(slot) {
+  const safeSlot = Math.max(1, Number(slot) || 1);
+  return `Tai khoan ${String(safeSlot).padStart(3, "0")}`;
+}
+
+function rememberAccessKeyDevice(user, deviceId) {
+  const safeDeviceId = sanitizeDeviceId(deviceId);
+  if (!user || !safeDeviceId) return false;
+  const now = nowIso();
+  const devices = Array.isArray(user.rememberedDevices) ? user.rememberedDevices : [];
+  const existing = devices.find((device) => device.deviceId === safeDeviceId);
+  if (existing) {
+    existing.lastSeenAt = now;
+  } else {
+    devices.unshift({ deviceId: safeDeviceId, firstSeenAt: now, lastSeenAt: now });
+  }
+  user.rememberedDevices = devices
+    .filter((device) => sanitizeDeviceId(device.deviceId))
+    .slice(0, 12);
+  return true;
+}
+
+function claimActiveSession(user, { deviceId = "", action = "" } = {}) {
+  if (!user?.accessKeyHash) return user;
+  const now = nowIso();
+  const sessionId = randomId(12);
+  user.activeSessionId = sessionId;
+  user.activeDeviceId = sanitizeDeviceId(deviceId);
+  user.activeSessionStartedAt = now;
+  user.activeSessionSeenAt = now;
+  if (!user.keyActivatedAt) user.keyActivatedAt = now;
+  if (!user.lastSeenAt) user.lastSeenAt = now;
+  rememberAccessKeyDevice(user, user.activeDeviceId);
+  touchUserActivity(user, {
+    route: user.role === "admin" ? "admin" : user.currentActivity?.route || "home",
+    roomKey: user.currentActivity?.roomKey || "",
+    action: action || "Dang nhap bang Key"
+  });
+  return user;
+}
+
+function touchActiveSession(user, payload = {}) {
+  if (!user?.accessKeyHash) return false;
+  const previousSeen = Date.parse(user.activeSessionSeenAt || 0) || 0;
+  const now = nowIso();
+  let changed = false;
+  if (!user.activeSessionId) {
+    user.activeSessionId = payload.sid || randomId(12);
+    user.activeSessionStartedAt = now;
+    changed = true;
+  }
+  if (!user.activeSessionStartedAt) {
+    user.activeSessionStartedAt = now;
+    changed = true;
+  }
+  user.activeSessionSeenAt = now;
+  if (payload.deviceId && !user.activeDeviceId) {
+    user.activeDeviceId = sanitizeDeviceId(payload.deviceId);
+    changed = true;
+  }
+  rememberAccessKeyDevice(user, user.activeDeviceId);
+  if (Date.now() - previousSeen > 8000 || changed) saveUsers();
+  return changed;
+}
+
+function isSessionReplaced(user, payload = {}) {
+  if (!user?.accessKeyHash) return false;
+  if (!payload.sid) return false;
+  return Boolean(user.activeSessionId && user.activeSessionId !== payload.sid);
+}
+
 function ensureAccessKeyUsers() {
   pruneLegacyAccessKeyUsers();
 }
@@ -1480,21 +1605,27 @@ function ensureAdminUser() {
   return adminUser;
 }
 
-function authenticateAccessKey(value, customerName = "") {
+function authenticateAccessKey(value, options = {}) {
   const key = sanitizeAccessKey(value);
   if (!key) return null;
+  const customerName = typeof options === "string" ? options : options.customerName || options.displayName || "";
+  const deviceId = typeof options === "object" ? sanitizeDeviceId(options.deviceId || "") : "";
   const adminKeyHash = hashLicenseKey(key);
   const now = nowIso();
 
   if (isAdminLicenseKeyHash(adminKeyHash)) {
     const admin = ensureAdminUser();
     if (!admin.keyActivatedAt) admin.keyActivatedAt = now;
-    touchUserActivity(admin, { route: "admin", roomKey: "", action: "Dang nhap quan tri bang key" });
+    claimActiveSession(admin, { deviceId, action: "Dang nhap quan tri bang key" });
     saveUsers();
     return admin;
   }
 
-  return activateLicenseKey(key, customerName);
+  const user = activateLicenseKey(key, customerName);
+  if (!user) return null;
+  claimActiveSession(user, { deviceId, action: "Dang nhap bang Key" });
+  saveUsers();
+  return user;
 }
 
 function adminRenameUser(userId, displayName) {
@@ -1502,11 +1633,31 @@ function adminRenameUser(userId, displayName) {
   if (!user) return null;
   const nextName = requireAccountName(displayName);
   user.displayName = nextName;
+  user.adminTracked = true;
+  if (!user.adminTrackedAt) user.adminTrackedAt = nowIso();
   const license = user.role === "admin" ? null : licenseByHash(user.accessKeyHash);
   if (license) {
     license.customerName = nextName;
     saveLicenseState();
   }
+  saveUsers();
+  return user;
+}
+
+function adminTrackAccessKey(value) {
+  const keyHash = hashLicenseKey(value);
+  if (!keyHash || isAdminLicenseKeyHash(keyHash)) return null;
+  const license = licenseByHash(keyHash);
+  if (!license) return null;
+  refreshLicenseExpiry(license);
+  const user = ensureLicenseUser(license, license.customerName || defaultAccessKeyDisplayName(license.slot));
+  user.adminTracked = true;
+  user.adminTrackedAt = user.adminTrackedAt || nowIso();
+  if (!user.currentActivity?.action) {
+    user.currentActivity = { route: "home", roomKey: "", action: license.status === "activated" ? "Da kich hoat license" : "Chua kich hoat", updatedAt: nowIso() };
+  }
+  license.userId = user.id;
+  saveLicenseState();
   saveUsers();
   return user;
 }
@@ -1598,9 +1749,9 @@ function restoreAccessKeySessionState(user, payload) {
     user.lastSeenAt = nowIso();
     changed = true;
   }
-  const tokenName = sanitizeAccountName(license.customerName || payload.customerName || payload.name || "", user.displayName || user.username || ADMIN_DISPLAY_NAME);
+  const tokenName = sanitizeAccountName(license.customerName || user.displayName || "", user.displayName || user.username || ADMIN_DISPLAY_NAME);
   if (wasUnactivated || user.currentActivity?.action === "Chua kich hoat") {
-    if (tokenName && tokenName !== user.displayName) {
+    if (!user.adminTracked && tokenName && tokenName !== user.displayName) {
       user.displayName = tokenName;
       changed = true;
     }
@@ -1642,6 +1793,8 @@ function createAuthToken(userOrId) {
     exp: Date.now() + TOKEN_TTL_MS,
     nonce: randomId(8)
   };
+  if (user?.activeSessionId) payload.sid = user.activeSessionId;
+  if (user?.activeDeviceId) payload.deviceId = user.activeDeviceId;
   if (user?.role === "admin") {
     payload.akh = user.accessKeyHash;
     payload.slot = Number(user.accessKeySlot || 0);
@@ -1687,21 +1840,36 @@ function getAuthToken(req) {
 }
 
 function getAuthenticatedUser(req) {
+  req.authErrorCode = "";
   const payload = verifyAuthToken(getAuthToken(req));
-  if (!payload?.uid) return null;
+  if (!payload?.uid) {
+    req.authErrorCode = "UNAUTHORIZED";
+    return null;
+  }
   let user = users.find((item) => item.id === payload.uid) || null;
   if (!user && payload.akh) {
     user = restoreUserFromAccessToken(payload);
   }
-  if (!user?.accessKeyHash) return null;
-  if (!isLicenseSessionValid(user, payload)) return null;
+  if (!user?.accessKeyHash) {
+    req.authErrorCode = "UNAUTHORIZED";
+    return null;
+  }
+  if (isSessionReplaced(user, payload)) {
+    req.authErrorCode = "SESSION_REPLACED";
+    return null;
+  }
+  if (!isLicenseSessionValid(user, payload)) {
+    req.authErrorCode = "UNAUTHORIZED";
+    return null;
+  }
   restoreAccessKeySessionState(user, payload);
+  if (!isSessionReplaced(user, payload)) touchActiveSession(user, payload);
   return user;
 }
 
 function requireUser(req) {
   const user = getAuthenticatedUser(req);
-  if (!user) throw new Error("UNAUTHORIZED");
+  if (!user) throw new Error(req.authErrorCode || "UNAUTHORIZED");
   touchUserActivity(user, {
     route: user.currentActivity?.route || "",
     roomKey: user.currentActivity?.roomKey || "",
@@ -1743,11 +1911,33 @@ function assertLicenseRateLimit(req) {
 function licenseErrorMessage(code) {
   return {
     KEY_INVALID: "Key khong dung.",
-    KEY_USED: "Key nay da duoc kich hoat va khong the dung lai.",
+    KEY_USED: "Key nay da duoc kich hoat.",
     KEY_EXPIRED: "Key nay da het han.",
     INVALID_CUSTOMER_NAME: "Ten khach hang khong duoc de trong va toi da 24 ky tu.",
     RATE_LIMIT: "Ban nhap Key qua nhanh. Hay thu lai sau it phut."
   }[code] || "Khong the xu ly license.";
+}
+
+function authErrorPayload(code = "UNAUTHORIZED") {
+  if (code === "SESSION_REPLACED") {
+    return {
+      status: 409,
+      payload: {
+        ok: false,
+        code,
+        error: "Tai khoan dang dang nhap o noi khac."
+      }
+    };
+  }
+  return {
+    status: 401,
+    payload: { ok: false, code: "UNAUTHORIZED", error: "UNAUTHORIZED" }
+  };
+}
+
+function sendAuthError(res, code = "UNAUTHORIZED") {
+  const result = authErrorPayload(code);
+  json(res, result.status, result.payload);
 }
 
 function latestLicenseExportFile() {
@@ -1789,7 +1979,9 @@ function findGuestByDeviceId(deviceId) {
 function adminUserSummary(user) {
   const room = currentRoomForUser(user.id);
   const lastSeenMs = Date.parse(user.lastSeenAt || 0) || 0;
-  const online = lastSeenMs > 0 && Date.now() - lastSeenMs <= PRESENCE_TTL_MS * 2;
+  const activeSeenMs = Date.parse(user.activeSessionSeenAt || 0) || 0;
+  const onlineSeenMs = Math.max(lastSeenMs, activeSeenMs);
+  const online = onlineSeenMs > 0 && Date.now() - onlineSeenMs <= PRESENCE_TTL_MS * 2;
   const license = user.role === "admin" ? null : licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
   return {
     id: user.id,
@@ -1801,6 +1993,12 @@ function adminUserSummary(user) {
     accessKey: configuredAccessKeyForUser(user),
     license: license ? adminLicenseSummary(license) : null,
     keyActivatedAt: user.keyActivatedAt || "",
+    adminTracked: Boolean(user.adminTracked),
+    adminTrackedAt: user.adminTrackedAt || "",
+    activeSessionId: user.activeSessionId ? `${String(user.activeSessionId).slice(0, 8)}...` : "",
+    activeSessionSeenAt: user.activeSessionSeenAt || "",
+    activeDeviceId: user.activeDeviceId || "",
+    rememberedDeviceCount: Array.isArray(user.rememberedDevices) ? user.rememberedDevices.length : 0,
     activated: Boolean(license ? license.status === "activated" : user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
@@ -3403,9 +3601,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/license/activate" && req.method === "POST") {
       assertLicenseRateLimit(req);
       const body = await readBody(req);
-      const user = authenticateAccessKey(body.key || "", body.customerName || body.displayName || "");
+      const user = authenticateAccessKey(body.key || "", {
+        customerName: body.customerName || body.displayName || "",
+        deviceId: body.deviceId || req.headers["x-dmaihxcai-device"] || ""
+      });
       if (!user) {
-        json(res, 401, { ok: false, error: "Key khong dung, da dung, hoac ten khach hang khong hop le." });
+        json(res, 401, { ok: false, error: "Key khong dung hoac da het han." });
         return;
       }
       await flushUserPersistence();
@@ -3416,7 +3617,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/license/verify" && req.method === "POST") {
       const user = getAuthenticatedUser(req);
       if (!user) {
-        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        sendAuthError(res, req.authErrorCode);
         return;
       }
       json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
@@ -3426,7 +3627,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/license/me") {
       const user = getAuthenticatedUser(req);
       if (!user) {
-        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        sendAuthError(res, req.authErrorCode);
         return;
       }
       json(res, 200, { ok: true, user: publicUser(user), license: publicUser(user).license });
@@ -3435,9 +3636,12 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/auth/key" && req.method === "POST") {
       const body = await readBody(req);
-      const user = authenticateAccessKey(body.key || "", body.customerName || body.displayName || "");
+      const user = authenticateAccessKey(body.key || "", {
+        customerName: body.customerName || body.displayName || "",
+        deviceId: body.deviceId || req.headers["x-dmaihxcai-device"] || ""
+      });
       if (!user) {
-        json(res, 401, { ok: false, error: "Key khong dung, da dung, hoac ten khach hang khong hop le." });
+        json(res, 401, { ok: false, error: "Key khong dung hoac da het han." });
         return;
       }
       await flushUserPersistence();
@@ -3565,7 +3769,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/auth/me") {
       const user = getAuthenticatedUser(req);
       if (!user) {
-        json(res, 401, { ok: false, error: "UNAUTHORIZED" });
+        sendAuthError(res, req.authErrorCode);
         return;
       }
       json(res, 200, { ok: true, token: createAuthToken(user), user: publicUser(user) });
@@ -3603,13 +3807,27 @@ const server = http.createServer(async (req, res) => {
       requireAdmin(req);
       ensureAccessKeyUsers();
       const list = users
+        .filter((user) => user.role !== "admin" && user.adminTracked)
         .map((user) => adminUserSummary(user))
         .sort((left, right) => {
-          const adminScore = (right.role === "admin") - (left.role === "admin");
-          if (adminScore) return adminScore;
-          return (Date.parse(right.createdAt || 0) || 0) - (Date.parse(left.createdAt || 0) || 0);
+          const leftTracked = Date.parse(left.adminTrackedAt || left.createdAt || 0) || 0;
+          const rightTracked = Date.parse(right.adminTrackedAt || right.createdAt || 0) || 0;
+          return rightTracked - leftTracked;
         });
       json(res, 200, { ok: true, users: list });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/users/lookup-key" && req.method === "POST") {
+      requireAdmin(req);
+      const body = await readBody(req);
+      const target = adminTrackAccessKey(body.key || "");
+      if (!target) {
+        json(res, 404, { ok: false, error: "Key khong dung hoac khong thuoc he thong." });
+        return;
+      }
+      await flushUserPersistence();
+      json(res, 200, { ok: true, user: adminUserSummary(target) });
       return;
     }
 
@@ -3878,6 +4096,7 @@ const server = http.createServer(async (req, res) => {
     const message = String(err.message || err);
     const status = {
       UNAUTHORIZED: 401,
+      SESSION_REPLACED: 409,
       ROOM_NOT_FOUND: 404,
       ROOM_FULL: 400,
       ROOM_CLOSED: 400,
@@ -3909,6 +4128,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 function friendlyErrorVi(code) {
+  if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
   return {
     UNAUTHORIZED: "Bạn cần đăng nhập.",
     ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",

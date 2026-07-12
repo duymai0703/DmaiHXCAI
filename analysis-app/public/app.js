@@ -70,6 +70,9 @@ const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
+const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
+const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
+const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
 const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v71";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
@@ -676,6 +679,7 @@ function startAnalysisAfterAccess() {
 async function ensureAnalysisAccess() {
   const token = readStorage(AUTH_TOKEN_STORAGE_KEY) || readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   if (!token) {
+    if (await restoreAnalysisSessionFromStoredKey()) return true;
     showAccessGate();
     return false;
   }
@@ -687,6 +691,7 @@ async function ensureAnalysisAccess() {
     hideAccessGate();
     return true;
   } catch (error) {
+    if (isSessionReplacedError(error) && await restoreAnalysisSessionFromStoredKey()) return true;
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -695,13 +700,27 @@ async function ensureAnalysisAccess() {
   }
 }
 
+async function restoreAnalysisSessionFromStoredKey() {
+  const key = readStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
+  if (!key) return false;
+  try {
+    const payload = await api("/api/license/activate", { key, deviceId: authDeviceId }, { suppressSessionReplaced: true });
+    writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
+    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    hideAccessGate();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function showAccessGate(message = "") {
   if (!accessGateEl) return;
   accessGateEl.classList.remove("hidden");
   document.body.classList.add("access-locked");
-  updateAnalysisAccessGateMode(Boolean(pendingAnalysisAccessKey));
+  updateAnalysisAccessGateMode(false);
   if (accessKeyMessageEl) accessKeyMessageEl.textContent = message;
-  window.setTimeout(() => (pendingAnalysisAccessKey ? accessNameInputEl : accessKeyInputEl)?.focus({ preventScroll: true }), 60);
+  window.setTimeout(() => accessKeyInputEl?.focus({ preventScroll: true }), 60);
 }
 
 function hideAccessGate() {
@@ -713,20 +732,43 @@ function hideAccessGate() {
 }
 
 function updateAnalysisAccessGateMode(hasPendingKey) {
-  accessNameInputEl?.classList.toggle("hidden", !hasPendingKey);
-  if (accessNameInputEl) accessNameInputEl.required = Boolean(hasPendingKey);
-  if (accessKeyInputEl) accessKeyInputEl.readOnly = Boolean(hasPendingKey);
+  accessNameInputEl?.classList.add("hidden");
+  if (accessNameInputEl) accessNameInputEl.required = false;
+  if (accessKeyInputEl) accessKeyInputEl.readOnly = false;
   const submitButton = accessKeyFormEl?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.textContent = "Kich hoat";
+  return;
   if (submitButton) submitButton.textContent = hasPendingKey ? "Xác nhận tên" : "Kích hoạt";
 }
 
 async function onAnalysisAccessKeySubmit(event) {
   event.preventDefault();
-  const key = String(pendingAnalysisAccessKey || accessKeyInputEl?.value || "").trim();
+  const key = String(accessKeyInputEl?.value || readStorage(AUTH_ACCESS_KEY_STORAGE_KEY) || "").trim();
   if (!key) {
     showAccessGate("Hãy nhập Key kích hoạt.");
     return;
   }
+  if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Dang kich hoat Key...";
+  try {
+    const payload = await api("/api/license/activate", { key, deviceId: authDeviceId });
+    writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
+    writeStorage(AUTH_ACCESS_KEY_STORAGE_KEY, key);
+    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    if (accessKeyInputEl) accessKeyInputEl.value = "";
+    if (accessNameInputEl) accessNameInputEl.value = "";
+    startAnalysisAfterAccess();
+    showToast(payload.user?.role === "admin" ? "Da mo trang quan tri." : "Da kich hoat Key.");
+    if (payload.user?.role === "admin") window.location.href = "/?mobileRoom=1#admin";
+  } catch (error) {
+    pendingAnalysisAccessKey = "";
+    updateAnalysisAccessGateMode(false);
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    if (key !== readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) localStorage.removeItem(AUTH_ACCESS_KEY_STORAGE_KEY);
+    showAccessGate(error.message || "Key khong dung.");
+  }
+  return;
   if (!pendingAnalysisAccessKey) {
     if (accessKeyMessageEl) accessKeyMessageEl.textContent = "Đang kiểm tra Key...";
     try {
@@ -3376,7 +3418,38 @@ function writeStorage(key, value) {
   } catch {}
 }
 
-async function api(url, body) {
+function readOrCreateAuthDeviceId() {
+  const existing = readStorage(AUTH_DEVICE_ID_STORAGE_KEY);
+  if (/^[a-zA-Z0-9:_-]{8,120}$/.test(existing)) return existing;
+  let token = "";
+  if (window.crypto?.getRandomValues) {
+    const values = new Uint8Array(12);
+    window.crypto.getRandomValues(values);
+    token = Array.from(values, (value) => value.toString(16).padStart(2, "0")).join("");
+  } else {
+    token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+  const deviceId = `web-${token.slice(0, 32)}`;
+  writeStorage(AUTH_DEVICE_ID_STORAGE_KEY, deviceId);
+  return deviceId;
+}
+
+function isSessionReplacedError(error) {
+  const code = String(error?.code || "").toUpperCase();
+  const message = String(error?.message || "");
+  return Number(error?.status) === 409 || code === "SESSION_REPLACED" || /dang nhap o noi khac|SESSION_REPLACED/i.test(message);
+}
+
+function handleAnalysisSessionReplaced() {
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+  if (accessKeyInputEl && readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) {
+    accessKeyInputEl.value = readStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
+  }
+  showAccessGate("Tai khoan dang dang nhap o noi khac.");
+}
+
+async function api(url, body, behavior = {}) {
   const target = apiTarget(url);
   let lastError = null;
 
@@ -3385,6 +3458,7 @@ async function api(url, body) {
       const headers = {};
       const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
       if (token) headers.Authorization = `Bearer ${token}`;
+      if (authDeviceId) headers["X-Dmaihxcai-Device"] = authDeviceId;
       if (body) headers["Content-Type"] = "application/json";
       const response = await fetch(target, {
         method: body ? "POST" : "GET",
@@ -3409,7 +3483,12 @@ async function api(url, body) {
           await wait(1200 + attempt * 900);
           continue;
         }
-        throw Object.assign(new Error(response.status === 401 ? "UNAUTHORIZED" : message), { status: response.status });
+        const error = Object.assign(new Error(response.status === 401 ? "UNAUTHORIZED" : message), {
+          status: response.status,
+          code: data.code || ""
+        });
+        if (!behavior.suppressSessionReplaced && isSessionReplacedError(error)) handleAnalysisSessionReplaced();
+        throw error;
       }
 
       return data;
@@ -3423,6 +3502,7 @@ async function api(url, body) {
     }
   }
 
+  if (!behavior.suppressSessionReplaced && isSessionReplacedError(lastError)) handleAnalysisSessionReplaced();
   throw friendlyApiError(lastError);
 }
 

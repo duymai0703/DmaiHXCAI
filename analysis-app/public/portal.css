@@ -583,6 +583,24 @@ a {
   gap: 12px;
 }
 
+.admin-key-lookup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.admin-key-lookup input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(123, 94, 46, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 253, 248, 0.94);
+  color: var(--ink);
+  padding: 0 12px;
+  font: inherit;
+}
+
 .admin-user-card {
   display: grid;
   grid-template-columns: auto 1fr;
