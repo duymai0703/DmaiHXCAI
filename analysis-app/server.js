@@ -100,6 +100,7 @@ const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, M
 const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
 const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || "").trim();
 const OPENAI_VISION_MODEL = String(process.env.OPENAI_VISION_MODEL || "gpt-4.1-mini").trim() || "gpt-4.1-mini";
+const OPENAI_VISION_MODEL_FALLBACKS = [...new Set([OPENAI_VISION_MODEL, "gpt-4o-mini", "gpt-4.1-mini", "gpt-4o"].filter(Boolean))];
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
@@ -3819,43 +3820,97 @@ async function recognizeXiangqiBoardImage(body) {
     "The board array must be top row first, bottom row last, exactly 10 rows and 9 columns."
   ].join("\n");
 
+  let lastFailure = null;
+  for (const model of OPENAI_VISION_MODEL_FALLBACKS) {
+    try {
+      const content = await callOpenAiVisionModel({ model, prompt, image, useJsonFormat: true });
+      return normalizeVisionBoardPayload(parseOpenAiJsonContent(content), fallbackSide);
+    } catch (error) {
+      lastFailure = error;
+      if (error?.retryWithoutJsonFormat) {
+        try {
+          const content = await callOpenAiVisionModel({ model, prompt, image, useJsonFormat: false });
+          return normalizeVisionBoardPayload(parseOpenAiJsonContent(content), fallbackSide);
+        } catch (fallbackError) {
+          lastFailure = fallbackError;
+        }
+      }
+      if (!shouldTryNextVisionModel(lastFailure)) break;
+    }
+  }
+  throw new Error(visionFailureCode(lastFailure));
+}
+
+async function callOpenAiVisionModel({ model, prompt, image, useJsonFormat }) {
+  const payload = {
+    model,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: "You are a precise Xiangqi image recognition engine. Return strict JSON only."
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: image, detail: "high" } }
+        ]
+      }
+    ]
+  };
+  if (useJsonFormat) payload.response_format = { type: "json_object" };
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      model: OPENAI_VISION_MODEL,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: "You are a precise Xiangqi image recognition engine. Return strict JSON only."
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: image, detail: "high" } }
-          ]
-        }
-      ]
-    })
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
     let details = "";
+    let errorCode = "";
+    let errorMessage = "";
     try {
       details = await response.text();
     } catch {}
-    console.warn(`Vision recognition failed: HTTP ${response.status} ${details.slice(0, 500)}`);
-    throw new Error("VISION_AI_FAILED");
+    try {
+      const parsed = JSON.parse(details);
+      errorCode = String(parsed?.error?.code || parsed?.error?.type || "");
+      errorMessage = String(parsed?.error?.message || "");
+    } catch {
+      errorMessage = details;
+    }
+    const failure = new Error(`OPENAI_VISION_HTTP_${response.status}`);
+    failure.status = response.status;
+    failure.model = model;
+    failure.openaiCode = errorCode;
+    failure.openaiMessage = errorMessage;
+    failure.retryWithoutJsonFormat = useJsonFormat && /response_format|json_object/i.test(errorMessage);
+    console.warn(`Vision recognition failed with ${model}: HTTP ${response.status} ${String(errorMessage || details).slice(0, 500)}`);
+    throw failure;
   }
   const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content || "";
-  return normalizeVisionBoardPayload(parseOpenAiJsonContent(content), fallbackSide);
+  return data?.choices?.[0]?.message?.content || "";
+}
+
+function shouldTryNextVisionModel(error) {
+  const status = Number(error?.status || 0);
+  const message = String(error?.openaiMessage || error?.message || "");
+  if (status === 401 || status === 403 || status === 429) return false;
+  return status === 400 || status === 404 || /model|image|vision|unsupported|does not exist|not found/i.test(message);
+}
+
+function visionFailureCode(error) {
+  const status = Number(error?.status || 0);
+  const message = String(error?.openaiMessage || error?.message || "");
+  if (status === 401 || status === 403) return "VISION_BAD_KEY";
+  if (status === 429 || /quota|billing|rate limit/i.test(message)) return "VISION_QUOTA";
+  if (status === 400 || status === 404 || /model|unsupported|does not exist|not found/i.test(message)) return "VISION_MODEL_FAILED";
+  return "VISION_AI_FAILED";
 }
 
 function serveStatic(req, res) {
@@ -3928,7 +3983,9 @@ const server = http.createServer(async (req, res) => {
         mongoReady: mongoStateStore.ready,
         mongoDatabase: mongoStateStore.dbName,
         mongoCollection: mongoStateStore.collectionName,
-        mongoError: mongoStateStore.lastError || ""
+        mongoError: mongoStateStore.lastError || "",
+        visionConfigured: Boolean(OPENAI_API_KEY),
+        visionModel: OPENAI_VISION_MODEL
       });
       return;
     }
@@ -4521,6 +4578,9 @@ const server = http.createServer(async (req, res) => {
       VISION_BAD_IMAGE: 400,
       VISION_AI_FAILED: 400,
       VISION_EMPTY_RESULT: 422,
+      VISION_BAD_KEY: 400,
+      VISION_QUOTA: 400,
+      VISION_MODEL_FAILED: 400,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -4538,6 +4598,9 @@ function friendlyErrorVi(code) {
   if (code === "VISION_BAD_IMAGE") return "Ảnh nhận diện không hợp lệ. Hãy chọn ảnh rõ hơn và crop đúng bàn cờ.";
   if (code === "VISION_AI_FAILED") return "AI nhận diện ảnh đang lỗi hoặc quá tải. Hãy thử lại sau.";
   if (code === "VISION_EMPTY_RESULT") return "AI chưa trả được hình cờ hợp lệ. Hãy crop sát bàn cờ hơn rồi thử lại.";
+  if (code === "VISION_BAD_KEY") return "OPENAI_API_KEY không hợp lệ hoặc không có quyền gọi OpenAI API.";
+  if (code === "VISION_QUOTA") return "OpenAI API key đã hết quota hoặc chưa bật billing.";
+  if (code === "VISION_MODEL_FAILED") return "Model nhận diện ảnh đang cấu hình không dùng được. Hãy thử OPENAI_VISION_MODEL=gpt-4o-mini.";
   return {
     UNAUTHORIZED: "Bạn cần đăng nhập.",
     ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",
