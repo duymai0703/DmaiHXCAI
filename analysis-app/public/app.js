@@ -303,9 +303,89 @@ function unlockMoveSound() {
   osc.stop(now + 0.025);
 }
 
+function createMoveNoise(ctx, seconds, power = 2.4) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index += 1) {
+    const t = index / length;
+    const decay = Math.pow(1 - t, power);
+    data[index] = (Math.random() * 2 - 1) * decay;
+  }
+  return buffer;
+}
+
+function playNoiseSweep(ctx, destination, now, options) {
+  const {
+    delay = 0,
+    duration = 0.18,
+    peak = 0.24,
+    from = 2800,
+    to = 540,
+    q = 1.8,
+    type = "bandpass"
+  } = options || {};
+  const start = now + delay;
+  const source = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  source.buffer = createMoveNoise(ctx, duration, 2.1);
+  filter.type = type;
+  filter.Q.setValueAtTime(q, start);
+  filter.frequency.setValueAtTime(from, start);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(80, to), start + duration);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(peak, start + 0.014);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
+  source.start(start);
+  source.stop(start + duration + 0.02);
+}
+
+function playTone(ctx, destination, now, options) {
+  const {
+    delay = 0,
+    duration = 0.18,
+    type = "sine",
+    gainPeak = 0.12,
+    from = 880,
+    to = 360,
+    attack = 0.006
+  } = options || {};
+  const start = now + delay;
+  const gain = ctx.createGain();
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(40, to), start + duration);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(gainPeak, start + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain);
+  gain.connect(destination);
+  osc.start(start);
+  osc.stop(start + duration + 0.02);
+}
+
+function playMetalClash(ctx, destination, now, delay = 0) {
+  [980, 1470, 2180].forEach((frequency, index) => {
+    playTone(ctx, destination, now, {
+      delay: delay + index * 0.012,
+      duration: 0.24 + index * 0.03,
+      type: index === 1 ? "triangle" : "sine",
+      gainPeak: 0.13 / (index + 1),
+      from: frequency,
+      to: frequency * 0.72,
+      attack: 0.003
+    });
+  });
+}
+
 function playMoveSound(kind = "move") {
   const nowMs = performance.now();
-  if (nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+  if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
   if (ctx.state !== "running") {
@@ -318,36 +398,23 @@ function playMoveSound(kind = "move") {
   state.lastMoveSoundAt = nowMs;
   const now = ctx.currentTime;
   const master = ctx.createGain();
-  master.gain.setValueAtTime(0.0001, now);
-  master.gain.exponentialRampToValueAtTime(kind === "capture" ? 0.48 : 0.36, now + 0.005);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+  master.gain.setValueAtTime(kind === "checkmate" ? 0.92 : 0.82, now);
   master.connect(ctx.destination);
-
-  const osc = ctx.createOscillator();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(kind === "capture" ? 330 : 460, now);
-  osc.frequency.exponentialRampToValueAtTime(kind === "capture" ? 110 : 175, now + 0.12);
-  osc.connect(master);
-  osc.start(now);
-  osc.stop(now + 0.16);
-
-  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.055));
-  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let index = 0; index < length; index += 1) {
-    const decay = 1 - index / length;
-    data[index] = (Math.random() * 2 - 1) * decay * decay;
+  if (kind === "checkmate") {
+    playNoiseSweep(ctx, master, now, { duration: 0.5, peak: 0.28, from: 520, to: 2600, q: 0.8, type: "bandpass" });
+    playNoiseSweep(ctx, master, now, { delay: 0.06, duration: 0.34, peak: 0.24, from: 3600, to: 980, q: 1.7, type: "highpass" });
+    playTone(ctx, master, now, { duration: 0.46, type: "sawtooth", gainPeak: 0.24, from: 150, to: 58, attack: 0.012 });
+    playMetalClash(ctx, master, now, 0.1);
+    return;
   }
-  const noise = ctx.createBufferSource();
-  const filter = ctx.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.frequency.setValueAtTime(kind === "capture" ? 700 : 1040, now);
-  filter.Q.setValueAtTime(1.25, now);
-  noise.buffer = buffer;
-  noise.connect(filter);
-  filter.connect(master);
-  noise.start(now);
-  noise.stop(now + 0.06);
+  if (kind === "capture") {
+    playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.36, from: 4200, to: 760, q: 2.2, type: "highpass" });
+    playNoiseSweep(ctx, master, now, { delay: 0.025, duration: 0.11, peak: 0.2, from: 2500, to: 1350, q: 3.4, type: "bandpass" });
+    playMetalClash(ctx, master, now, 0.018);
+    return;
+  }
+  playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.28, from: 3200, to: 520, q: 1.45, type: "bandpass" });
+  playTone(ctx, master, now, { duration: 0.18, type: "sine", gainPeak: 0.075, from: 940, to: 360, attack: 0.014 });
 }
 
 function setupThemeControls() {
@@ -1769,6 +1836,7 @@ function maybeShowCheckmateEffect({ force = false } = {}) {
   void checkmateBurstEl.offsetWidth;
   checkmateBurstEl.setAttribute("aria-hidden", "false");
   checkmateBurstEl.classList.add("show");
+  playMoveSound("checkmate");
   state.checkmateEffectTimer = window.setTimeout(() => {
     checkmateBurstEl.classList.remove("show");
     checkmateBurstEl.setAttribute("aria-hidden", "true");

@@ -4198,6 +4198,18 @@ textarea:focus {
   filter: none !important;
 }
 
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .room-board .board-skin-layer,
+  .review-board .board-skin-layer {
+    background-size: 100.16% 100.16% !important;
+    background-position: center !important;
+    filter: contrast(1.14) saturate(1.04) brightness(0.99) !important;
+    opacity: 1 !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+}
+
 .admin-watch-card {
   display: grid;
   gap: 8px;

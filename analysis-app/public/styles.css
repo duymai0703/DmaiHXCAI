@@ -3488,7 +3488,12 @@ select,
   }
 
   .board-skin-layer {
-    filter: none !important;
+    background-size: 100.16% 100.16% !important;
+    background-position: center !important;
+    filter: contrast(1.14) saturate(1.04) brightness(0.99) !important;
+    opacity: 1 !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .cloud-group h2 {
