@@ -46,6 +46,11 @@ const PRESENCE_TTL_MS = 1000 * 30;
 const ROOM_START_DELAY_MS = 2000;
 const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
+const ROOM_MAX_REPEATED_CHECKS = 6;
+const ROOM_MAX_REPEATED_CHASES = 6;
+const ROOM_REPETITION_WARNING_COUNT = 5;
+const ROOM_REPETITION_DRAW_COUNT = 6;
+const ROOM_RULE_NOTICE_MS = 3000;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
@@ -2208,6 +2213,173 @@ function syncVisibleClockSetup(room) {
   return room.visibleClockSetupMs;
 }
 
+function roomPositionKeyFromBoard(board, sideToMove) {
+  return XiangqiCore.boardToCompactFen(board, sideToMove === "b" ? "b" : "w");
+}
+
+function roomPositionKeyFromFen(fen) {
+  const parsed = XiangqiCore.parseFenState(fen || XiangqiCore.START_FEN);
+  return roomPositionKeyFromBoard(parsed.board, parsed.side);
+}
+
+function initialRoomRuleState(fen = XiangqiCore.START_FEN) {
+  const key = roomPositionKeyFromFen(fen);
+  return {
+    positionCounts: { [key]: 1 },
+    checkStreak: { w: 0, b: 0 },
+    chaseHistory: { w: [], b: [] }
+  };
+}
+
+function normalizeRoomRuleState(room) {
+  const state = room.ruleState && typeof room.ruleState === "object"
+    ? cloneJsonValue(room.ruleState)
+    : initialRoomRuleState(room.boardFen || XiangqiCore.START_FEN);
+  state.positionCounts = state.positionCounts && typeof state.positionCounts === "object"
+    ? state.positionCounts
+    : { [roomPositionKeyFromFen(room.boardFen || XiangqiCore.START_FEN)]: 1 };
+  state.checkStreak = {
+    w: Number(state.checkStreak?.w || 0),
+    b: Number(state.checkStreak?.b || 0)
+  };
+  state.chaseHistory = {
+    w: Array.isArray(state.chaseHistory?.w) ? state.chaseHistory.w.slice(-12) : [],
+    b: Array.isArray(state.chaseHistory?.b) ? state.chaseHistory.b.slice(-12) : []
+  };
+  return state;
+}
+
+function resetRoomRuleState(room) {
+  room.ruleState = initialRoomRuleState(room.boardFen || XiangqiCore.START_FEN);
+  room.ruleNotice = null;
+}
+
+function setRoomRuleNotice(room, text) {
+  room.ruleNotice = {
+    text,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + ROOM_RULE_NOTICE_MS
+  };
+}
+
+function currentRoomRuleNotice(room) {
+  if (!room?.ruleNotice?.text) return null;
+  if (Number(room.ruleNotice.expiresAt || 0) <= Date.now()) {
+    room.ruleNotice = null;
+    return null;
+  }
+  return {
+    text: String(room.ruleNotice.text),
+    expiresAt: Number(room.ruleNotice.expiresAt || 0)
+  };
+}
+
+function squareName(square) {
+  return XiangqiCore.squareToUci(square);
+}
+
+function isProtectedPiece(board, square, side) {
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      if (x === square.x && y === square.y) continue;
+      const piece = board[y]?.[x] || "";
+      if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
+      if (XiangqiCore.attacksSquare(board, { x, y }, square)) return true;
+    }
+  }
+  return false;
+}
+
+function chaseCandidatesForMove(beforeBoard, nextBoard, side, move) {
+  const from = XiangqiCore.uciToSquare(move.slice(0, 2));
+  const to = XiangqiCore.uciToSquare(move.slice(2, 4));
+  const movedPiece = beforeBoard[from.y]?.[from.x] || "";
+  if (!movedPiece || XiangqiCore.pieceColor(movedPiece) !== side) return [];
+  const movedType = movedPiece.toLowerCase();
+  const opponent = oppositeSide(side);
+  const candidates = [];
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const targetPiece = nextBoard[y]?.[x] || "";
+      if (!targetPiece || XiangqiCore.pieceColor(targetPiece) !== opponent) continue;
+      const targetType = targetPiece.toLowerCase();
+      if (targetType === "k" || targetType === "p") continue;
+      const target = { x, y };
+      if (!XiangqiCore.attacksSquare(nextBoard, to, target)) continue;
+      const rookChasingSmallPiece = movedType === "r" && ["c", "n", "a", "b"].includes(targetType);
+      if (!rookChasingSmallPiece && isProtectedPiece(nextBoard, target, opponent)) continue;
+      candidates.push({
+        signature: `${side}:${movedType}:${targetType}:${squareName(target)}`,
+        value: ({ r: 50, c: 40, n: 40, a: 25, b: 25 }[targetType] || 10)
+      });
+    }
+  }
+  return candidates.sort((left, right) => right.value - left.value);
+}
+
+function assertRoomMoveAllowedByRules(room, side, move, beforeBoard, nextBoard) {
+  const state = normalizeRoomRuleState(room);
+  const nextState = cloneJsonValue(state);
+  const opponent = oppositeSide(side);
+  const givesCheck = XiangqiCore.isKingInCheck(nextBoard, opponent);
+  nextState.checkStreak[side] = givesCheck ? Number(nextState.checkStreak?.[side] || 0) + 1 : 0;
+  if (nextState.checkStreak[side] > ROOM_MAX_REPEATED_CHECKS) {
+    throw new Error("REPEATED_CHECK");
+  }
+
+  const chaseCandidates = chaseCandidatesForMove(beforeBoard, nextBoard, side, move);
+  if (chaseCandidates.length) {
+    const signature = chaseCandidates[0].signature;
+    const history = Array.isArray(nextState.chaseHistory?.[side]) ? nextState.chaseHistory[side].slice(-12) : [];
+    const count = history.filter((item) => item === signature).length + 1;
+    if (count > ROOM_MAX_REPEATED_CHASES) throw new Error("REPEATED_CHASE");
+    history.push(signature);
+    nextState.chaseHistory[side] = history.slice(-12);
+  } else {
+    nextState.chaseHistory[side] = [];
+  }
+
+  const positionKey = roomPositionKeyFromBoard(nextBoard, opponent);
+  const nextCount = Number(nextState.positionCounts?.[positionKey] || 0) + 1;
+  nextState.positionCounts[positionKey] = nextCount;
+  const notice = nextCount >= ROOM_REPETITION_WARNING_COUNT && nextCount < ROOM_REPETITION_DRAW_COUNT
+    ? "Nếu lặp lại thêm 1 lần, ván cờ sẽ tự động xử hòa."
+    : "";
+  return {
+    nextRuleState: nextState,
+    repetitionCount: nextCount,
+    repetitionDraw: nextCount >= ROOM_REPETITION_DRAW_COUNT,
+    notice
+  };
+}
+
+function legalMovesForSide(board, side) {
+  const moves = [];
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const piece = board[y]?.[x] || "";
+      if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
+      const from = { x, y };
+      const fromText = XiangqiCore.squareToUci(from);
+      XiangqiCore.getLegalMovesForSquare(board, side, from).forEach((to) => {
+        moves.push(fromText + XiangqiCore.squareToUci(to));
+      });
+    }
+  }
+  return moves;
+}
+
+function isRoomMoveAllowedByRules(room, side, move, board) {
+  try {
+    const nextBoard = XiangqiCore.cloneBoard(board);
+    XiangqiCore.applyMoveToBoard(nextBoard, move);
+    assertRoomMoveAllowedByRules(room, side, move, board, nextBoard);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", incrementSeconds = 0 } = {}) {
   const color = side === "b" ? "b" : "w";
   const yourTimeMs = clampRoomMinutes(yourMinutes, 10) * 60 * 1000;
@@ -2265,6 +2437,8 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
       b: color === "b" ? roomPlayerSnapshot(user.id) : null
     },
     rematchReady: { w: false, b: false },
+    ruleState: initialRoomRuleState(XiangqiCore.START_FEN),
+    ruleNotice: null,
     historySaved: false
   };
   rooms.set(room.key, room);
@@ -2406,6 +2580,7 @@ function resetRoomForGame(room) {
   room.countdownEndsAt = Date.now() + ROOM_START_DELAY_MS;
   room.rematchReady = { w: false, b: false };
   room.historySaved = false;
+  resetRoomRuleState(room);
   room.updatedAt = Date.now();
 }
 
@@ -2502,6 +2677,7 @@ function formatResultReason(reason) {
     "no-moves": "Hết nước hợp lệ",
     timeout: "Hết thời gian",
     resign: "Xin thua",
+    repetition: "Hòa do lặp cờ",
     draw: "Hòa"
   }[reason] || reason;
 }
@@ -2602,6 +2778,7 @@ function roomStateForUser(room, user) {
       opponent: access.role === "player" ? Boolean(room.startReady?.[oppositeSide(yourSide)]) : false
     },
     countdownEndsAt: Number(room.countdownEndsAt || 0),
+    ruleNotice: currentRoomRuleNotice(room),
     rematchReady: {
       you: access.role === "player" ? Boolean(room.rematchReady?.[yourSide]) : false,
       opponent: access.role === "player" ? Boolean(room.rematchReady?.[oppositeSide(yourSide)]) : false
@@ -2649,8 +2826,13 @@ function applyMoveInRoom(room, side, move) {
   const beforeFen = room.boardFen;
   const beforeClocks = { ...room.clocks };
   const notation = XiangqiCore.formatMoveNotation(move, parsed.board, side);
-  XiangqiCore.applyMoveToBoard(parsed.board, move);
-  room.boardFen = XiangqiCore.boardToFen(parsed.board, oppositeSide(side));
+  const nextBoard = XiangqiCore.cloneBoard(parsed.board);
+  XiangqiCore.applyMoveToBoard(nextBoard, move);
+  const ruleCheck = assertRoomMoveAllowedByRules(room, side, move, parsed.board, nextBoard);
+  room.ruleState = ruleCheck.nextRuleState;
+  if (ruleCheck.notice) setRoomRuleNotice(room, ruleCheck.notice);
+  else room.ruleNotice = null;
+  room.boardFen = XiangqiCore.boardToFen(nextBoard, oppositeSide(side));
   room.moves.push({
     side,
     move,
@@ -2666,9 +2848,11 @@ function applyMoveInRoom(room, side, move) {
   room.turnStartedAt = room.lastTickAt;
   room.pendingRequest = null;
   room.rematchReady = { w: false, b: false };
-  const gameState = XiangqiCore.determineGameState(parsed.board, room.sideToMove);
+  const gameState = XiangqiCore.determineGameState(nextBoard, room.sideToMove);
   room.updatedAt = Date.now();
-  if (gameState.finished) {
+  if (ruleCheck.repetitionDraw) {
+    finishRoom(room, { winnerSide: null, loserSide: null, reason: "repetition" });
+  } else if (gameState.finished) {
     finishRoom(room, gameState);
   } else {
     saveRooms();
@@ -2686,16 +2870,11 @@ function isBotTurn(room) {
 }
 
 function firstLegalMoveForSide(board, side) {
-  for (let y = 0; y < 10; y += 1) {
-    for (let x = 0; x < 9; x += 1) {
-      const piece = board[y]?.[x] || "";
-      if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
-      const from = XiangqiCore.squareToUci({ x, y });
-      const targets = XiangqiCore.getLegalMovesForSquare(board, { x, y }, side);
-      if (targets.length) return from + XiangqiCore.squareToUci(targets[0]);
-    }
-  }
-  return "";
+  return legalMovesForSide(board, side)[0] || "";
+}
+
+function firstRuleSafeMoveForRoom(room, board, side) {
+  return legalMovesForSide(board, side).find((move) => isRoomMoveAllowedByRules(room, side, move, board)) || "";
 }
 
 async function maybeRunBotTurn(room) {
@@ -2735,8 +2914,8 @@ async function runBotTurn(room) {
   } catch (error) {
     console.warn(`Bot engine failed in room ${room.key}: ${error.message}`);
   }
-  if (!move || !XiangqiCore.isLegalMove(parsed.board, move, side)) {
-    move = firstLegalMoveForSide(parsed.board, side);
+  if (!move || !XiangqiCore.isLegalMove(parsed.board, move, side) || !isRoomMoveAllowedByRules(room, side, move, parsed.board)) {
+    move = firstRuleSafeMoveForRoom(room, parsed.board, side);
   }
   if (!move) {
     finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "no-moves" });
@@ -2797,6 +2976,7 @@ function answerRoomRequest(room, side, accept) {
     room.clocks = lastMove.beforeClocks;
     room.lastTickAt = Date.now();
     room.turnStartedAt = room.lastTickAt;
+    resetRoomRuleState(room);
     room.updatedAt = Date.now();
     saveRooms();
     return;
@@ -2817,6 +2997,26 @@ function setRematchReady(room, side, ready) {
   if (room.status !== "finished") throw new Error("ROOM_NOT_FINISHED");
   room.rematchReady[side] = Boolean(ready);
   room.updatedAt = Date.now();
+  if (room.mode === "bot") {
+    if (ready) {
+      const nextPlayers = { w: room.players.b, b: room.players.w };
+      const nextProfiles = {
+        w: cloneJsonValue(room.playerProfiles?.b || roomPlayerSnapshot(room.players?.b)),
+        b: cloneJsonValue(room.playerProfiles?.w || roomPlayerSnapshot(room.players?.w))
+      };
+      room.players = nextPlayers;
+      room.playerProfiles = nextProfiles;
+      const nextBotSide = botSideInRoom(room) === "w" ? "b" : "w";
+      room.bot = {
+        ...(room.bot || {}),
+        side: nextBotSide,
+        userId: room.players[nextBotSide] || room.bot?.userId || botIdForLevel(room.bot?.level || 1)
+      };
+      resetRoomForGame(room);
+    }
+    saveRooms();
+    return;
+  }
   if (room.rematchReady.w && room.rematchReady.b) {
     const nextPlayers = { w: room.players.b, b: room.players.w };
     const nextProfiles = {
@@ -4103,6 +4303,8 @@ const server = http.createServer(async (req, res) => {
       FORBIDDEN_ROOM: 403,
       FORBIDDEN_ADMIN: 403,
       INVALID_MOVE: 400,
+      REPEATED_CHECK: 400,
+      REPEATED_CHASE: 400,
       NOT_YOUR_TURN: 400,
       REQUEST_LIMIT_REACHED: 400,
       REQUEST_PENDING: 400,
@@ -4129,6 +4331,8 @@ const server = http.createServer(async (req, res) => {
 
 function friendlyErrorVi(code) {
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
+  if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";
+  if (code === "REPEATED_CHASE") return "Khong duoc duoi bat lap lai cung mot quan qua 6 lan.";
   return {
     UNAUTHORIZED: "Bạn cần đăng nhập.",
     ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",

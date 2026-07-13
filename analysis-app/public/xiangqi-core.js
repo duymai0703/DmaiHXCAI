@@ -385,6 +385,8 @@
     hasLegalMoves,
     getLegalMovesForSquare,
     isKingInCheck,
+    isSquareAttacked,
+    attacksSquare,
     findKing,
     determineGameState,
     formatMoveNotation

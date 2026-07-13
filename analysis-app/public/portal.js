@@ -3000,7 +3000,28 @@
     renderMoveList();
     renderRoomOverlay();
     renderRoomMobilePanels();
+    renderRoomRuleNotice();
     drawRoomScene(forceBoard, Boolean(state.roomAnimation));
+  }
+
+  function renderRoomRuleNotice() {
+    const board = document.getElementById("roomBoard");
+    if (!board) return;
+    let notice = board.querySelector(".room-rule-notice");
+    const text = state.room?.ruleNotice?.text || "";
+    const active = text && Number(state.room?.ruleNotice?.expiresAt || 0) > Date.now();
+    if (!active) {
+      if (notice) notice.remove();
+      return;
+    }
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.className = "room-rule-notice";
+      board.appendChild(notice);
+    }
+    notice.textContent = text;
+    window.clearTimeout(state.roomRuleNoticeTimer || 0);
+    state.roomRuleNoticeTimer = window.setTimeout(renderRoomRuleNotice, Math.max(200, Number(state.room.ruleNotice.expiresAt || 0) - Date.now()));
   }
 
   function materializeLocalRoomPhase() {
@@ -3332,6 +3353,7 @@
     renderMoveList();
     renderRoomOverlay();
     renderRoomMobilePanels();
+    renderRoomRuleNotice();
     drawRoomPieces();
     if (state.room?.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
     else clearRoomCheckmateEffectKey();
@@ -4381,6 +4403,7 @@
 
   function resultDetail(room) {
     if (!room?.result) return "";
+    if (room.result.reason === "repetition") return "Ván cờ hòa do lặp hình cờ.";
     return {
       checkmate: "Chiếu hết.",
       "no-moves": "Không còn nước đi hợp lệ.",
