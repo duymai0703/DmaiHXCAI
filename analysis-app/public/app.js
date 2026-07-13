@@ -187,7 +187,8 @@ const state = {
   mobileAnalysisDepth: 0,
   mobileAnalysisScore: null,
   audioContext: null,
-  lastMoveSoundAt: 0
+  lastMoveSoundAt: 0,
+  moveAudioUnlocked: false
 };
 
 const boardEl = document.getElementById("board");
@@ -287,31 +288,50 @@ function ensureMoveAudioContext() {
 }
 
 function unlockMoveSound() {
-  ensureMoveAudioContext();
+  const ctx = ensureMoveAudioContext();
+  if (!ctx || state.moveAudioUnlocked) return;
+  state.moveAudioUnlocked = true;
+  const now = ctx.currentTime;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.00001, now + 0.02);
+  gain.connect(ctx.destination);
+  const osc = ctx.createOscillator();
+  osc.frequency.setValueAtTime(240, now);
+  osc.connect(gain);
+  osc.start(now);
+  osc.stop(now + 0.025);
 }
 
 function playMoveSound(kind = "move") {
   const nowMs = performance.now();
   if (nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
-  state.lastMoveSoundAt = nowMs;
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
+  if (ctx.state !== "running") {
+    const resumed = ctx.resume();
+    if (resumed && typeof resumed.then === "function") {
+      resumed.then(() => playMoveSound(kind)).catch(() => {});
+    }
+    return;
+  }
+  state.lastMoveSoundAt = nowMs;
   const now = ctx.currentTime;
   const master = ctx.createGain();
   master.gain.setValueAtTime(0.0001, now);
-  master.gain.exponentialRampToValueAtTime(kind === "capture" ? 0.2 : 0.15, now + 0.006);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.105);
+  master.gain.exponentialRampToValueAtTime(kind === "capture" ? 0.48 : 0.36, now + 0.005);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
   master.connect(ctx.destination);
 
   const osc = ctx.createOscillator();
   osc.type = "triangle";
-  osc.frequency.setValueAtTime(kind === "capture" ? 360 : 430, now);
-  osc.frequency.exponentialRampToValueAtTime(kind === "capture" ? 130 : 190, now + 0.08);
+  osc.frequency.setValueAtTime(kind === "capture" ? 330 : 460, now);
+  osc.frequency.exponentialRampToValueAtTime(kind === "capture" ? 110 : 175, now + 0.12);
   osc.connect(master);
   osc.start(now);
-  osc.stop(now + 0.11);
+  osc.stop(now + 0.16);
 
-  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.035));
+  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.055));
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let index = 0; index < length; index += 1) {
@@ -321,13 +341,13 @@ function playMoveSound(kind = "move") {
   const noise = ctx.createBufferSource();
   const filter = ctx.createBiquadFilter();
   filter.type = "bandpass";
-  filter.frequency.setValueAtTime(kind === "capture" ? 760 : 980, now);
-  filter.Q.setValueAtTime(1.7, now);
+  filter.frequency.setValueAtTime(kind === "capture" ? 700 : 1040, now);
+  filter.Q.setValueAtTime(1.25, now);
   noise.buffer = buffer;
   noise.connect(filter);
   filter.connect(master);
   noise.start(now);
-  noise.stop(now + 0.04);
+  noise.stop(now + 0.06);
 }
 
 function setupThemeControls() {
