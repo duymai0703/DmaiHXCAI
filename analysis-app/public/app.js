@@ -185,7 +185,9 @@ const state = {
   analysisClockRequest: 0,
   analysisClockElapsedSec: 0,
   mobileAnalysisDepth: 0,
-  mobileAnalysisScore: null
+  mobileAnalysisScore: null,
+  audioContext: null,
+  lastMoveSoundAt: 0
 };
 
 const boardEl = document.getElementById("board");
@@ -241,6 +243,8 @@ setupPieceSkinControls();
 if (accessKeyFormEl) accessKeyFormEl.addEventListener("submit", onAnalysisAccessKeySubmit);
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
+document.addEventListener("pointerdown", unlockMoveSound, { passive: true });
+document.addEventListener("keydown", unlockMoveSound);
 document.getElementById("flipBtn").addEventListener("click", toggleFlipBoard);
 bindClick("saveEngineBtn", saveEnginePath);
 bindClick("buildEngineBtn", buildEngine);
@@ -269,6 +273,61 @@ init();
 function bindClick(id, handler) {
   const element = document.getElementById(id);
   if (element) element.addEventListener("click", handler);
+}
+
+function ensureMoveAudioContext() {
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) return null;
+  if (!state.audioContext) state.audioContext = new AudioCtor();
+  if (state.audioContext.state === "suspended") {
+    const resumed = state.audioContext.resume();
+    if (resumed && typeof resumed.catch === "function") resumed.catch(() => {});
+  }
+  return state.audioContext;
+}
+
+function unlockMoveSound() {
+  ensureMoveAudioContext();
+}
+
+function playMoveSound(kind = "move") {
+  const nowMs = performance.now();
+  if (nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+  state.lastMoveSoundAt = nowMs;
+  const ctx = ensureMoveAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(kind === "capture" ? 0.2 : 0.15, now + 0.006);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.105);
+  master.connect(ctx.destination);
+
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(kind === "capture" ? 360 : 430, now);
+  osc.frequency.exponentialRampToValueAtTime(kind === "capture" ? 130 : 190, now + 0.08);
+  osc.connect(master);
+  osc.start(now);
+  osc.stop(now + 0.11);
+
+  const length = Math.max(1, Math.floor(ctx.sampleRate * 0.035));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index += 1) {
+    const decay = 1 - index / length;
+    data[index] = (Math.random() * 2 - 1) * decay * decay;
+  }
+  const noise = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(kind === "capture" ? 760 : 980, now);
+  filter.Q.setValueAtTime(1.7, now);
+  noise.buffer = buffer;
+  noise.connect(filter);
+  filter.connect(master);
+  noise.start(now);
+  noise.stop(now + 0.04);
 }
 
 function setupThemeControls() {
@@ -1787,6 +1846,7 @@ function finalizeMoveAnimation(animation) {
       activeSlotEl.style.transition = "none";
       activeSlotEl.style.transform = pieceRestTransform();
     }
+    playMoveSound(animation.capturedPiece ? "capture" : "move");
     if (afterComplete) afterComplete();
     if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
       requestQueuedCursorStep();
@@ -1904,10 +1964,12 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
     primeMoveAnimation(moveAnimation);
     draw(true);
     if (!startMoveAnimation(moveAnimation, { prepared: true })) {
+      playMoveSound(moveAnimation.capturedPiece ? "capture" : "move");
       finishMoveEffects();
     }
   } else {
     draw();
+    playMoveSound("move");
     finishMoveEffects();
   }
 }

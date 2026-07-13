@@ -238,7 +238,9 @@
     roomCheckmateEffectTimer: 0,
     reviewCheckmateEffectKey: "",
     reviewCheckmateEffectTimer: 0,
-    selectedAvatarUrl: ""
+    selectedAvatarUrl: "",
+    audioContext: null,
+    lastMoveSoundAt: 0
   };
 
   const dom = {
@@ -425,6 +427,8 @@
   bindEvents();
   disableLegacyNameInputs();
   preventDoubleTapZoom();
+  document.addEventListener("pointerdown", unlockMoveSound, { passive: true });
+  document.addEventListener("keydown", unlockMoveSound);
   const assetWarmupPromise = warmPortalAssets();
   syncViewportHeight();
   setupRoomMobileDock();
@@ -443,6 +447,61 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function ensureMoveAudioContext() {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return null;
+    if (!state.audioContext) state.audioContext = new AudioCtor();
+    if (state.audioContext.state === "suspended") {
+      const resumed = state.audioContext.resume();
+      if (resumed && typeof resumed.catch === "function") resumed.catch(() => {});
+    }
+    return state.audioContext;
+  }
+
+  function unlockMoveSound() {
+    ensureMoveAudioContext();
+  }
+
+  function playMoveSound(kind = "move") {
+    const nowMs = performance.now();
+    if (nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+    state.lastMoveSoundAt = nowMs;
+    const ctx = ensureMoveAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(kind === "capture" ? 0.2 : 0.15, now + 0.006);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.105);
+    master.connect(ctx.destination);
+
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(kind === "capture" ? 360 : 430, now);
+    osc.frequency.exponentialRampToValueAtTime(kind === "capture" ? 130 : 190, now + 0.08);
+    osc.connect(master);
+    osc.start(now);
+    osc.stop(now + 0.11);
+
+    const length = Math.max(1, Math.floor(ctx.sampleRate * 0.035));
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) {
+      const decay = 1 - index / length;
+      data[index] = (Math.random() * 2 - 1) * decay * decay;
+    }
+    const noise = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(kind === "capture" ? 760 : 980, now);
+    filter.Q.setValueAtTime(1.7, now);
+    noise.buffer = buffer;
+    noise.connect(filter);
+    filter.connect(master);
+    noise.start(now);
+    noise.stop(now + 0.04);
   }
 
   function initThemeControls() {
@@ -2189,6 +2248,7 @@
     state.reviewLastPieceFrame = "";
     drawReviewPieces(true);
     drawReviewArrow();
+    playMoveSound(animation.capturedPiece ? "capture" : "move");
   }
 
   function startReviewMoveAnimation(animation, { prepared = false } = {}) {
@@ -2857,6 +2917,7 @@
         movedSlotEl.style.transform = roomPieceRestTransform();
         movedSlotEl.style.opacity = "";
       }
+      playMoveSound(animation.capturedPiece ? "capture" : "move");
       if (useMobileHandoff) hideRoomMoveLandingShieldSoon();
       else hideRoomAnimationElements({ resetActiveSlot: false });
     };
