@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260713-audio-v7";
+  const ASSET_WARMUP_VERSION = "20260713-audio-v8";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -93,12 +93,12 @@
       )
     ])
   );
-  const SOUND_ASSET_VERSION = "20260713-audio-v7";
+  const SOUND_ASSET_VERSION = "20260713-audio-v8";
   const MOVE_SOUND_SOURCES = {
     move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
     capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
     check: `/assets/sounds/chieu.mp3?v=${SOUND_ASSET_VERSION}`,
-    checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
+    checkmate: `/assets/sounds/tuyetsat1.mp3?v=${SOUND_ASSET_VERSION}`
   };
   const REVIEW_BADGES = {
     book: { key: "book", label: "Book", image: "/assets/review-badges/book.png" },
@@ -110,7 +110,7 @@
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260713-mobile-lines-v4",
-    "/app.js?v=20260713-audio-v7",
+    "/app.js?v=20260713-audio-v8",
     "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
@@ -2651,7 +2651,9 @@
 
     void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
-    playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+    if (!animation.suppressMoveSound) {
+      playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+    }
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, reviewSquareToPixel);
 
@@ -2669,6 +2671,9 @@
     const animation = buildReviewCursorAnimation(previousCursor, clamped, previousBoard);
     state.reviewCursor = clamped;
     rebuildReviewBoard();
+    if (animation) {
+      animation.suppressMoveSound = shouldUseStatusOnlySound(state.reviewBoard, state.reviewSideToMove);
+    }
     if (animation) {
       primeReviewMoveAnimation(animation);
     } else {
@@ -3030,6 +3035,8 @@
     renderRoomState({ forceBoard, keepSelection });
     if (incomingAnimation) {
       if (room.result?.reason !== "checkmate") clearRoomCheckmateEffectKey();
+    } else if (state.roomAnimation) {
+      if (room.result?.reason !== "checkmate") clearRoomCheckmateEffectKey();
     } else {
       playRoomPostMoveStatusSound();
     }
@@ -3090,6 +3097,8 @@
     const animation = buildDirectionalMoveAnimation(previousBoard, move, moveKey);
     if (animation) {
       animation.soundKind = animation.capturedPiece ? "capture" : "move";
+      const nextBoard = XiangqiCore.parseFenState(nextRoom.boardFen || START_FEN).board;
+      animation.suppressMoveSound = shouldUseStatusOnlySound(nextBoard, nextRoom.sideToMove, nextRoom.result);
     }
     return animation;
   }
@@ -3361,7 +3370,9 @@
       hideRoomAnimationElements({ resetActiveSlot: false });
       return;
     }
-    playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+    if (!animation.suppressMoveSound) {
+      playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+    }
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
     state.roomAnimationRunning = true;
@@ -4378,6 +4389,7 @@
     state.roomActionBusy = true;
     if (localAnimation) {
       localAnimation.soundKind = localAnimation.capturedPiece ? "capture" : "move";
+      localAnimation.suppressMoveSound = shouldUseStatusOnlySound(localBoard, oppositeSide(side), state.room.result);
     }
     if (localAnimation) primeRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();
@@ -5234,6 +5246,12 @@
       w: Boolean(XiangqiCore.findKing(board, "w")) && XiangqiCore.isKingInCheck(board, "w"),
       b: Boolean(XiangqiCore.findKing(board, "b")) && XiangqiCore.isKingInCheck(board, "b")
     };
+  }
+
+  function shouldUseStatusOnlySound(board, sideToMove, result = null) {
+    if (result?.reason === "checkmate") return true;
+    if (!board || !sideToMove) return false;
+    return Boolean(getCheckedSides(board)[sideToMove]);
   }
 
   function oppositeSide(side) {
