@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260713-audio-v1";
+  const ASSET_WARMUP_VERSION = "20260713-audio-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -93,9 +93,10 @@
       )
     ])
   );
-  const SOUND_ASSET_VERSION = "20260713-audio-v1";
+  const SOUND_ASSET_VERSION = "20260713-audio-v2";
   const MOVE_SOUND_SOURCES = {
     move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
+    capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
     checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
   };
   const REVIEW_BADGES = {
@@ -107,8 +108,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260713-lines-v1",
-    "/app.js?v=20260713-audio-v1",
+    "/styles.css?v=20260713-mobile-lines-v1",
+    "/app.js?v=20260713-audio-v2",
     "/assets/board/board-skin-dark.svg?v=20260713-lines-v1",
     "/assets/board/board-skin-light.svg?v=20260713-lines-v1",
     "/assets/board/board-skin-mobile.svg?v=20260713-lines-v1",
@@ -117,6 +118,7 @@
     "/assets/board/board-skin-emerald.svg?v=20260713-lines-v1",
     "/assets/board/board-skin-wine.svg?v=20260713-lines-v1",
     MOVE_SOUND_SOURCES.move,
+    MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.checkmate,
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
@@ -524,15 +526,25 @@
     osc.stop(now + 0.025);
   }
 
-  function playMediaMoveSound(kind) {
+  function playMediaMoveSound(kind, durationMs = 0) {
     const audio = getMoveSoundElement(kind);
     if (!audio) return false;
     try {
+      const targetMs = Number(durationMs) > 0 ? Math.max(70, Number(durationMs)) : 0;
+      const token = `${Date.now()}:${Math.random()}`;
       audio.pause();
       audio.currentTime = 0;
-      audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+      audio.volume = kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78;
+      audio._dmaihxcaiPlayToken = token;
       const played = audio.play();
       if (played && typeof played.catch === "function") played.catch(() => {});
+      if (targetMs) {
+        window.setTimeout(() => {
+          if (audio._dmaihxcaiPlayToken !== token) return;
+          audio.pause();
+          audio.currentTime = 0;
+        }, targetMs);
+      }
       return true;
     } catch (error) {
       return false;
@@ -619,19 +631,19 @@
     });
   }
 
-  function playMoveSound(kind = "move") {
+  function playMoveSound(kind = "move", durationMs = 0) {
     const nowMs = performance.now();
     if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
-    if (kind === "move" || kind === "checkmate") {
+    if (MOVE_SOUND_SOURCES[kind]) {
       state.lastMoveSoundAt = nowMs;
-      if (playMediaMoveSound(kind)) return;
+      if (playMediaMoveSound(kind, durationMs)) return;
     }
     const ctx = ensureMoveAudioContext();
     if (!ctx) return;
     if (ctx.state !== "running") {
       const resumed = ctx.resume();
       if (resumed && typeof resumed.then === "function") {
-        resumed.then(() => playMoveSound(kind)).catch(() => {});
+        resumed.then(() => playMoveSound(kind, durationMs)).catch(() => {});
       }
       return;
     }
@@ -2401,7 +2413,6 @@
     state.reviewLastPieceFrame = "";
     drawReviewPieces(true);
     drawReviewArrow();
-    playMoveSound(animation.capturedPiece ? "capture" : "move");
   }
 
   function startReviewMoveAnimation(animation, { prepared = false } = {}) {
@@ -2426,6 +2437,7 @@
 
     void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
+    playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, reviewSquareToPixel);
 
@@ -2857,7 +2869,13 @@
     const moveKey = `${nextRoom.key}:${nextMoves.length}:${move}`;
     if (state.lastAnimatedRoomMoveKey === moveKey) return null;
     const previousBoard = XiangqiCore.parseFenState(previousRoom.boardFen || START_FEN).board;
-    return buildDirectionalMoveAnimation(previousBoard, move, moveKey);
+    const animation = buildDirectionalMoveAnimation(previousBoard, move, moveKey);
+    if (animation) {
+      animation.soundKind = nextRoom.result?.reason === "checkmate"
+        ? "checkmate"
+        : animation.capturedPiece ? "capture" : "move";
+    }
+    return animation;
   }
 
   function buildDirectionalMoveAnimation(board, move, moveKey, { reverse = false } = {}) {
@@ -3070,7 +3088,6 @@
         movedSlotEl.style.transform = roomPieceRestTransform();
         movedSlotEl.style.opacity = "";
       }
-      playMoveSound(animation.capturedPiece ? "capture" : "move");
       if (useMobileHandoff) hideRoomMoveLandingShieldSoon();
       else hideRoomAnimationElements({ resetActiveSlot: false });
     };
@@ -3127,6 +3144,7 @@
       hideRoomAnimationElements({ resetActiveSlot: false });
       return;
     }
+    playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
     state.roomAnimationRunning = true;
@@ -3175,7 +3193,6 @@
     if (key && key === state.roomCheckmateEffectKey) return;
     state.roomCheckmateEffectKey = key;
     showBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer");
-    playMoveSound("checkmate");
   }
 
   function clearReviewCheckmateEffectKey() {
@@ -3197,7 +3214,6 @@
     if (key && key === state.reviewCheckmateEffectKey) return;
     state.reviewCheckmateEffectKey = key;
     showBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer");
-    playMoveSound("checkmate");
   }
 
   function updateResumeButton() {
@@ -4102,6 +4118,11 @@
     }
     state.roomSyncedAt = nextTurnStartedAt;
     state.roomActionBusy = true;
+    if (localAnimation) {
+      localAnimation.soundKind = localGameState.finished && localGameState.reason === "checkmate"
+        ? "checkmate"
+        : localAnimation.capturedPiece ? "capture" : "move";
+    }
     if (localAnimation) primeRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();
     if (localAnimation) startRoomMoveAnimation(localAnimation, { prepared: true });

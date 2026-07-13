@@ -64,9 +64,10 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v1";
+const SOUND_ASSET_VERSION = "20260713-audio-v2";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
+  capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
   checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
 };
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
@@ -79,7 +80,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v2";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -110,6 +111,7 @@ const ANALYSIS_BLOCKING_ASSETS = [
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.move,
+  MOVE_SOUND_SOURCES.capture,
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
   "/assets/icons/header-logo.png",
@@ -350,15 +352,25 @@ function unlockMoveSound() {
   osc.stop(now + 0.025);
 }
 
-function playMediaMoveSound(kind) {
+function playMediaMoveSound(kind, durationMs = 0) {
   const audio = getMoveSoundElement(kind);
   if (!audio) return false;
   try {
+    const targetMs = Number(durationMs) > 0 ? Math.max(70, Number(durationMs)) : 0;
+    const token = `${Date.now()}:${Math.random()}`;
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+    audio.volume = kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78;
+    audio._dmaihxcaiPlayToken = token;
     const played = audio.play();
     if (played && typeof played.catch === "function") played.catch(() => {});
+    if (targetMs) {
+      window.setTimeout(() => {
+        if (audio._dmaihxcaiPlayToken !== token) return;
+        audio.pause();
+        audio.currentTime = 0;
+      }, targetMs);
+    }
     return true;
   } catch (error) {
     return false;
@@ -445,19 +457,19 @@ function playMetalClash(ctx, destination, now, delay = 0) {
   });
 }
 
-function playMoveSound(kind = "move") {
+function playMoveSound(kind = "move", durationMs = 0) {
   const nowMs = performance.now();
   if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
-  if (kind === "move" || kind === "checkmate") {
+  if (MOVE_SOUND_SOURCES[kind]) {
     state.lastMoveSoundAt = nowMs;
-    if (playMediaMoveSound(kind)) return;
+    if (playMediaMoveSound(kind, durationMs)) return;
   }
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
   if (ctx.state !== "running") {
     const resumed = ctx.resume();
     if (resumed && typeof resumed.then === "function") {
-      resumed.then(() => playMoveSound(kind)).catch(() => {});
+      resumed.then(() => playMoveSound(kind, durationMs)).catch(() => {});
     }
     return;
   }
@@ -1902,7 +1914,6 @@ function maybeShowCheckmateEffect({ force = false } = {}) {
   void checkmateBurstEl.offsetWidth;
   checkmateBurstEl.setAttribute("aria-hidden", "false");
   checkmateBurstEl.classList.add("show");
-  playMoveSound("checkmate");
   state.checkmateEffectTimer = window.setTimeout(() => {
     checkmateBurstEl.classList.remove("show");
     checkmateBurstEl.setAttribute("aria-hidden", "true");
@@ -2000,7 +2011,6 @@ function finalizeMoveAnimation(animation) {
       activeSlotEl.style.transition = "none";
       activeSlotEl.style.transform = pieceRestTransform();
     }
-    playMoveSound(animation.capturedPiece ? "capture" : "move");
     if (afterComplete) afterComplete();
     if (Number.isInteger(state.queuedCursorTarget) && state.queuedCursorTarget !== state.cursor) {
       requestQueuedCursorStep();
@@ -2050,6 +2060,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
     return false;
   }
   const duration = analysisMoveDurationMs();
+  playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), duration);
   movingSlotEl.style.transition = `transform ${duration}ms ${ANALYSIS_MOVE_EASING}`;
   movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
   state.moveAnimationRunning = true;
@@ -2114,16 +2125,17 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
     }
   };
   if (moveAnimation) {
+    moveAnimation.soundKind = state.gameOver ? "checkmate" : (moveAnimation.capturedPiece ? "capture" : "move");
     moveAnimation.afterComplete = finishMoveEffects;
     primeMoveAnimation(moveAnimation);
     draw(true);
     if (!startMoveAnimation(moveAnimation, { prepared: true })) {
-      playMoveSound(moveAnimation.capturedPiece ? "capture" : "move");
+      playMoveSound(moveAnimation.soundKind, analysisMoveDurationMs());
       finishMoveEffects();
     }
   } else {
     draw();
-    playMoveSound("move");
+    playMoveSound(state.gameOver ? "checkmate" : "move", analysisMoveDurationMs());
     finishMoveEffects();
   }
 }
