@@ -64,6 +64,11 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
+const SOUND_ASSET_VERSION = "20260713-audio-v1";
+const MOVE_SOUND_SOURCES = {
+  move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
+  checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
+};
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
@@ -74,7 +79,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260710-v71";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -104,6 +109,8 @@ const ANALYSIS_BLOCKING_ASSETS = [
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
+  MOVE_SOUND_SOURCES.move,
+  MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
   "/assets/icons/header-logo.png",
   "/assets/icons/logow-header.png",
@@ -187,6 +194,7 @@ const state = {
   mobileAnalysisDepth: 0,
   mobileAnalysisScore: null,
   audioContext: null,
+  moveSoundElements: null,
   lastMoveSoundAt: 0,
   moveAudioUnlocked: false
 };
@@ -287,10 +295,49 @@ function ensureMoveAudioContext() {
   return state.audioContext;
 }
 
+function getMoveSoundElement(kind) {
+  const source = MOVE_SOUND_SOURCES[kind];
+  if (!source || typeof Audio === "undefined") return null;
+  if (!state.moveSoundElements) state.moveSoundElements = Object.create(null);
+  if (!state.moveSoundElements[kind]) {
+    const audio = new Audio(source);
+    audio.preload = "auto";
+    audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+    audio.playsInline = true;
+    state.moveSoundElements[kind] = audio;
+  }
+  return state.moveSoundElements[kind];
+}
+
+function unlockMediaSoundElements() {
+  Object.keys(MOVE_SOUND_SOURCES).forEach((kind) => {
+    const audio = getMoveSoundElement(kind);
+    if (!audio) return;
+    const wasMuted = audio.muted;
+    audio.muted = true;
+    audio.currentTime = 0;
+    const played = audio.play();
+    const reset = () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = wasMuted;
+    };
+    if (played && typeof played.then === "function") {
+      played.then(reset).catch(() => {
+        audio.muted = wasMuted;
+      });
+    } else {
+      reset();
+    }
+  });
+}
+
 function unlockMoveSound() {
-  const ctx = ensureMoveAudioContext();
-  if (!ctx || state.moveAudioUnlocked) return;
+  if (state.moveAudioUnlocked) return;
   state.moveAudioUnlocked = true;
+  unlockMediaSoundElements();
+  const ctx = ensureMoveAudioContext();
+  if (!ctx) return;
   const now = ctx.currentTime;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, now);
@@ -301,6 +348,21 @@ function unlockMoveSound() {
   osc.connect(gain);
   osc.start(now);
   osc.stop(now + 0.025);
+}
+
+function playMediaMoveSound(kind) {
+  const audio = getMoveSoundElement(kind);
+  if (!audio) return false;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+    const played = audio.play();
+    if (played && typeof played.catch === "function") played.catch(() => {});
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 function createMoveNoise(ctx, seconds, power = 2.4) {
@@ -386,6 +448,10 @@ function playMetalClash(ctx, destination, now, delay = 0) {
 function playMoveSound(kind = "move") {
   const nowMs = performance.now();
   if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+  if (kind === "move" || kind === "checkmate") {
+    state.lastMoveSoundAt = nowMs;
+    if (playMediaMoveSound(kind)) return;
+  }
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
   if (ctx.state !== "running") {
