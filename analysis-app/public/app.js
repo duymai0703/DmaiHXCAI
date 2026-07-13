@@ -64,7 +64,7 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v2";
+const SOUND_ASSET_VERSION = "20260713-audio-v4";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
   capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
@@ -80,7 +80,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v2";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v4";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -197,6 +197,9 @@ const state = {
   mobileAnalysisScore: null,
   audioContext: null,
   moveSoundElements: null,
+  moveSoundBuffers: null,
+  moveSoundBufferJobs: null,
+  moveSoundSegments: null,
   lastMoveSoundAt: 0,
   moveAudioUnlocked: false
 };
@@ -334,10 +337,37 @@ function unlockMediaSoundElements() {
   });
 }
 
+function loadMoveSoundBuffer(kind) {
+  const source = MOVE_SOUND_SOURCES[kind];
+  const ctx = ensureMoveAudioContext();
+  if (!source || !ctx || typeof fetch !== "function") return null;
+  if (!state.moveSoundBuffers) state.moveSoundBuffers = Object.create(null);
+  if (state.moveSoundBuffers[kind]) return Promise.resolve(state.moveSoundBuffers[kind]);
+  if (!state.moveSoundBufferJobs) state.moveSoundBufferJobs = Object.create(null);
+  if (state.moveSoundBufferJobs[kind]) return state.moveSoundBufferJobs[kind];
+  state.moveSoundBufferJobs[kind] = fetch(source, { cache: "force-cache" })
+    .then((response) => {
+      if (!response.ok) throw new Error("sound fetch failed");
+      return response.arrayBuffer();
+    })
+    .then((buffer) => ctx.decodeAudioData(buffer.slice(0)))
+    .then((audioBuffer) => {
+      state.moveSoundBuffers[kind] = audioBuffer;
+      return audioBuffer;
+    })
+    .catch(() => null);
+  return state.moveSoundBufferJobs[kind];
+}
+
+function warmMoveSoundBuffers() {
+  Object.keys(MOVE_SOUND_SOURCES).forEach((kind) => loadMoveSoundBuffer(kind));
+}
+
 function unlockMoveSound() {
   if (state.moveAudioUnlocked) return;
   state.moveAudioUnlocked = true;
   unlockMediaSoundElements();
+  warmMoveSoundBuffers();
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -352,25 +382,108 @@ function unlockMoveSound() {
   osc.stop(now + 0.025);
 }
 
+function mediaSoundWindowMs(kind, durationMs = 0) {
+  const fallback = kind === "checkmate" ? 520 : 220;
+  const value = Number(durationMs) > 0 ? Number(durationMs) : fallback;
+  return Math.max(80, value);
+}
+
+function mediaSoundStartTime(audio, kind, durationMs = 0) {
+  const duration = Number(audio.duration);
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  const windowSeconds = Math.min(
+    Math.max(0.08, mediaSoundWindowMs(kind, durationMs) / 1000),
+    Math.max(0.08, duration - 0.02)
+  );
+  return Math.max(0, duration - windowSeconds);
+}
+
+function bestMoveSoundOffset(buffer, kind, durationMs = 0) {
+  if (!state.moveSoundSegments) state.moveSoundSegments = Object.create(null);
+  const clipMs = mediaSoundWindowMs(kind, durationMs);
+  const key = `${kind}:${clipMs}`;
+  if (Number.isFinite(state.moveSoundSegments[key])) return state.moveSoundSegments[key];
+  const sampleRate = buffer.sampleRate || 44100;
+  const windowSize = Math.max(1, Math.min(buffer.length, Math.floor(sampleRate * clipMs / 1000)));
+  const stride = Math.max(64, Math.floor(windowSize / 8));
+  const sampleStride = Math.max(1, Math.floor(windowSize / 520));
+  const channelCount = Math.max(1, Math.min(2, buffer.numberOfChannels || 1));
+  const channels = [];
+  for (let channel = 0; channel < channelCount; channel += 1) {
+    channels.push(buffer.getChannelData(channel));
+  }
+  let bestStart = 0;
+  let bestEnergy = -1;
+  const lastStart = Math.max(0, buffer.length - windowSize);
+  for (let start = 0; start <= lastStart; start += stride) {
+    let energy = 0;
+    for (let index = start; index < start + windowSize; index += sampleStride) {
+      let mixed = 0;
+      for (let channel = 0; channel < channelCount; channel += 1) {
+        mixed += Math.abs(channels[channel][index] || 0);
+      }
+      mixed /= channelCount;
+      energy += mixed * mixed;
+    }
+    if (energy > bestEnergy) {
+      bestEnergy = energy;
+      bestStart = start;
+    }
+  }
+  const offset = bestStart / sampleRate;
+  state.moveSoundSegments[key] = offset;
+  return offset;
+}
+
+function playDecodedMoveSound(kind, durationMs = 0) {
+  const ctx = ensureMoveAudioContext();
+  const buffer = state.moveSoundBuffers?.[kind];
+  if (!ctx || !buffer || ctx.state !== "running") {
+    loadMoveSoundBuffer(kind);
+    return false;
+  }
+  const clipSeconds = Math.min(buffer.duration || 0, mediaSoundWindowMs(kind, durationMs) / 1000);
+  if (!clipSeconds) return false;
+  try {
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78, ctx.currentTime);
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 function playMediaMoveSound(kind, durationMs = 0) {
   const audio = getMoveSoundElement(kind);
   if (!audio) return false;
   try {
-    const targetMs = Number(durationMs) > 0 ? Math.max(70, Number(durationMs)) : 0;
+    const targetMs = mediaSoundWindowMs(kind, durationMs);
+    const startAt = mediaSoundStartTime(audio, kind, targetMs);
+    if (startAt === null) {
+      audio.load();
+      return false;
+    }
     const token = `${Date.now()}:${Math.random()}`;
     audio.pause();
-    audio.currentTime = 0;
+    audio.currentTime = startAt;
     audio.volume = kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78;
     audio._dmaihxcaiPlayToken = token;
     const played = audio.play();
-    if (played && typeof played.catch === "function") played.catch(() => {});
-    if (targetMs) {
-      window.setTimeout(() => {
-        if (audio._dmaihxcaiPlayToken !== token) return;
-        audio.pause();
-        audio.currentTime = 0;
-      }, targetMs);
+    if (played && typeof played.catch === "function") {
+      played.catch(() => {
+        if (audio._dmaihxcaiPlayToken === token) playFallbackMoveSound(kind, durationMs);
+      });
     }
+    window.setTimeout(() => {
+      if (audio._dmaihxcaiPlayToken !== token) return;
+      audio.pause();
+      audio.currentTime = 0;
+    }, targetMs + 90);
     return true;
   } catch (error) {
     return false;
@@ -457,19 +570,13 @@ function playMetalClash(ctx, destination, now, delay = 0) {
   });
 }
 
-function playMoveSound(kind = "move", durationMs = 0) {
-  const nowMs = performance.now();
-  if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
-  if (MOVE_SOUND_SOURCES[kind]) {
-    state.lastMoveSoundAt = nowMs;
-    if (playMediaMoveSound(kind, durationMs)) return;
-  }
+function playFallbackMoveSound(kind = "move", durationMs = 0, nowMs = performance.now()) {
   const ctx = ensureMoveAudioContext();
   if (!ctx) return;
   if (ctx.state !== "running") {
     const resumed = ctx.resume();
     if (resumed && typeof resumed.then === "function") {
-      resumed.then(() => playMoveSound(kind, durationMs)).catch(() => {});
+      resumed.then(() => playFallbackMoveSound(kind, durationMs)).catch(() => {});
     }
     return;
   }
@@ -493,6 +600,17 @@ function playMoveSound(kind = "move", durationMs = 0) {
   }
   playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.28, from: 3200, to: 520, q: 1.45, type: "bandpass" });
   playTone(ctx, master, now, { duration: 0.18, type: "sine", gainPeak: 0.075, from: 940, to: 360, attack: 0.014 });
+}
+
+function playMoveSound(kind = "move", durationMs = 0) {
+  const nowMs = performance.now();
+  if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+  if (MOVE_SOUND_SOURCES[kind]) {
+    state.lastMoveSoundAt = nowMs;
+    if (playDecodedMoveSound(kind, durationMs)) return;
+    if (playMediaMoveSound(kind, durationMs)) return;
+  }
+  playFallbackMoveSound(kind, durationMs, nowMs);
 }
 
 function setupThemeControls() {

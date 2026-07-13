@@ -3490,7 +3490,7 @@ select,
   .board-skin-layer {
     background-size: 100% 100% !important;
     background-position: center !important;
-    filter: contrast(1.24) saturate(1.16) brightness(1.06) !important;
+    filter: contrast(1.36) saturate(1.24) brightness(1.08) !important;
     opacity: 1 !important;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);

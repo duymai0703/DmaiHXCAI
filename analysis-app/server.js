@@ -3696,7 +3696,8 @@ function serveStatic(req, res) {
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
       ".webp": "image/webp",
-      ".svg": "image/svg+xml"
+      ".svg": "image/svg+xml",
+      ".mp3": "audio/mpeg"
     }[ext] || "application/octet-stream";
     res.writeHead(200, {
       "Content-Type": type,
