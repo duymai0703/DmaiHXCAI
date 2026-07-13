@@ -9,30 +9,34 @@
     <g id="pointMarkRightEdge" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <path d="M-22 -8H-11V-19 M-22 8H-11V19"/>
     </g>
+    <filter id="softInk" x="-4%" y="-4%" width="108%" height="108%">
+      <feDropShadow dx="0" dy="0.55" stdDeviation="0.35" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
   </defs>
   <rect width="900" height="1000" fill="transparent"/>
-  <g stroke="#606b72" stroke-opacity="0.50" fill="none" stroke-linejoin="round">
-    <rect x="23" y="24" width="854" height="952" rx="18" stroke-width="5.8"/>
-    <rect x="39" y="42" width="822" height="916" rx="8" stroke-width="2.3"/>
-    <path d="M72 38C96 51 125 51 151 38M748 38C774 51 804 51 828 38M72 962C96 949 125 949 151 962M748 962C774 949 804 949 828 962" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M38 96C52 126 52 158 38 188M862 96C848 126 848 158 862 188M38 812C52 842 52 874 38 904M862 812C848 842 848 874 862 904" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M49 49C75 67 75 83 49 101M851 49C825 67 825 83 851 101M49 951C75 933 75 917 49 899M851 951C825 933 825 917 851 899" stroke-width="1.35" stroke-linecap="round"/>
+  <g stroke="#464842" stroke-opacity="0.78" fill="none" stroke-linejoin="round" filter="url(#softInk)">
+    <rect x="23" y="24" width="854" height="952" rx="18" stroke-width="5.3"/>
+    <rect x="39" y="42" width="822" height="916" rx="8" stroke-width="2.05"/>
+    <path d="M72 38C96 51 125 51 151 38M748 38C774 51 804 51 828 38M72 962C96 949 125 949 151 962M748 962C774 949 804 949 828 962" stroke-width="2.0" stroke-linecap="round"/>
+    <path d="M38 96C52 126 52 158 38 188M862 96C848 126 848 158 862 188M38 812C52 842 52 874 38 904M862 812C848 842 848 874 862 904" stroke-width="2.0" stroke-linecap="round"/>
+    <path d="M49 49C75 67 75 83 49 101M851 49C825 67 825 83 851 101M49 951C75 933 75 917 49 899M851 951C825 933 825 917 851 899" stroke-width="1.18" stroke-linecap="round"/>
   </g>
-
-  <g stroke="#3f474d" stroke-opacity="0.22" stroke-width="1.25" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g stroke="#232622" stroke-opacity="0.24" stroke-width="1.08" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path d="M126 72C154 118 141 159 181 196C213 225 199 266 238 300"/>
     <path d="M805 74C778 134 795 174 746 229C716 263 729 312 687 354"/>
     <path d="M116 504C177 493 226 520 282 496C322 479 365 498 410 468"/>
     <path d="M516 309C550 353 540 397 579 431C622 469 606 511 652 548"/>
     <path d="M703 654C747 687 730 728 774 767C799 789 792 832 828 866"/>
     <path d="M213 868C252 827 286 836 324 793C351 762 396 770 430 735"/>
+    <path d="M86 713C122 693 164 705 198 678C230 651 270 659 304 630"/>
+    <path d="M579 126C622 103 670 116 711 89"/>
   </g>
-  <g stroke="#30363b" stroke-opacity="0.82" stroke-width="1.72" stroke-linecap="butt">
+  <g stroke="#30332f" stroke-opacity="0.9" stroke-width="1.62" stroke-linecap="butt" filter="url(#softInk)">
     <path d="M63 63V451.444M63 548.556V937M159.75 63V451.444M159.75 548.556V937M256.5 63V451.444M256.5 548.556V937M353.25 63V451.444M353.25 548.556V937M450 63V451.444M450 548.556V937M546.75 63V451.444M546.75 548.556V937M643.5 63V451.444M643.5 548.556V937M740.25 63V451.444M740.25 548.556V937M837 63V451.444M837 548.556V937"/>
     <path d="M63 63H837M63 160.111H837M63 257.222H837M63 354.333H837M63 451.444H837M63 548.556H837M63 645.667H837M63 742.778H837M63 839.889H837M63 937H837"/>
     <path d="M353.25 63L546.75 257.222M546.75 63L353.25 257.222M353.25 742.778L546.75 937M546.75 742.778L353.25 937"/>
   </g>
-  <g stroke="#30363b" stroke-opacity="0.58" stroke-width="1.34">
+  <g stroke="#5f6259" stroke-opacity="0.82" stroke-width="1.2" filter="url(#softInk)">
     <use href="#pointMark" transform="translate(159.75 257.222)"/>
     <use href="#pointMark" transform="translate(740.25 257.222)"/>
     <use href="#pointMark" transform="translate(159.75 742.778)"/>
@@ -48,7 +52,7 @@
     <use href="#pointMark" transform="translate(643.5 645.667)"/>
     <use href="#pointMarkRightEdge" transform="translate(837 645.667)"/>
   </g>
-  <g fill="#30363b" fill-opacity="0.72" font-family="KaiTi, STKaiti, SimSun, serif" font-size="58" text-anchor="middle">
+  <g fill="#30342f" fill-opacity="0.82" font-family="KaiTi, STKaiti, SimSun, serif" font-size="56" text-anchor="middle" filter="url(#softInk)">
     <text x="256" y="518">&#26970;&#27827;</text>
     <text x="644" y="518">&#28450;&#30028;</text>
   </g>

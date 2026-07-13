@@ -13,7 +13,7 @@
       try {
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
-        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" ? savedBoardSkin : "ice";
+        const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
         const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
@@ -41,7 +41,7 @@
     <link rel="preload" href="/assets/board/board-skin-stone.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-emerald.svg" as="image">
     <link rel="preload" href="/assets/board/board-skin-wine.svg" as="image">
-    <link rel="stylesheet" href="/portal.css?v=20260710-room-v67">
+    <link rel="stylesheet" href="/portal.css?v=20260713-board-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -81,6 +81,10 @@
           <button type="button" data-portal-board-skin="pink" role="menuitem">
             <span class="skin-swatch skin-swatch-pink" aria-hidden="true"></span>
             Đỏ rượu vang
+          </button>
+          <button type="button" data-portal-board-skin="dark" role="menuitem">
+            <span class="skin-swatch skin-swatch-dark" aria-hidden="true"></span>
+            Hắc kim
           </button>
           <div class="skin-menu-title">Bộ quân</div>
           <button type="button" data-portal-piece-skin="default" role="menuitem">
@@ -582,7 +586,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260710-room-v93"></script>
+    <script src="/portal.js?v=20260713-board-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

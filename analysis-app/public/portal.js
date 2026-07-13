@@ -546,7 +546,7 @@
   }
 
   function normalizeBoardSkin(skin) {
-    return skin === "gold" || skin === "stone" || skin === "pink" || skin === "emerald" ? skin : "ice";
+    return skin === "gold" || skin === "stone" || skin === "pink" || skin === "emerald" || skin === "dark" ? skin : "ice";
   }
 
   function normalizePieceSkin(skin) {
