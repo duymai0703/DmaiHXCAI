@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260713-audio-v4";
+  const ASSET_WARMUP_VERSION = "20260713-audio-v5";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -93,7 +93,7 @@
       )
     ])
   );
-  const SOUND_ASSET_VERSION = "20260713-audio-v4";
+  const SOUND_ASSET_VERSION = "20260713-audio-v5";
   const MOVE_SOUND_SOURCES = {
     move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
     capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
@@ -108,15 +108,15 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260713-mobile-lines-v1",
-    "/app.js?v=20260713-audio-v4",
-    "/assets/board/board-skin-dark.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-light.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-mobile.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-gold.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-stone.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-emerald.svg?v=20260713-lines-v1",
-    "/assets/board/board-skin-wine.svg?v=20260713-lines-v1",
+    "/styles.css?v=20260713-mobile-lines-v2",
+    "/app.js?v=20260713-audio-v5",
+    "/assets/board/board-skin-dark.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-light.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-mobile.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-gold.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-stone.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-emerald.svg?v=20260713-lines-v2",
+    "/assets/board/board-skin-wine.svg?v=20260713-lines-v2",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.checkmate,
@@ -160,6 +160,7 @@
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
   const ROOM_MOVE_ANIMATION_MS = 228;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
+  const CHECKMATE_EFFECT_MS = 3000;
   const REVIEW_EVAL_BAR_LIMIT = 2000;
 
   const initialToken = localStorage.getItem(STORAGE_TOKEN) || localStorage.getItem(LEGACY_STORAGE_TOKEN) || "";
@@ -557,8 +558,10 @@
   }
 
   function mediaSoundWindowMs(kind, durationMs = 0) {
-    const fallback = kind === "checkmate" ? 520 : 220;
+    const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "capture" ? 360 : 220;
     const value = Number(durationMs) > 0 ? Number(durationMs) : fallback;
+    if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, value);
+    if (kind === "capture") return Math.max(340, value);
     return Math.max(80, value);
   }
 
@@ -2989,9 +2992,7 @@
     const previousBoard = XiangqiCore.parseFenState(previousRoom.boardFen || START_FEN).board;
     const animation = buildDirectionalMoveAnimation(previousBoard, move, moveKey);
     if (animation) {
-      animation.soundKind = nextRoom.result?.reason === "checkmate"
-        ? "checkmate"
-        : animation.capturedPiece ? "capture" : "move";
+      animation.soundKind = animation.capturedPiece ? "capture" : "move";
     }
     return animation;
   }
@@ -3292,11 +3293,12 @@
     void el.offsetWidth;
     el.setAttribute("aria-hidden", "false");
     el.classList.add("show");
+    playMoveSound("checkmate", CHECKMATE_EFFECT_MS);
     state[timerKey] = window.setTimeout(() => {
       el.classList.remove("show");
       el.setAttribute("aria-hidden", "true");
       state[timerKey] = 0;
-    }, 3050);
+    }, CHECKMATE_EFFECT_MS + 50);
   }
 
   function clearRoomCheckmateEffectKey() {
@@ -4237,9 +4239,7 @@
     state.roomSyncedAt = nextTurnStartedAt;
     state.roomActionBusy = true;
     if (localAnimation) {
-      localAnimation.soundKind = localGameState.finished && localGameState.reason === "checkmate"
-        ? "checkmate"
-        : localAnimation.capturedPiece ? "capture" : "move";
+      localAnimation.soundKind = localAnimation.capturedPiece ? "capture" : "move";
     }
     if (localAnimation) primeRoomMoveAnimation(localAnimation);
     renderRoomAfterLocalMove();

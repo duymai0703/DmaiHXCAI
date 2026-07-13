@@ -64,7 +64,7 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v4";
+const SOUND_ASSET_VERSION = "20260713-audio-v5";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
   capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
@@ -80,11 +80,12 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v4";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v5";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
+const CHECKMATE_EFFECT_MS = 3000;
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
 const ANALYSIS_DISPLAY_DEPTH_BOOST = 10;
@@ -98,13 +99,13 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  "/assets/board/board-skin-dark.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-light.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-gold.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-stone.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v1",
-  "/assets/board/board-skin-wine.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-dark.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-light.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-gold.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-stone.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-wine.svg?v=20260713-lines-v2",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -383,8 +384,10 @@ function unlockMoveSound() {
 }
 
 function mediaSoundWindowMs(kind, durationMs = 0) {
-  const fallback = kind === "checkmate" ? 520 : 220;
+  const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "capture" ? 360 : 220;
   const value = Number(durationMs) > 0 ? Number(durationMs) : fallback;
+  if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, value);
+  if (kind === "capture") return Math.max(340, value);
   return Math.max(80, value);
 }
 
@@ -2032,11 +2035,12 @@ function maybeShowCheckmateEffect({ force = false } = {}) {
   void checkmateBurstEl.offsetWidth;
   checkmateBurstEl.setAttribute("aria-hidden", "false");
   checkmateBurstEl.classList.add("show");
+  playMoveSound("checkmate", CHECKMATE_EFFECT_MS);
   state.checkmateEffectTimer = window.setTimeout(() => {
     checkmateBurstEl.classList.remove("show");
     checkmateBurstEl.setAttribute("aria-hidden", "true");
     state.checkmateEffectTimer = 0;
-  }, 3050);
+  }, CHECKMATE_EFFECT_MS + 50);
 }
 
 function paintMotionPiece(element, piece) {
@@ -2243,7 +2247,7 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
     }
   };
   if (moveAnimation) {
-    moveAnimation.soundKind = state.gameOver ? "checkmate" : (moveAnimation.capturedPiece ? "capture" : "move");
+    moveAnimation.soundKind = moveAnimation.capturedPiece ? "capture" : "move";
     moveAnimation.afterComplete = finishMoveEffects;
     primeMoveAnimation(moveAnimation);
     draw(true);
@@ -2253,7 +2257,7 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
     }
   } else {
     draw();
-    playMoveSound(state.gameOver ? "checkmate" : "move", analysisMoveDurationMs());
+    playMoveSound("move", analysisMoveDurationMs());
     finishMoveEffects();
   }
 }
