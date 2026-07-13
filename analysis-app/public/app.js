@@ -64,7 +64,7 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v5";
+const SOUND_ASSET_VERSION = "20260713-audio-v6";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
   capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
@@ -80,7 +80,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v5";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v6";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -99,13 +99,13 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  "/assets/board/board-skin-dark.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-light.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-gold.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-stone.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v2",
-  "/assets/board/board-skin-wine.svg?v=20260713-lines-v2",
+  "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-gold.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-stone.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v3",
+  "/assets/board/board-skin-wine.svg?v=20260713-lines-v3",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -201,6 +201,8 @@ const state = {
   moveSoundBuffers: null,
   moveSoundBufferJobs: null,
   moveSoundSegments: null,
+  activeMoveSoundSources: null,
+  activeMoveSoundGains: null,
   lastMoveSoundAt: 0,
   moveAudioUnlocked: false
 };
@@ -394,6 +396,7 @@ function mediaSoundWindowMs(kind, durationMs = 0) {
 function mediaSoundStartTime(audio, kind, durationMs = 0) {
   const duration = Number(audio.duration);
   if (!Number.isFinite(duration) || duration <= 0) return null;
+  if (kind === "checkmate") return 0;
   const windowSeconds = Math.min(
     Math.max(0.08, mediaSoundWindowMs(kind, durationMs) / 1000),
     Math.max(0.08, duration - 0.02)
@@ -402,6 +405,7 @@ function mediaSoundStartTime(audio, kind, durationMs = 0) {
 }
 
 function bestMoveSoundOffset(buffer, kind, durationMs = 0) {
+  if (kind === "checkmate") return 0;
   if (!state.moveSoundSegments) state.moveSoundSegments = Object.create(null);
   const clipMs = mediaSoundWindowMs(kind, durationMs);
   const key = `${kind}:${clipMs}`;
@@ -438,6 +442,57 @@ function bestMoveSoundOffset(buffer, kind, durationMs = 0) {
   return offset;
 }
 
+function trackMoveSoundSource(source, kind) {
+  if (!source) return;
+  if (!state.activeMoveSoundSources) state.activeMoveSoundSources = [];
+  const entry = { source, kind };
+  state.activeMoveSoundSources.push(entry);
+  source.onended = () => {
+    state.activeMoveSoundSources = (state.activeMoveSoundSources || []).filter((item) => item !== entry);
+  };
+}
+
+function trackMoveSoundGain(gain, kind, durationMs = 0) {
+  if (!gain) return;
+  if (!state.activeMoveSoundGains) state.activeMoveSoundGains = [];
+  const entry = { gain, kind };
+  state.activeMoveSoundGains.push(entry);
+  window.setTimeout(() => {
+    try {
+      gain.disconnect();
+    } catch (error) {}
+    state.activeMoveSoundGains = (state.activeMoveSoundGains || []).filter((item) => item !== entry);
+  }, Math.max(160, durationMs + 180));
+}
+
+function stopActiveMoveSounds() {
+  (state.activeMoveSoundSources || []).forEach(({ source }) => {
+    try {
+      source.stop(0);
+    } catch (error) {}
+  });
+  state.activeMoveSoundSources = [];
+  const ctx = state.audioContext;
+  (state.activeMoveSoundGains || []).forEach(({ gain }) => {
+    try {
+      const now = ctx?.currentTime || 0;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.disconnect();
+    } catch (error) {}
+  });
+  state.activeMoveSoundGains = [];
+  if (!state.moveSoundElements) return;
+  Object.values(state.moveSoundElements).forEach((audio) => {
+    if (!audio) return;
+    try {
+      audio._dmaihxcaiPlayToken = "";
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (error) {}
+  });
+}
+
 function playDecodedMoveSound(kind, durationMs = 0) {
   const ctx = ensureMoveAudioContext();
   const buffer = state.moveSoundBuffers?.[kind];
@@ -455,6 +510,7 @@ function playDecodedMoveSound(kind, durationMs = 0) {
     source.connect(gain);
     gain.connect(ctx.destination);
     source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
+    trackMoveSoundSource(source, kind);
     return true;
   } catch (error) {
     return false;
@@ -588,6 +644,7 @@ function playFallbackMoveSound(kind = "move", durationMs = 0, nowMs = performanc
   const master = ctx.createGain();
   master.gain.setValueAtTime(kind === "checkmate" ? 0.92 : 0.82, now);
   master.connect(ctx.destination);
+  trackMoveSoundGain(master, kind, mediaSoundWindowMs(kind, durationMs));
   if (kind === "checkmate") {
     playNoiseSweep(ctx, master, now, { duration: 0.5, peak: 0.28, from: 520, to: 2600, q: 0.8, type: "bandpass" });
     playNoiseSweep(ctx, master, now, { delay: 0.06, duration: 0.34, peak: 0.24, from: 3600, to: 980, q: 1.7, type: "highpass" });
@@ -608,6 +665,7 @@ function playFallbackMoveSound(kind = "move", durationMs = 0, nowMs = performanc
 function playMoveSound(kind = "move", durationMs = 0) {
   const nowMs = performance.now();
   if (kind !== "checkmate" && nowMs - Number(state.lastMoveSoundAt || 0) < 45) return;
+  if (kind === "checkmate") stopActiveMoveSounds();
   if (MOVE_SOUND_SOURCES[kind]) {
     state.lastMoveSoundAt = nowMs;
     if (playDecodedMoveSound(kind, durationMs)) return;

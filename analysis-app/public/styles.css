@@ -2,7 +2,7 @@
   color-scheme: light;
   --app-vh: 1vh;
   --mobile-safe-top: env(safe-area-inset-top, 0px);
-  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v3");
   --ink: #1e2328;
   --muted: #68717c;
   --panel: #f6f0e6;
@@ -1046,32 +1046,32 @@ input:not([type]) {
 
 .skin-swatch-ice {
   background:
-    url("/assets/board/board-skin-light.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #f1ead2, #c8bea0);
+    url("/assets/board/board-skin-light.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #f1ead2, #c8bea0);
 }
 
 .skin-swatch-gold {
   background:
-    url("/assets/board/board-skin-gold.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #d7aa55, #956626);
+    url("/assets/board/board-skin-gold.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #d7aa55, #956626);
 }
 
 .skin-swatch-emerald {
   background:
-    url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #317a54, #1d4f39);
+    url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #317a54, #1d4f39);
 }
 
 .skin-swatch-stone {
   background:
-    url("/assets/board/board-skin-stone.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #999a90, #626861);
+    url("/assets/board/board-skin-stone.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #999a90, #626861);
 }
 
 .skin-swatch-pink {
   background:
-    url("/assets/board/board-skin-wine.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #aa442c, #67231b);
+    url("/assets/board/board-skin-wine.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #aa442c, #67231b);
 }
 
 .skin-swatch-dark {
   background:
-    url("/assets/board/board-skin-dark.svg?v=20260713-lines-v2") center / 100% 100% no-repeat, linear-gradient(145deg, #24242a, #0c0f13);
+    url("/assets/board/board-skin-dark.svg?v=20260713-lines-v3") center / 100% 100% no-repeat, linear-gradient(145deg, #24242a, #0c0f13);
 }
 
 .piece-skin-swatch {
@@ -2308,7 +2308,7 @@ select {
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v3");
   --ink: #eef8ff;
   --muted: #93abc2;
   --panel: #0b1422;
@@ -2346,7 +2346,7 @@ select {
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v3");
   --ink: #102033;
   --muted: #526b80;
   --panel: #edf7ff;
@@ -2382,7 +2382,7 @@ select {
 }
 
 :root[data-board-skin="ice"] {
-  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -2401,7 +2401,7 @@ select {
 }
 
 :root[data-board-skin="gold"] {
-  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -2420,7 +2420,7 @@ select {
 }
 
 :root[data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -2439,7 +2439,7 @@ select {
 }
 
 :root[data-board-skin="stone"] {
-  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -2458,7 +2458,7 @@ select {
 }
 
 :root[data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -2477,7 +2477,7 @@ select {
 }
 
 :root[data-board-skin="dark"] {
-  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
@@ -2798,7 +2798,7 @@ select,
 }
 
 :root[data-board-skin="ice"] {
-  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -2817,7 +2817,7 @@ select,
 }
 
 :root[data-board-skin="gold"] {
-  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -2836,7 +2836,7 @@ select,
 }
 
 :root[data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -2855,7 +2855,7 @@ select,
 }
 
 :root[data-board-skin="stone"] {
-  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -2874,7 +2874,7 @@ select,
 }
 
 :root[data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -2893,7 +2893,7 @@ select,
 }
 
 :root[data-board-skin="dark"] {
-  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v2");
+  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v3");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
@@ -3490,10 +3490,11 @@ select,
   .board-skin-layer {
     background-size: 100% 100% !important;
     background-position: center !important;
-    filter: contrast(1.56) saturate(1.34) brightness(1.1) !important;
+    filter: none !important;
     opacity: 1 !important;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
+    transform: none !important;
+    -webkit-transform: none !important;
+    image-rendering: auto;
   }
 
   .cloud-group h2 {
