@@ -92,13 +92,13 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  "/assets/board/board-skin-dark.svg",
-  "/assets/board/board-skin-light.svg",
-  "/assets/board/board-skin-mobile.svg",
-  "/assets/board/board-skin-gold.svg",
-  "/assets/board/board-skin-stone.svg",
-  "/assets/board/board-skin-emerald.svg",
-  "/assets/board/board-skin-wine.svg",
+  "/assets/board/board-skin-dark.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-light.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-gold.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-stone.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v1",
+  "/assets/board/board-skin-wine.svg?v=20260713-lines-v1",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))

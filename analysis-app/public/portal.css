@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --app-vh: 1vh;
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v1");
   --ink: #201913;
   --muted: #6c5d4f;
   --paper: #f4ead7;
@@ -3380,7 +3380,7 @@ textarea:focus {
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v1");
   --ink: #eef8ff;
   --muted: #93abc2;
   --paper: #0d1624;
@@ -3417,7 +3417,7 @@ textarea:focus {
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v1");
   --ink: #102033;
   --muted: #526b80;
   --paper: #edf7ff;
@@ -3452,7 +3452,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="ice"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -3471,7 +3471,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="gold"] {
-  --board-skin: url("/assets/board/board-skin-gold.svg");
+  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -3490,7 +3490,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/board-skin-emerald.svg");
+  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -3509,7 +3509,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="stone"] {
-  --board-skin: url("/assets/board/board-skin-stone.svg");
+  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -3528,7 +3528,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-wine.svg");
+  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -3547,7 +3547,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="dark"] {
-  --board-skin: url("/assets/board/board-skin-dark.svg");
+  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
@@ -3695,32 +3695,32 @@ body {
 
 .skin-swatch-ice {
   background:
-    url("/assets/board/board-skin-light.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #f1ead2, #c8bea0);
+    url("/assets/board/board-skin-light.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #f1ead2, #c8bea0);
 }
 
 .skin-swatch-gold {
   background:
-    url("/assets/board/board-skin-gold.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #d7aa55, #956626);
+    url("/assets/board/board-skin-gold.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #d7aa55, #956626);
 }
 
 .skin-swatch-emerald {
   background:
-    url("/assets/board/board-skin-emerald.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #317a54, #1d4f39);
+    url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #317a54, #1d4f39);
 }
 
 .skin-swatch-stone {
   background:
-    url("/assets/board/board-skin-stone.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #999a90, #626861);
+    url("/assets/board/board-skin-stone.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #999a90, #626861);
 }
 
 .skin-swatch-pink {
   background:
-    url("/assets/board/board-skin-wine.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #aa442c, #67231b);
+    url("/assets/board/board-skin-wine.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #aa442c, #67231b);
 }
 
 .skin-swatch-dark {
   background:
-    url("/assets/board/board-skin-dark.svg") center / 100% 100% no-repeat, linear-gradient(145deg, #24242a, #0c0f13);
+    url("/assets/board/board-skin-dark.svg?v=20260713-lines-v1") center / 100% 100% no-repeat, linear-gradient(145deg, #24242a, #0c0f13);
 }
 
 .piece-skin-swatch {
@@ -4035,7 +4035,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="ice"] {
-  --board-skin: url("/assets/board/board-skin-light.svg");
+  --board-skin: url("/assets/board/board-skin-light.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -4054,7 +4054,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="gold"] {
-  --board-skin: url("/assets/board/board-skin-gold.svg");
+  --board-skin: url("/assets/board/board-skin-gold.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -4073,7 +4073,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/board-skin-emerald.svg");
+  --board-skin: url("/assets/board/board-skin-emerald.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -4092,7 +4092,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="stone"] {
-  --board-skin: url("/assets/board/board-skin-stone.svg");
+  --board-skin: url("/assets/board/board-skin-stone.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -4111,7 +4111,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="pink"] {
-  --board-skin: url("/assets/board/board-skin-wine.svg");
+  --board-skin: url("/assets/board/board-skin-wine.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -4130,7 +4130,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="dark"] {
-  --board-skin: url("/assets/board/board-skin-dark.svg");
+  --board-skin: url("/assets/board/board-skin-dark.svg?v=20260713-lines-v1");
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
