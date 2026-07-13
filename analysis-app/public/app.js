@@ -64,7 +64,7 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v8";
+const SOUND_ASSET_VERSION = "20260713-audio-v9";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
   capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v8";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v9";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -428,6 +428,10 @@ function mediaSoundStartTime(audio, kind, durationMs = 0) {
   return Math.max(0, duration - windowSeconds);
 }
 
+function canPlaySoundFromStart(kind) {
+  return kind === "check" || kind === "checkmate";
+}
+
 function bestMoveSoundOffset(buffer, kind, durationMs = 0) {
   if (kind === "checkmate") return 0;
   if (!state.moveSoundSegments) state.moveSoundSegments = Object.create(null);
@@ -547,6 +551,10 @@ function playMediaMoveSound(kind, durationMs = 0) {
   try {
     const targetMs = mediaSoundWindowMs(kind, durationMs);
     const startAt = mediaSoundStartTime(audio, kind, targetMs);
+    if (startAt === null && !canPlaySoundFromStart(kind)) {
+      loadMoveSoundBuffer(kind);
+      return false;
+    }
     const safeStartAt = startAt === null ? 0 : startAt;
     const token = `${Date.now()}:${Math.random()}`;
     audio.pause();
@@ -558,7 +566,7 @@ function playMediaMoveSound(kind, durationMs = 0) {
     const played = audio.play();
     if (played && typeof played.catch === "function") {
       played.catch(() => {
-        if (audio._dmaihxcaiPlayToken === token) playFallbackMoveSound(kind, durationMs);
+        if (audio._dmaihxcaiPlayToken === token) audio._dmaihxcaiPlayToken = "";
       });
     }
     window.setTimeout(() => {
@@ -702,6 +710,7 @@ function playMoveSound(kind = "move", durationMs = 0) {
     if (decodedDuration) return decodedDuration;
     const mediaDuration = playMediaMoveSound(kind, durationMs);
     if (mediaDuration) return mediaDuration;
+    return mediaSoundWindowMs(kind, durationMs);
   }
   return playFallbackMoveSound(kind, durationMs, nowMs);
 }
