@@ -64,10 +64,11 @@ const MANUAL_ANALYSIS_STAGES = [240, 420, 700, 1100, 1700, 2400, 3200];
 const AUTO_ANALYSIS_STAGES = [220, 380, 650];
 const ANALYSIS_MAX_MS = 10000;
 const CLOUD_MOVE_LIMIT = 10;
-const SOUND_ASSET_VERSION = "20260713-audio-v6";
+const SOUND_ASSET_VERSION = "20260713-audio-v7";
 const MOVE_SOUND_SOURCES = {
   move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
   capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
+  check: `/assets/sounds/chieu.mp3?v=${SOUND_ASSET_VERSION}`,
   checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
 };
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
@@ -80,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v6";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v7";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -113,6 +114,7 @@ const ANALYSIS_BLOCKING_ASSETS = [
 const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.move,
   MOVE_SOUND_SOURCES.capture,
+  MOVE_SOUND_SOURCES.check,
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
   "/assets/icons/header-logo.png",
@@ -310,8 +312,11 @@ function getMoveSoundElement(kind) {
   if (!state.moveSoundElements[kind]) {
     const audio = new Audio(source);
     audio.preload = "auto";
-    audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+    audio.volume = moveSoundVolume(kind);
     audio.playsInline = true;
+    try {
+      audio.load();
+    } catch (error) {}
     state.moveSoundElements[kind] = audio;
   }
   return state.moveSoundElements[kind];
@@ -322,10 +327,13 @@ function unlockMediaSoundElements() {
     const audio = getMoveSoundElement(kind);
     if (!audio) return;
     const wasMuted = audio.muted;
+    const token = `${Date.now()}:${Math.random()}`;
+    audio._dmaihxcaiUnlockToken = token;
     audio.muted = true;
     audio.currentTime = 0;
     const played = audio.play();
     const reset = () => {
+      if (audio._dmaihxcaiUnlockToken !== token || audio._dmaihxcaiPlayToken) return;
       audio.pause();
       audio.currentTime = 0;
       audio.muted = wasMuted;
@@ -386,11 +394,27 @@ function unlockMoveSound() {
 }
 
 function mediaSoundWindowMs(kind, durationMs = 0) {
-  const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "capture" ? 360 : 220;
+  const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "check" ? 720 : kind === "capture" ? 360 : 220;
   const value = Number(durationMs) > 0 ? Number(durationMs) : fallback;
-  if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, value);
+  if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, knownMoveSoundDurationMs(kind) || value);
+  if (kind === "check") return Math.max(520, value);
   if (kind === "capture") return Math.max(340, value);
   return Math.max(80, value);
+}
+
+function moveSoundVolume(kind) {
+  if (kind === "checkmate") return 0.98;
+  if (kind === "check") return 0.92;
+  if (kind === "capture") return 0.9;
+  return 0.78;
+}
+
+function knownMoveSoundDurationMs(kind) {
+  const bufferDuration = Number(state.moveSoundBuffers?.[kind]?.duration);
+  if (Number.isFinite(bufferDuration) && bufferDuration > 0) return Math.round(bufferDuration * 1000);
+  const mediaDuration = Number(state.moveSoundElements?.[kind]?.duration);
+  if (Number.isFinite(mediaDuration) && mediaDuration > 0) return Math.round(mediaDuration * 1000);
+  return 0;
 }
 
 function mediaSoundStartTime(audio, kind, durationMs = 0) {
@@ -506,12 +530,12 @@ function playDecodedMoveSound(kind, durationMs = 0) {
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     source.buffer = buffer;
-    gain.gain.setValueAtTime(kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78, ctx.currentTime);
+    gain.gain.setValueAtTime(moveSoundVolume(kind), ctx.currentTime);
     source.connect(gain);
     gain.connect(ctx.destination);
     source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
     trackMoveSoundSource(source, kind);
-    return true;
+    return Math.round(clipSeconds * 1000);
   } catch (error) {
     return false;
   }
@@ -523,14 +547,13 @@ function playMediaMoveSound(kind, durationMs = 0) {
   try {
     const targetMs = mediaSoundWindowMs(kind, durationMs);
     const startAt = mediaSoundStartTime(audio, kind, targetMs);
-    if (startAt === null) {
-      audio.load();
-      return false;
-    }
+    const safeStartAt = startAt === null ? 0 : startAt;
     const token = `${Date.now()}:${Math.random()}`;
     audio.pause();
-    audio.currentTime = startAt;
-    audio.volume = kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78;
+    audio._dmaihxcaiUnlockToken = "";
+    audio.muted = false;
+    audio.currentTime = safeStartAt;
+    audio.volume = moveSoundVolume(kind);
     audio._dmaihxcaiPlayToken = token;
     const played = audio.play();
     if (played && typeof played.catch === "function") {
@@ -543,7 +566,7 @@ function playMediaMoveSound(kind, durationMs = 0) {
       audio.pause();
       audio.currentTime = 0;
     }, targetMs + 90);
-    return true;
+    return targetMs;
   } catch (error) {
     return false;
   }
@@ -650,16 +673,23 @@ function playFallbackMoveSound(kind = "move", durationMs = 0, nowMs = performanc
     playNoiseSweep(ctx, master, now, { delay: 0.06, duration: 0.34, peak: 0.24, from: 3600, to: 980, q: 1.7, type: "highpass" });
     playTone(ctx, master, now, { duration: 0.46, type: "sawtooth", gainPeak: 0.24, from: 150, to: 58, attack: 0.012 });
     playMetalClash(ctx, master, now, 0.1);
-    return;
+    return mediaSoundWindowMs(kind, durationMs);
   }
   if (kind === "capture") {
     playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.36, from: 4200, to: 760, q: 2.2, type: "highpass" });
     playNoiseSweep(ctx, master, now, { delay: 0.025, duration: 0.11, peak: 0.2, from: 2500, to: 1350, q: 3.4, type: "bandpass" });
     playMetalClash(ctx, master, now, 0.018);
-    return;
+    return mediaSoundWindowMs(kind, durationMs);
+  }
+  if (kind === "check") {
+    playNoiseSweep(ctx, master, now, { duration: 0.3, peak: 0.28, from: 780, to: 3300, q: 1.2, type: "bandpass" });
+    playTone(ctx, master, now, { delay: 0.03, duration: 0.42, type: "triangle", gainPeak: 0.18, from: 640, to: 1180, attack: 0.01 });
+    playMetalClash(ctx, master, now, 0.08);
+    return mediaSoundWindowMs(kind, durationMs);
   }
   playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.28, from: 3200, to: 520, q: 1.45, type: "bandpass" });
   playTone(ctx, master, now, { duration: 0.18, type: "sine", gainPeak: 0.075, from: 940, to: 360, attack: 0.014 });
+  return mediaSoundWindowMs(kind, durationMs);
 }
 
 function playMoveSound(kind = "move", durationMs = 0) {
@@ -668,10 +698,12 @@ function playMoveSound(kind = "move", durationMs = 0) {
   if (kind === "checkmate") stopActiveMoveSounds();
   if (MOVE_SOUND_SOURCES[kind]) {
     state.lastMoveSoundAt = nowMs;
-    if (playDecodedMoveSound(kind, durationMs)) return;
-    if (playMediaMoveSound(kind, durationMs)) return;
+    const decodedDuration = playDecodedMoveSound(kind, durationMs);
+    if (decodedDuration) return decodedDuration;
+    const mediaDuration = playMediaMoveSound(kind, durationMs);
+    if (mediaDuration) return mediaDuration;
   }
-  playFallbackMoveSound(kind, durationMs, nowMs);
+  return playFallbackMoveSound(kind, durationMs, nowMs);
 }
 
 function setupThemeControls() {
@@ -2093,12 +2125,18 @@ function maybeShowCheckmateEffect({ force = false } = {}) {
   void checkmateBurstEl.offsetWidth;
   checkmateBurstEl.setAttribute("aria-hidden", "false");
   checkmateBurstEl.classList.add("show");
-  playMoveSound("checkmate", CHECKMATE_EFFECT_MS);
+  const effectMs = playMoveSound("checkmate") || CHECKMATE_EFFECT_MS;
   state.checkmateEffectTimer = window.setTimeout(() => {
     checkmateBurstEl.classList.remove("show");
     checkmateBurstEl.setAttribute("aria-hidden", "true");
     state.checkmateEffectTimer = 0;
-  }, CHECKMATE_EFFECT_MS + 50);
+  }, effectMs + 50);
+}
+
+function playPostMoveCheckSound() {
+  if (!state.gameOver && findKing(state.board, state.side) && isKingInCheck(state.board, state.side)) {
+    playMoveSound("check");
+  }
 }
 
 function paintMotionPiece(element, piece) {
@@ -2297,7 +2335,10 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
   state.hints = [];
   const finishMoveEffects = () => {
     if (state.gameOver) maybeShowCheckmateEffect();
-    else clearCheckmateEffectKey();
+    else {
+      clearCheckmateEffectKey();
+      playPostMoveCheckSound();
+    }
     refreshCloudBook();
     if (manual) reportAnalysisActivity(`Manual move ${move}`);
     if (manual && state.analysisMode) {

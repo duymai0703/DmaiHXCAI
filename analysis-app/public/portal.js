@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260713-audio-v6";
+  const ASSET_WARMUP_VERSION = "20260713-audio-v7";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -93,10 +93,11 @@
       )
     ])
   );
-  const SOUND_ASSET_VERSION = "20260713-audio-v6";
+  const SOUND_ASSET_VERSION = "20260713-audio-v7";
   const MOVE_SOUND_SOURCES = {
     move: `/assets/sounds/diquan.mp3?v=${SOUND_ASSET_VERSION}`,
     capture: `/assets/sounds/an.mp3?v=${SOUND_ASSET_VERSION}`,
+    check: `/assets/sounds/chieu.mp3?v=${SOUND_ASSET_VERSION}`,
     checkmate: `/assets/sounds/satcuc.mp3?v=${SOUND_ASSET_VERSION}`
   };
   const REVIEW_BADGES = {
@@ -108,8 +109,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260713-mobile-lines-v3",
-    "/app.js?v=20260713-audio-v6",
+    "/styles.css?v=20260713-mobile-lines-v4",
+    "/app.js?v=20260713-audio-v7",
     "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
@@ -119,6 +120,7 @@
     "/assets/board/board-skin-wine.svg?v=20260713-lines-v3",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
+    MOVE_SOUND_SOURCES.check,
     MOVE_SOUND_SOURCES.checkmate,
     "/assets/icons/mb1-light.png",
     "/assets/icons/mb2-light.png",
@@ -245,8 +247,10 @@
     activeRoomMoveSlotEl: null,
     activeReviewMoveSlotEl: null,
     roomCheckmateEffectKey: "",
+    roomCheckSoundKey: "",
     roomCheckmateEffectTimer: 0,
     reviewCheckmateEffectKey: "",
+    reviewCheckSoundKey: "",
     reviewCheckmateEffectTimer: 0,
     selectedAvatarUrl: "",
     audioContext: null,
@@ -484,8 +488,11 @@
     if (!state.moveSoundElements[kind]) {
       const audio = new Audio(source);
       audio.preload = "auto";
-      audio.volume = kind === "checkmate" ? 0.96 : 0.78;
+      audio.volume = moveSoundVolume(kind);
       audio.playsInline = true;
+      try {
+        audio.load();
+      } catch (error) {}
       state.moveSoundElements[kind] = audio;
     }
     return state.moveSoundElements[kind];
@@ -496,10 +503,13 @@
       const audio = getMoveSoundElement(kind);
       if (!audio) return;
       const wasMuted = audio.muted;
+      const token = `${Date.now()}:${Math.random()}`;
+      audio._dmaihxcaiUnlockToken = token;
       audio.muted = true;
       audio.currentTime = 0;
       const played = audio.play();
       const reset = () => {
+        if (audio._dmaihxcaiUnlockToken !== token || audio._dmaihxcaiPlayToken) return;
         audio.pause();
         audio.currentTime = 0;
         audio.muted = wasMuted;
@@ -560,11 +570,27 @@
   }
 
   function mediaSoundWindowMs(kind, durationMs = 0) {
-    const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "capture" ? 360 : 220;
+    const fallback = kind === "checkmate" ? CHECKMATE_EFFECT_MS : kind === "check" ? 720 : kind === "capture" ? 360 : 220;
     const value = Number(durationMs) > 0 ? Number(durationMs) : fallback;
-    if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, value);
+    if (kind === "checkmate") return Math.max(CHECKMATE_EFFECT_MS, knownMoveSoundDurationMs(kind) || value);
+    if (kind === "check") return Math.max(520, value);
     if (kind === "capture") return Math.max(340, value);
     return Math.max(80, value);
+  }
+
+  function moveSoundVolume(kind) {
+    if (kind === "checkmate") return 0.98;
+    if (kind === "check") return 0.92;
+    if (kind === "capture") return 0.9;
+    return 0.78;
+  }
+
+  function knownMoveSoundDurationMs(kind) {
+    const bufferDuration = Number(state.moveSoundBuffers?.[kind]?.duration);
+    if (Number.isFinite(bufferDuration) && bufferDuration > 0) return Math.round(bufferDuration * 1000);
+    const mediaDuration = Number(state.moveSoundElements?.[kind]?.duration);
+    if (Number.isFinite(mediaDuration) && mediaDuration > 0) return Math.round(mediaDuration * 1000);
+    return 0;
   }
 
   function mediaSoundStartTime(audio, kind, durationMs = 0) {
@@ -680,12 +706,12 @@
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
       source.buffer = buffer;
-      gain.gain.setValueAtTime(kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78, ctx.currentTime);
+      gain.gain.setValueAtTime(moveSoundVolume(kind), ctx.currentTime);
       source.connect(gain);
       gain.connect(ctx.destination);
       source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
       trackMoveSoundSource(source, kind);
-      return true;
+      return Math.round(clipSeconds * 1000);
     } catch (error) {
       return false;
     }
@@ -697,14 +723,13 @@
     try {
       const targetMs = mediaSoundWindowMs(kind, durationMs);
       const startAt = mediaSoundStartTime(audio, kind, targetMs);
-      if (startAt === null) {
-        audio.load();
-        return false;
-      }
+      const safeStartAt = startAt === null ? 0 : startAt;
       const token = `${Date.now()}:${Math.random()}`;
       audio.pause();
-      audio.currentTime = startAt;
-      audio.volume = kind === "checkmate" ? 0.96 : kind === "capture" ? 0.9 : 0.78;
+      audio._dmaihxcaiUnlockToken = "";
+      audio.muted = false;
+      audio.currentTime = safeStartAt;
+      audio.volume = moveSoundVolume(kind);
       audio._dmaihxcaiPlayToken = token;
       const played = audio.play();
       if (played && typeof played.catch === "function") {
@@ -717,7 +742,7 @@
         audio.pause();
         audio.currentTime = 0;
       }, targetMs + 90);
-      return true;
+      return targetMs;
     } catch (error) {
       return false;
     }
@@ -824,16 +849,23 @@
       playNoiseSweep(ctx, master, now, { delay: 0.06, duration: 0.34, peak: 0.24, from: 3600, to: 980, q: 1.7, type: "highpass" });
       playTone(ctx, master, now, { duration: 0.46, type: "sawtooth", gainPeak: 0.24, from: 150, to: 58, attack: 0.012 });
       playMetalClash(ctx, master, now, 0.1);
-      return;
+      return mediaSoundWindowMs(kind, durationMs);
     }
     if (kind === "capture") {
       playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.36, from: 4200, to: 760, q: 2.2, type: "highpass" });
       playNoiseSweep(ctx, master, now, { delay: 0.025, duration: 0.11, peak: 0.2, from: 2500, to: 1350, q: 3.4, type: "bandpass" });
       playMetalClash(ctx, master, now, 0.018);
-      return;
+      return mediaSoundWindowMs(kind, durationMs);
+    }
+    if (kind === "check") {
+      playNoiseSweep(ctx, master, now, { duration: 0.3, peak: 0.28, from: 780, to: 3300, q: 1.2, type: "bandpass" });
+      playTone(ctx, master, now, { delay: 0.03, duration: 0.42, type: "triangle", gainPeak: 0.18, from: 640, to: 1180, attack: 0.01 });
+      playMetalClash(ctx, master, now, 0.08);
+      return mediaSoundWindowMs(kind, durationMs);
     }
     playNoiseSweep(ctx, master, now, { duration: 0.2, peak: 0.28, from: 3200, to: 520, q: 1.45, type: "bandpass" });
     playTone(ctx, master, now, { duration: 0.18, type: "sine", gainPeak: 0.075, from: 940, to: 360, attack: 0.014 });
+    return mediaSoundWindowMs(kind, durationMs);
   }
 
   function playMoveSound(kind = "move", durationMs = 0) {
@@ -842,10 +874,12 @@
     if (kind === "checkmate") stopActiveMoveSounds();
     if (MOVE_SOUND_SOURCES[kind]) {
       state.lastMoveSoundAt = nowMs;
-      if (playDecodedMoveSound(kind, durationMs)) return;
-      if (playMediaMoveSound(kind, durationMs)) return;
+      const decodedDuration = playDecodedMoveSound(kind, durationMs);
+      if (decodedDuration) return decodedDuration;
+      const mediaDuration = playMediaMoveSound(kind, durationMs);
+      if (mediaDuration) return mediaDuration;
     }
-    playFallbackMoveSound(kind, durationMs, nowMs);
+    return playFallbackMoveSound(kind, durationMs, nowMs);
   }
 
   function initThemeControls() {
@@ -2592,6 +2626,7 @@
     state.reviewLastPieceFrame = "";
     drawReviewPieces(true);
     drawReviewArrow();
+    playReviewPostMoveStatusSound();
   }
 
   function startReviewMoveAnimation(animation, { prepared = false } = {}) {
@@ -2640,8 +2675,8 @@
       clearReviewMoveAnimation();
     }
     renderReviewState(true);
-    maybeShowReviewCheckmateEffect();
     if (animation) startReviewMoveAnimation(animation, { prepared: true });
+    else playReviewPostMoveStatusSound();
   }
 
   function stepReview(delta) {
@@ -2970,6 +3005,7 @@
       state.roomHintSlots = null;
       state.roomSlotLayoutKey = "";
       state.lastAnimatedRoomMoveKey = "";
+      state.roomCheckSoundKey = "";
       clearRoomMoveAnimation();
       clearRoomCheckmateEffectKey();
       clearTurnFlash();
@@ -2992,8 +3028,11 @@
 
     updateResumeButton();
     renderRoomState({ forceBoard, keepSelection });
-    if (room.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
-    else clearRoomCheckmateEffectKey();
+    if (incomingAnimation) {
+      if (room.result?.reason !== "checkmate") clearRoomCheckmateEffectKey();
+    } else {
+      playRoomPostMoveStatusSound();
+    }
     if (incomingAnimation) startRoomMoveAnimation(incomingAnimation, { prepared: true });
     if (shouldFlashTurn) triggerTurnFlash();
     else if (room.role !== "player" || !room.yourTurn || room.status !== "active" || room.result) clearTurnFlash();
@@ -3267,6 +3306,7 @@
       }
       if (useMobileHandoff) hideRoomMoveLandingShieldSoon();
       else hideRoomAnimationElements({ resetActiveSlot: false });
+      playRoomPostMoveStatusSound();
     };
     if (useMobileHandoff) window.requestAnimationFrame(finish);
     else finish();
@@ -3351,12 +3391,49 @@
     void el.offsetWidth;
     el.setAttribute("aria-hidden", "false");
     el.classList.add("show");
-    playMoveSound("checkmate", CHECKMATE_EFFECT_MS);
+    const effectMs = playMoveSound("checkmate") || CHECKMATE_EFFECT_MS;
     state[timerKey] = window.setTimeout(() => {
       el.classList.remove("show");
       el.setAttribute("aria-hidden", "true");
       state[timerKey] = 0;
-    }, CHECKMATE_EFFECT_MS + 50);
+    }, effectMs + 50);
+  }
+
+  function playRoomPostMoveStatusSound() {
+    if (state.room?.result?.reason === "checkmate") {
+      maybeShowRoomCheckmateEffect();
+      return;
+    }
+    clearRoomCheckmateEffectKey();
+    const side = state.room?.sideToMove;
+    if (side && state.roomBoard && getCheckedSides(state.roomBoard)[side]) {
+      const key = `${state.room?.key || ""}:${state.room?.moves?.length || 0}:${state.room?.boardFen || ""}:${side}`;
+      if (state.roomCheckSoundKey !== key) {
+        state.roomCheckSoundKey = key;
+        playMoveSound("check");
+      }
+    } else {
+      state.roomCheckSoundKey = "";
+    }
+  }
+
+  function playReviewPostMoveStatusSound() {
+    const result = XiangqiCore.determineGameState(state.reviewBoard, state.reviewSideToMove || "w");
+    if (result.finished && result.reason === "checkmate") {
+      maybeShowReviewCheckmateEffect();
+      return;
+    }
+    clearReviewCheckmateEffectKey();
+    const side = state.reviewSideToMove || "w";
+    if (state.reviewBoard && getCheckedSides(state.reviewBoard)[side]) {
+      const key = `${state.reviewGame?.id || state.reviewGame?.endedAt || ""}:${state.reviewCursor}:${boardSignature(state.reviewBoard)}:${side}`;
+      if (state.reviewCheckSoundKey !== key) {
+        state.reviewCheckSoundKey = key;
+        playMoveSound("check");
+      }
+    } else {
+      state.reviewCheckSoundKey = "";
+    }
   }
 
   function clearRoomCheckmateEffectKey() {
@@ -3765,8 +3842,11 @@
     renderRoomMobilePanels();
     renderRoomRuleNotice();
     drawRoomPieces();
-    if (state.room?.result?.reason === "checkmate") maybeShowRoomCheckmateEffect();
-    else clearRoomCheckmateEffectKey();
+    if (state.roomAnimation) {
+      if (state.room?.result?.reason !== "checkmate") clearRoomCheckmateEffectKey();
+    } else {
+      playRoomPostMoveStatusSound();
+    }
   }
 
   function drawRoomScene(forceBoard, immediate = false) {
