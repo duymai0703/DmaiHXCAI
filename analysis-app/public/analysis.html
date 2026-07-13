@@ -36,7 +36,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260713-mobile-lines-v4">
+    <link rel="stylesheet" href="/styles.css?v=20260713-vision-v1">
   </head>
   <body>
     <header class="app-header">
@@ -146,6 +146,7 @@
               </select>
             </label>
             <button id="mobileSetupClearBtn" type="button">Bàn trống</button>
+            <button id="mobileSetupRecognizeBtn" type="button">Nhận diện ảnh</button>
             <button id="mobileSetupSaveBtn" class="primary" type="button">Lưu hình cờ</button>
           </div>
         </div>
@@ -176,6 +177,9 @@
               <div class="tool-row">
                 <button id="editBoardBtn" type="button" data-mobile-icon="✎" aria-label="Sửa bàn cờ" title="Sửa bàn cờ">Sửa bàn cờ</button>
                 <button id="clearBoardBtn" type="button" data-mobile-icon="⌫" aria-label="Xóa bàn cờ" title="Xóa bàn cờ">Xóa bàn cờ</button>
+              </div>
+              <div class="tool-row">
+                <button id="recognizeImageBtn" type="button" data-mobile-icon="AI" aria-label="Nhận diện bàn cờ từ ảnh" title="Nhận diện bàn cờ từ ảnh">Nhận diện ảnh</button>
               </div>
               <label>Quân đặt lên bàn</label>
               <div id="piecePalette" class="piece-palette"></div>
@@ -232,6 +236,29 @@
         <small id="accessKeyMessage" aria-live="polite"></small>
       </form>
     </div>
+    <input id="boardImageInput" class="hidden" type="file" accept="image/*">
+    <div id="visionModal" class="vision-modal hidden" role="dialog" aria-modal="true" aria-labelledby="visionModalTitle">
+      <div class="vision-card">
+        <div class="vision-head">
+          <div>
+            <h3 id="visionModalTitle">Nhận diện bàn cờ từ ảnh</h3>
+            <p>Căn khung sao cho các đường lưới trùng với giao điểm bàn cờ, rồi bấm nhận diện.</p>
+          </div>
+          <button id="visionCloseBtn" type="button" aria-label="Đóng">×</button>
+        </div>
+        <canvas id="visionCropCanvas" class="vision-crop-canvas"></canvas>
+        <div class="vision-controls">
+          <button id="visionZoomOutBtn" type="button">Thu khung</button>
+          <button id="visionZoomInBtn" type="button">Phóng khung</button>
+          <button id="visionResetCropBtn" type="button">Căn lại</button>
+        </div>
+        <div id="visionStatus" class="vision-status">Kéo khung crop để khóa đúng 4 góc ngoài cùng của lưới.</div>
+        <div class="vision-actions">
+          <button id="visionCancelBtn" type="button">Hủy</button>
+          <button id="visionRecognizeBtn" class="primary" type="button">Nhận diện</button>
+        </div>
+      </div>
+    </div>
     <div id="assetPreloadOverlay" class="asset-preload-overlay hidden" role="status" aria-live="polite" aria-label="Đang tải tài nguyên">
       <div class="asset-preload-card">
         <div class="asset-preload-spinner" aria-hidden="true"></div>
@@ -244,7 +271,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260713-audio-v9"></script>
+    <script src="/app.js?v=20260713-vision-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

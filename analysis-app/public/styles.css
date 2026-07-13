@@ -89,6 +89,124 @@ body.access-locked {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+.vision-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 190, 86, 0.18), transparent 36%),
+    rgba(3, 6, 12, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.vision-card {
+  width: min(760px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 197, 78, 0.52);
+  background:
+    linear-gradient(145deg, rgba(22, 37, 55, 0.98), rgba(14, 18, 27, 0.98)),
+    #141c28;
+  color: #f9f2de;
+  box-shadow:
+    0 0 0 1px rgba(72, 45, 18, 0.88),
+    0 26px 70px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 236, 180, 0.16);
+}
+
+.vision-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.vision-head h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.vision-head p {
+  margin: 5px 0 0;
+  color: rgba(249, 242, 222, 0.76);
+  line-height: 1.42;
+}
+
+.vision-head button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.vision-crop-canvas {
+  justify-self: center;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 210, 255, 0.42);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 14px 34px rgba(0, 0, 0, 0.32);
+  touch-action: none;
+  cursor: move;
+}
+
+.vision-controls,
+.vision-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.vision-actions {
+  grid-template-columns: 1fr 1.3fr;
+}
+
+.vision-controls button,
+.vision-actions button {
+  min-height: 44px;
+  border-color: rgba(255, 197, 78, 0.42);
+  background: rgba(255, 250, 240, 0.94);
+  font-weight: 800;
+}
+
+.vision-actions .primary {
+  color: #231407;
+  background: linear-gradient(180deg, #ffd977, #f6a23c);
+  border-color: rgba(255, 215, 119, 0.76);
+}
+
+.vision-status {
+  min-height: 26px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(80, 210, 255, 0.26);
+  color: rgba(244, 252, 255, 0.88);
+  background: rgba(4, 14, 28, 0.52);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.vision-status[data-tone="error"] {
+  border-color: rgba(255, 91, 91, 0.5);
+  color: #ffd7d7;
+}
+
+.vision-card button:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
 body.asset-preload-active {
   overflow: hidden;
 }

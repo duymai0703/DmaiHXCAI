@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-audio-v9";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-vision-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -166,6 +166,12 @@ const state = {
   checkmatedSide: null,
   editMode: false,
   mobileSetupMode: false,
+  visionImage: null,
+  visionImageUrl: "",
+  visionCrop: null,
+  visionCropDrag: null,
+  visionCanvasLayout: null,
+  visionBusy: false,
   editorPiece: "R",
   resizeTimer: null,
   lastBoardSizeKey: "",
@@ -239,6 +245,18 @@ const mobileSetupSideEl = document.getElementById("mobileSetupSide");
 const mobileSetupSaveBtn = document.getElementById("mobileSetupSaveBtn");
 const mobileSetupClearBtn = document.getElementById("mobileSetupClearBtn");
 const mobileSetupCancelBtn = document.getElementById("mobileSetupCancelBtn");
+const mobileSetupRecognizeBtn = document.getElementById("mobileSetupRecognizeBtn");
+const recognizeImageBtn = document.getElementById("recognizeImageBtn");
+const boardImageInputEl = document.getElementById("boardImageInput");
+const visionModalEl = document.getElementById("visionModal");
+const visionCropCanvasEl = document.getElementById("visionCropCanvas");
+const visionStatusEl = document.getElementById("visionStatus");
+const visionCloseBtn = document.getElementById("visionCloseBtn");
+const visionCancelBtn = document.getElementById("visionCancelBtn");
+const visionRecognizeBtn = document.getElementById("visionRecognizeBtn");
+const visionZoomInBtn = document.getElementById("visionZoomInBtn");
+const visionZoomOutBtn = document.getElementById("visionZoomOutBtn");
+const visionResetCropBtn = document.getElementById("visionResetCropBtn");
 const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
 const assetPreloadTextEl = document.getElementById("assetPreloadText");
 const assetPreloadPercentEl = document.getElementById("assetPreloadPercent");
@@ -284,6 +302,21 @@ if (mobileSetupSideEl) mobileSetupSideEl.addEventListener("change", setMobileSet
 if (mobileSetupSaveBtn) mobileSetupSaveBtn.addEventListener("click", saveMobileSetupPosition);
 if (mobileSetupClearBtn) mobileSetupClearBtn.addEventListener("click", clearMobileSetupBoard);
 if (mobileSetupCancelBtn) mobileSetupCancelBtn.addEventListener("click", cancelMobileSetup);
+if (mobileSetupRecognizeBtn) mobileSetupRecognizeBtn.addEventListener("click", openBoardImagePicker);
+if (recognizeImageBtn) recognizeImageBtn.addEventListener("click", openBoardImagePicker);
+if (boardImageInputEl) boardImageInputEl.addEventListener("change", onBoardImageSelected);
+if (visionCloseBtn) visionCloseBtn.addEventListener("click", closeVisionModal);
+if (visionCancelBtn) visionCancelBtn.addEventListener("click", closeVisionModal);
+if (visionRecognizeBtn) visionRecognizeBtn.addEventListener("click", recognizeCroppedBoardImage);
+if (visionZoomInBtn) visionZoomInBtn.addEventListener("click", () => resizeVisionCrop(1.12));
+if (visionZoomOutBtn) visionZoomOutBtn.addEventListener("click", () => resizeVisionCrop(0.88));
+if (visionResetCropBtn) visionResetCropBtn.addEventListener("click", resetVisionCrop);
+if (visionCropCanvasEl) {
+  visionCropCanvasEl.addEventListener("pointerdown", onVisionCropPointerDown);
+  visionCropCanvasEl.addEventListener("pointermove", onVisionCropPointerMove);
+  visionCropCanvasEl.addEventListener("pointerup", endVisionCropDrag);
+  visionCropCanvasEl.addEventListener("pointercancel", endVisionCropDrag);
+}
 preventDoubleTapZoom();
 const assetWarmupPromise = warmAnalysisAssets();
 startAnalysisActivityHeartbeat();
@@ -2635,6 +2668,320 @@ function saveMobileSetupPosition() {
   refreshCloudBook();
   if (state.analysisMode) scheduleAnalysisRefresh(0);
   showToast("Đã lưu hình cờ");
+}
+
+function openBoardImagePicker() {
+  if (!boardImageInputEl) return;
+  boardImageInputEl.value = "";
+  boardImageInputEl.click();
+}
+
+function onBoardImageSelected(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  if (!/^image\//i.test(file.type || "")) {
+    showToast("Hãy chọn một file ảnh bàn cờ");
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    if (state.visionImageUrl) URL.revokeObjectURL(state.visionImageUrl);
+    state.visionImageUrl = url;
+    state.visionImage = image;
+    resetVisionCrop(false);
+    openVisionModal();
+    window.requestAnimationFrame(drawVisionCrop);
+  };
+  image.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast("Không đọc được ảnh này");
+  };
+  image.src = url;
+}
+
+function openVisionModal() {
+  if (!visionModalEl) return;
+  visionModalEl.classList.remove("hidden");
+  setVisionStatus("Kéo khung crop để khóa đúng 4 góc ngoài cùng của lưới.");
+}
+
+function closeVisionModal() {
+  if (!visionModalEl) return;
+  visionModalEl.classList.add("hidden");
+  state.visionCropDrag = null;
+  setVisionBusy(false);
+}
+
+function setVisionStatus(message, tone = "") {
+  if (!visionStatusEl) return;
+  visionStatusEl.textContent = message;
+  visionStatusEl.dataset.tone = tone;
+}
+
+function setVisionBusy(busy) {
+  state.visionBusy = Boolean(busy);
+  [visionRecognizeBtn, visionZoomInBtn, visionZoomOutBtn, visionResetCropBtn, visionCancelBtn, visionCloseBtn].forEach((button) => {
+    if (button) button.disabled = state.visionBusy;
+  });
+  if (visionRecognizeBtn) visionRecognizeBtn.textContent = state.visionBusy ? "Đang nhận diện..." : "Nhận diện";
+}
+
+function resetVisionCrop(redraw = true) {
+  const image = state.visionImage;
+  if (!image) return;
+  const aspect = 8 / 9;
+  let width = image.naturalWidth * 0.86;
+  let height = width / aspect;
+  if (height > image.naturalHeight * 0.9) {
+    height = image.naturalHeight * 0.9;
+    width = height * aspect;
+  }
+  state.visionCrop = clampVisionCrop({
+    x: (image.naturalWidth - width) / 2,
+    y: (image.naturalHeight - height) / 2,
+    width,
+    height
+  });
+  if (redraw) drawVisionCrop();
+}
+
+function resizeVisionCrop(factor) {
+  if (!state.visionImage || !state.visionCrop) return;
+  const crop = state.visionCrop;
+  const centerX = crop.x + crop.width / 2;
+  const centerY = crop.y + crop.height / 2;
+  const aspect = 8 / 9;
+  const minWidth = Math.min(state.visionImage.naturalWidth, state.visionImage.naturalHeight * aspect) * 0.25;
+  const maxWidth = Math.min(state.visionImage.naturalWidth * 0.98, state.visionImage.naturalHeight * 0.98 * aspect);
+  const width = Math.max(minWidth, Math.min(maxWidth, crop.width * factor));
+  const height = width / aspect;
+  state.visionCrop = clampVisionCrop({
+    x: centerX - width / 2,
+    y: centerY - height / 2,
+    width,
+    height
+  });
+  drawVisionCrop();
+}
+
+function clampVisionCrop(crop) {
+  const image = state.visionImage;
+  if (!image) return crop;
+  const width = Math.min(crop.width, image.naturalWidth);
+  const height = Math.min(crop.height, image.naturalHeight);
+  return {
+    x: Math.max(0, Math.min(image.naturalWidth - width, crop.x)),
+    y: Math.max(0, Math.min(image.naturalHeight - height, crop.y)),
+    width,
+    height
+  };
+}
+
+function drawVisionCrop() {
+  const canvas = visionCropCanvasEl;
+  const image = state.visionImage;
+  if (!canvas || !image) return;
+  const parentWidth = canvas.parentElement?.clientWidth || 640;
+  let cssWidth = Math.max(280, Math.min(parentWidth, 760));
+  let cssHeight = cssWidth * image.naturalHeight / image.naturalWidth;
+  const maxHeight = Math.max(320, Math.min(window.innerHeight * 0.62, 660));
+  if (cssHeight > maxHeight) {
+    cssHeight = maxHeight;
+    cssWidth = cssHeight * image.naturalWidth / image.naturalHeight;
+  }
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+  canvas.width = Math.round(cssWidth * dpr);
+  canvas.height = Math.round(cssHeight * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.drawImage(image, 0, 0, cssWidth, cssHeight);
+
+  const scale = cssWidth / image.naturalWidth;
+  state.visionCanvasLayout = { scale, width: cssWidth, height: cssHeight };
+  const crop = state.visionCrop || { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight };
+  const rect = {
+    x: crop.x * scale,
+    y: crop.y * scale,
+    width: crop.width * scale,
+    height: crop.height * scale
+  };
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.46)";
+  ctx.fillRect(0, 0, cssWidth, rect.y);
+  ctx.fillRect(0, rect.y + rect.height, cssWidth, cssHeight - rect.y - rect.height);
+  ctx.fillRect(0, rect.y, rect.x, rect.height);
+  ctx.fillRect(rect.x + rect.width, rect.y, cssWidth - rect.x - rect.width, rect.height);
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 197, 78, 0.95)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+  ctx.strokeStyle = "rgba(80, 210, 255, 0.58)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) {
+    const x = rect.x + rect.width * i / 8;
+    ctx.beginPath();
+    ctx.moveTo(x, rect.y);
+    ctx.lineTo(x, rect.y + rect.height);
+    ctx.stroke();
+  }
+  for (let j = 0; j <= 9; j++) {
+    const y = rect.y + rect.height * j / 9;
+    ctx.beginPath();
+    ctx.moveTo(rect.x, y);
+    ctx.lineTo(rect.x + rect.width, y);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(255, 197, 78, 0.95)";
+  const handle = 8;
+  [[rect.x, rect.y], [rect.x + rect.width, rect.y], [rect.x, rect.y + rect.height], [rect.x + rect.width, rect.y + rect.height]].forEach(([x, y]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, handle / 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function visionCanvasPointToImage(event) {
+  if (!visionCropCanvasEl || !state.visionCanvasLayout) return null;
+  const rect = visionCropCanvasEl.getBoundingClientRect();
+  const scale = state.visionCanvasLayout.scale || 1;
+  return {
+    x: (event.clientX - rect.left) / scale,
+    y: (event.clientY - rect.top) / scale
+  };
+}
+
+function onVisionCropPointerDown(event) {
+  if (state.visionBusy || !state.visionCrop) return;
+  const point = visionCanvasPointToImage(event);
+  if (!point) return;
+  const crop = state.visionCrop;
+  if (point.x < crop.x || point.x > crop.x + crop.width || point.y < crop.y || point.y > crop.y + crop.height) return;
+  event.preventDefault();
+  visionCropCanvasEl.setPointerCapture?.(event.pointerId);
+  state.visionCropDrag = {
+    pointerId: event.pointerId,
+    offsetX: point.x - crop.x,
+    offsetY: point.y - crop.y
+  };
+}
+
+function onVisionCropPointerMove(event) {
+  const drag = state.visionCropDrag;
+  if (!drag || drag.pointerId !== event.pointerId || !state.visionCrop) return;
+  const point = visionCanvasPointToImage(event);
+  if (!point) return;
+  event.preventDefault();
+  state.visionCrop = clampVisionCrop({
+    ...state.visionCrop,
+    x: point.x - drag.offsetX,
+    y: point.y - drag.offsetY
+  });
+  drawVisionCrop();
+}
+
+function endVisionCropDrag(event) {
+  if (!state.visionCropDrag || state.visionCropDrag.pointerId !== event.pointerId) return;
+  visionCropCanvasEl.releasePointerCapture?.(event.pointerId);
+  state.visionCropDrag = null;
+}
+
+function croppedVisionDataUrl() {
+  const image = state.visionImage;
+  const crop = state.visionCrop;
+  if (!image || !crop) throw new Error("Chưa có vùng crop");
+  const canvas = document.createElement("canvas");
+  canvas.width = 960;
+  canvas.height = 1080;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+async function recognizeCroppedBoardImage() {
+  if (state.visionBusy) return;
+  try {
+    setVisionBusy(true);
+    setVisionStatus("AI đang đọc chữ quân và căn các giao điểm bàn cờ...");
+    const result = await api("/api/vision/xiangqi-board", {
+      image: croppedVisionDataUrl(),
+      side: state.side
+    });
+    applyVisionBoard(result);
+    closeVisionModal();
+  } catch (error) {
+    setVisionStatus(error.message || "Không nhận diện được ảnh này", "error");
+  } finally {
+    setVisionBusy(false);
+  }
+}
+
+function normalizeVisionBoard(board) {
+  if (!Array.isArray(board) || board.length !== 10) return null;
+  const normalized = emptyBoard();
+  for (let y = 0; y < 10; y++) {
+    if (!Array.isArray(board[y]) || board[y].length !== 9) return null;
+    for (let x = 0; x < 9; x++) {
+      const piece = String(board[y][x] || "");
+      normalized[y][x] = /^[kabnrcpKABNRCP]$/.test(piece) ? piece : "";
+    }
+  }
+  return normalized;
+}
+
+function countBoardPieces(board) {
+  let count = 0;
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      if (board[y][x]) count++;
+    }
+  }
+  return count;
+}
+
+function applyVisionBoard(payload) {
+  const board = normalizeVisionBoard(payload?.board);
+  if (!board) {
+    showToast("AI chưa trả được bàn cờ hợp lệ");
+    return;
+  }
+  clearQueuedCursorNavigation();
+  clearManualMoveFrame();
+  cancelScheduledAnalysisRefresh();
+  clearMoveAnimation();
+  clearCheckmateEffectKey();
+  stopAutoPlay();
+  stopScoreAnimation();
+  state.board = board;
+  state.side = payload?.side === "b" || payload?.sideToMove === "b" ? "b" : "w";
+  state.moves = [];
+  state.cursor = 0;
+  state.selected = null;
+  state.hints = [];
+  state.bestMove = "";
+  state.suggestions = [];
+  state.suggestionOptions = [];
+  state.lastAnalysis = null;
+  state.analysisRequest++;
+  state.gameOver = false;
+  state.checkmatedSide = null;
+  state.editMode = true;
+  state.mobileSetupMode = isCompactMobile();
+  state.editorPiece = "R";
+  clearArrow();
+  renderMobileSetupPalette();
+  updateEditorUi();
+  if (state.mobileSetupMode) setMobilePanel("tools");
+  draw(true);
+  const warnings = Array.isArray(payload?.warnings) && payload.warnings.length ? ` (${payload.warnings[0]})` : "";
+  showToast(`Đã nhận diện ${countBoardPieces(board)} quân. Hãy kiểm tra/sửa tay rồi lưu hình cờ.${warnings}`);
 }
 
 function clearBoard() {

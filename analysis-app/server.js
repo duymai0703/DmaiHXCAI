@@ -98,6 +98,8 @@ const DEFAULT_ENGINE_CANDIDATES = [
 ].filter(Boolean);
 const DEFAULT_ENGINE_THREADS = clampOptionNumber(process.env.PIKAFISH_THREADS, Math.max(1, Math.min(2, cpuCount())), 1, 16);
 const DEFAULT_ENGINE_HASH_MB = clampOptionNumber(process.env.PIKAFISH_HASH_MB, 128, 16, 1024);
+const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || "").trim();
+const OPENAI_VISION_MODEL = String(process.env.OPENAI_VISION_MODEL || "gpt-4.1-mini").trim() || "gpt-4.1-mini";
 
 ensureDataFile(USERS_FILE, { users: [] });
 ensureDataFile(ROOMS_FILE, { rooms: [] });
@@ -3670,6 +3672,192 @@ function readBody(req) {
   });
 }
 
+const VISION_PIECES = new Set(["K", "A", "B", "N", "R", "C", "P", "k", "a", "b", "n", "r", "c", "p"]);
+const VISION_PIECE_ALIASES = {
+  king: "K",
+  general: "K",
+  marshal: "K",
+  advisor: "A",
+  guard: "A",
+  elephant: "B",
+  bishop: "B",
+  horse: "N",
+  knight: "N",
+  rook: "R",
+  chariot: "R",
+  cannon: "C",
+  pawn: "P",
+  soldier: "P",
+  redking: "K",
+  redgeneral: "K",
+  blackking: "k",
+  blackgeneral: "k"
+};
+
+function sanitizeVisionImageDataUrl(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^data:image\/(png|jpe?g|webp);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) throw new Error("VISION_BAD_IMAGE");
+  const compact = match[2].replace(/\s+/g, "");
+  if (compact.length < 800 || compact.length > 7 * 1024 * 1024) throw new Error("VISION_BAD_IMAGE");
+  return `data:image/${match[1].toLowerCase().replace("jpg", "jpeg")};base64,${compact}`;
+}
+
+function extractJsonObjectText(text) {
+  const cleaned = String(text || "")
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("VISION_EMPTY_RESULT");
+  return cleaned.slice(start, end + 1);
+}
+
+function parseOpenAiJsonContent(text) {
+  try {
+    return JSON.parse(extractJsonObjectText(text));
+  } catch {
+    throw new Error("VISION_EMPTY_RESULT");
+  }
+}
+
+function normalizeVisionPiece(raw, colorHint = "") {
+  const original = String(raw || "").trim();
+  if (!original) return "";
+  if (VISION_PIECES.has(original)) return original;
+  const hanMap = {
+    "帅": "K", "帥": "K", "将": "k", "將": "k",
+    "仕": "A", "士": "a", "相": "B", "象": "b",
+    "马": "N", "馬": "N", "车": "R", "車": "R",
+    "炮": "C", "砲": "c", "兵": "P", "卒": "p"
+  };
+  if (hanMap[original]) {
+    const color = String(colorHint || "").toLowerCase();
+    const piece = hanMap[original];
+    if (color.includes("black") || color.includes("den") || color.includes("đen")) return piece.toLowerCase();
+    if (color.includes("red") || color.includes("do") || color.includes("đỏ")) return piece.toUpperCase();
+    return piece;
+  }
+  const normalized = original.toLowerCase().replace(/[^a-z]/g, "");
+  const inferredColor = normalized.startsWith("black") ? "black" : normalized.startsWith("red") ? "red" : colorHint;
+  const core = normalized.replace(/^(red|black)/, "");
+  let piece = VISION_PIECE_ALIASES[normalized] || VISION_PIECE_ALIASES[core] || "";
+  if (!piece && normalized.length === 1) {
+    const map = { k: "K", a: "A", b: "B", e: "B", n: "N", h: "N", r: "R", c: "C", p: "P", s: "P" };
+    piece = map[normalized] || "";
+  }
+  if (!piece) return "";
+  const color = String(inferredColor || "").toLowerCase();
+  if (color.includes("black") || color.includes("den") || color.includes("đen")) return piece.toLowerCase();
+  if (color.includes("red") || color.includes("do") || color.includes("đỏ")) return piece.toUpperCase();
+  return original === original.toLowerCase() ? piece.toLowerCase() : piece;
+}
+
+function emptyVisionBoard() {
+  return Array.from({ length: 10 }, () => Array(9).fill(""));
+}
+
+function normalizeVisionBoardPayload(payload, fallbackSide = "w") {
+  const source = payload && typeof payload === "object" ? payload : {};
+  let board = emptyVisionBoard();
+  let count = 0;
+
+  if (Array.isArray(source.board) && source.board.length === 10) {
+    for (let topY = 0; topY < 10; topY++) {
+      const row = source.board[topY];
+      const cells = Array.isArray(row) ? row : String(row || "").split("");
+      for (let x = 0; x < 9; x++) {
+        const piece = normalizeVisionPiece(cells[x]);
+        if (!piece) continue;
+        board[9 - topY][x] = piece;
+        count++;
+      }
+    }
+  }
+
+  if (!count && Array.isArray(source.pieces)) {
+    board = emptyVisionBoard();
+    for (const item of source.pieces) {
+      const x = Number(item?.x);
+      const topY = Number(item?.y);
+      if (!Number.isInteger(x) || !Number.isInteger(topY) || x < 0 || x > 8 || topY < 0 || topY > 9) continue;
+      const piece = normalizeVisionPiece(item?.piece || item?.type || item?.name, item?.color || item?.side);
+      if (!piece) continue;
+      board[9 - topY][x] = piece;
+      count++;
+    }
+  }
+
+  if (!count) throw new Error("VISION_EMPTY_RESULT");
+  const sideRaw = String(source.sideToMove || source.side || fallbackSide || "w").toLowerCase();
+  const side = sideRaw === "b" || sideRaw.includes("black") || sideRaw.includes("den") || sideRaw.includes("đen") ? "b" : "w";
+  const warnings = Array.isArray(source.warnings) ? source.warnings.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 6) : [];
+  const pieces = [];
+  for (let y = 0; y < 10; y++) {
+    for (let x = 0; x < 9; x++) {
+      if (board[y][x]) pieces.push({ x, y, piece: board[y][x] });
+    }
+  }
+  return { board, pieces, side, sideToMove: side, warnings };
+}
+
+async function recognizeXiangqiBoardImage(body) {
+  if (!OPENAI_API_KEY) throw new Error("VISION_NOT_CONFIGURED");
+  const image = sanitizeVisionImageDataUrl(body?.image || body?.imageData || "");
+  const fallbackSide = String(body?.side || "w").toLowerCase() === "b" ? "b" : "w";
+  const prompt = [
+    "Recognize the Xiangqi board position in this cropped image.",
+    "The crop should contain the playable 9-column by 10-row intersection grid. Use intersections, not cell centers.",
+    "Coordinates: x=0..8 left to right in the image, y=0..9 top to bottom in the image.",
+    "Return ONLY JSON. No markdown.",
+    "Use piece codes: red uppercase K,A,B,N,R,C,P and black lowercase k,a,b,n,r,c,p.",
+    "K/k=king/general, A/a=advisor, B/b=elephant, N/n=horse, R/r=rook/chariot, C/c=cannon, P/p=pawn/soldier.",
+    "If a piece is unclear, leave that intersection empty and add a warning.",
+    "JSON shape: {\"sideToMove\":\"w\",\"board\":[[\"r\",\"n\",\"b\",\"a\",\"k\",\"a\",\"b\",\"n\",\"r\"],...10 rows total],\"pieces\":[{\"x\":0,\"y\":0,\"piece\":\"r\",\"confidence\":0.9}],\"warnings\":[]}.",
+    "The board array must be top row first, bottom row last, exactly 10 rows and 9 columns."
+  ].join("\n");
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: OPENAI_VISION_MODEL,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a precise Xiangqi image recognition engine. Return strict JSON only."
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: image, detail: "high" } }
+          ]
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    let details = "";
+    try {
+      details = await response.text();
+    } catch {}
+    console.warn(`Vision recognition failed: HTTP ${response.status} ${details.slice(0, 500)}`);
+    throw new Error("VISION_AI_FAILED");
+  }
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || "";
+  return normalizeVisionBoardPayload(parseOpenAiJsonContent(content), fallbackSide);
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   let requested = url.pathname === "/" ? "/index.html" : url.pathname;
@@ -3784,6 +3972,14 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const result = await engine.analyze(body);
       json(res, 200, result);
+      return;
+    }
+
+    if (url.pathname === "/api/vision/xiangqi-board" && req.method === "POST") {
+      requireUser(req);
+      const body = await readBody(req);
+      const result = await recognizeXiangqiBoardImage(body);
+      json(res, 200, { ok: true, ...result });
       return;
     }
 
@@ -4321,6 +4517,10 @@ const server = http.createServer(async (req, res) => {
       INVALID_DISPLAY_NAME: 400,
       INVALID_CUSTOMER_NAME: 400,
       INVALID_LICENSE_EXPORT: 400,
+      VISION_NOT_CONFIGURED: 400,
+      VISION_BAD_IMAGE: 400,
+      VISION_AI_FAILED: 400,
+      VISION_EMPTY_RESULT: 422,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -4334,6 +4534,10 @@ function friendlyErrorVi(code) {
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
   if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";
   if (code === "REPEATED_CHASE") return "Khong duoc duoi bat lap lai cung mot quan qua 6 lan.";
+  if (code === "VISION_NOT_CONFIGURED") return "Chưa cấu hình OPENAI_API_KEY trên server nên chưa thể nhận diện ảnh.";
+  if (code === "VISION_BAD_IMAGE") return "Ảnh nhận diện không hợp lệ. Hãy chọn ảnh rõ hơn và crop đúng bàn cờ.";
+  if (code === "VISION_AI_FAILED") return "AI nhận diện ảnh đang lỗi hoặc quá tải. Hãy thử lại sau.";
+  if (code === "VISION_EMPTY_RESULT") return "AI chưa trả được hình cờ hợp lệ. Hãy crop sát bàn cờ hơn rồi thử lại.";
   return {
     UNAUTHORIZED: "Bạn cần đăng nhập.",
     ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",

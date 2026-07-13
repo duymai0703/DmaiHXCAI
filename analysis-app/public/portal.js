@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260713-audio-v9";
+  const ASSET_WARMUP_VERSION = "20260713-vision-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -109,8 +109,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260713-mobile-lines-v4",
-    "/app.js?v=20260713-audio-v9",
+    "/styles.css?v=20260713-vision-v1",
+    "/app.js?v=20260713-vision-v1",
     "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
