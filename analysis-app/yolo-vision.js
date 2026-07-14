@@ -11,7 +11,13 @@ const DEFAULT_MODEL_CANDIDATES = [
 ];
 
 function yoloPythonPath() {
-  return String(process.env.XIANGQI_YOLO_PYTHON || process.env.YOLO_PYTHON || process.env.PYTHON || "python").trim() || "python";
+  const configured = String(process.env.XIANGQI_YOLO_PYTHON || process.env.YOLO_PYTHON || process.env.PYTHON || "").trim();
+  if (configured) return configured;
+  const localVenvPython = process.platform === "win32"
+    ? path.join(APP_DIR, "ml", ".venv", "Scripts", "python.exe")
+    : path.join(APP_DIR, "ml", ".venv", "bin", "python");
+  if (fs.existsSync(localVenvPython)) return localVenvPython;
+  return "python";
 }
 
 function yoloScriptPath() {
@@ -37,19 +43,30 @@ function yoloModelPath() {
 }
 
 function yoloVisionAvailable() {
-  return Boolean(yoloModelPath() && fs.existsSync(yoloScriptPath()));
+  return Boolean(yoloModelPath() && fs.existsSync(yoloScriptPath()) && yoloRuntimeLikelyAvailable());
 }
 
 function yoloVisionStatus() {
   const modelPath = yoloModelPath();
+  const python = yoloPythonPath();
   return {
     available: yoloVisionAvailable(),
     engine: "ultralytics-yolo",
     modelPath,
     modelConfigured: Boolean(process.env.XIANGQI_YOLO_MODEL || process.env.YOLO_VISION_MODEL),
     scriptExists: fs.existsSync(yoloScriptPath()),
-    python: yoloPythonPath()
+    python,
+    runtimeLikelyAvailable: yoloRuntimeLikelyAvailable()
   };
+}
+
+function yoloRuntimeLikelyAvailable() {
+  const configured = Boolean(process.env.XIANGQI_YOLO_PYTHON || process.env.YOLO_PYTHON || process.env.PYTHON);
+  if (configured) return true;
+  const localVenvPython = process.platform === "win32"
+    ? path.join(APP_DIR, "ml", ".venv", "Scripts", "python.exe")
+    : path.join(APP_DIR, "ml", ".venv", "bin", "python");
+  return fs.existsSync(localVenvPython);
 }
 
 async function recognizeYoloXiangqiBoard({ image, imageData, side = "w" }) {
