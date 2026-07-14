@@ -4016,6 +4016,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/healthz") {
+      json(res, 200, { ok: true });
+      return;
+    }
+
     if (url.pathname === "/api/status") {
       syncEngineInstance();
       json(res, 200, {
