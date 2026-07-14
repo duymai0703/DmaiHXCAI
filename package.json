@@ -5,10 +5,19 @@
   "scripts": {
     "start": "node analysis-app/server.js",
     "app": "node analysis-app/server.js",
-    "build:engine:win": "node analysis-app/build-engine-win.js"
+    "build:engine:win": "node analysis-app/build-engine-win.js",
+    "cap:sync": "npx cap sync",
+    "cap:copy": "npx cap copy android",
+    "cap:android": "npx cap open android"
   },
   "dependencies": {
     "mongodb": "^6.18.0",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1"
   }
 }

@@ -16,6 +16,7 @@ try {
 } catch {}
 
 const XiangqiCore = require("./public/xiangqi-core.js");
+const LocalVision = require("./local-vision.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -3847,9 +3848,24 @@ function normalizeVisionBoardPayload(payload, fallbackSide = "w") {
 }
 
 async function recognizeXiangqiBoardImage(body) {
-  if (!OPENAI_API_KEY) throw new Error("VISION_NOT_CONFIGURED");
   const image = sanitizeVisionImageDataUrl(body?.image || body?.imageData || "");
   const fallbackSide = String(body?.side || "w").toLowerCase() === "b" ? "b" : "w";
+  const preferOpenAi = String(process.env.DMAIHXCAI_VISION_PROVIDER || "").toLowerCase() === "openai";
+  const allowOpenAiFallback = Boolean(OPENAI_API_KEY) && String(process.env.DMAIHXCAI_VISION_OPENAI_FALLBACK || "").trim() === "1";
+  if (!preferOpenAi) {
+    try {
+      return await LocalVision.recognizeLocalXiangqiBoard({
+        image,
+        side: fallbackSide,
+        publicDir: PUBLIC_DIR
+      });
+    } catch (error) {
+      if (!allowOpenAiFallback) throw new Error(error?.message || "VISION_AI_FAILED");
+      console.warn(`Local vision recognition failed, falling back to OpenAI: ${error.message}`);
+    }
+  }
+
+  if (!OPENAI_API_KEY) throw new Error("VISION_NOT_CONFIGURED");
   const prompt = [
     "Recognize the Xiangqi board position in this cropped image.",
     "The crop should contain the playable 9-column by 10-row intersection grid. Use intersections, not cell centers.",
@@ -4026,7 +4042,9 @@ const server = http.createServer(async (req, res) => {
         mongoDatabase: mongoStateStore.dbName,
         mongoCollection: mongoStateStore.collectionName,
         mongoError: mongoStateStore.lastError || "",
-        visionConfigured: Boolean(OPENAI_API_KEY),
+        visionConfigured: LocalVision.localVisionAvailable() || Boolean(OPENAI_API_KEY),
+        visionProvider: LocalVision.localVisionAvailable() ? "local" : "openai",
+        visionLocal: LocalVision.localVisionStatus(PUBLIC_DIR),
         visionModel: OPENAI_VISION_MODEL
       });
       return;
@@ -4645,6 +4663,7 @@ const server = http.createServer(async (req, res) => {
       VISION_BAD_KEY: 400,
       VISION_QUOTA: 400,
       VISION_MODEL_FAILED: 400,
+      VISION_LOCAL_UNAVAILABLE: 500,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -4655,6 +4674,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 function friendlyErrorVi(code) {
+  if (code === "VISION_LOCAL_UNAVAILABLE") return "Bo nhan dien anh noi bo chua san sang. Hay kiem tra goi sharp tren server.";
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
   if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";
   if (code === "REPEATED_CHASE") return "Khong duoc duoi bat lap lai cung mot quan qua 6 lan.";
