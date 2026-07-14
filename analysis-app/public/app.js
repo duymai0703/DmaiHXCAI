@@ -2709,7 +2709,7 @@ function onBoardImageSelected(event) {
 function openVisionModal() {
   if (!visionModalEl) return;
   visionModalEl.classList.remove("hidden");
-  setVisionStatus("Kéo khung crop để khóa đúng 4 góc ngoài cùng của lưới.");
+  setVisionStatus("");
 }
 
 function closeVisionModal() {
@@ -2717,6 +2717,7 @@ function closeVisionModal() {
   visionModalEl.classList.add("hidden");
   state.visionCropDrag = null;
   setVisionBusy(false);
+  setVisionStatus("");
 }
 
 function setVisionStatus(message, tone = "") {
@@ -2791,7 +2792,10 @@ function drawVisionCrop() {
   const parentWidth = canvas.parentElement?.clientWidth || 640;
   let cssWidth = Math.max(280, Math.min(parentWidth, 760));
   let cssHeight = cssWidth * image.naturalHeight / image.naturalWidth;
-  const maxHeight = Math.max(320, Math.min(window.innerHeight * 0.62, 660));
+  const compactVisionModal = window.matchMedia?.("(max-width: 760px)")?.matches;
+  const maxHeight = compactVisionModal
+    ? Math.max(240, Math.min(window.innerHeight * 0.4, 370))
+    : Math.max(320, Math.min(window.innerHeight * 0.62, 660));
   if (cssHeight > maxHeight) {
     cssHeight = maxHeight;
     cssWidth = cssHeight * image.naturalWidth / image.naturalHeight;
@@ -2902,23 +2906,27 @@ function croppedVisionDataUrl() {
   const crop = state.visionCrop;
   if (!image || !crop) throw new Error("Chưa có vùng crop");
   const canvas = document.createElement("canvas");
-  canvas.width = 640;
-  canvas.height = 720;
+  canvas.width = 576;
+  canvas.height = 648;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.82);
+  return canvas.toDataURL("image/jpeg", 0.78);
 }
 
 async function recognizeCroppedBoardImage() {
   if (state.visionBusy) return;
   try {
     setVisionBusy(true);
-    setVisionStatus("Hệ thống đang nhận diện hình cờ,vui lòng đợi...");
+    setVisionStatus("Hệ thống đang nhận diện bàn cờ,vui lòng đợi...");
     const result = await api("/api/vision/xiangqi-board", {
       image: croppedVisionDataUrl(),
       side: state.side
+    }, {
+      attempts: 1,
+      timeoutMs: 10000,
+      timeoutMessage: "Hệ thống nhận diện quá 10 giây. Hãy crop sát bàn cờ hơn rồi thử lại."
     });
     applyVisionBoard(result);
     closeVisionModal();
@@ -4299,18 +4307,25 @@ function handleAnalysisSessionReplaced() {
 async function api(url, body, behavior = {}) {
   const target = apiTarget(url);
   let lastError = null;
+  const attempts = Math.max(1, Number(behavior.attempts || 6));
 
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    let timeoutId = null;
     try {
       const headers = {};
       const token = readStorage(AUTH_TOKEN_STORAGE_KEY);
       if (token) headers.Authorization = `Bearer ${token}`;
       if (authDeviceId) headers["X-Dmaihxcai-Device"] = authDeviceId;
       if (body) headers["Content-Type"] = "application/json";
+      const controller = Number(behavior.timeoutMs || 0) > 0 ? new AbortController() : null;
+      if (controller) {
+        timeoutId = window.setTimeout(() => controller.abort(), Number(behavior.timeoutMs));
+      }
       const response = await fetch(target, {
         method: body ? "POST" : "GET",
         headers,
-        body: body ? JSON.stringify(body) : undefined
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller?.signal
       });
       const raw = await response.text();
       let data = {};
@@ -4326,7 +4341,7 @@ async function api(url, body, behavior = {}) {
 
       if (!response.ok || data.ok === false) {
         const message = data.error || `Request failed (${response.status})`;
-        if (attempt < 5 && isRetryableStatus(response.status, raw, message)) {
+        if (attempt < attempts - 1 && isRetryableStatus(response.status, raw, message)) {
           await wait(1200 + attempt * 900);
           continue;
         }
@@ -4341,15 +4356,19 @@ async function api(url, body, behavior = {}) {
       return data;
     } catch (err) {
       lastError = err;
-      if (attempt < 5 && isRetryableError(err)) {
+      if (err?.name === "AbortError") break;
+      if (attempt < attempts - 1 && isRetryableError(err)) {
         await wait(1200 + attempt * 900);
         continue;
       }
       break;
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
     }
   }
 
   if (!behavior.suppressSessionReplaced && isSessionReplacedError(lastError)) handleAnalysisSessionReplaced();
+  if (lastError?.name === "AbortError" && behavior.timeoutMessage) throw new Error(behavior.timeoutMessage);
   throw friendlyApiError(lastError);
 }
 

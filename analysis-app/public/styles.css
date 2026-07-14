@@ -198,6 +198,10 @@ body.access-locked {
   line-height: 1.4;
 }
 
+.vision-status:empty {
+  display: none;
+}
+
 .vision-status[data-tone="error"] {
   border-color: rgba(255, 91, 91, 0.5);
   color: #ffd7d7;

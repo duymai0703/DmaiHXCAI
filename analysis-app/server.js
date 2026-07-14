@@ -55,6 +55,7 @@ const ROOM_REPETITION_DRAW_COUNT = 6;
 const ROOM_RULE_NOTICE_MS = 3000;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
+const VISION_DAILY_LIMIT = 10;
 const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
 const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADTAYDOC0703DUY");
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
@@ -710,6 +711,17 @@ async function hydrateStateFromRemoteStore(remoteStore, label) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function vietnamDateKey(date = Date.now()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(date));
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
 }
 
 function randomId(bytes = 16) {
@@ -1911,6 +1923,26 @@ function requireAdmin(req) {
   const user = requireUser(req);
   if (!isAdminUser(user)) throw new Error("FORBIDDEN_ADMIN");
   return user;
+}
+
+function consumeVisionQuota(user) {
+  if (!user || isAdminUser(user)) {
+    return { limit: VISION_DAILY_LIMIT, used: 0, remaining: VISION_DAILY_LIMIT, date: vietnamDateKey() };
+  }
+  const today = vietnamDateKey();
+  const previous = user.visionUsage && typeof user.visionUsage === "object" ? user.visionUsage : {};
+  const usage = previous.date === today
+    ? { date: today, count: Math.max(0, Number(previous.count || 0)) }
+    : { date: today, count: 0 };
+  if (usage.count >= VISION_DAILY_LIMIT) throw new Error("VISION_DAILY_LIMIT");
+  usage.count += 1;
+  user.visionUsage = usage;
+  return {
+    limit: VISION_DAILY_LIMIT,
+    used: usage.count,
+    remaining: Math.max(0, VISION_DAILY_LIMIT - usage.count),
+    date: today
+  };
 }
 
 function clientIp(req) {
@@ -4113,10 +4145,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/vision/xiangqi-board" && req.method === "POST") {
-      requireUser(req);
+      const user = requireUser(req);
       const body = await readBody(req);
+      const visionQuota = consumeVisionQuota(user);
+      saveUsers();
       const result = await recognizeXiangqiBoardImage(body);
-      json(res, 200, { ok: true, ...result });
+      json(res, 200, { ok: true, ...result, visionQuota });
       return;
     }
 
@@ -4684,6 +4718,7 @@ const server = http.createServer(async (req, res) => {
       VISION_QUOTA: 400,
       VISION_MODEL_FAILED: 400,
       VISION_LOCAL_UNAVAILABLE: 500,
+      VISION_DAILY_LIMIT: 429,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -4708,6 +4743,7 @@ function friendlyErrorVi(code) {
   if (code === "VISION_BAD_KEY") return "OPENAI_API_KEY không hợp lệ hoặc không có quyền gọi OpenAI API.";
   if (code === "VISION_QUOTA") return "OpenAI API key đã hết quota hoặc chưa bật billing.";
   if (code === "VISION_MODEL_FAILED") return "Model nhận diện ảnh đang cấu hình không dùng được. Hãy thử OPENAI_VISION_MODEL=gpt-4o-mini.";
+  if (code === "VISION_DAILY_LIMIT") return "Tài khoản này đã dùng hết 10 lượt nhận diện hôm nay. Lượt mới sẽ mở lại lúc 00h.";
   return {
     UNAUTHORIZED: "Bạn cần đăng nhập.",
     ROOM_NOT_FOUND: "Không tìm thấy phòng đấu.",
