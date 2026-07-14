@@ -2902,20 +2902,20 @@ function croppedVisionDataUrl() {
   const crop = state.visionCrop;
   if (!image || !crop) throw new Error("Chưa có vùng crop");
   const canvas = document.createElement("canvas");
-  canvas.width = 960;
-  canvas.height = 1080;
+  canvas.width = 640;
+  canvas.height = 720;
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.9);
+  return canvas.toDataURL("image/jpeg", 0.82);
 }
 
 async function recognizeCroppedBoardImage() {
   if (state.visionBusy) return;
   try {
     setVisionBusy(true);
-    setVisionStatus("AI đang đọc chữ quân và căn các giao điểm bàn cờ...");
+    setVisionStatus("Hệ thống đang nhận diện hình cờ,vui lòng đợi...");
     const result = await api("/api/vision/xiangqi-board", {
       image: croppedVisionDataUrl(),
       side: state.side

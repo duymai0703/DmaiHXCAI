@@ -207,6 +207,71 @@ body.access-locked {
   opacity: 0.62;
   cursor: wait;
 }
+
+@media (max-width: 760px) {
+  .vision-modal {
+    align-items: start;
+    place-items: start center;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    overflow: auto;
+  }
+
+  .vision-card {
+    width: min(100%, 460px);
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+    overflow: auto;
+    gap: 9px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .vision-head h3 {
+    font-size: 18px;
+  }
+
+  .vision-head p {
+    font-size: 13px;
+    line-height: 1.32;
+  }
+
+  .vision-head button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .vision-crop-canvas {
+    max-height: min(46dvh, 430px);
+  }
+
+  .vision-controls,
+  .vision-actions {
+    gap: 7px;
+  }
+
+  .vision-controls button,
+  .vision-actions button {
+    min-height: 40px;
+    padding: 0 8px;
+    font-size: 14px;
+  }
+
+  .vision-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-top: 6px;
+    background: linear-gradient(180deg, rgba(18, 25, 37, 0), rgba(18, 25, 37, 0.98) 34%);
+  }
+
+  .vision-status {
+    min-height: 22px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+}
 body.asset-preload-active {
   overflow: hidden;
 }

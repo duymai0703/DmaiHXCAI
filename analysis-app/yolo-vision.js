@@ -11,6 +11,10 @@ try {
 try {
   sharp = require("sharp");
 } catch {}
+if (sharp) {
+  sharp.cache(false);
+  sharp.concurrency(1);
+}
 
 const APP_DIR = __dirname;
 const INPUT_SIZE = 640;
@@ -192,7 +196,11 @@ async function getOnnxSession(modelPath) {
   if (!onnxSessionPromise) {
     onnxSessionPromise = ort.InferenceSession.create(modelPath, {
       executionProviders: ["cpu"],
-      graphOptimizationLevel: "all"
+      graphOptimizationLevel: "basic",
+      intraOpNumThreads: 1,
+      interOpNumThreads: 1,
+      enableCpuMemArena: false,
+      enableMemPattern: false
     });
   }
   return onnxSessionPromise;
