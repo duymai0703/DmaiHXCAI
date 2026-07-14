@@ -17,6 +17,7 @@ try {
 
 const XiangqiCore = require("./public/xiangqi-core.js");
 const LocalVision = require("./local-vision.js");
+const YoloVision = require("./yolo-vision.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -3850,9 +3851,22 @@ function normalizeVisionBoardPayload(payload, fallbackSide = "w") {
 async function recognizeXiangqiBoardImage(body) {
   const image = sanitizeVisionImageDataUrl(body?.image || body?.imageData || "");
   const fallbackSide = String(body?.side || "w").toLowerCase() === "b" ? "b" : "w";
-  const preferOpenAi = String(process.env.DMAIHXCAI_VISION_PROVIDER || "").toLowerCase() === "openai";
+  const visionProvider = String(process.env.DMAIHXCAI_VISION_PROVIDER || "").toLowerCase();
+  const preferOpenAi = visionProvider === "openai";
+  const preferYolo = visionProvider === "yolo";
   const allowOpenAiFallback = Boolean(OPENAI_API_KEY) && String(process.env.DMAIHXCAI_VISION_OPENAI_FALLBACK || "").trim() === "1";
   if (!preferOpenAi) {
+    if (preferYolo || YoloVision.yoloVisionAvailable()) {
+      try {
+        return await YoloVision.recognizeYoloXiangqiBoard({
+          image,
+          side: fallbackSide
+        });
+      } catch (error) {
+        if (preferYolo && !allowOpenAiFallback) throw new Error(error?.message || "VISION_YOLO_FAILED");
+        console.warn(`YOLO vision recognition skipped: ${error.message}`);
+      }
+    }
     try {
       return await LocalVision.recognizeLocalXiangqiBoard({
         image,
@@ -4047,8 +4061,9 @@ const server = http.createServer(async (req, res) => {
         mongoDatabase: mongoStateStore.dbName,
         mongoCollection: mongoStateStore.collectionName,
         mongoError: mongoStateStore.lastError || "",
-        visionConfigured: LocalVision.localVisionAvailable() || Boolean(OPENAI_API_KEY),
-        visionProvider: LocalVision.localVisionAvailable() ? "local" : "openai",
+        visionConfigured: YoloVision.yoloVisionAvailable() || LocalVision.localVisionAvailable() || Boolean(OPENAI_API_KEY),
+        visionProvider: YoloVision.yoloVisionAvailable() ? "yolo" : (LocalVision.localVisionAvailable() ? "local" : "openai"),
+        visionYolo: YoloVision.yoloVisionStatus(),
         visionLocal: LocalVision.localVisionStatus(PUBLIC_DIR),
         visionModel: OPENAI_VISION_MODEL
       });
@@ -4684,6 +4699,9 @@ function friendlyErrorVi(code) {
   if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";
   if (code === "REPEATED_CHASE") return "Khong duoc duoi bat lap lai cung mot quan qua 6 lan.";
   if (code === "VISION_NOT_CONFIGURED") return "Chưa cấu hình OPENAI_API_KEY trên server nên chưa thể nhận diện ảnh.";
+  if (code === "VISION_YOLO_UNAVAILABLE") return "Chưa có model YOLO cờ tướng. Hãy train model rồi đặt XIANGQI_YOLO_MODEL.";
+  if (code === "VISION_YOLO_SCRIPT_MISSING") return "Thiếu script nhận diện YOLO trên server.";
+  if (code === "VISION_YOLO_FAILED") return "YOLO chưa nhận diện được ảnh này hoặc runtime YOLO chưa sẵn sàng.";
   if (code === "VISION_BAD_IMAGE") return "Ảnh nhận diện không hợp lệ. Hãy chọn ảnh rõ hơn và crop đúng bàn cờ.";
   if (code === "VISION_AI_FAILED") return "AI nhận diện ảnh đang lỗi hoặc quá tải. Hãy thử lại sau.";
   if (code === "VISION_EMPTY_RESULT") return "AI chưa trả được hình cờ hợp lệ. Hãy crop sát bàn cờ hơn rồi thử lại.";

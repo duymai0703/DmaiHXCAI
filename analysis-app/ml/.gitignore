@@ -1,0 +1,7 @@
+datasets/
+runs/
+models/*.pt
+models/*.onnx
+*.cache
+__pycache__/
+.venv/

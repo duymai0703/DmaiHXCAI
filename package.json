@@ -6,6 +6,9 @@
     "start": "node analysis-app/server.js",
     "app": "node analysis-app/server.js",
     "build:engine:win": "node analysis-app/build-engine-win.js",
+    "yolo:dataset": "python analysis-app/ml/generate_yolo_dataset.py",
+    "yolo:train": "python analysis-app/ml/train_yolo.py",
+    "yolo:infer": "python analysis-app/ml/yolo_infer.py",
     "cap:sync": "npx cap sync",
     "cap:copy": "npx cap copy android",
     "cap:android": "npx cap open android"
