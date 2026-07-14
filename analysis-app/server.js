@@ -1652,6 +1652,21 @@ function adminRenameUser(userId, displayName) {
   return user;
 }
 
+function adminSetUserAvatar(userId, avatarUrl) {
+  const user = users.find((item) => item.id === String(userId || ""));
+  if (!user || user.role === "admin") return null;
+  const safeAvatarUrl = sanitizeAvatarUrl(avatarUrl);
+  if (!safeAvatarUrl || !DEVICE_AVATAR_PATHS.has(safeAvatarUrl)) {
+    throw new Error("INVALID_AVATAR");
+  }
+  user.avatarUrl = safeAvatarUrl;
+  user.adminTracked = true;
+  if (!user.adminTrackedAt) user.adminTrackedAt = nowIso();
+  syncUserProfileIntoRooms(user);
+  saveUsers();
+  return user;
+}
+
 function adminTrackAccessKey(value) {
   const keyHash = hashLicenseKey(value);
   if (!keyHash || isAdminLicenseKeyHash(keyHash)) return null;
@@ -4316,6 +4331,28 @@ const server = http.createServer(async (req, res) => {
       requireAdmin(req);
       const body = await readBody(req);
       const target = adminRenameUser(body.userId, body.displayName);
+      if (!target) {
+        json(res, 404, { ok: false, error: "Khong tim thay tai khoan." });
+        return;
+      }
+      await flushUserPersistence();
+      json(res, 200, { ok: true, user: adminUserSummary(target) });
+      return;
+    }
+
+    if (url.pathname === "/api/admin/users/avatar" && req.method === "POST") {
+      requireAdmin(req);
+      const body = await readBody(req);
+      let target = null;
+      try {
+        target = adminSetUserAvatar(body.userId, body.avatarUrl);
+      } catch (error) {
+        if (error.message === "INVALID_AVATAR") {
+          json(res, 400, { ok: false, error: "Anh dai dien khong hop le." });
+          return;
+        }
+        throw error;
+      }
       if (!target) {
         json(res, 404, { ok: false, error: "Khong tim thay tai khoan." });
         return;

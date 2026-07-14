@@ -2170,6 +2170,17 @@
     renderHistoryCollection(dom.libraryHistoryList, state.history, options);
   }
 
+  function normalizeAdminUserPayload(user) {
+    return {
+      ...(user || {}),
+      history: normalizeHistoryList(user?.history),
+      online: Boolean(user?.online),
+      currentActivity: user?.currentActivity || {},
+      currentRoomKey: user?.currentRoomKey || "",
+      currentRoomRole: user?.currentRoomRole || ""
+    };
+  }
+
   async function loadAdminUsers(force = false) {
     if (!isAdmin()) return;
     if (state.adminLoading && !force) return;
@@ -2180,14 +2191,7 @@
         api("/api/admin/users"),
         api(`/api/admin/licenses${state.adminLicenseFilter ? `?status=${encodeURIComponent(state.adminLicenseFilter)}` : ""}`)
       ]);
-      state.adminUsers = Array.isArray(payload.users) ? payload.users.map((user) => ({
-        ...user,
-        history: normalizeHistoryList(user.history),
-        online: Boolean(user.online),
-        currentActivity: user.currentActivity || {},
-        currentRoomKey: user.currentRoomKey || "",
-        currentRoomRole: user.currentRoomRole || ""
-      })) : [];
+      state.adminUsers = Array.isArray(payload.users) ? payload.users.map(normalizeAdminUserPayload) : [];
       state.adminLicenses = Array.isArray(licensePayload.licenses) ? licensePayload.licenses : [];
       state.adminRawKeyAvailable = Boolean(licensePayload.rawKeyAvailable);
       if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
@@ -2214,14 +2218,7 @@
         method: "POST",
         body: { key }
       });
-      const nextUser = {
-        ...payload.user,
-        history: normalizeHistoryList(payload.user?.history),
-        online: Boolean(payload.user?.online),
-        currentActivity: payload.user?.currentActivity || {},
-        currentRoomKey: payload.user?.currentRoomKey || "",
-        currentRoomRole: payload.user?.currentRoomRole || ""
-      };
+      const nextUser = normalizeAdminUserPayload(payload.user);
       state.adminUsers = [
         nextUser,
         ...state.adminUsers.filter((user) => user.id !== nextUser.id)
@@ -2350,6 +2347,7 @@
       onOpen: openHistoryReview
     });
     renderAdminRenamePanel(selected);
+    renderAdminAvatarPanel(selected);
     renderAdminWatchPanel(selected);
   }
 
@@ -2390,14 +2388,66 @@
         method: "POST",
         body: { userId, displayName: name }
       });
+      const nextUser = normalizeAdminUserPayload(payload.user);
       state.adminUsers = state.adminUsers.map((user) => (
-        user.id === payload.user.id ? payload.user : user
+        user.id === nextUser.id ? nextUser : user
       ));
-      state.adminSelectedUserId = payload.user.id;
+      state.adminSelectedUserId = nextUser.id;
       renderAdminState();
       showToast("Đã lưu tên tài khoản.");
     } catch (error) {
       showToast(error.message || "Không thể đổi tên tài khoản.");
+    }
+  }
+
+  function renderAdminAvatarPanel(user) {
+    if (!dom.adminHistoryList || !user) return;
+    const panel = document.createElement("div");
+    panel.className = "admin-avatar-card";
+
+    const title = document.createElement("strong");
+    title.textContent = "Doi anh dai dien";
+
+    const grid = document.createElement("div");
+    grid.className = "admin-avatar-grid";
+    const activeUrl = user.avatarUrl || "";
+    DEVICE_AVATARS.forEach((url) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `avatar-choice${url === activeUrl ? " active" : ""}`;
+      button.setAttribute("aria-label", "Doi anh dai dien thanh vien");
+      const image = document.createElement("img");
+      image.src = url;
+      image.alt = "";
+      image.decoding = "async";
+      image.draggable = false;
+      button.addEventListener("click", () => {
+        void setAdminUserAvatar(user.id, url);
+      });
+      button.appendChild(image);
+      grid.appendChild(button);
+    });
+
+    panel.append(title, grid);
+    dom.adminHistoryList.prepend(panel);
+  }
+
+  async function setAdminUserAvatar(userId, avatarUrl) {
+    if (!isAdmin() || !DEVICE_AVATARS.includes(avatarUrl)) return;
+    try {
+      const payload = await api("/api/admin/users/avatar", {
+        method: "POST",
+        body: { userId, avatarUrl }
+      });
+      const nextUser = normalizeAdminUserPayload(payload.user);
+      state.adminUsers = state.adminUsers.map((user) => (
+        user.id === nextUser.id ? nextUser : user
+      ));
+      state.adminSelectedUserId = nextUser.id;
+      renderAdminState();
+      showToast("Da luu anh dai dien tai khoan.");
+    } catch (error) {
+      showToast(error.message || "Khong the doi anh dai dien tai khoan.");
     }
   }
 
