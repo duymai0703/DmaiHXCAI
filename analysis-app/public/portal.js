@@ -165,7 +165,7 @@
   const CHECKMATE_EFFECT_MS = 3000;
   const REVIEW_EVAL_BAR_LIMIT = 2000;
 
-  const initialToken = localStorage.getItem(STORAGE_TOKEN) || localStorage.getItem(LEGACY_STORAGE_TOKEN) || "";
+  const initialToken = readPersistentValue(STORAGE_TOKEN) || readPersistentValue(LEGACY_STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
   const initialDeviceAvatar = readOrCreateDeviceAvatar(initialDeviceId);
   const state = {
@@ -704,7 +704,10 @@
       loadMoveSoundBuffer(kind);
       return false;
     }
-    const clipSeconds = Math.min(buffer.duration || 0, mediaSoundWindowMs(kind, durationMs) / 1000);
+    const startOffset = bestMoveSoundOffset(buffer, kind, durationMs);
+    const clipSeconds = kind === "capture"
+      ? Math.max(0, (buffer.duration || 0) - startOffset)
+      : Math.min(buffer.duration || 0, mediaSoundWindowMs(kind, durationMs) / 1000);
     if (!clipSeconds) return false;
     try {
       const source = ctx.createBufferSource();
@@ -713,7 +716,7 @@
       gain.gain.setValueAtTime(moveSoundVolume(kind), ctx.currentTime);
       source.connect(gain);
       gain.connect(ctx.destination);
-      source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
+      source.start(ctx.currentTime, startOffset, clipSeconds);
       trackMoveSoundSource(source, kind);
       return Math.round(clipSeconds * 1000);
     } catch (error) {
@@ -732,6 +735,9 @@
         return false;
       }
       const safeStartAt = startAt === null ? 0 : startAt;
+      const playbackMs = kind === "capture" && Number.isFinite(audio.duration) && audio.duration > safeStartAt
+        ? Math.max(targetMs, Math.round((audio.duration - safeStartAt) * 1000))
+        : targetMs;
       const token = `${Date.now()}:${Math.random()}`;
       audio.pause();
       audio._dmaihxcaiUnlockToken = "";
@@ -749,8 +755,8 @@
         if (audio._dmaihxcaiPlayToken !== token) return;
         audio.pause();
         audio.currentTime = 0;
-      }, targetMs + 90);
-      return targetMs;
+      }, playbackMs + 90);
+      return playbackMs;
     } catch (error) {
       return false;
     }
@@ -1376,9 +1382,9 @@
         if (restored) return;
       }
       if (!/UNAUTHORIZED/i.test(String(error?.message || ""))) throw error;
-      localStorage.removeItem(STORAGE_TOKEN);
-      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
-      localStorage.removeItem(STORAGE_USER);
+      writePersistentValue(STORAGE_TOKEN, "");
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+      writePersistentValue(STORAGE_USER, "");
       state.token = "";
       state.user = null;
       showAccessGate();
@@ -1490,9 +1496,9 @@
       state.token = "";
       state.pendingAccessKey = "";
       updateAccessGateMode(false);
-      localStorage.removeItem(STORAGE_TOKEN);
-      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
-      localStorage.removeItem(STORAGE_USER);
+      writePersistentValue(STORAGE_TOKEN, "");
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+      writePersistentValue(STORAGE_USER, "");
       if (key !== state.savedAccessKey) writePersistentValue(STORAGE_ACCESS_KEY, "");
       showAccessGate(error.message || "Key khong dung.");
     }
@@ -1525,9 +1531,9 @@
       } catch (error) {
         state.pendingAccessKey = "";
         updateAccessGateMode(false);
-        localStorage.removeItem(STORAGE_TOKEN);
-        localStorage.removeItem(LEGACY_STORAGE_TOKEN);
-        localStorage.removeItem(STORAGE_USER);
+        writePersistentValue(STORAGE_TOKEN, "");
+        writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+        writePersistentValue(STORAGE_USER, "");
         showAccessGate(error.message || "Key không đúng.");
         return;
       }
@@ -1565,9 +1571,9 @@
       state.token = "";
       state.pendingAccessKey = "";
       updateAccessGateMode(false);
-      localStorage.removeItem(STORAGE_TOKEN);
-      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
-      localStorage.removeItem(STORAGE_USER);
+      writePersistentValue(STORAGE_TOKEN, "");
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+      writePersistentValue(STORAGE_USER, "");
       showAccessGate(error.message || "Key không đúng.");
     }
   }
@@ -1860,8 +1866,8 @@
     }
     if (token) {
       state.token = token;
-      localStorage.setItem(STORAGE_TOKEN, token);
-      localStorage.removeItem(LEGACY_STORAGE_TOKEN);
+      writePersistentValue(STORAGE_TOKEN, token);
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
     }
     persistStoredUser(state.user);
     if (state.user) hideAccessGate();
@@ -1930,9 +1936,9 @@
     state.adminSelectedUserId = "";
     state.adminLoading = false;
     state.lastChatSignature = "";
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(LEGACY_STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_USER);
+    writePersistentValue(STORAGE_TOKEN, "");
+    writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+    writePersistentValue(STORAGE_USER, "");
     localStorage.removeItem(STORAGE_ROOM);
     closeProfileModal();
     renderHistory();
@@ -4817,7 +4823,7 @@
 
   function readStoredUser() {
     try {
-      const raw = localStorage.getItem(STORAGE_USER);
+      const raw = readPersistentValue(STORAGE_USER);
       if (!raw) return null;
       const user = JSON.parse(raw);
       if (!user || typeof user !== "object" || !user.id || !user.username) return null;
@@ -4829,10 +4835,10 @@
 
   function persistStoredUser(user) {
     if (!user) {
-      localStorage.removeItem(STORAGE_USER);
+      writePersistentValue(STORAGE_USER, "");
       return;
     }
-    localStorage.setItem(STORAGE_USER, JSON.stringify({
+    writePersistentValue(STORAGE_USER, JSON.stringify({
       id: user.id,
       username: user.username,
       displayName: user.displayName,
@@ -5428,8 +5434,8 @@
     clearRoomMoveAnimation();
     clearReviewMoveAnimation();
     state.token = "";
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(LEGACY_STORAGE_TOKEN);
+    writePersistentValue(STORAGE_TOKEN, "");
+    writePersistentValue(LEGACY_STORAGE_TOKEN, "");
     if (dom.accessKeyInput && state.savedAccessKey) dom.accessKeyInput.value = state.savedAccessKey;
     showAccessGate("Tai khoan dang dang nhap o noi khac.");
   }

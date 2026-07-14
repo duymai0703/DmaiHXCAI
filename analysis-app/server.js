@@ -2277,10 +2277,6 @@ function currentRoomRuleNotice(room) {
   };
 }
 
-function squareName(square) {
-  return XiangqiCore.squareToUci(square);
-}
-
 function isProtectedPiece(board, square, side) {
   for (let y = 0; y < 10; y += 1) {
     for (let x = 0; x < 9; x += 1) {
@@ -2291,6 +2287,29 @@ function isProtectedPiece(board, square, side) {
     }
   }
   return false;
+}
+
+function roomPieceChaseValue(pieceOrType) {
+  const type = String(pieceOrType || "").toLowerCase();
+  return {
+    k: 10000,
+    r: 1000,
+    c: 520,
+    n: 500,
+    a: 260,
+    b: 260,
+    p: 120
+  }[type] || 0;
+}
+
+function isCounterChaseEvasion(beforeBoard, from, movedPiece, target, targetPiece) {
+  const movedType = String(movedPiece || "").toLowerCase();
+  const targetType = String(targetPiece || "").toLowerCase();
+  if (!movedType || !targetType) return false;
+  if (roomPieceChaseValue(targetType) >= roomPieceChaseValue(movedType)) return false;
+  const beforeTargetPiece = beforeBoard[target.y]?.[target.x] || "";
+  if (beforeTargetPiece !== targetPiece) return false;
+  return XiangqiCore.attacksSquare(beforeBoard, target, from);
 }
 
 function chaseCandidatesForMove(beforeBoard, nextBoard, side, move) {
@@ -2309,10 +2328,11 @@ function chaseCandidatesForMove(beforeBoard, nextBoard, side, move) {
       if (targetType === "k" || targetType === "p") continue;
       const target = { x, y };
       if (!XiangqiCore.attacksSquare(nextBoard, to, target)) continue;
+      if (isCounterChaseEvasion(beforeBoard, from, movedPiece, target, targetPiece)) continue;
       const rookChasingSmallPiece = movedType === "r" && ["c", "n", "a", "b"].includes(targetType);
       if (!rookChasingSmallPiece && isProtectedPiece(nextBoard, target, opponent)) continue;
       candidates.push({
-        signature: `${side}:${movedType}:${targetType}:${squareName(target)}`,
+        signature: `${side}:${movedType}:${targetType}`,
         value: ({ r: 50, c: 40, n: 40, a: 25, b: 25 }[targetType] || 10)
       });
     }
@@ -2345,13 +2365,20 @@ function assertRoomMoveAllowedByRules(room, side, move, beforeBoard, nextBoard) 
   const positionKey = roomPositionKeyFromBoard(nextBoard, opponent);
   const nextCount = Number(nextState.positionCounts?.[positionKey] || 0) + 1;
   nextState.positionCounts[positionKey] = nextCount;
-  const notice = nextCount >= ROOM_REPETITION_WARNING_COUNT && nextCount < ROOM_REPETITION_DRAW_COUNT
+  const hasActiveChasePressure = Boolean(
+    givesCheck ||
+    chaseCandidates.length ||
+    nextState.chaseHistory?.w?.length ||
+    nextState.chaseHistory?.b?.length
+  );
+  const canApplyRepetitionDraw = !hasActiveChasePressure;
+  const notice = canApplyRepetitionDraw && nextCount >= ROOM_REPETITION_WARNING_COUNT && nextCount < ROOM_REPETITION_DRAW_COUNT
     ? "Nếu lặp lại thêm 1 lần, ván cờ sẽ tự động xử hòa."
     : "";
   return {
     nextRuleState: nextState,
     repetitionCount: nextCount,
-    repetitionDraw: nextCount >= ROOM_REPETITION_DRAW_COUNT,
+    repetitionDraw: canApplyRepetitionDraw && nextCount >= ROOM_REPETITION_DRAW_COUNT,
     notice
   };
 }

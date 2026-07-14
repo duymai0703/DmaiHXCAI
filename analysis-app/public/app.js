@@ -561,7 +561,10 @@ function playDecodedMoveSound(kind, durationMs = 0) {
     loadMoveSoundBuffer(kind);
     return false;
   }
-  const clipSeconds = Math.min(buffer.duration || 0, mediaSoundWindowMs(kind, durationMs) / 1000);
+  const startOffset = bestMoveSoundOffset(buffer, kind, durationMs);
+  const clipSeconds = kind === "capture"
+    ? Math.max(0, (buffer.duration || 0) - startOffset)
+    : Math.min(buffer.duration || 0, mediaSoundWindowMs(kind, durationMs) / 1000);
   if (!clipSeconds) return false;
   try {
     const source = ctx.createBufferSource();
@@ -570,7 +573,7 @@ function playDecodedMoveSound(kind, durationMs = 0) {
     gain.gain.setValueAtTime(moveSoundVolume(kind), ctx.currentTime);
     source.connect(gain);
     gain.connect(ctx.destination);
-    source.start(ctx.currentTime, bestMoveSoundOffset(buffer, kind, durationMs), clipSeconds);
+    source.start(ctx.currentTime, startOffset, clipSeconds);
     trackMoveSoundSource(source, kind);
     return Math.round(clipSeconds * 1000);
   } catch (error) {
@@ -589,6 +592,9 @@ function playMediaMoveSound(kind, durationMs = 0) {
       return false;
     }
     const safeStartAt = startAt === null ? 0 : startAt;
+    const playbackMs = kind === "capture" && Number.isFinite(audio.duration) && audio.duration > safeStartAt
+      ? Math.max(targetMs, Math.round((audio.duration - safeStartAt) * 1000))
+      : targetMs;
     const token = `${Date.now()}:${Math.random()}`;
     audio.pause();
     audio._dmaihxcaiUnlockToken = "";
@@ -606,8 +612,8 @@ function playMediaMoveSound(kind, durationMs = 0) {
       if (audio._dmaihxcaiPlayToken !== token) return;
       audio.pause();
       audio.currentTime = 0;
-    }, targetMs + 90);
-    return targetMs;
+    }, playbackMs + 90);
+    return playbackMs;
   } catch (error) {
     return false;
   }
@@ -1169,9 +1175,9 @@ async function ensureAnalysisAccess() {
     return true;
   } catch (error) {
     if (isSessionReplacedError(error) && await restoreAnalysisSessionFromStoredKey()) return true;
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    removeStorage(AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(AUTH_USER_STORAGE_KEY);
     showAccessGate("Phiên Key đã hết hạn. Hãy nhập lại Key.");
     return false;
   }
@@ -1239,10 +1245,10 @@ async function onAnalysisAccessKeySubmit(event) {
   } catch (error) {
     pendingAnalysisAccessKey = "";
     updateAnalysisAccessGateMode(false);
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-    if (key !== readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) localStorage.removeItem(AUTH_ACCESS_KEY_STORAGE_KEY);
+    removeStorage(AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(AUTH_USER_STORAGE_KEY);
+    if (key !== readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) removeStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
     showAccessGate(error.message || "Key khong dung.");
   }
   return;
@@ -1268,9 +1274,9 @@ async function onAnalysisAccessKeySubmit(event) {
     } catch (error) {
       pendingAnalysisAccessKey = "";
       updateAnalysisAccessGateMode(false);
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-      localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      removeStorage(AUTH_TOKEN_STORAGE_KEY);
+      removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+      removeStorage(AUTH_USER_STORAGE_KEY);
       showAccessGate(error.message || "Key không đúng.");
       return;
     }
@@ -1292,9 +1298,9 @@ async function onAnalysisAccessKeySubmit(event) {
   } catch (error) {
     pendingAnalysisAccessKey = "";
     updateAnalysisAccessGateMode(false);
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    removeStorage(AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+    removeStorage(AUTH_USER_STORAGE_KEY);
     showAccessGate(error.message || "Key không đúng.");
   }
 }
@@ -4219,16 +4225,44 @@ function rgbaString(color) {
 
 function readStorage(key) {
   try {
-    return String(localStorage.getItem(key) || "");
-  } catch {
-    return "";
-  }
+    const value = localStorage.getItem(key);
+    if (value) return String(value);
+  } catch {}
+  return readStorageCookie(key);
 }
 
 function writeStorage(key, value) {
+  const normalized = String(value || "");
   try {
-    localStorage.setItem(key, String(value || ""));
+    if (normalized) localStorage.setItem(key, normalized);
+    else localStorage.removeItem(key);
   } catch {}
+  writeStorageCookie(key, normalized);
+}
+
+function removeStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {}
+  writeStorageCookie(key, "");
+}
+
+function readStorageCookie(key) {
+  const encodedKey = `${encodeURIComponent(key)}=`;
+  const match = String(document.cookie || "")
+    .split("; ")
+    .find((item) => item.startsWith(encodedKey));
+  return match ? decodeURIComponent(match.slice(encodedKey.length)) : "";
+}
+
+function writeStorageCookie(key, value) {
+  const encodedKey = encodeURIComponent(key);
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  if (!value) {
+    document.cookie = `${encodedKey}=; Max-Age=0; path=/; SameSite=Lax${secure}`;
+    return;
+  }
+  document.cookie = `${encodedKey}=${encodeURIComponent(value)}; Max-Age=157680000; path=/; SameSite=Lax${secure}`;
 }
 
 function readOrCreateAuthDeviceId() {
@@ -4254,8 +4288,8 @@ function isSessionReplacedError(error) {
 }
 
 function handleAnalysisSessionReplaced() {
-  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+  removeStorage(AUTH_TOKEN_STORAGE_KEY);
+  removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   if (accessKeyInputEl && readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) {
     accessKeyInputEl.value = readStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
   }
