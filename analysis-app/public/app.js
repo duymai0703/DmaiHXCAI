@@ -145,7 +145,9 @@ let wakePromise = null;
 
 const state = {
   board: parseFen(START_FEN),
+  baseBoard: parseFen(START_FEN),
   side: "w",
+  baseSide: "w",
   moves: [],
   cursor: 0,
   selected: null,
@@ -2656,8 +2658,7 @@ function saveMobileSetupPosition() {
   stopScoreAnimation();
   state.mobileSetupMode = false;
   state.editMode = false;
-  state.moves = [];
-  state.cursor = 0;
+  resetMoveTimelineToCurrentPosition();
   state.selected = null;
   state.hints = [];
   state.bestMove = "";
@@ -2975,8 +2976,7 @@ function applyVisionBoard(payload) {
   stopScoreAnimation();
   state.board = board;
   state.side = payload?.side === "b" || payload?.sideToMove === "b" ? "b" : "w";
-  state.moves = [];
-  state.cursor = 0;
+  resetMoveTimelineToCurrentPosition();
   state.selected = null;
   state.hints = [];
   state.bestMove = "";
@@ -3007,8 +3007,7 @@ function clearBoard() {
   stopAutoPlay();
   stopScoreAnimation();
   state.board = emptyBoard();
-  state.moves = [];
-  state.cursor = 0;
+  resetMoveTimelineToCurrentPosition();
   state.selected = null;
   state.hints = [];
   state.bestMove = "";
@@ -3037,8 +3036,7 @@ function loadFenFromPrompt() {
     stopScoreAnimation();
     state.board = parsed.board;
     state.side = parsed.side;
-    state.moves = [];
-    state.cursor = 0;
+    resetMoveTimelineToCurrentPosition();
     state.selected = null;
     state.hints = [];
     state.bestMove = "";
@@ -3100,8 +3098,7 @@ function setSideToMove() {
   clearCheckmateEffectKey();
   stopScoreAnimation();
   state.side = sideToMoveEl.value === "b" ? "b" : "w";
-  state.moves = [];
-  state.cursor = 0;
+  resetMoveTimelineToCurrentPosition();
   state.gameOver = false;
   state.checkmatedSide = null;
   state.analysisRequest++;
@@ -3120,8 +3117,13 @@ function editBoardSquare(square) {
   stopScoreAnimation();
   if (piece && piece.toLowerCase() === "k") removePieceFromBoard(piece);
   state.board[square.y][square.x] = piece || "";
-  state.moves = [];
-  state.cursor = 0;
+  if (state.mobileSetupMode) {
+    state.moves = [];
+    state.cursor = 0;
+    state.lastHistoryFrame = "";
+  } else {
+    resetMoveTimelineToCurrentPosition();
+  }
   state.selected = null;
   state.hints = [];
   state.bestMove = "";
@@ -3177,8 +3179,8 @@ function rebuildPosition({
   cancelScheduledAnalysisRefresh();
   if (!preserveMoveAnimation) clearMoveAnimation();
   stopScoreAnimation();
-  state.board = parseFen(START_FEN);
-  state.side = "w";
+  state.board = currentBaseBoard();
+  state.side = currentBaseSide();
   for (const move of state.moves.slice(0, state.cursor)) {
     applyMoveToBoard(state.board, move);
     state.side = state.side === "w" ? "b" : "w";
@@ -3417,12 +3419,13 @@ function clearArrow() {
 
 function renderHistory() {
   if (!historyEl) return;
-  const signature = `${state.cursor}|${state.moves.join(",")}`;
+  const baseSignature = `${currentBaseSide()}:${boardSignature(state.baseBoard || parseFen(START_FEN))}`;
+  const signature = `${baseSignature}|${state.cursor}|${state.moves.join(",")}`;
   if (signature === state.lastHistoryFrame) return;
   state.lastHistoryFrame = signature;
   historyEl.innerHTML = "";
-  const replay = parseFen(START_FEN);
-  let side = "w";
+  const replay = currentBaseBoard();
+  let side = currentBaseSide();
   let row = null;
   state.moves.forEach((move, index) => {
     if (index % 2 === 0) {
@@ -4046,6 +4049,26 @@ function normalizeFenText(fen) {
 
 function cloneBoard(board) {
   return board.map((row) => [...row]);
+}
+
+function currentBaseBoard() {
+  return cloneBoard(state.baseBoard || parseFen(START_FEN));
+}
+
+function currentBaseSide() {
+  return state.baseSide === "b" ? "b" : "w";
+}
+
+function setAnalysisBasePosition(board = state.board, side = state.side) {
+  state.baseBoard = cloneBoard(board || parseFen(START_FEN));
+  state.baseSide = side === "b" ? "b" : "w";
+  state.lastHistoryFrame = "";
+}
+
+function resetMoveTimelineToCurrentPosition() {
+  setAnalysisBasePosition(state.board, state.side);
+  state.moves = [];
+  state.cursor = 0;
 }
 
 function emptyBoard() {
