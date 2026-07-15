@@ -390,8 +390,8 @@ def hard_recall_layout():
     return pieces
 
 
-def board_background(backgrounds):
-    if backgrounds and random.random() < 0.28:
+def board_background(backgrounds, photo_ratio=0.28):
+    if backgrounds and random.random() < photo_ratio:
         src = random.choice(backgrounds).copy()
         src = ImageOps.fit(src, (WIDTH, HEIGHT), method=Image.Resampling.BICUBIC)
         src = src.filter(ImageFilter.GaussianBlur(random.uniform(1.0, 3.0)))
@@ -451,24 +451,49 @@ def paste_piece(image, piece_image, center, size):
     return x, y, piece.width, piece.height
 
 
-def degrade_like_mobile_capture(image):
+def degrade_like_mobile_capture(image, strong=False):
+    if strong and random.random() < 0.42:
+        # Uneven phone lighting: a mild vertical/horizontal exposure wash.
+        wash = Image.new("L", (WIDTH, HEIGHT), 0)
+        draw = ImageDraw.Draw(wash)
+        if random.random() < 0.5:
+            for y in range(HEIGHT):
+                value = int(80 * y / HEIGHT)
+                draw.line((0, y, WIDTH, y), fill=value)
+        else:
+            for x in range(WIDTH):
+                value = int(70 * x / WIDTH)
+                draw.line((x, 0, x, HEIGHT), fill=value)
+        tint = Image.new("RGBA", (WIDTH, HEIGHT), random.choice([(255, 245, 210, 45), (120, 185, 230, 34), (0, 0, 0, 30)]))
+        tint.putalpha(wash.point(lambda value: min(70, value)))
+        image = Image.alpha_composite(image.convert("RGBA"), tint)
     if random.random() < 0.42:
-        scale = random.uniform(0.52, 0.82)
+        scale = random.uniform(0.42, 0.82) if strong else random.uniform(0.52, 0.82)
         small = image.resize((max(16, int(WIDTH * scale)), max(16, int(HEIGHT * scale))), Image.Resampling.BICUBIC)
         image = small.resize((WIDTH, HEIGHT), Image.Resampling.BICUBIC)
-    if random.random() < 0.4:
+    if random.random() < (0.58 if strong else 0.4):
         image = ImageEnhance.Sharpness(image).enhance(random.uniform(0.65, 1.28))
-    if random.random() < 0.45:
-        image = ImageEnhance.Contrast(image.convert("RGB")).enhance(random.uniform(0.82, 1.22)).convert("RGBA")
-    if random.random() < 0.38:
-        image = ImageEnhance.Brightness(image.convert("RGB")).enhance(random.uniform(0.88, 1.16)).convert("RGBA")
-    if random.random() < 0.28:
-        image = ImageEnhance.Color(image.convert("RGB")).enhance(random.uniform(0.85, 1.22)).convert("RGBA")
+    if random.random() < (0.68 if strong else 0.45):
+        image = ImageEnhance.Contrast(image.convert("RGB")).enhance(random.uniform(0.74, 1.35)).convert("RGBA")
+    if random.random() < (0.58 if strong else 0.38):
+        image = ImageEnhance.Brightness(image.convert("RGB")).enhance(random.uniform(0.78, 1.24)).convert("RGBA")
+    if random.random() < (0.42 if strong else 0.28):
+        image = ImageEnhance.Color(image.convert("RGB")).enhance(random.uniform(0.74, 1.28)).convert("RGBA")
+    if strong and random.random() < 0.34:
+        image = image.filter(ImageFilter.GaussianBlur(random.uniform(0.18, 0.72)))
+    if strong and random.random() < 0.48:
+        # JPEG round-trip teaches the detector to survive mobile screenshots
+        # and chat-compressed board photos.
+        import io
+        buffer = io.BytesIO()
+        image.convert("RGB").save(buffer, format="JPEG", quality=random.randint(52, 82))
+        buffer.seek(0)
+        image = Image.open(buffer).convert("RGBA")
     return image
 
 
-def render_sample(assets, backgrounds, layout=None):
-    image = board_background(backgrounds)
+def render_sample(assets, backgrounds, layout=None, photo_ratio=0.28, strong_camera=False):
+    image = board_background(backgrounds, photo_ratio=photo_ratio)
     labels = []
     jitter = random.uniform(0.0, 3.8)
     pieces = layout if layout is not None else random_layout()
@@ -483,7 +508,7 @@ def render_sample(assets, backgrounds, layout=None):
         image = image.filter(ImageFilter.GaussianBlur(random.uniform(0.0, 0.45)))
     if random.random() < 0.35:
         image = ImageOps.autocontrast(image.convert("RGB"), cutoff=random.uniform(0, 1.5)).convert("RGBA")
-    image = degrade_like_mobile_capture(image)
+    image = degrade_like_mobile_capture(image, strong=strong_camera)
     return image.convert("RGB"), labels
 
 
@@ -513,6 +538,8 @@ def main():
     parser.add_argument("--hard-red-ratio", type=float, default=0.0, help="Oversample red rook/elephant/king and knight/elephant confusion cases")
     parser.add_argument("--hard-recall-ratio", type=float, default=0.0, help="Oversample dense central boards to reduce missing pieces after crop recognition")
     parser.add_argument("--empty-ratio", type=float, default=0.0, help="Generate empty-board hard negatives to reduce false positive pieces")
+    parser.add_argument("--photo-background-ratio", type=float, default=0.28, help="How often generated boards borrow real photo texture/backgrounds")
+    parser.add_argument("--strong-camera-ratio", type=float, default=0.0, help="How often to apply heavy phone-photo compression/lighting degradation")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -542,7 +569,13 @@ def main():
             layout = hard_confusion_layout()
         else:
             layout = random.choice(layouts) if layouts and random.random() < args.xqbasic_ratio else None
-        image, labels = render_sample(assets, backgrounds, layout=layout)
+        image, labels = render_sample(
+            assets,
+            backgrounds,
+            layout=layout,
+            photo_ratio=max(0.0, min(1.0, args.photo_background_ratio)),
+            strong_camera=random.random() < max(0.0, min(1.0, args.strong_camera_ratio))
+        )
         stem = f"xiangqi_{index:06d}"
         image.save(output / "images" / split / f"{stem}.jpg", quality=random.randint(76, 94), optimize=True)
         label_text = "\n".join(
