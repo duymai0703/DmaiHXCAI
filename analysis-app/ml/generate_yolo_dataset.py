@@ -1,10 +1,13 @@
 import argparse
+import json
 import math
 import random
 import shutil
+import time
+import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
@@ -83,6 +86,8 @@ START_TOP_BOARD = [
     list("RNBAKABNR"),
 ]
 
+XQBASIC_POSTS_URL = "http://api.xqbasic.com/posts?page={page}"
+
 
 def load_piece_assets():
     roots = [PIECE_DIR] + sorted((PIECE_DIR / "sets").glob("boquan*"))
@@ -125,6 +130,98 @@ def load_photo_backgrounds(photo_dir):
         except Exception:
             pass
     return backgrounds
+
+
+def fen_to_layout(fen):
+    board = str(fen or "").strip().split()[0]
+    rows = board.split("/")
+    if len(rows) != 10:
+        return None
+    pieces = []
+    for top_y, row in enumerate(rows):
+        x = 0
+        for char in row:
+            if char.isdigit():
+                x += int(char)
+                continue
+            if char not in PIECE_TO_CLASS:
+                return None
+            if x > 8:
+                return None
+            pieces.append((x, top_y, char))
+            x += 1
+        if x != 9:
+            return None
+    has_red_king = any(piece == "K" for _, _, piece in pieces)
+    has_black_king = any(piece == "k" for _, _, piece in pieces)
+    if not has_red_king or not has_black_king:
+        return None
+    return pieces
+
+
+def read_xqbasic_cache(cache_path):
+    path = Path(cache_path)
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if isinstance(payload, list):
+        return [item for item in payload if fen_to_layout(item)]
+    if isinstance(payload, dict):
+        return [item.get("fen", "") for item in payload.get("items", []) if fen_to_layout(item.get("fen", ""))]
+    return []
+
+
+def fetch_json(url, timeout=15):
+    request = urllib.request.Request(url, headers={"User-Agent": "DmaiHXCAI-YOLO-Trainer/1.0"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8", errors="replace"))
+
+
+def fetch_xqbasic_fens(cache_path, pages=0, limit=0, pause=0.03):
+    cached = read_xqbasic_cache(cache_path)
+    if cached:
+        print(f"Loaded {len(cached)} cached XqBasic FENs from {cache_path}")
+        return cached[:limit] if limit else cached
+
+    first = fetch_json(XQBASIC_POSTS_URL.format(page=1))
+    total_pages = int(first.get("totalPage") or 1)
+    if pages and pages > 0:
+        total_pages = min(total_pages, pages)
+
+    fens = []
+    seen = set()
+
+    def add_items(payload):
+        for item in payload.get("items", []):
+            fen = str(item.get("fen", "")).strip()
+            if fen in seen or not fen_to_layout(fen):
+                continue
+            seen.add(fen)
+            fens.append(fen)
+
+    add_items(first)
+    for page in range(2, total_pages + 1):
+        if limit and len(fens) >= limit:
+            break
+        try:
+            add_items(fetch_json(XQBASIC_POSTS_URL.format(page=page)))
+        except Exception as error:
+            print(f"Warning: failed to fetch XqBasic page {page}: {error}")
+        if page % 50 == 0:
+            print(f"Fetched {page}/{total_pages} XqBasic pages, {len(fens)} FENs")
+        if pause > 0:
+            time.sleep(pause)
+
+    if limit:
+        fens = fens[:limit]
+    path = Path(cache_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(fens, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Cached {len(fens)} XqBasic FENs at {path}")
+    return fens
 
 
 def point_for(top_x, top_y, jitter=0.0):
@@ -242,14 +339,31 @@ def paste_piece(image, piece_image, center, size):
     return x, y, piece.width, piece.height
 
 
-def render_sample(assets, backgrounds):
+def degrade_like_mobile_capture(image):
+    if random.random() < 0.42:
+        scale = random.uniform(0.52, 0.82)
+        small = image.resize((max(16, int(WIDTH * scale)), max(16, int(HEIGHT * scale))), Image.Resampling.BICUBIC)
+        image = small.resize((WIDTH, HEIGHT), Image.Resampling.BICUBIC)
+    if random.random() < 0.4:
+        image = ImageEnhance.Sharpness(image).enhance(random.uniform(0.65, 1.28))
+    if random.random() < 0.45:
+        image = ImageEnhance.Contrast(image.convert("RGB")).enhance(random.uniform(0.82, 1.22)).convert("RGBA")
+    if random.random() < 0.38:
+        image = ImageEnhance.Brightness(image.convert("RGB")).enhance(random.uniform(0.88, 1.16)).convert("RGBA")
+    if random.random() < 0.28:
+        image = ImageEnhance.Color(image.convert("RGB")).enhance(random.uniform(0.85, 1.22)).convert("RGBA")
+    return image
+
+
+def render_sample(assets, backgrounds, layout=None):
     image = board_background(backgrounds)
     labels = []
     jitter = random.uniform(0.0, 3.8)
-    for x, top_y, piece in random_layout():
+    pieces = layout if layout else random_layout()
+    for x, top_y, piece in pieces:
         class_name = PIECE_TO_CLASS[piece]
         asset = random.choice(assets[class_name])
-        size = random.randint(76, 98)
+        size = random.randint(74, 104)
         cx, cy = point_for(x, top_y, jitter=jitter)
         left, top, w, h = paste_piece(image, asset, (cx, cy), size)
         labels.append((CLASS_ID[class_name], (left + w / 2) / WIDTH, (top + h / 2) / HEIGHT, w / WIDTH, h / HEIGHT))
@@ -257,6 +371,7 @@ def render_sample(assets, backgrounds):
         image = image.filter(ImageFilter.GaussianBlur(random.uniform(0.0, 0.45)))
     if random.random() < 0.35:
         image = ImageOps.autocontrast(image.convert("RGB"), cutoff=random.uniform(0, 1.5)).convert("RGBA")
+    image = degrade_like_mobile_capture(image)
     return image.convert("RGB"), labels
 
 
@@ -278,6 +393,11 @@ def main():
     parser.add_argument("--val-ratio", type=float, default=0.1)
     parser.add_argument("--photos", default="")
     parser.add_argument("--seed", type=int, default=703)
+    parser.add_argument("--xqbasic", action="store_true", help="Fetch and mix real puzzle FENs from xqbasic.com")
+    parser.add_argument("--xqbasic-cache", default=str(Path(__file__).resolve().parent / "datasets" / "xqbasic_fens.json"))
+    parser.add_argument("--xqbasic-pages", type=int, default=0, help="0 means all XqBasic pages")
+    parser.add_argument("--xqbasic-limit", type=int, default=0, help="0 means no FEN limit")
+    parser.add_argument("--xqbasic-ratio", type=float, default=0.85)
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -290,12 +410,19 @@ def main():
 
     assets = load_piece_assets()
     backgrounds = load_photo_backgrounds(args.photos)
+    layouts = []
+    if args.xqbasic:
+        fens = fetch_xqbasic_fens(args.xqbasic_cache, pages=args.xqbasic_pages, limit=args.xqbasic_limit)
+        layouts = [layout for layout in (fen_to_layout(fen) for fen in fens) if layout]
+        print(f"Using {len(layouts)} XqBasic layouts")
+
     val_every = max(2, int(1 / max(0.01, min(0.5, args.val_ratio))))
     for index in range(args.count):
         split = "val" if index % val_every == 0 else "train"
-        image, labels = render_sample(assets, backgrounds)
+        layout = random.choice(layouts) if layouts and random.random() < args.xqbasic_ratio else None
+        image, labels = render_sample(assets, backgrounds, layout=layout)
         stem = f"xiangqi_{index:06d}"
-        image.save(output / "images" / split / f"{stem}.jpg", quality=92)
+        image.save(output / "images" / split / f"{stem}.jpg", quality=random.randint(76, 94), optimize=True)
         label_text = "\n".join(
             f"{cls} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}" for cls, cx, cy, w, h in labels
         )
