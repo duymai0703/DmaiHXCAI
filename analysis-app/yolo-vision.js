@@ -36,8 +36,6 @@ const PIECE_MAX_COUNTS = {
   K: 1, A: 2, B: 2, N: 2, R: 2, C: 2, P: 5,
   k: 1, a: 2, b: 2, n: 2, r: 2, c: 2, p: 5
 };
-const YOLO_ALTERNATIVE_MARGIN = 0.13;
-const YOLO_ALTERNATIVE_MIN_CONFIDENCE = 0.2;
 
 let onnxSessionPromise = null;
 
@@ -244,15 +242,15 @@ function decodeYoloOutput(output, layout) {
   const boxes = dims[2];
   const classCount = channels - 4;
   for (let index = 0; index < boxes; index++) {
-    const classScores = [];
+    let bestClass = -1;
+    let bestScore = 0;
     for (let cls = 0; cls < classCount; cls++) {
       const score = Number(data[(4 + cls) * boxes + index]);
-      if (score > 0) classScores.push({ classId: cls, piece: CLASS_TO_PIECE[cls] || "", confidence: score });
+      if (score > bestScore) {
+        bestScore = score;
+        bestClass = cls;
+      }
     }
-    classScores.sort((a, b) => b.confidence - a.confidence);
-    const best = classScores[0] || { classId: -1, piece: "", confidence: 0 };
-    const bestClass = best.classId;
-    const bestScore = best.confidence;
     if (bestClass < 0 || bestScore < confThreshold) continue;
     const cx = Number(data[index]);
     const cy = Number(data[boxes + index]);
@@ -266,9 +264,6 @@ function decodeYoloOutput(output, layout) {
       classId: bestClass,
       piece: CLASS_TO_PIECE[bestClass] || "",
       confidence: bestScore,
-      alternatives: classScores
-        .filter((item) => item.piece && item.confidence >= YOLO_ALTERNATIVE_MIN_CONFIDENCE && item.confidence >= bestScore - YOLO_ALTERNATIVE_MARGIN)
-        .slice(0, 3),
       x1: clampNumber(x1, 0, layout.width),
       y1: clampNumber(y1, 0, layout.height),
       x2: clampNumber(x2, 0, layout.width),
@@ -326,116 +321,34 @@ function mapDetectionsWithGrid(detections, side = "w", layout = {}, grid = {}) {
     const centerY = (detection.y1 + detection.y2) / 2;
     const square = nearestBoardSquare(centerX, centerY, layout, grid);
     if (!square) continue;
+    if (!isLegalPieceSquare(detection.piece, square.x, square.y)) continue;
     const key = `${square.x},${square.y}`;
+    const score = detection.confidence - square.distance * 0.06;
+    const candidate = {
+      x: square.x,
+      y: square.y,
+      piece: detection.piece,
+      confidence: roundConfidence(detection.confidence),
+      score
+    };
     const current = bySquare.get(key) || [];
-    const options = detectionPieceOptions(detection, square);
-    for (const option of options) {
-      if (!isLegalPieceSquare(option.piece, square.x, square.y)) continue;
-      if (option.confidence < minimumConfidenceForDistance(square.distance)) continue;
-      current.push({
-        x: square.x,
-        y: square.y,
-        piece: option.piece,
-        confidence: roundConfidence(option.confidence),
-        distance: square.distance,
-        score: candidateScore(option, square, detection.piece)
-      });
-    }
-    if (current.length) bySquare.set(key, current);
+    current.push(candidate);
+    bySquare.set(key, current);
   }
   const bestBySquare = [...bySquare.values()]
     .map((items) => items.sort((a, b) => b.score - a.score)[0])
     .filter(Boolean);
-  const rawPieces = enforcePieceCounts(bestBySquare)
-    .sort((a, b) => (9 - a.y) - (9 - b.y) || a.x - b.x);
-  const pieces = rawPieces.map(({ score, distance, ...item }) => item);
+  const pieces = enforcePieceCounts(bestBySquare)
+    .sort((a, b) => (9 - a.y) - (9 - b.y) || a.x - b.x)
+    .map(({ score, ...item }) => item);
   for (const item of pieces) board[item.y][item.x] = item.piece;
   const normalizedSide = String(side || "w").toLowerCase() === "b" ? "b" : "w";
   const warnings = [];
   if (pieces.length < 4) warnings.push("YOLO thấy rất ít quân; hãy crop sát bàn hơn nếu thiếu quân.");
   if (pieces.length > 32) warnings.push("YOLO thấy nhiều hơn 32 quân; hãy crop lại bàn cờ.");
   const confidenceSum = pieces.reduce((sum, item) => sum + Number(item.confidence || 0), 0);
-  const distanceSum = rawPieces.reduce((sum, item) => sum + Number(item.distance || 0), 0);
-  const lowConfidencePenalty = rawPieces.reduce((sum, item) => sum + Math.max(0, 0.42 - Number(item.confidence || 0)), 0);
-  const missingKingPenalty = (boardHasPiece(board, "K") ? 0 : 1.35) + (boardHasPiece(board, "k") ? 0 : 1.35);
-  const quality = confidenceSum + pieces.length * 0.72 - distanceSum * 0.34 - lowConfidencePenalty * 1.25 - missingKingPenalty;
+  const quality = pieces.length * 1.8 + confidenceSum;
   return { board, pieces, side: normalizedSide, sideToMove: normalizedSide, warnings, quality };
-}
-
-function detectionPieceOptions(detection, square) {
-  const primary = {
-    piece: detection.piece,
-    confidence: Number(detection.confidence || 0),
-    primary: true
-  };
-  const options = [primary];
-  const alternatives = Array.isArray(detection.alternatives) ? detection.alternatives : [];
-  for (const item of alternatives) {
-    const piece = item.piece;
-    const confidence = Number(item.confidence || 0);
-    if (!piece || piece === detection.piece) continue;
-    if (confidence < primary.confidence - YOLO_ALTERNATIVE_MARGIN) continue;
-    if (!isSameSideConfusion(piece, detection.piece, square.x, square.y)) continue;
-    options.push({ piece, confidence, primary: false });
-  }
-  return options;
-}
-
-function isSameSideConfusion(piece, primaryPiece, x, y) {
-  if (!piece || !primaryPiece) return false;
-  const red = piece === piece.toUpperCase();
-  const primaryRed = primaryPiece === primaryPiece.toUpperCase();
-  if (red !== primaryRed) return false;
-  return isConfusionGroupCandidate(piece.toUpperCase(), primaryPiece.toUpperCase(), x, y);
-}
-
-function isConfusionGroupCandidate(piece, primaryPiece, x, y) {
-  if (piece === primaryPiece) return true;
-  const groups = [
-    ["R", "B", "K"],
-    ["N", "B"],
-    ["P", "N", "B"]
-  ];
-  if (!groups.some((group) => group.includes(piece) && group.includes(primaryPiece))) return false;
-  if (piece === "K" || primaryPiece === "K") return x >= 3 && x <= 5 && (y <= 2 || y >= 7);
-  if (piece === "P" || primaryPiece === "P") return isPawnHomePattern(piece, x, y) || isPawnHomePattern(primaryPiece, x, y);
-  return true;
-}
-
-function minimumConfidenceForDistance(distance) {
-  if (distance > 0.82) return 0.48;
-  if (distance > 0.68) return 0.4;
-  if (distance > 0.54) return 0.32;
-  return 0.24;
-}
-
-function candidateScore(option, square, primaryPiece) {
-  const alternativePenalty = option.primary ? 0 : 0.035;
-  return Number(option.confidence || 0)
-    - Number(square.distance || 0) * 0.22
-    + pieceSquarePrior(option.piece, square.x, square.y)
-    - alternativePenalty
-    + (option.piece === primaryPiece ? 0.012 : 0);
-}
-
-function pieceSquarePrior(piece, x, y) {
-  if (!piece) return 0;
-  if (piece === "K" || piece === "k") return x === 4 ? 0.12 : 0.08;
-  if (piece === "A" || piece === "a") return 0.06;
-  if (piece === "B" || piece === "b") return 0.035;
-  if (piece === "P" || piece === "p") return isPawnHomePattern(piece, x, y) ? 0.04 : -0.015;
-  return 0;
-}
-
-function isPawnHomePattern(piece, x, y) {
-  if (piece === "P") return y === 3 && x % 2 === 0;
-  if (piece === "p") return y === 6 && x % 2 === 0;
-  const normalized = String(piece || "").toUpperCase();
-  return normalized === "P" && x % 2 === 0 && (y === 3 || y === 6);
-}
-
-function boardHasPiece(board, piece) {
-  return board.some((row) => row.includes(piece));
 }
 
 function gridVariants() {
