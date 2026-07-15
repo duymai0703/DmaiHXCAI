@@ -170,7 +170,7 @@ def main():
     parser.add_argument("--model", required=True)
     parser.add_argument("--image", required=True)
     parser.add_argument("--side", default="w", choices=["w", "b"])
-    parser.add_argument("--conf", type=float, default=0.34)
+    parser.add_argument("--conf", type=float, default=0.28)
     parser.add_argument("--imgsz", type=int, default=960)
     parser.add_argument("--inset-x", type=float, default=0.075)
     parser.add_argument("--inset-y", type=float, default=0.0666667)

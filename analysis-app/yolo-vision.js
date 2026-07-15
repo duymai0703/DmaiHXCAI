@@ -148,7 +148,7 @@ async function recognizeYoloXiangqiBoard({ image, imageData, side = "w" }) {
       "--model", modelPath,
       "--image", tempPath,
       "--side", String(side || "w").toLowerCase() === "b" ? "b" : "w",
-      "--conf", String(process.env.XIANGQI_YOLO_CONF || "0.34")
+      "--conf", String(process.env.XIANGQI_YOLO_CONF || "0.28")
     ], Number(process.env.XIANGQI_YOLO_TIMEOUT_MS || 45000));
     const parsed = JSON.parse(stdout);
     if (!Array.isArray(parsed?.board) || !parsed.pieces?.length) throw new Error("VISION_EMPTY_RESULT");
@@ -235,7 +235,7 @@ async function preprocessForYolo(buffer) {
 function decodeYoloOutput(output, layout) {
   const data = output.data;
   const dims = output.dims || [];
-  const confThreshold = Number(process.env.XIANGQI_YOLO_CONF || 0.34);
+  const confThreshold = Number(process.env.XIANGQI_YOLO_CONF || 0.28);
   const raw = [];
   if (dims.length !== 3 || dims[0] !== 1) return raw;
   const channels = dims[1];
@@ -302,12 +302,24 @@ function boxIou(a, b) {
 }
 
 function mapDetectionsToBoard(detections, side = "w", layout = {}) {
+  const variants = gridVariants();
+  let best = null;
+  for (const variant of variants) {
+    const mapped = mapDetectionsWithGrid(detections, side, layout, variant);
+    if (!best || mapped.quality > best.quality) best = mapped;
+  }
+  if (!best) best = mapDetectionsWithGrid(detections, side, layout, variants[0] || {});
+  const { quality, ...payload } = best;
+  return payload;
+}
+
+function mapDetectionsWithGrid(detections, side = "w", layout = {}, grid = {}) {
   const board = Array.from({ length: 10 }, () => Array(9).fill(""));
   const bySquare = new Map();
   for (const detection of detections) {
     const centerX = (detection.x1 + detection.x2) / 2;
     const centerY = (detection.y1 + detection.y2) / 2;
-    const square = nearestBoardSquare(centerX, centerY, layout);
+    const square = nearestBoardSquare(centerX, centerY, layout, grid);
     if (!square) continue;
     if (!isLegalPieceSquare(detection.piece, square.x, square.y)) continue;
     const key = `${square.x},${square.y}`;
@@ -334,7 +346,30 @@ function mapDetectionsToBoard(detections, side = "w", layout = {}) {
   const warnings = [];
   if (pieces.length < 4) warnings.push("YOLO thấy rất ít quân; hãy crop sát bàn hơn nếu thiếu quân.");
   if (pieces.length > 32) warnings.push("YOLO thấy nhiều hơn 32 quân; hãy crop lại bàn cờ.");
-  return { board, pieces, side: normalizedSide, sideToMove: normalizedSide, warnings };
+  const confidenceSum = pieces.reduce((sum, item) => sum + Number(item.confidence || 0), 0);
+  const quality = pieces.length * 1.8 + confidenceSum;
+  return { board, pieces, side: normalizedSide, sideToMove: normalizedSide, warnings, quality };
+}
+
+function gridVariants() {
+  const baseX = Number(process.env.XIANGQI_YOLO_GRID_INSET_X || 0.075);
+  const baseY = Number(process.env.XIANGQI_YOLO_GRID_INSET_Y || 0.0666667);
+  const raw = [
+    { insetX: baseX, insetY: baseY, maxDistance: 0.86 },
+    { insetX: 0, insetY: 0, maxDistance: 0.96 },
+    { insetX: 0.018, insetY: 0.018, maxDistance: 0.94 },
+    { insetX: 0.032, insetY: 0.032, maxDistance: 0.92 },
+    { insetX: 0.048, insetY: 0.045, maxDistance: 0.9 },
+    { insetX: 0.062, insetY: 0.056, maxDistance: 0.88 },
+    { insetX: 0.09, insetY: 0.08, maxDistance: 0.86 }
+  ];
+  const seen = new Set();
+  return raw.filter((item) => {
+    const key = `${item.insetX.toFixed(4)},${item.insetY.toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function enforcePieceCounts(pieces) {
@@ -380,11 +415,12 @@ function isElephantSquare(x, y, black) {
   return allowed.some(([sx, sy]) => sx === x && sy === y);
 }
 
-function nearestBoardSquare(cx, cy, layout = {}) {
+function nearestBoardSquare(cx, cy, layout = {}, grid = {}) {
   const boardWidth = Number(layout.width || CANONICAL_WIDTH);
   const boardHeight = Number(layout.height || CANONICAL_HEIGHT);
-  const insetX = Number(process.env.XIANGQI_YOLO_GRID_INSET_X || 0.075);
-  const insetY = Number(process.env.XIANGQI_YOLO_GRID_INSET_Y || 0.0666667);
+  const insetX = Number.isFinite(Number(grid.insetX)) ? Number(grid.insetX) : Number(process.env.XIANGQI_YOLO_GRID_INSET_X || 0.075);
+  const insetY = Number.isFinite(Number(grid.insetY)) ? Number(grid.insetY) : Number(process.env.XIANGQI_YOLO_GRID_INSET_Y || 0.0666667);
+  const maxDistance = Number.isFinite(Number(grid.maxDistance)) ? Number(grid.maxDistance) : 0.86;
   const gridLeft = boardWidth * insetX;
   const gridTop = boardHeight * insetY;
   const gridWidth = boardWidth * (1 - insetX * 2);
@@ -397,7 +433,7 @@ function nearestBoardSquare(cx, cy, layout = {}) {
   const snappedX = gridLeft + topX * cellX;
   const snappedY = gridTop + topY * cellY;
   const distance = Math.hypot((cx - snappedX) / Math.max(1, cellX), (cy - snappedY) / Math.max(1, cellY));
-  if (distance > 0.68) return null;
+  if (distance > maxDistance) return null;
   return { x: topX, y: 9 - topY, distance };
 }
 

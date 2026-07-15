@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260713-vision-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-yolo-recall-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -2912,7 +2912,13 @@ function croppedVisionDataUrl() {
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+  const padX = crop.width * 0.085;
+  const padY = crop.height * 0.085;
+  const sx = Math.max(0, crop.x - padX);
+  const sy = Math.max(0, crop.y - padY);
+  const ex = Math.min(image.naturalWidth, crop.x + crop.width + padX);
+  const ey = Math.min(image.naturalHeight, crop.y + crop.height + padY);
+  ctx.drawImage(image, sx, sy, ex - sx, ey - sy, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.78);
 }
 
