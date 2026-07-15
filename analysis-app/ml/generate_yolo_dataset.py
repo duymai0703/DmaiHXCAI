@@ -339,6 +339,57 @@ def hard_confusion_layout():
     return pieces
 
 
+def hard_recall_layout():
+    occupied = set()
+    pieces = []
+
+    def place_app(x, y, piece):
+        top_y = 9 - y
+        if (x, top_y) in occupied:
+            return False
+        occupied.add((x, top_y))
+        pieces.append((x, top_y, piece))
+        return True
+
+    # Always keep both kings legal, then pack the visually busy central files.
+    place_app(4, random.choice([0, 1, 2]), "K")
+    place_app(4, random.choice([7, 8, 9]), "k")
+
+    center_squares = [
+        (2, 3), (4, 3), (6, 3),
+        (1, 4), (3, 4), (5, 4), (7, 4),
+        (1, 5), (3, 5), (5, 5), (7, 5),
+        (2, 6), (4, 6), (6, 6),
+    ]
+    random.shuffle(center_squares)
+    recall_order = ["R", "C", "N", "P", "r", "c", "n", "p", "R", "C", "N", "P", "r", "c"]
+    for square, piece in zip(center_squares, recall_order):
+        place_app(square[0], square[1], piece)
+
+    for x, y, piece in random.sample([
+        (3, 0, "A"), (5, 0, "A"), (4, 1, "A"), (3, 2, "A"), (5, 2, "A"),
+        (2, 0, "B"), (6, 0, "B"), (0, 2, "B"), (4, 2, "B"), (8, 2, "B"), (2, 4, "B"), (6, 4, "B"),
+        (3, 9, "a"), (5, 9, "a"), (4, 8, "a"), (3, 7, "a"), (5, 7, "a"),
+        (2, 9, "b"), (6, 9, "b"), (0, 7, "b"), (4, 7, "b"), (8, 7, "b"), (2, 5, "b"), (6, 5, "b"),
+    ], 10):
+        place_app(x, y, piece)
+
+    legal_home = [
+        (0, 0, "R"), (1, 0, "N"), (2, 0, "B"), (3, 0, "A"), (5, 0, "A"), (6, 0, "B"), (7, 0, "N"), (8, 0, "R"),
+        (1, 2, "C"), (7, 2, "C"), (0, 3, "P"), (2, 3, "P"), (4, 3, "P"), (6, 3, "P"), (8, 3, "P"),
+        (0, 9, "r"), (1, 9, "n"), (2, 9, "b"), (3, 9, "a"), (5, 9, "a"), (6, 9, "b"), (7, 9, "n"), (8, 9, "r"),
+        (1, 7, "c"), (7, 7, "c"), (0, 6, "p"), (2, 6, "p"), (4, 6, "p"), (6, 6, "p"), (8, 6, "p"),
+    ]
+    random.shuffle(legal_home)
+    target_count = random.randint(22, 32)
+    for x, y, piece in legal_home:
+        if len(pieces) >= target_count:
+            break
+        place_app(x, y, piece)
+
+    return pieces
+
+
 def board_background(backgrounds):
     if backgrounds and random.random() < 0.28:
         src = random.choice(backgrounds).copy()
@@ -460,6 +511,7 @@ def main():
     parser.add_argument("--xqbasic-limit", type=int, default=0, help="0 means no FEN limit")
     parser.add_argument("--xqbasic-ratio", type=float, default=0.85)
     parser.add_argument("--hard-red-ratio", type=float, default=0.0, help="Oversample red rook/elephant/king and knight/elephant confusion cases")
+    parser.add_argument("--hard-recall-ratio", type=float, default=0.0, help="Oversample dense central boards to reduce missing pieces after crop recognition")
     parser.add_argument("--empty-ratio", type=float, default=0.0, help="Generate empty-board hard negatives to reduce false positive pieces")
     args = parser.parse_args()
 
@@ -484,6 +536,8 @@ def main():
         split = "val" if index % val_every == 0 else "train"
         if random.random() < max(0.0, min(1.0, args.empty_ratio)):
             layout = []
+        elif random.random() < max(0.0, min(1.0, args.hard_recall_ratio)):
+            layout = hard_recall_layout()
         elif random.random() < max(0.0, min(1.0, args.hard_red_ratio)):
             layout = hard_confusion_layout()
         else:
