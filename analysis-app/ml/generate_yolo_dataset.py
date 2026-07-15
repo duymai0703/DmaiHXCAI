@@ -278,6 +278,67 @@ def random_layout():
     return pieces
 
 
+def hard_confusion_layout():
+    occupied = set()
+    pieces = []
+
+    def place_app(x, y, piece):
+        top_y = 9 - y
+        if (x, top_y) in occupied:
+            return False
+        occupied.add((x, top_y))
+        pieces.append((x, top_y, piece))
+        return True
+
+    # Keep both kings legal while oversampling glyphs that are visually close
+    # in compressed mobile screenshots: red R/B/K and N/B on both sides.
+    place_app(random.randint(3, 5), random.choice([0, 1, 2]), "K")
+    place_app(random.randint(3, 5), random.choice([7, 8, 9]), "k")
+
+    red_elephant_squares = [(2, 0), (6, 0), (0, 2), (4, 2), (8, 2), (2, 4), (6, 4)]
+    black_elephant_squares = [(2, 9), (6, 9), (0, 7), (4, 7), (8, 7), (2, 5), (6, 5)]
+    red_rook_squares = [(0, 0), (8, 0), (0, 1), (8, 1), (1, 3), (7, 3), (0, 4), (8, 4)]
+    red_knight_squares = [(1, 0), (7, 0), (2, 2), (6, 2), (1, 4), (7, 4), (3, 5), (5, 5)]
+    black_knight_squares = [(1, 9), (7, 9), (2, 7), (6, 7), (1, 5), (7, 5), (3, 4), (5, 4)]
+    black_pawn_squares = [(x, y) for y in range(0, 7) for x in range(9) if y <= 4 or x % 2 == 0]
+    random.shuffle(red_elephant_squares)
+    random.shuffle(black_elephant_squares)
+    random.shuffle(red_rook_squares)
+    random.shuffle(red_knight_squares)
+    random.shuffle(black_knight_squares)
+    random.shuffle(black_pawn_squares)
+
+    target_order = ["R", "B", "N", "R", "B", "N", "b", "n", "b", "n"]
+    for piece in target_order:
+        if piece == "R":
+            candidates = red_rook_squares
+        elif piece == "B":
+            candidates = red_elephant_squares
+        elif piece == "N":
+            candidates = red_knight_squares
+        elif piece == "b":
+            candidates = black_elephant_squares
+        else:
+            candidates = black_knight_squares
+        for x, y in candidates:
+            if place_app(x, y, piece):
+                break
+
+    for x, y in black_pawn_squares[:random.randint(2, 5)]:
+        place_app(x, y, "p")
+
+    filler = ["A", "C", "P", "r", "c", "a"]
+    for _ in range(random.randint(8, 20)):
+        for _attempt in range(60):
+            x = random.randint(0, 8)
+            y = random.randint(0, 9)
+            if (x, 9 - y) in occupied:
+                continue
+            place_app(x, y, random.choice(filler))
+            break
+    return pieces
+
+
 def board_background(backgrounds):
     if backgrounds and random.random() < 0.28:
         src = random.choice(backgrounds).copy()
@@ -359,7 +420,7 @@ def render_sample(assets, backgrounds, layout=None):
     image = board_background(backgrounds)
     labels = []
     jitter = random.uniform(0.0, 3.8)
-    pieces = layout if layout else random_layout()
+    pieces = layout if layout is not None else random_layout()
     for x, top_y, piece in pieces:
         class_name = PIECE_TO_CLASS[piece]
         asset = random.choice(assets[class_name])
@@ -398,6 +459,8 @@ def main():
     parser.add_argument("--xqbasic-pages", type=int, default=0, help="0 means all XqBasic pages")
     parser.add_argument("--xqbasic-limit", type=int, default=0, help="0 means no FEN limit")
     parser.add_argument("--xqbasic-ratio", type=float, default=0.85)
+    parser.add_argument("--hard-red-ratio", type=float, default=0.0, help="Oversample red rook/elephant/king and knight/elephant confusion cases")
+    parser.add_argument("--empty-ratio", type=float, default=0.0, help="Generate empty-board hard negatives to reduce false positive pieces")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -419,7 +482,12 @@ def main():
     val_every = max(2, int(1 / max(0.01, min(0.5, args.val_ratio))))
     for index in range(args.count):
         split = "val" if index % val_every == 0 else "train"
-        layout = random.choice(layouts) if layouts and random.random() < args.xqbasic_ratio else None
+        if random.random() < max(0.0, min(1.0, args.empty_ratio)):
+            layout = []
+        elif random.random() < max(0.0, min(1.0, args.hard_red_ratio)):
+            layout = hard_confusion_layout()
+        else:
+            layout = random.choice(layouts) if layouts and random.random() < args.xqbasic_ratio else None
         image, labels = render_sample(assets, backgrounds, layout=layout)
         stem = f"xiangqi_{index:06d}"
         image.save(output / "images" / split / f"{stem}.jpg", quality=random.randint(76, 94), optimize=True)

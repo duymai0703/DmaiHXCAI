@@ -32,6 +32,10 @@ const CLASS_TO_PIECE = [
   "K", "A", "B", "N", "R", "C", "P",
   "k", "a", "b", "n", "r", "c", "p"
 ];
+const PIECE_MAX_COUNTS = {
+  K: 1, A: 2, B: 2, N: 2, R: 2, C: 2, P: 5,
+  k: 1, a: 2, b: 2, n: 2, r: 2, c: 2, p: 5
+};
 
 let onnxSessionPromise = null;
 
@@ -305,19 +309,24 @@ function mapDetectionsToBoard(detections, side = "w", layout = {}) {
     const centerY = (detection.y1 + detection.y2) / 2;
     const square = nearestBoardSquare(centerX, centerY, layout);
     if (!square) continue;
+    if (!isLegalPieceSquare(detection.piece, square.x, square.y)) continue;
     const key = `${square.x},${square.y}`;
     const score = detection.confidence - square.distance * 0.06;
-    const current = bySquare.get(key);
-    if (current && current.score >= score) continue;
-    bySquare.set(key, {
+    const candidate = {
       x: square.x,
       y: square.y,
       piece: detection.piece,
       confidence: roundConfidence(detection.confidence),
       score
-    });
+    };
+    const current = bySquare.get(key) || [];
+    current.push(candidate);
+    bySquare.set(key, current);
   }
-  const pieces = [...bySquare.values()]
+  const bestBySquare = [...bySquare.values()]
+    .map((items) => items.sort((a, b) => b.score - a.score)[0])
+    .filter(Boolean);
+  const pieces = enforcePieceCounts(bestBySquare)
     .sort((a, b) => (9 - a.y) - (9 - b.y) || a.x - b.x)
     .map(({ score, ...item }) => item);
   for (const item of pieces) board[item.y][item.x] = item.piece;
@@ -326,6 +335,49 @@ function mapDetectionsToBoard(detections, side = "w", layout = {}) {
   if (pieces.length < 4) warnings.push("YOLO thấy rất ít quân; hãy crop sát bàn hơn nếu thiếu quân.");
   if (pieces.length > 32) warnings.push("YOLO thấy nhiều hơn 32 quân; hãy crop lại bàn cờ.");
   return { board, pieces, side: normalizedSide, sideToMove: normalizedSide, warnings };
+}
+
+function enforcePieceCounts(pieces) {
+  const grouped = new Map();
+  for (const item of pieces) {
+    const list = grouped.get(item.piece) || [];
+    list.push(item);
+    grouped.set(item.piece, list);
+  }
+  const kept = [];
+  for (const [piece, list] of grouped) {
+    const limit = PIECE_MAX_COUNTS[piece] || list.length;
+    list.sort((a, b) => b.score - a.score);
+    kept.push(...list.slice(0, limit));
+  }
+  return kept;
+}
+
+function isLegalPieceSquare(piece, x, y) {
+  if (!piece) return false;
+  if (piece === "K") return x >= 3 && x <= 5 && y >= 0 && y <= 2;
+  if (piece === "k") return x >= 3 && x <= 5 && y >= 7 && y <= 9;
+  if (piece === "A") return isAdvisorSquare(x, y, false);
+  if (piece === "a") return isAdvisorSquare(x, y, true);
+  if (piece === "B") return isElephantSquare(x, y, false);
+  if (piece === "b") return isElephantSquare(x, y, true);
+  if (piece === "P") return y >= 3 && (y >= 5 || x % 2 === 0);
+  if (piece === "p") return y <= 6 && (y <= 4 || x % 2 === 0);
+  return x >= 0 && x <= 8 && y >= 0 && y <= 9;
+}
+
+function isAdvisorSquare(x, y, black) {
+  const allowed = black
+    ? [[3, 9], [5, 9], [4, 8], [3, 7], [5, 7]]
+    : [[3, 0], [5, 0], [4, 1], [3, 2], [5, 2]];
+  return allowed.some(([sx, sy]) => sx === x && sy === y);
+}
+
+function isElephantSquare(x, y, black) {
+  const allowed = black
+    ? [[2, 9], [6, 9], [0, 7], [4, 7], [8, 7], [2, 5], [6, 5]]
+    : [[2, 0], [6, 0], [0, 2], [4, 2], [8, 2], [2, 4], [6, 4]];
+  return allowed.some(([sx, sy]) => sx === x && sy === y);
 }
 
 function nearestBoardSquare(cx, cy, layout = {}) {
