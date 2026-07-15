@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-crop-match-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-clipboard-vision-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -250,8 +250,8 @@ const mobileSetupClearBtn = document.getElementById("mobileSetupClearBtn");
 const mobileSetupCancelBtn = document.getElementById("mobileSetupCancelBtn");
 const mobileSetupRecognizeBtn = document.getElementById("mobileSetupRecognizeBtn");
 const recognizeImageBtn = document.getElementById("recognizeImageBtn");
-const pasteImageBtn = ensurePasteImageButton();
-const visionQuotaBadgeEl = ensureVisionQuotaBadge();
+const visionQuotaBadgeEl = ensureVisionQuotaBadge(recognizeImageBtn, "visionQuotaBadge");
+const mobileVisionQuotaBadgeEl = ensureVisionQuotaBadge(mobileSetupRecognizeBtn, "mobileVisionQuotaBadge");
 const boardImageInputEl = document.getElementById("boardImageInput");
 const visionModalEl = document.getElementById("visionModal");
 const visionCropCanvasEl = document.getElementById("visionCropCanvas");
@@ -259,6 +259,8 @@ const visionStatusEl = document.getElementById("visionStatus");
 const visionCloseBtn = document.getElementById("visionCloseBtn");
 const visionCancelBtn = document.getElementById("visionCancelBtn");
 const visionRecognizeBtn = document.getElementById("visionRecognizeBtn");
+const visionZoomOutBtn = document.getElementById("visionZoomOutBtn");
+const visionZoomInBtn = document.getElementById("visionZoomInBtn");
 const visionResetCropBtn = document.getElementById("visionResetCropBtn");
 const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
 const assetPreloadTextEl = document.getElementById("assetPreloadText");
@@ -277,31 +279,17 @@ const accessNameInputEl = document.getElementById("accessNameInput");
 const accessKeyMessageEl = document.getElementById("accessKeyMessage");
 let pendingAnalysisAccessKey = "";
 
-function ensureVisionQuotaBadge() {
-  let badge = document.getElementById("visionQuotaBadge");
+function ensureVisionQuotaBadge(button, id) {
+  let badge = document.getElementById(id);
   if (badge) return badge;
-  if (!recognizeImageBtn) return null;
-  recognizeImageBtn.classList.add("vision-entry-btn");
+  if (!button) return null;
+  button.classList.add("vision-entry-btn");
   badge = document.createElement("span");
-  badge.id = "visionQuotaBadge";
+  badge.id = id;
   badge.className = "vision-quota-badge";
   badge.textContent = "10";
-  recognizeImageBtn.appendChild(badge);
+  button.appendChild(badge);
   return badge;
-}
-
-function ensurePasteImageButton() {
-  let button = document.getElementById("pasteImageBtn");
-  if (button) return button;
-  if (!recognizeImageBtn?.parentElement) return null;
-  button = document.createElement("button");
-  button.id = "pasteImageBtn";
-  button.type = "button";
-  button.textContent = "D\u00e1n \u1ea3nh";
-  button.setAttribute("aria-label", "D\u00e1n \u1ea3nh t\u1eeb clipboard");
-  button.title = "D\u00e1n \u1ea3nh t\u1eeb clipboard";
-  recognizeImageBtn.parentElement.appendChild(button);
-  return button;
 }
 
 setupThemeControls();
@@ -333,12 +321,13 @@ if (mobileSetupSaveBtn) mobileSetupSaveBtn.addEventListener("click", saveMobileS
 if (mobileSetupClearBtn) mobileSetupClearBtn.addEventListener("click", clearMobileSetupBoard);
 if (mobileSetupCancelBtn) mobileSetupCancelBtn.addEventListener("click", cancelMobileSetup);
 if (mobileSetupRecognizeBtn) mobileSetupRecognizeBtn.addEventListener("click", openBoardImagePicker);
-if (recognizeImageBtn) recognizeImageBtn.addEventListener("click", openBoardImagePicker);
-if (pasteImageBtn) pasteImageBtn.addEventListener("click", pasteBoardImageFromClipboard);
+if (recognizeImageBtn) recognizeImageBtn.addEventListener("click", openBoardImageFromClipboard);
 if (boardImageInputEl) boardImageInputEl.addEventListener("change", onBoardImageSelected);
 if (visionCloseBtn) visionCloseBtn.addEventListener("click", closeVisionModal);
 if (visionCancelBtn) visionCancelBtn.addEventListener("click", closeVisionModal);
 if (visionRecognizeBtn) visionRecognizeBtn.addEventListener("click", recognizeCroppedBoardImage);
+if (visionZoomOutBtn) visionZoomOutBtn.addEventListener("click", () => resizeVisionCrop(0.88));
+if (visionZoomInBtn) visionZoomInBtn.addEventListener("click", () => resizeVisionCrop(1.12));
 if (visionResetCropBtn) visionResetCropBtn.addEventListener("click", resetVisionCrop);
 if (visionCropCanvasEl) {
   visionCropCanvasEl.addEventListener("pointerdown", onVisionCropPointerDown);
@@ -1215,11 +1204,12 @@ function storeAuthUser(user) {
 function updateVisionQuotaBadge() {
   const quota = normalizeVisionQuota(state.visionQuota);
   const remaining = Math.max(0, Math.min(quota.limit, quota.remaining));
-  if (visionQuotaBadgeEl) {
-    visionQuotaBadgeEl.textContent = String(remaining);
-    visionQuotaBadgeEl.dataset.empty = remaining <= 0 ? "true" : "false";
-  }
-  [recognizeImageBtn, mobileSetupRecognizeBtn, pasteImageBtn].forEach((button) => {
+  [visionQuotaBadgeEl, mobileVisionQuotaBadgeEl].forEach((badge) => {
+    if (!badge) return;
+    badge.textContent = String(remaining);
+    badge.dataset.empty = remaining <= 0 ? "true" : "false";
+  });
+  [recognizeImageBtn, mobileSetupRecognizeBtn].forEach((button) => {
     if (button) button.disabled = state.visionBusy || remaining <= 0;
   });
 }
@@ -2754,6 +2744,11 @@ function hasVisionQuotaRemaining() {
   return normalizeVisionQuota(state.visionQuota).remaining > 0;
 }
 
+async function openBoardImageFromClipboard() {
+  const pasted = await pasteBoardImageFromClipboard();
+  if (pasted === false) showToast("Clipboard chưa có ảnh bàn cờ. Hãy copy hoặc chụp màn hình rồi bấm lại.");
+}
+
 function openBoardImagePicker() {
   if (!hasVisionQuotaRemaining()) {
     showToast("Tai khoan nay da het 10 luot nhan dien hom nay.");
@@ -2795,11 +2790,11 @@ function onBoardImageSelected(event) {
 async function pasteBoardImageFromClipboard() {
   if (!hasVisionQuotaRemaining()) {
     showToast("Tai khoan nay da het 10 luot nhan dien hom nay.");
-    return;
+    return null;
   }
   if (!navigator.clipboard?.read) {
     showToast("Trinh duyet nay chua ho tro dan anh tu clipboard.");
-    return;
+    return null;
   }
   try {
     const items = await navigator.clipboard.read();
@@ -2823,11 +2818,12 @@ async function pasteBoardImageFromClipboard() {
         showToast("Khong doc duoc anh trong clipboard.");
       };
       image.src = url;
-      return;
+      return true;
     }
-    showToast("Bo nho tam khong co anh.");
+    return false;
   } catch (error) {
     showToast(error?.message || "Khong the dan anh tu clipboard.");
+    return null;
   }
 }
 
@@ -2853,7 +2849,7 @@ function setVisionStatus(message, tone = "") {
 
 function setVisionBusy(busy) {
   state.visionBusy = Boolean(busy);
-  [visionRecognizeBtn, visionResetCropBtn, visionCancelBtn, visionCloseBtn].forEach((button) => {
+  [visionRecognizeBtn, visionZoomOutBtn, visionZoomInBtn, visionResetCropBtn, visionCancelBtn, visionCloseBtn].forEach((button) => {
     if (button) button.disabled = state.visionBusy;
   });
   if (visionRecognizeBtn) visionRecognizeBtn.textContent = state.visionBusy ? "Đang nhận diện..." : "Nhận diện";
@@ -2877,6 +2873,25 @@ function resetVisionCrop(redraw = true) {
     height
   });
   if (redraw) drawVisionCrop();
+}
+
+function resizeVisionCrop(factor) {
+  const image = state.visionImage;
+  const crop = state.visionCrop;
+  if (!image || !crop || state.visionBusy) return;
+  const centerX = crop.x + crop.width / 2;
+  const centerY = crop.y + crop.height / 2;
+  const minWidth = Math.max(90, image.naturalWidth * 0.12);
+  const minHeight = Math.max(100, image.naturalHeight * 0.12);
+  const width = Math.max(minWidth, Math.min(image.naturalWidth, crop.width * factor));
+  const height = Math.max(minHeight, Math.min(image.naturalHeight, crop.height * factor));
+  state.visionCrop = clampVisionCrop({
+    x: centerX - width / 2,
+    y: centerY - height / 2,
+    width,
+    height
+  });
+  drawVisionCrop();
 }
 
 function clampVisionCrop(crop) {
