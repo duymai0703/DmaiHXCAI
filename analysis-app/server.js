@@ -1949,7 +1949,7 @@ function consumeVisionQuota(user) {
     limit: VISION_DAILY_LIMIT,
     used: usage.count,
     remaining: Math.max(0, VISION_DAILY_LIMIT - usage.count),
-    date: today
+    date: usage.date
   };
 }
 
