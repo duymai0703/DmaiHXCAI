@@ -65,18 +65,14 @@ const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCE
 const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
 const DEVICE_AVATAR_PATH_LIST = [
-  "/assets/device-avatars/goku.png",
-  "/assets/device-avatars/vegeta.png",
-  "/assets/device-avatars/naruto.png",
-  "/assets/device-avatars/luffy.png",
-  "/assets/device-avatars/ichigo.png",
-  "/assets/device-avatars/gojo.png",
-  "/assets/device-avatars/sungjinwoo.png",
-  "/assets/device-avatars/Yugi.png",
-  "/assets/device-avatars/Kaiba.png",
-  "/assets/device-avatars/Eren.png",
-  "/assets/device-avatars/Siesta.png",
-  "/assets/device-avatars/Meliodas.png"
+  "/assets/device-avatars/tv1.png",
+  "/assets/device-avatars/tv2.png",
+  "/assets/device-avatars/tv3.png",
+  "/assets/device-avatars/tv4.png",
+  "/assets/device-avatars/tv5.png",
+  "/assets/device-avatars/tv6.png",
+  "/assets/device-avatars/tv7.png",
+  "/assets/device-avatars/tv8.png"
 ];
 const DEVICE_AVATAR_PATHS = new Set(DEVICE_AVATAR_PATH_LIST);
 const BOT_PLAYERS = [
@@ -1254,7 +1250,7 @@ function createLicenseUser(license, customerName = "") {
 }
 
 function defaultSystemAvatar() {
-  return "/assets/device-avatars/goku.png";
+  return "/assets/device-avatars/tv1.png";
 }
 
 function ensureLicenseUser(license, customerName = "") {
@@ -1925,16 +1921,28 @@ function requireAdmin(req) {
   return user;
 }
 
-function consumeVisionQuota(user) {
+function visionQuotaStatus(user) {
   if (!user || isAdminUser(user)) {
     return { limit: VISION_DAILY_LIMIT, used: 0, remaining: VISION_DAILY_LIMIT, date: vietnamDateKey() };
   }
   const today = vietnamDateKey();
   const previous = user.visionUsage && typeof user.visionUsage === "object" ? user.visionUsage : {};
-  const usage = previous.date === today
-    ? { date: today, count: Math.max(0, Number(previous.count || 0)) }
-    : { date: today, count: 0 };
-  if (usage.count >= VISION_DAILY_LIMIT) throw new Error("VISION_DAILY_LIMIT");
+  const count = previous.date === today ? Math.max(0, Number(previous.count || 0)) : 0;
+  return {
+    limit: VISION_DAILY_LIMIT,
+    used: Math.min(VISION_DAILY_LIMIT, count),
+    remaining: Math.max(0, VISION_DAILY_LIMIT - count),
+    date: today
+  };
+}
+
+function consumeVisionQuota(user) {
+  if (!user || isAdminUser(user)) {
+    return visionQuotaStatus(user);
+  }
+  const current = visionQuotaStatus(user);
+  if (current.remaining <= 0) throw new Error("VISION_DAILY_LIMIT");
+  const usage = { date: current.date, count: current.used };
   usage.count += 1;
   user.visionUsage = usage;
   return {
@@ -2023,6 +2031,7 @@ function publicUser(user) {
     license: license ? publicLicense(license) : null,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
+    visionQuota: visionQuotaStatus(user),
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
   };
 }

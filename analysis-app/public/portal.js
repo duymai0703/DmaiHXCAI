@@ -15,8 +15,8 @@
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
-  const DEVICE_AVATAR_VERSION = "20260710-v4";
-  const ASSET_WARMUP_VERSION = "20260715-yolo-recall-v1";
+  const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
+  const ASSET_WARMUP_VERSION = "20260715-avatar-vision-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -27,18 +27,14 @@
   };
   const START_FEN = XiangqiCore.START_FEN;
   const DEVICE_AVATARS = [
-    "/assets/device-avatars/goku.png",
-    "/assets/device-avatars/vegeta.png",
-    "/assets/device-avatars/naruto.png",
-    "/assets/device-avatars/luffy.png",
-    "/assets/device-avatars/ichigo.png",
-    "/assets/device-avatars/gojo.png",
-    "/assets/device-avatars/sungjinwoo.png",
-    "/assets/device-avatars/Yugi.png",
-    "/assets/device-avatars/Kaiba.png",
-    "/assets/device-avatars/Eren.png",
-    "/assets/device-avatars/Siesta.png",
-    "/assets/device-avatars/Meliodas.png"
+    "/assets/device-avatars/tv1.png",
+    "/assets/device-avatars/tv2.png",
+    "/assets/device-avatars/tv3.png",
+    "/assets/device-avatars/tv4.png",
+    "/assets/device-avatars/tv5.png",
+    "/assets/device-avatars/tv6.png",
+    "/assets/device-avatars/tv7.png",
+    "/assets/device-avatars/tv8.png"
   ];
   const PIECE_IMAGES = {
     R: "assets/pieces/red-rook.png",
@@ -109,8 +105,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260715-yolo-recall-v1",
-    "/app.js?v=20260715-yolo-recall-v1",
+    "/styles.css?v=20260715-avatar-vision-v1",
+    "/app.js?v=20260715-avatar-vision-v1",
     "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
     "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",

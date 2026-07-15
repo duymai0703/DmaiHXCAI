@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-yolo-recall-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-avatar-vision-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -174,6 +174,7 @@ const state = {
   visionCropDrag: null,
   visionCanvasLayout: null,
   visionBusy: false,
+  visionQuota: { limit: 10, used: 0, remaining: 10, date: "" },
   editorPiece: "R",
   resizeTimer: null,
   lastBoardSizeKey: "",
@@ -249,6 +250,8 @@ const mobileSetupClearBtn = document.getElementById("mobileSetupClearBtn");
 const mobileSetupCancelBtn = document.getElementById("mobileSetupCancelBtn");
 const mobileSetupRecognizeBtn = document.getElementById("mobileSetupRecognizeBtn");
 const recognizeImageBtn = document.getElementById("recognizeImageBtn");
+const pasteImageBtn = ensurePasteImageButton();
+const visionQuotaBadgeEl = ensureVisionQuotaBadge();
 const boardImageInputEl = document.getElementById("boardImageInput");
 const visionModalEl = document.getElementById("visionModal");
 const visionCropCanvasEl = document.getElementById("visionCropCanvas");
@@ -275,6 +278,33 @@ const accessKeyInputEl = document.getElementById("accessKeyInput");
 const accessNameInputEl = document.getElementById("accessNameInput");
 const accessKeyMessageEl = document.getElementById("accessKeyMessage");
 let pendingAnalysisAccessKey = "";
+
+function ensureVisionQuotaBadge() {
+  let badge = document.getElementById("visionQuotaBadge");
+  if (badge) return badge;
+  if (!recognizeImageBtn) return null;
+  recognizeImageBtn.classList.add("vision-entry-btn");
+  badge = document.createElement("span");
+  badge.id = "visionQuotaBadge";
+  badge.className = "vision-quota-badge";
+  badge.textContent = "10";
+  recognizeImageBtn.appendChild(badge);
+  return badge;
+}
+
+function ensurePasteImageButton() {
+  let button = document.getElementById("pasteImageBtn");
+  if (button) return button;
+  if (!recognizeImageBtn?.parentElement) return null;
+  button = document.createElement("button");
+  button.id = "pasteImageBtn";
+  button.type = "button";
+  button.textContent = "D\u00e1n \u1ea3nh";
+  button.setAttribute("aria-label", "D\u00e1n \u1ea3nh t\u1eeb clipboard");
+  button.title = "D\u00e1n \u1ea3nh t\u1eeb clipboard";
+  recognizeImageBtn.parentElement.appendChild(button);
+  return button;
+}
 
 setupThemeControls();
 setupBoardSkinControls();
@@ -306,6 +336,7 @@ if (mobileSetupClearBtn) mobileSetupClearBtn.addEventListener("click", clearMobi
 if (mobileSetupCancelBtn) mobileSetupCancelBtn.addEventListener("click", cancelMobileSetup);
 if (mobileSetupRecognizeBtn) mobileSetupRecognizeBtn.addEventListener("click", openBoardImagePicker);
 if (recognizeImageBtn) recognizeImageBtn.addEventListener("click", openBoardImagePicker);
+if (pasteImageBtn) pasteImageBtn.addEventListener("click", pasteBoardImageFromClipboard);
 if (boardImageInputEl) boardImageInputEl.addEventListener("change", onBoardImageSelected);
 if (visionCloseBtn) visionCloseBtn.addEventListener("click", closeVisionModal);
 if (visionCancelBtn) visionCancelBtn.addEventListener("click", closeVisionModal);
@@ -1147,6 +1178,7 @@ async function init() {
   renderMobileSetupPalette();
   renderMobilePanelState();
   updateEditorUi();
+  updateVisionQuotaBadge();
   wakeBackend();
   void assetWarmupPromise.catch(() => {});
   draw();
@@ -1161,6 +1193,41 @@ function startAnalysisAfterAccess() {
   void refreshStatus().catch(() => {});
 }
 
+function normalizeVisionQuota(quota) {
+  const limit = Math.max(0, Number(quota?.limit ?? 10) || 10);
+  const used = Math.max(0, Number(quota?.used ?? 0) || 0);
+  const remaining = Math.max(0, Number(quota?.remaining ?? Math.max(0, limit - used)) || 0);
+  return {
+    limit,
+    used: Math.min(limit, used),
+    remaining: Math.min(limit, remaining),
+    date: String(quota?.date || "")
+  };
+}
+
+function setVisionQuota(quota) {
+  state.visionQuota = normalizeVisionQuota(quota);
+  updateVisionQuotaBadge();
+}
+
+function storeAuthUser(user) {
+  if (!user) return;
+  writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(user));
+  setVisionQuota(user.visionQuota);
+}
+
+function updateVisionQuotaBadge() {
+  const quota = normalizeVisionQuota(state.visionQuota);
+  const remaining = Math.max(0, Math.min(quota.limit, quota.remaining));
+  if (visionQuotaBadgeEl) {
+    visionQuotaBadgeEl.textContent = String(remaining);
+    visionQuotaBadgeEl.dataset.empty = remaining <= 0 ? "true" : "false";
+  }
+  [recognizeImageBtn, mobileSetupRecognizeBtn, pasteImageBtn].forEach((button) => {
+    if (button) button.disabled = state.visionBusy || remaining <= 0;
+  });
+}
+
 async function ensureAnalysisAccess() {
   const token = readStorage(AUTH_TOKEN_STORAGE_KEY) || readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   if (!token) {
@@ -1172,7 +1239,7 @@ async function ensureAnalysisAccess() {
   try {
     const payload = await api("/api/auth/me");
     if (payload.token) writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token);
-    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    storeAuthUser(payload.user);
     hideAccessGate();
     return true;
   } catch (error) {
@@ -1191,7 +1258,7 @@ async function restoreAnalysisSessionFromStoredKey() {
   try {
     const payload = await api("/api/license/activate", { key, deviceId: authDeviceId }, { suppressSessionReplaced: true });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
-    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    storeAuthUser(payload.user);
     hideAccessGate();
     return true;
   } catch {
@@ -1238,7 +1305,7 @@ async function onAnalysisAccessKeySubmit(event) {
     const payload = await api("/api/license/activate", { key, deviceId: authDeviceId });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
     writeStorage(AUTH_ACCESS_KEY_STORAGE_KEY, key);
-    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    storeAuthUser(payload.user);
     if (accessKeyInputEl) accessKeyInputEl.value = "";
     if (accessNameInputEl) accessNameInputEl.value = "";
     startAnalysisAfterAccess();
@@ -1261,7 +1328,7 @@ async function onAnalysisAccessKeySubmit(event) {
       if (checked.admin) {
         const payload = await api("/api/license/activate", { key });
         writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
-        if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+        storeAuthUser(payload.user);
         if (accessKeyInputEl) accessKeyInputEl.value = "";
         hideAccessGate();
         showToast("Đã mở trang quản trị.");
@@ -1292,7 +1359,7 @@ async function onAnalysisAccessKeySubmit(event) {
   try {
     const payload = await api("/api/license/activate", { key, customerName });
     writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
-    if (payload.user) writeStorage(AUTH_USER_STORAGE_KEY, JSON.stringify(payload.user));
+    storeAuthUser(payload.user);
     if (accessKeyInputEl) accessKeyInputEl.value = "";
     if (accessNameInputEl) accessNameInputEl.value = "";
     startAnalysisAfterAccess();
@@ -2477,8 +2544,18 @@ function reset() {
   cancelScheduledAnalysisRefresh();
   clearMoveAnimation();
   clearCheckmateEffectKey();
+  stopAutoPlay();
+  stopScoreAnimation();
+  state.baseBoard = parseFen(START_FEN);
+  state.baseSide = "w";
   state.moves = [];
   state.cursor = 0;
+  state.board = parseFen(START_FEN);
+  state.side = "w";
+  if (sideToMoveEl) sideToMoveEl.value = "w";
+  if (mobileSetupSideEl) mobileSetupSideEl.value = "w";
+  state.editMode = false;
+  state.mobileSetupMode = false;
   rebuildPosition({ immediateDraw: true, analysisDelay: 0 });
 }
 
@@ -2677,7 +2754,15 @@ function saveMobileSetupPosition() {
   showToast("Đã lưu hình cờ");
 }
 
+function hasVisionQuotaRemaining() {
+  return normalizeVisionQuota(state.visionQuota).remaining > 0;
+}
+
 function openBoardImagePicker() {
+  if (!hasVisionQuotaRemaining()) {
+    showToast("Tai khoan nay da het 10 luot nhan dien hom nay.");
+    return;
+  }
   if (!boardImageInputEl) return;
   boardImageInputEl.value = "";
   boardImageInputEl.click();
@@ -2686,6 +2771,10 @@ function openBoardImagePicker() {
 function onBoardImageSelected(event) {
   const file = event.target?.files?.[0];
   if (!file) return;
+  if (!hasVisionQuotaRemaining()) {
+    showToast("Tai khoan nay da het 10 luot nhan dien hom nay.");
+    return;
+  }
   if (!/^image\//i.test(file.type || "")) {
     showToast("Hãy chọn một file ảnh bàn cờ");
     return;
@@ -2705,6 +2794,45 @@ function onBoardImageSelected(event) {
     showToast("Không đọc được ảnh này");
   };
   image.src = url;
+}
+
+async function pasteBoardImageFromClipboard() {
+  if (!hasVisionQuotaRemaining()) {
+    showToast("Tai khoan nay da het 10 luot nhan dien hom nay.");
+    return;
+  }
+  if (!navigator.clipboard?.read) {
+    showToast("Trinh duyet nay chua ho tro dan anh tu clipboard.");
+    return;
+  }
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imageType = item.types.find((type) => /^image\//i.test(type));
+      if (!imageType) continue;
+      const blob = await item.getType(imageType);
+      const file = new File([blob], "clipboard-image.png", { type: blob.type || imageType });
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        if (state.visionImageUrl) URL.revokeObjectURL(state.visionImageUrl);
+        state.visionImageUrl = url;
+        state.visionImage = image;
+        resetVisionCrop(false);
+        openVisionModal();
+        window.requestAnimationFrame(drawVisionCrop);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        showToast("Khong doc duoc anh trong clipboard.");
+      };
+      image.src = url;
+      return;
+    }
+    showToast("Bo nho tam khong co anh.");
+  } catch (error) {
+    showToast(error?.message || "Khong the dan anh tu clipboard.");
+  }
 }
 
 function openVisionModal() {
@@ -2733,6 +2861,7 @@ function setVisionBusy(busy) {
     if (button) button.disabled = state.visionBusy;
   });
   if (visionRecognizeBtn) visionRecognizeBtn.textContent = state.visionBusy ? "Đang nhận diện..." : "Nhận diện";
+  updateVisionQuotaBadge();
 }
 
 function resetVisionCrop(redraw = true) {
@@ -2935,9 +3064,13 @@ async function recognizeCroppedBoardImage() {
       timeoutMs: 10000,
       timeoutMessage: "Hệ thống nhận diện quá 10 giây. Hãy crop sát bàn cờ hơn rồi thử lại."
     });
+    if (result.visionQuota) setVisionQuota(result.visionQuota);
     applyVisionBoard(result);
     closeVisionModal();
   } catch (error) {
+    if (error?.message && /10 luot|10 lÆ°á»£t|het 10|háº¿t 10/i.test(error.message)) {
+      setVisionQuota({ ...state.visionQuota, remaining: 0, used: state.visionQuota?.limit || 10 });
+    }
     setVisionStatus(error.message || "Không nhận diện được ảnh này", "error");
   } finally {
     setVisionBusy(false);

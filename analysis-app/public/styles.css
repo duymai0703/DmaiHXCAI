@@ -914,6 +914,35 @@ input:not([type]) {
   align-items: center;
 }
 
+.vision-entry-btn {
+  position: relative;
+}
+
+.vision-quota-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: linear-gradient(180deg, #ffd66b, #ff9d32);
+  border: 1px solid rgba(62, 38, 9, 0.35);
+  color: #201306;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.vision-quota-badge[data-empty="true"] {
+  background: linear-gradient(180deg, #fca5a5, #dc2626);
+  color: #fff;
+}
+
 .board-tools select {
   width: 100%;
   min-height: 38px;
