@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-avatar-vision-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-crop-match-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -259,8 +259,6 @@ const visionStatusEl = document.getElementById("visionStatus");
 const visionCloseBtn = document.getElementById("visionCloseBtn");
 const visionCancelBtn = document.getElementById("visionCancelBtn");
 const visionRecognizeBtn = document.getElementById("visionRecognizeBtn");
-const visionZoomInBtn = document.getElementById("visionZoomInBtn");
-const visionZoomOutBtn = document.getElementById("visionZoomOutBtn");
 const visionResetCropBtn = document.getElementById("visionResetCropBtn");
 const assetPreloadOverlayEl = document.getElementById("assetPreloadOverlay");
 const assetPreloadTextEl = document.getElementById("assetPreloadText");
@@ -341,8 +339,6 @@ if (boardImageInputEl) boardImageInputEl.addEventListener("change", onBoardImage
 if (visionCloseBtn) visionCloseBtn.addEventListener("click", closeVisionModal);
 if (visionCancelBtn) visionCancelBtn.addEventListener("click", closeVisionModal);
 if (visionRecognizeBtn) visionRecognizeBtn.addEventListener("click", recognizeCroppedBoardImage);
-if (visionZoomInBtn) visionZoomInBtn.addEventListener("click", () => resizeVisionCrop(1.12));
-if (visionZoomOutBtn) visionZoomOutBtn.addEventListener("click", () => resizeVisionCrop(0.88));
 if (visionResetCropBtn) visionResetCropBtn.addEventListener("click", resetVisionCrop);
 if (visionCropCanvasEl) {
   visionCropCanvasEl.addEventListener("pointerdown", onVisionCropPointerDown);
@@ -2857,7 +2853,7 @@ function setVisionStatus(message, tone = "") {
 
 function setVisionBusy(busy) {
   state.visionBusy = Boolean(busy);
-  [visionRecognizeBtn, visionZoomInBtn, visionZoomOutBtn, visionResetCropBtn, visionCancelBtn, visionCloseBtn].forEach((button) => {
+  [visionRecognizeBtn, visionResetCropBtn, visionCancelBtn, visionCloseBtn].forEach((button) => {
     if (button) button.disabled = state.visionBusy;
   });
   if (visionRecognizeBtn) visionRecognizeBtn.textContent = state.visionBusy ? "Đang nhận diện..." : "Nhận diện";
@@ -2881,25 +2877,6 @@ function resetVisionCrop(redraw = true) {
     height
   });
   if (redraw) drawVisionCrop();
-}
-
-function resizeVisionCrop(factor) {
-  if (!state.visionImage || !state.visionCrop) return;
-  const crop = state.visionCrop;
-  const centerX = crop.x + crop.width / 2;
-  const centerY = crop.y + crop.height / 2;
-  const aspect = 8 / 9;
-  const minWidth = Math.min(state.visionImage.naturalWidth, state.visionImage.naturalHeight * aspect) * 0.25;
-  const maxWidth = Math.min(state.visionImage.naturalWidth * 0.98, state.visionImage.naturalHeight * 0.98 * aspect);
-  const width = Math.max(minWidth, Math.min(maxWidth, crop.width * factor));
-  const height = width / aspect;
-  state.visionCrop = clampVisionCrop({
-    x: centerX - width / 2,
-    y: centerY - height / 2,
-    width,
-    height
-  });
-  drawVisionCrop();
 }
 
 function clampVisionCrop(crop) {
@@ -3041,13 +3018,7 @@ function croppedVisionDataUrl() {
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  const padX = crop.width * 0.085;
-  const padY = crop.height * 0.085;
-  const sx = Math.max(0, crop.x - padX);
-  const sy = Math.max(0, crop.y - padY);
-  const ex = Math.min(image.naturalWidth, crop.x + crop.width + padX);
-  const ey = Math.min(image.naturalHeight, crop.y + crop.height + padY);
-  ctx.drawImage(image, sx, sy, ex - sx, ey - sy, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.78);
 }
 

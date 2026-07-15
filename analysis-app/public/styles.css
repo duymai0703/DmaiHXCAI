@@ -165,8 +165,11 @@ body.access-locked {
 .vision-controls,
 .vision-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
+}
+
+.vision-controls {
+  grid-template-columns: 1fr;
 }
 
 .vision-actions {

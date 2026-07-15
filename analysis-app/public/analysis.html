@@ -36,7 +36,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260715-avatar-vision-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260715-crop-match-v1">
   </head>
   <body>
     <header class="app-header">
@@ -248,11 +248,9 @@
         </div>
         <canvas id="visionCropCanvas" class="vision-crop-canvas"></canvas>
         <div class="vision-controls">
-          <button id="visionZoomOutBtn" type="button">Thu khung</button>
-          <button id="visionZoomInBtn" type="button">Phóng khung</button>
           <button id="visionResetCropBtn" type="button">Căn lại</button>
         </div>
-        <div id="visionStatus" class="vision-status">Kéo khung crop để khóa đúng 4 góc ngoài cùng của lưới.</div>
+        <div id="visionStatus" class="vision-status">Căn khung vừa bao trọn bàn cờ; vùng trong khung là vùng hệ thống nhận diện.</div>
         <div class="vision-actions">
           <button id="visionCancelBtn" type="button">Hủy</button>
           <button id="visionRecognizeBtn" class="primary" type="button">Nhận diện</button>
@@ -271,7 +269,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260715-avatar-vision-v1"></script>
+    <script src="/app.js?v=20260715-crop-match-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
