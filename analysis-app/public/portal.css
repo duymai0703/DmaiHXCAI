@@ -1416,7 +1416,7 @@ a {
 
 .library-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 12px 0 16px;
 }
@@ -1431,6 +1431,122 @@ a {
 .library-panel {
   min-width: 0;
   width: 100%;
+}
+
+.kydao-library {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.45fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.kydao-column {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, white 8%), color-mix(in srgb, var(--panel) 82%, transparent));
+  box-shadow: 0 18px 42px rgba(14, 33, 62, 0.12);
+}
+
+:root[data-theme="dark"] .kydao-column {
+  background:
+    linear-gradient(180deg, rgba(13, 28, 49, 0.94), rgba(6, 14, 28, 0.9));
+  border-color: rgba(91, 189, 255, 0.24);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+}
+
+.kydao-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kydao-panel-head strong {
+  display: block;
+  color: var(--ink);
+}
+
+.kydao-panel-head small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kydao-pager {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.small-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.kydao-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(620px, calc(var(--app-vh, 1vh) * 70));
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.kydao-card {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--panel) 82%, white 18%);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.kydao-card:hover,
+.kydao-card:focus-visible,
+.kydao-card.active {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  box-shadow: 0 12px 24px rgba(29, 97, 174, 0.14);
+}
+
+.kydao-card strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.kydao-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.kydao-game-card strong {
+  font-size: 13px;
+}
+
+:root[data-theme="dark"] .kydao-card {
+  background: rgba(9, 20, 38, 0.86);
+  border-color: rgba(95, 191, 255, 0.22);
+}
+
+:root[data-theme="dark"] .kydao-card:hover,
+:root[data-theme="dark"] .kydao-card:focus-visible,
+:root[data-theme="dark"] .kydao-card.active {
+  border-color: rgba(120, 219, 255, 0.64);
+  box-shadow: 0 14px 28px rgba(0, 147, 255, 0.16);
 }
 
 #libraryView .match-panel {
@@ -4631,7 +4747,11 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   .library-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kydao-library {
+    grid-template-columns: 1fr;
   }
 
   .opening-book-controls {
@@ -4690,7 +4810,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   body.portal-mobile-mode[data-route="library"] .library-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     margin: 8px 0 10px;
   }
@@ -4701,6 +4821,25 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
     border-radius: 12px;
     font-size: 12px;
     line-height: 1.15;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .kydao-library {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .kydao-column {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .kydao-list {
+    max-height: 300px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .kydao-card {
+    padding: 10px;
+    border-radius: 12px;
   }
 
   body.portal-mobile-mode[data-route="library"] .opening-book-shell {

@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260716-mobile-library-v1";
+  const ASSET_WARMUP_VERSION = "20260716-kydao-kings-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -174,6 +174,14 @@
     deviceAvatarUrl: initialDeviceAvatar,
     history: readStoredHistory(),
     libraryTab: "history",
+    kydaoMasters: [],
+    kydaoSelectedMasterPath: "",
+    kydaoGames: [],
+    kydaoPage: 1,
+    kydaoTotalPages: 1,
+    kydaoLoading: false,
+    kydaoGamesLoading: false,
+    kydaoOpeningPath: "",
     openingBooks: [],
     openingBookEditor: createOpeningBookEditorState(),
     openingBookPractice: createOpeningBookPracticeState(),
@@ -416,9 +424,19 @@
     libraryHistoryTab: byId("libraryHistoryTab"),
     libraryBookCreateTab: byId("libraryBookCreateTab"),
     libraryBookSavedTab: byId("libraryBookSavedTab"),
+    libraryKydaoTab: byId("libraryKydaoTab"),
     libraryHistoryPanel: byId("libraryHistoryPanel"),
     libraryBookCreatePanel: byId("libraryBookCreatePanel"),
     libraryBookSavedPanel: byId("libraryBookSavedPanel"),
+    libraryKydaoPanel: byId("libraryKydaoPanel"),
+    kydaoRefreshBtn: byId("kydaoRefreshBtn"),
+    kydaoMasterList: byId("kydaoMasterList"),
+    kydaoGameList: byId("kydaoGameList"),
+    kydaoSelectedTitle: byId("kydaoSelectedTitle"),
+    kydaoPageInfo: byId("kydaoPageInfo"),
+    kydaoPrevPageBtn: byId("kydaoPrevPageBtn"),
+    kydaoNextPageBtn: byId("kydaoNextPageBtn"),
+    kydaoStatus: byId("kydaoStatus"),
     openingBookBoard: byId("openingBookBoard"),
     openingBookArrowCanvas: byId("openingBookArrowCanvas"),
     openingBookMarks: byId("openingBookMarks"),
@@ -1162,6 +1180,16 @@
     dom.libraryHistoryTab?.addEventListener("click", () => setLibraryTab("history"));
     dom.libraryBookCreateTab?.addEventListener("click", () => setLibraryTab("book-create"));
     dom.libraryBookSavedTab?.addEventListener("click", () => setLibraryTab("book-saved"));
+    dom.libraryKydaoTab?.addEventListener("click", () => setLibraryTab("kydao"));
+    dom.kydaoRefreshBtn?.addEventListener("click", () => loadKydaoMasters(true));
+    dom.kydaoPrevPageBtn?.addEventListener("click", () => {
+      const master = selectedKydaoMaster();
+      if (master && state.kydaoPage > 1) void loadKydaoGames(master, state.kydaoPage - 1);
+    });
+    dom.kydaoNextPageBtn?.addEventListener("click", () => {
+      const master = selectedKydaoMaster();
+      if (master && state.kydaoPage < state.kydaoTotalPages) void loadKydaoGames(master, state.kydaoPage + 1);
+    });
     dom.openingBookBoard?.addEventListener("pointerdown", onOpeningBookPointerDown);
     dom.openingBookRedSideBtn?.addEventListener("click", () => setOpeningBookSide("w"));
     dom.openingBookBlackSideBtn?.addEventListener("click", () => setOpeningBookSide("b"));
@@ -2295,9 +2323,10 @@
   }
 
   function setLibraryTab(tab) {
-    state.libraryTab = ["history", "book-create", "book-saved"].includes(tab) ? tab : "history";
+    state.libraryTab = ["history", "book-create", "book-saved", "kydao"].includes(tab) ? tab : "history";
     renderLibrary();
     if (state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+    if (state.libraryTab === "kydao") void loadKydaoMasters(false);
   }
 
   function renderLibrary() {
@@ -2305,6 +2334,7 @@
     renderOpeningBookTabs();
     renderOpeningBookEditor();
     renderOpeningBookSavedList();
+    renderKydaoLibrary();
   }
 
   function renderOpeningBookTabs() {
@@ -2312,7 +2342,8 @@
     [
       [dom.libraryHistoryTab, dom.libraryHistoryPanel, "history"],
       [dom.libraryBookCreateTab, dom.libraryBookCreatePanel, "book-create"],
-      [dom.libraryBookSavedTab, dom.libraryBookSavedPanel, "book-saved"]
+      [dom.libraryBookSavedTab, dom.libraryBookSavedPanel, "book-saved"],
+      [dom.libraryKydaoTab, dom.libraryKydaoPanel, "kydao"]
     ].forEach(([button, panel, key]) => {
       button?.classList.toggle("active", active === key);
       button?.setAttribute("aria-selected", active === key ? "true" : "false");
@@ -3090,6 +3121,185 @@
       onOpen: openHistoryReview
     };
     renderHistoryCollection(dom.libraryHistoryList, state.history, options);
+  }
+
+  function selectedKydaoMaster() {
+    return state.kydaoMasters.find((master) => master.path === state.kydaoSelectedMasterPath) || null;
+  }
+
+  function renderKydaoLibrary() {
+    if (!dom.libraryKydaoPanel) return;
+    renderKydaoMasters();
+    renderKydaoGames();
+    if (dom.kydaoStatus) {
+      dom.kydaoStatus.textContent = state.kydaoLoading
+        ? "Đang tải danh sách Kỳ vương..."
+        : state.kydaoGamesLoading
+        ? "Đang tải danh sách ván..."
+        : state.kydaoOpeningPath
+        ? "Đang giải mã biên bản Kydao..."
+        : "";
+    }
+  }
+
+  function renderKydaoMasters() {
+    const container = dom.kydaoMasterList;
+    if (!container) return;
+    container.innerHTML = "";
+    if (state.kydaoLoading && !state.kydaoMasters.length) {
+      const loading = document.createElement("div");
+      loading.className = "history-empty";
+      loading.textContent = "Đang tải danh thủ...";
+      container.appendChild(loading);
+      return;
+    }
+    if (!state.kydaoMasters.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Chưa có dữ liệu Kydao. Bấm Làm mới để tải.";
+      container.appendChild(empty);
+      return;
+    }
+    state.kydaoMasters.forEach((master) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = `kydao-card kydao-master-card ${master.path === state.kydaoSelectedMasterPath ? "active" : ""}`;
+      const title = document.createElement("strong");
+      title.textContent = master.nickname ? `${master.name} · ${master.nickname}` : master.name;
+      const meta = document.createElement("span");
+      meta.textContent = `${master.games || 0} ván · ${master.wins || 0} thắng / ${master.draws || 0} hòa / ${master.losses || 0} bại`;
+      item.append(title, meta);
+      item.addEventListener("click", () => selectKydaoMaster(master));
+      container.appendChild(item);
+    });
+  }
+
+  function renderKydaoGames() {
+    const container = dom.kydaoGameList;
+    if (!container) return;
+    container.innerHTML = "";
+    const master = selectedKydaoMaster();
+    if (dom.kydaoSelectedTitle) dom.kydaoSelectedTitle.textContent = master ? master.name : "Chọn danh thủ";
+    if (dom.kydaoPageInfo) {
+      dom.kydaoPageInfo.textContent = master
+        ? `Trang ${state.kydaoPage}/${state.kydaoTotalPages}. Mỗi ván mở ra có thể phân tích Pikafish.`
+        : "Mở ván nào sẽ chuyển thành bàn cờ xem lại.";
+    }
+    if (dom.kydaoPrevPageBtn) dom.kydaoPrevPageBtn.disabled = !master || state.kydaoGamesLoading || state.kydaoPage <= 1;
+    if (dom.kydaoNextPageBtn) dom.kydaoNextPageBtn.disabled = !master || state.kydaoGamesLoading || state.kydaoPage >= state.kydaoTotalPages;
+    if (!master) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Chọn một danh thủ ở bên trái để xem các ván.";
+      container.appendChild(empty);
+      return;
+    }
+    if (state.kydaoGamesLoading && !state.kydaoGames.length) {
+      const loading = document.createElement("div");
+      loading.className = "history-empty";
+      loading.textContent = "Đang tải ván đấu...";
+      container.appendChild(loading);
+      return;
+    }
+    if (!state.kydaoGames.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Chưa tải được ván nào của danh thủ này.";
+      container.appendChild(empty);
+      return;
+    }
+    state.kydaoGames.forEach((game) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "kydao-card kydao-game-card";
+      item.disabled = state.kydaoOpeningPath === game.path;
+      const title = document.createElement("strong");
+      title.textContent = `${game.number || ""}. ${game.red || "Đỏ"} ${game.result || ""} ${game.black || "Đen"}`.trim();
+      const event = document.createElement("span");
+      event.textContent = game.event || game.title || "Kydao";
+      item.append(title, event);
+      item.addEventListener("click", () => openKydaoGame(game));
+      container.appendChild(item);
+    });
+  }
+
+  async function loadKydaoMasters(force = false) {
+    if (state.kydaoLoading) return;
+    if (!force && state.kydaoMasters.length) {
+      const master = selectedKydaoMaster() || state.kydaoMasters[0] || null;
+      if (master && !state.kydaoSelectedMasterPath) state.kydaoSelectedMasterPath = master.path;
+      if (master && !state.kydaoGames.length) void loadKydaoGames(master, state.kydaoPage || 1);
+      renderKydaoLibrary();
+      return;
+    }
+    state.kydaoLoading = true;
+    renderKydaoLibrary();
+    try {
+      const payload = await api("/api/kydao/kings");
+      state.kydaoMasters = Array.isArray(payload.masters) ? payload.masters : [];
+      if (!state.kydaoMasters.some((master) => master.path === state.kydaoSelectedMasterPath)) {
+        state.kydaoSelectedMasterPath = "";
+      }
+      if (!state.kydaoSelectedMasterPath && state.kydaoMasters[0]) {
+        state.kydaoSelectedMasterPath = state.kydaoMasters[0].path;
+        await loadKydaoGames(state.kydaoMasters[0], 1);
+      }
+    } catch (error) {
+      showToast(error.message || "Không tải được danh sách Kỳ vương.");
+    } finally {
+      state.kydaoLoading = false;
+      renderKydaoLibrary();
+    }
+  }
+
+  function selectKydaoMaster(master) {
+    if (!master?.path) return;
+    state.kydaoSelectedMasterPath = master.path;
+    state.kydaoGames = [];
+    state.kydaoPage = 1;
+    state.kydaoTotalPages = 1;
+    renderKydaoLibrary();
+    void loadKydaoGames(master, 1);
+  }
+
+  async function loadKydaoGames(master, page = 1) {
+    if (!master?.path || state.kydaoGamesLoading) return;
+    state.kydaoGamesLoading = true;
+    renderKydaoLibrary();
+    try {
+      const payload = await api(`/api/kydao/king-games?path=${encodeURIComponent(master.path)}&page=${encodeURIComponent(page)}`);
+      state.kydaoGames = Array.isArray(payload.games) ? payload.games : [];
+      state.kydaoPage = Number(payload.page) || page || 1;
+      state.kydaoTotalPages = Math.max(1, Number(payload.totalPages) || state.kydaoPage || 1);
+    } catch (error) {
+      showToast(error.message || "Không tải được danh sách ván Kydao.");
+    } finally {
+      state.kydaoGamesLoading = false;
+      renderKydaoLibrary();
+    }
+  }
+
+  async function openKydaoGame(game) {
+    if (!game?.path || state.kydaoOpeningPath) return;
+    state.kydaoOpeningPath = game.path;
+    renderKydaoLibrary();
+    try {
+      const payload = await api(`/api/kydao/game?path=${encodeURIComponent(game.path)}`);
+      const reviewGame = payload.game || null;
+      if (!reviewGame?.plies?.length) {
+        showToast("Ván Kydao này chưa giải mã đủ biên bản.");
+        return;
+      }
+      openHistoryReview(reviewGame);
+      if (Array.isArray(reviewGame.parseErrors) && reviewGame.parseErrors.length) {
+        showToast("Ván đã mở, nhưng một vài nước cuối chưa giải mã được.");
+      }
+    } catch (error) {
+      showToast(error.message || "Không mở được ván Kydao.");
+    } finally {
+      state.kydaoOpeningPath = "";
+      renderKydaoLibrary();
+    }
   }
 
   function normalizeAdminUserPayload(user) {

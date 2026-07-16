@@ -25,6 +25,7 @@ const DATA_DIR = resolveDataDir();
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const ROOMS_FILE = path.join(DATA_DIR, "rooms.json");
 const LICENSES_FILE = path.join(DATA_DIR, "licenses.json");
+const KYDAO_CACHE_FILE = path.join(DATA_DIR, "kydao-cache.json");
 const LICENSE_EXPORT_GLOB_PREFIX = "license-export";
 const LICENSE_EXPORT_CURRENT_FILE = path.join(DATA_DIR, "license-export-current.json");
 const ACCESS_KEYS_FILE = path.join(__dirname, "access-keys.json");
@@ -59,6 +60,22 @@ const BOT_MOVE_DELAY_MS = Math.max(220, Math.min(1600, Number(process.env.DMAIHX
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const VISION_DAILY_LIMIT = 10;
+const KYDAO_BASE_URL = "https://kydao.net";
+const KYDAO_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const KYDAO_TARGET_NAMES = [
+  "Vương Thiên Nhất",
+  "Trịnh Duy Đồng",
+  "Tưởng Xuyên",
+  "Triệu Hâm Hâm",
+  "Hứa Ngân Xuyên",
+  "Tào Nham Lỗi",
+  "Hồ Vinh Hoa",
+  "Lại Lý Huynh",
+  "Nguyễn Thành Bảo",
+  "Vương Khuếch",
+  "Dương Quan Lân"
+];
+const KYDAO_TARGET_ORDER = new Map(KYDAO_TARGET_NAMES.map((name, index) => [normalizeKydaoName(name), index]));
 const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
 const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADTAYDOC0703DUY");
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
@@ -117,6 +134,7 @@ const postgresStateStore = createPostgresStateStore();
 const mongoStateStore = createMongoStateStore();
 let pendingUserPersistence = Promise.resolve();
 let licenseState = loadLicenseState();
+let kydaoCache = loadKydaoCache();
 
 if (process.env.RENDER && !isPersistentStoragePath(DATABASE_FILE)) {
   console.warn(`Render is using ephemeral storage for SQLite at ${DATABASE_FILE}. Mount a disk and point DMAIHXCAI_DB_PATH to it if you want accounts and rooms to survive redeploys.`);
@@ -3823,6 +3841,438 @@ function SRC_DIR() {
   return path.join(ROOT, "src");
 }
 
+function normalizeKydaoName(value) {
+  return String(value || "")
+    .normalize("NFC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function loadKydaoCache() {
+  const loaded = readJsonFile(KYDAO_CACHE_FILE, null);
+  return {
+    masters: loaded && Array.isArray(loaded.masters) ? loaded.masters : null,
+    fetchedAt: String(loaded?.fetchedAt || ""),
+    gameLists: loaded && typeof loaded.gameLists === "object" && loaded.gameLists ? loaded.gameLists : {},
+    games: loaded && typeof loaded.games === "object" && loaded.games ? loaded.games : {}
+  };
+}
+
+function saveKydaoCache() {
+  kydaoCache.fetchedAt = kydaoCache.fetchedAt || nowIso();
+  writeJsonFile(KYDAO_CACHE_FILE, kydaoCache);
+}
+
+function isFreshKydaoEntry(entry, ttl = KYDAO_CACHE_TTL_MS) {
+  const timestamp = Date.parse(entry?.fetchedAt || "");
+  return Number.isFinite(timestamp) && timestamp > 0 && Date.now() - timestamp < ttl;
+}
+
+function kydaoAbsoluteUrl(pathOrUrl) {
+  const parsed = new URL(String(pathOrUrl || "/"), KYDAO_BASE_URL);
+  if (parsed.hostname !== "kydao.net") throw new Error("KYDAO_BAD_PATH");
+  return parsed;
+}
+
+function kydaoRelativePath(pathOrUrl) {
+  const parsed = kydaoAbsoluteUrl(pathOrUrl);
+  return `${parsed.pathname}${parsed.search || ""}`;
+}
+
+async function fetchKydaoText(pathOrUrl) {
+  const target = kydaoAbsoluteUrl(pathOrUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(target, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "DmaiHXCAI/1.0 (+https://dmaihxcai.onrender.com)",
+        "Accept": "text/html,application/xhtml+xml"
+      }
+    });
+    if (!response.ok) throw new Error(`KYDAO_HTTP_${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number.parseInt(dec, 10)))
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'");
+}
+
+function stripHtml(value) {
+  return decodeHtmlEntities(String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim());
+}
+
+function parseIntegerAfter(label, text) {
+  const match = String(text || "").match(new RegExp(`${label}\\s*:\\s*(\\d+)`, "i"));
+  return match ? Number(match[1]) || 0 : 0;
+}
+
+function cleanKydaoPlayerName(text) {
+  const cleaned = String(text || "").replace(/"[^"]*"/g, " ").replace(/\s+/g, " ").trim();
+  for (const name of KYDAO_TARGET_NAMES) {
+    if (normalizeKydaoName(cleaned).endsWith(normalizeKydaoName(name))) return name;
+  }
+  return cleaned;
+}
+
+function parseKydaoMasterBlock(block) {
+  const linkMatch = String(block || "").match(/<div class="name">[\s\S]*?<a\s+href=['"]([^'"]+)['"][^>]*>([\s\S]*?)<\/a>/i);
+  if (!linkMatch) return null;
+  const pathValue = kydaoRelativePath(linkMatch[1]);
+  const label = stripHtml(linkMatch[2]);
+  const name = cleanKydaoPlayerName(label);
+  const normalized = normalizeKydaoName(name);
+  if (!KYDAO_TARGET_ORDER.has(normalized)) return null;
+  const allText = stripHtml(block);
+  const rank = Number((allText.match(/^(\d+)\./) || [])[1]) || KYDAO_TARGET_ORDER.get(normalized) + 1;
+  const nicknameMatch = label.match(/"([^"]+)"/);
+  const id = (pathValue.match(/\/(\d+)(?:\?|$)/) || [])[1] || "";
+  return {
+    id,
+    name,
+    nickname: nicknameMatch ? nicknameMatch[1].trim() : "",
+    rank,
+    path: pathValue,
+    url: `${KYDAO_BASE_URL}${pathValue}`,
+    wins: parseIntegerAfter("thắng", allText),
+    draws: parseIntegerAfter("hòa", allText),
+    losses: parseIntegerAfter("bại", allText),
+    games: parseIntegerAfter("số ván", allText)
+  };
+}
+
+function parseKydaoMastersPage(html) {
+  const blocks = String(html || "").match(/<div class="player">[\s\S]*?(?=<div class="player">|<div id="Content_pager_divPager"|$)/g) || [];
+  return blocks.map(parseKydaoMasterBlock).filter(Boolean);
+}
+
+async function getKydaoKings() {
+  if (Array.isArray(kydaoCache.masters) && kydaoCache.masters.length && isFreshKydaoEntry(kydaoCache)) {
+    return kydaoCache.masters;
+  }
+  const pages = ["/ky-thu/ky-vuong", "/ky-thu/ky-vuong?page=2"];
+  const byName = new Map();
+  for (const pagePath of pages) {
+    const html = await fetchKydaoText(pagePath);
+    parseKydaoMastersPage(html).forEach((master) => byName.set(normalizeKydaoName(master.name), master));
+  }
+  const masters = KYDAO_TARGET_NAMES
+    .map((name) => byName.get(normalizeKydaoName(name)) || null)
+    .filter(Boolean)
+    .sort((left, right) => KYDAO_TARGET_ORDER.get(normalizeKydaoName(left.name)) - KYDAO_TARGET_ORDER.get(normalizeKydaoName(right.name)));
+  kydaoCache.masters = masters;
+  kydaoCache.fetchedAt = nowIso();
+  saveKydaoCache();
+  return masters;
+}
+
+function parseKydaoGameBlock(block, playerName, page) {
+  const text = stripHtml(block);
+  const number = Number((text.match(/^(\d+)\./) || [])[1]) || 0;
+  const redMatch = String(block || "").match(/<div class="red">[\s\S]*?<a\s+href=['"][^'"]+['"][^>]*>([\s\S]*?)<\/a>/i);
+  const blackMatch = String(block || "").match(/<div class="black">[\s\S]*?<a\s+href=['"][^'"]+['"][^>]*>([\s\S]*?)<\/a>/i);
+  const resultMatch = String(block || "").match(/<div class="result">[\s\S]*?<a\s+href=['"]([^'"]+)['"][^>]*>([\s\S]*?)<\/a>/i);
+  const eventMatch = String(block || "").match(/<div class="event">[\s\S]*?<a\s+href=['"][^'"]+['"][^>]*>([\s\S]*?)<\/a>/i);
+  if (!resultMatch) return null;
+  const pathValue = kydaoRelativePath(resultMatch[1]);
+  const title = decodeURIComponent(pathValue.split("/").slice(3).join("/") || "").replace(/\+/g, " ");
+  return {
+    id: (pathValue.match(/\/van-dau\/([^/]+)/) || [])[1] || crypto.createHash("sha1").update(pathValue).digest("hex").slice(0, 12),
+    number,
+    page,
+    playerName,
+    red: stripHtml(redMatch?.[1] || ""),
+    black: stripHtml(blackMatch?.[1] || ""),
+    result: stripHtml(resultMatch[2] || ""),
+    event: stripHtml(eventMatch?.[1] || ""),
+    title: title || text,
+    path: pathValue,
+    url: `${KYDAO_BASE_URL}${pathValue}`
+  };
+}
+
+function parseKydaoGameListPage(html, playerName, page) {
+  const blocks = String(html || "").match(/<div class="game">[\s\S]*?(?=<div class="game">|<div id="Content_pager_divPager"|$)/g) || [];
+  const pageNumbers = [...String(html || "").matchAll(/[?&]page=(\d+)/g)].map((match) => Number(match[1]) || 0).filter(Boolean);
+  return {
+    games: blocks.map((block) => parseKydaoGameBlock(block, playerName, page)).filter(Boolean),
+    totalPages: Math.max(1, page, ...pageNumbers)
+  };
+}
+
+async function getKydaoKingGames(masterPath, page = 1) {
+  const masters = await getKydaoKings();
+  const cleanPath = kydaoRelativePath(masterPath);
+  const master = masters.find((item) => item.path === cleanPath);
+  if (!master) throw new Error("KYDAO_MASTER_NOT_FOUND");
+  const safePage = Math.max(1, Math.min(500, Number(page) || 1));
+  const cacheKey = `${cleanPath}|${safePage}`;
+  const cached = kydaoCache.gameLists[cacheKey];
+  if (cached && isFreshKydaoEntry(cached)) return cached;
+  const separator = cleanPath.includes("?") ? "&" : "?";
+  const html = await fetchKydaoText(safePage > 1 ? `${cleanPath}${separator}page=${safePage}` : cleanPath);
+  const parsed = parseKydaoGameListPage(html, master.name, safePage);
+  const entry = {
+    master,
+    page: safePage,
+    totalPages: parsed.totalPages,
+    games: parsed.games,
+    fetchedAt: nowIso()
+  };
+  kydaoCache.gameLists[cacheKey] = entry;
+  saveKydaoCache();
+  return entry;
+}
+
+function extractJsString(html, name) {
+  const match = String(html || "").match(new RegExp(`${name}\\s*=\\s*(['"])([\\s\\S]*?)\\1\\s*;?`, "i"));
+  return match ? decodeHtmlEntities(match[2]) : "";
+}
+
+function kydaoFenToCoreFen(fenBoard) {
+  return String(fenBoard || XiangqiCore.START_FEN.split(" ")[0])
+    .replace(/h/g, "n")
+    .replace(/H/g, "N")
+    .replace(/e/g, "b")
+    .replace(/E/g, "B");
+}
+
+function normalizeKydaoMoveNotation(text) {
+  const trimmed = String(text || "").trim();
+  const first = trimmed[0] || "";
+  const rest = trimmed.slice(1);
+  const mapped = first === "C" ? `B${rest}` : first === "V" ? `T${rest}` : first === "T" ? `Tg${rest}` : trimmed;
+  return mapped.replace(/\s+/g, "").toUpperCase();
+}
+
+function allLegalMovesForSide(board, side) {
+  const moves = [];
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const piece = board[y][x];
+      if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
+      const from = { x, y };
+      XiangqiCore.getLegalMovesForSquare(board, side, from).forEach((to) => {
+        moves.push(`${XiangqiCore.squareToUci(from)}${XiangqiCore.squareToUci(to)}`);
+      });
+    }
+  }
+  return moves;
+}
+
+function findMoveByFormattedNotation(board, side, token) {
+  const target = normalizeKydaoMoveNotation(token);
+  return allLegalMovesForSide(board, side).find((move) => {
+    const notation = XiangqiCore.formatMoveNotation(move, board, side);
+    return normalizeKydaoMoveNotation(notation) === target;
+  }) || "";
+}
+
+function kydaoPieceToCore(pieceCode) {
+  return {
+    X: "r",
+    M: "n",
+    V: "b",
+    S: "a",
+    T: "k",
+    P: "c",
+    C: "p"
+  }[String(pieceCode || "").toUpperCase()] || "";
+}
+
+function kydaoObjectsForBoard(board, side, coreType) {
+  const objects = [];
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const piece = board[y][x];
+      if (!piece || XiangqiCore.pieceColor(piece) !== side || piece.toLowerCase() !== coreType) continue;
+      objects.push({ x: 9 - y, y: x, boardX: x, boardY: y, piece });
+    }
+  }
+  return objects.sort((left, right) => left.x - right.x || left.y - right.y);
+}
+
+function selectKydaoCandidate(candidates, side, fileCode) {
+  if (!candidates.length) return null;
+  if (/^\d$/.test(fileCode)) {
+    const targetCol = side === "w" ? 9 - Number(fileCode) : Number(fileCode) - 1;
+    return candidates.find((item) => item.y === targetCol) || null;
+  }
+  const target = String(fileCode || "").toLowerCase();
+  if (target !== "t" && target !== "s") return null;
+  const byCol = new Map();
+  candidates.forEach((item) => {
+    const group = byCol.get(item.y) || [];
+    group.push(item);
+    byCol.set(item.y, group);
+  });
+  for (const group of byCol.values()) {
+    if (group.length < 2) continue;
+    group.sort((left, right) => left.x - right.x);
+    if (side === "w") return target === "t" ? group[0] : group[group.length - 1];
+    return target === "t" ? group[group.length - 1] : group[0];
+  }
+  return null;
+}
+
+function interpretKydaoMoveToken(board, side, token) {
+  const text = String(token || "").trim();
+  if (!/^[A-Za-z][0-9tsTS][./-][0-9]$/.test(text)) return "";
+  const pieceCode = text[0].toUpperCase();
+  const fileCode = text[1];
+  const op = text[2];
+  const target = Number(text[3]);
+  const coreType = kydaoPieceToCore(pieceCode);
+  if (!coreType || !target) return "";
+  const source = selectKydaoCandidate(kydaoObjectsForBoard(board, side, coreType), side, fileCode);
+  if (!source) return "";
+  let row = source.x;
+  let col = source.y;
+  const targetCol = side === "w" ? 9 - target : target - 1;
+  if (op === "-") {
+    col = targetCol;
+  } else if (op === ".") {
+    if (coreType === "n") {
+      row = side === "w" ? source.x - (Math.abs(targetCol - source.y) === 1 ? 2 : 1) : source.x + (Math.abs(targetCol - source.y) === 1 ? 2 : 1);
+      col = targetCol;
+    } else if (coreType === "b") {
+      row = side === "w" ? source.x - 2 : source.x + 2;
+      col = targetCol;
+    } else if (coreType === "a") {
+      row = side === "w" ? source.x - 1 : source.x + 1;
+      col = targetCol;
+    } else {
+      row = side === "w" ? source.x - target : source.x + target;
+    }
+  } else if (op === "/") {
+    if (coreType === "n") {
+      row = side === "w" ? source.x + (Math.abs(targetCol - source.y) === 1 ? 2 : 1) : source.x - (Math.abs(targetCol - source.y) === 1 ? 2 : 1);
+      col = targetCol;
+    } else if (coreType === "b") {
+      row = side === "w" ? source.x + 2 : source.x - 2;
+      col = targetCol;
+    } else if (coreType === "a") {
+      row = side === "w" ? source.x + 1 : source.x - 1;
+      col = targetCol;
+    } else {
+      row = side === "w" ? source.x + target : source.x - target;
+    }
+  }
+  const to = { x: col, y: 9 - row };
+  if (!XiangqiCore.inside(to.x, to.y)) return "";
+  const move = `${XiangqiCore.squareToUci({ x: source.boardX, y: source.boardY })}${XiangqiCore.squareToUci(to)}`;
+  return XiangqiCore.isLegalMove(board, move, side) ? move : "";
+}
+
+function parseKydaoMoveTokens(startFen, tokens, startSide) {
+  const parsed = XiangqiCore.parseFenState(startFen);
+  const board = parsed.board;
+  let side = startSide === "b" ? "b" : "w";
+  const plies = [];
+  const parseErrors = [];
+  tokens.forEach((token, index) => {
+    if (parseErrors.length) return;
+    const move = findMoveByFormattedNotation(board, side, token) || interpretKydaoMoveToken(board, side, token);
+    if (!move) {
+      parseErrors.push({ index, token, side, fen: XiangqiCore.boardToFen(board, side) });
+      return;
+    }
+    const notation = normalizeKydaoMoveNotation(token).replace(/^TG/, "Tg");
+    plies.push({ side, move, notation, sourceNotation: token });
+    XiangqiCore.applyMoveToBoard(board, move);
+    side = side === "w" ? "b" : "w";
+  });
+  return { plies, parseErrors };
+}
+
+function kydaoTitlePartsFromPath(gamePath) {
+  const title = decodeURIComponent(String(gamePath || "").split("/").slice(3).join("/") || "").replace(/\+/g, " ");
+  const resultMatch = title.match(/^(.+?)\s+(thắng|bại|hòa)\s+(.+)$/i);
+  if (!resultMatch) return { title, red: "", black: "", result: "" };
+  return {
+    title,
+    red: resultMatch[1].trim(),
+    result: resultMatch[2].trim(),
+    black: resultMatch[3].trim()
+  };
+}
+
+async function getKydaoGame(gamePath) {
+  const cleanPath = kydaoRelativePath(gamePath);
+  const cached = kydaoCache.games[cleanPath];
+  if (cached && isFreshKydaoEntry(cached, KYDAO_CACHE_TTL_MS * 4)) return cached.game;
+
+  const pageHtml = await fetchKydaoText(cleanPath);
+  const iframeMatch = String(pageHtml || "").match(/<iframe[^>]+id=['"]game['"][^>]+src=['"]([^'"]+)['"]/i)
+    || String(pageHtml || "").match(/<iframe[^>]+src=['"]([^'"]*\/xem\/[^'"]+)['"]/i);
+  if (!iframeMatch) throw new Error("KYDAO_GAME_NOT_FOUND");
+  const iframePath = kydaoRelativePath(decodeHtmlEntities(iframeMatch[1]));
+  const iframeHtml = await fetchKydaoText(iframePath);
+  const beginFen = extractJsString(iframeHtml, "beginFEN");
+  const startColor = extractJsString(iframeHtml, "startColor") === "b" ? "b" : "r";
+  const encodedRaw = extractJsString(iframeHtml, "strMoveList");
+  const startBoardMatch = String(iframeHtml || "").match(/StartBoard\(\s*(['"])(.*?)\1\s*,\s*(\d+)/i);
+  const injectedGameId = decodeHtmlEntities(startBoardMatch?.[2] || "");
+  const offset = Number(startBoardMatch?.[3] || 0);
+  let encoded = encodedRaw;
+  if (injectedGameId && Number.isFinite(offset) && encoded.slice(offset, offset + injectedGameId.length) === injectedGameId) {
+    encoded = `${encoded.slice(0, offset)}${encoded.slice(offset + injectedGameId.length)}`;
+  } else if (injectedGameId && encoded.includes(injectedGameId)) {
+    encoded = encoded.replace(injectedGameId, "");
+  }
+  let decodedMoves = "";
+  try {
+    decodedMoves = Buffer.from(encoded, "base64").toString("utf8");
+  } catch {
+    throw new Error("KYDAO_MOVE_PARSE_FAILED");
+  }
+  const tokens = (decodedMoves.match(/.{1,4}/g) || []).filter((token) => token.length === 4);
+  const startSide = startColor === "b" ? "b" : "w";
+  const startFen = `${kydaoFenToCoreFen(beginFen)} ${startSide} - - 0 1`;
+  const parsed = parseKydaoMoveTokens(startFen, tokens, startSide);
+  const titleParts = kydaoTitlePartsFromPath(cleanPath);
+  const fetchedAt = nowIso();
+  const game = {
+    id: `kydao:${(cleanPath.match(/\/van-dau\/([^/]+)/) || [])[1] || crypto.createHash("sha1").update(cleanPath).digest("hex").slice(0, 12)}`,
+    source: "kydao",
+    sourceUrl: `${KYDAO_BASE_URL}${cleanPath}`,
+    title: titleParts.title || "Ván đấu Kydao",
+    side: titleParts.red || "Đỏ",
+    opponent: titleParts.black || "Đen",
+    result: titleParts.result || "Kydao",
+    reason: "Kydao Kỳ vương",
+    startedAt: fetchedAt,
+    endedAt: fetchedAt,
+    startFen,
+    sideCode: startSide,
+    plies: parsed.plies,
+    moves: parsed.plies.map((ply) => ply.notation || ply.sourceNotation || ply.move),
+    kydaoTokens: tokens,
+    parseErrors: parsed.parseErrors
+  };
+  kydaoCache.games[cleanPath] = { game, fetchedAt };
+  saveKydaoCache();
+  return game;
+}
+
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
@@ -4489,6 +4939,30 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/kydao/kings") {
+      requireUser(req);
+      const masters = await getKydaoKings();
+      json(res, 200, { ok: true, masters, source: `${KYDAO_BASE_URL}/ky-thu/ky-vuong` });
+      return;
+    }
+
+    if (url.pathname === "/api/kydao/king-games") {
+      requireUser(req);
+      const pathValue = url.searchParams.get("path") || "";
+      const page = Number(url.searchParams.get("page") || 1) || 1;
+      const result = await getKydaoKingGames(pathValue, page);
+      json(res, 200, { ok: true, ...result });
+      return;
+    }
+
+    if (url.pathname === "/api/kydao/game") {
+      requireUser(req);
+      const pathValue = url.searchParams.get("path") || "";
+      const game = await getKydaoGame(pathValue);
+      json(res, 200, { ok: true, game });
+      return;
+    }
+
     if (url.pathname === "/api/opening-books") {
       const user = requireUser(req);
       if (req.method === "GET") {
@@ -4834,7 +5308,7 @@ const server = http.createServer(async (req, res) => {
     serveStatic(req, res);
   } catch (err) {
     const message = String(err.message || err);
-    const status = {
+    const status = /^KYDAO_HTTP_/i.test(message) ? 502 : {
       UNAUTHORIZED: 401,
       SESSION_REPLACED: 409,
       ROOM_NOT_FOUND: 404,
@@ -4869,6 +5343,10 @@ const server = http.createServer(async (req, res) => {
       VISION_MODEL_FAILED: 400,
       VISION_LOCAL_UNAVAILABLE: 500,
       VISION_DAILY_LIMIT: 429,
+      KYDAO_BAD_PATH: 400,
+      KYDAO_MASTER_NOT_FOUND: 404,
+      KYDAO_GAME_NOT_FOUND: 404,
+      KYDAO_MOVE_PARSE_FAILED: 422,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -4879,6 +5357,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 function friendlyErrorVi(code) {
+  if (code === "KYDAO_BAD_PATH") return "Duong dan Kydao khong hop le.";
+  if (code === "KYDAO_MASTER_NOT_FOUND") return "Khong tim thay danh thu Kydao trong danh sach da chon.";
+  if (code === "KYDAO_GAME_NOT_FOUND") return "Khong doc duoc van dau Kydao nay.";
+  if (code === "KYDAO_MOVE_PARSE_FAILED") return "Khong giai ma duoc bien ban Kydao cua van nay.";
+  if (/^KYDAO_HTTP_/i.test(code)) return "Kydao dang phan hoi loi hoac qua cham. Hay thu lai sau.";
   if (code === "VISION_LOCAL_UNAVAILABLE") return "Bo nhan dien anh noi bo chua san sang. Hay kiem tra goi sharp tren server.";
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
   if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";
