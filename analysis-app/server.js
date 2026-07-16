@@ -42,6 +42,8 @@ const LICENSE_TOKEN_SECRET = process.env.DMAIHXCAI_LICENSE_SECRET || TOKEN_SECRE
 const LICENSE_TTL_MS = 1000 * 60 * 60 * 24 * 183;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
+const MAX_OPENING_BOOKS = 40;
+const MAX_OPENING_BOOK_NODES = 600;
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
@@ -778,6 +780,86 @@ function mergeHistoryEntries(existingEntries, nextEntries) {
   ]);
 }
 
+function normalizeOpeningNode(node, counter) {
+  if (!node || typeof node !== "object" || counter.count >= MAX_OPENING_BOOK_NODES) {
+    return { move: "", notation: "", children: [] };
+  }
+  counter.count += 1;
+  const move = /^[a-i][0-9][a-i][0-9]$/.test(String(node.move || "")) ? String(node.move) : "";
+  const notation = String(node.notation || "").trim().slice(0, 32);
+  const children = Array.isArray(node.children)
+    ? node.children
+        .slice(0, Math.max(0, MAX_OPENING_BOOK_NODES - counter.count))
+        .map((child) => normalizeOpeningNode(child, counter))
+        .filter((child) => child.move)
+    : [];
+  return { move, notation, children };
+}
+
+function normalizeOpeningBookEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const counter = { count: 0 };
+  const tree = normalizeOpeningNode(entry.tree || {}, counter);
+  const name = sanitizeAccountName(entry.name || "", "").slice(0, 60);
+  if (!name) return null;
+  return {
+    id: String(entry.id || randomId(10)).slice(0, 40),
+    name,
+    createdAt: entry.createdAt && !Number.isNaN(Date.parse(entry.createdAt)) ? entry.createdAt : nowIso(),
+    updatedAt: entry.updatedAt && !Number.isNaN(Date.parse(entry.updatedAt)) ? entry.updatedAt : nowIso(),
+    startFen: String(entry.startFen || XiangqiCore.START_FEN).trim().slice(0, 160) || XiangqiCore.START_FEN,
+    nodeCount: counter.count,
+    tree
+  };
+}
+
+function normalizeOpeningBooks(entries) {
+  if (!Array.isArray(entries)) return [];
+  const seen = new Set();
+  return entries
+    .map(normalizeOpeningBookEntry)
+    .filter(Boolean)
+    .filter((entry) => {
+      if (seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    })
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.updatedAt || left.createdAt || 0) || 0;
+      const rightTime = Date.parse(right.updatedAt || right.createdAt || 0) || 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, MAX_OPENING_BOOKS);
+}
+
+function saveOpeningBookForUser(user, payload) {
+  if (!user) return null;
+  const now = nowIso();
+  const incoming = normalizeOpeningBookEntry({
+    ...payload,
+    id: payload?.id || randomId(10),
+    createdAt: payload?.createdAt || now,
+    updatedAt: now
+  });
+  if (!incoming) return null;
+  const existing = normalizeOpeningBooks(user.openingBooks);
+  const index = existing.findIndex((book) => book.id === incoming.id);
+  if (index >= 0) {
+    incoming.createdAt = existing[index].createdAt || incoming.createdAt;
+    existing.splice(index, 1);
+  }
+  user.openingBooks = normalizeOpeningBooks([incoming, ...existing]);
+  return incoming;
+}
+
+function deleteOpeningBookForUser(user, bookId) {
+  if (!user) return false;
+  const id = String(bookId || "").trim();
+  const before = normalizeOpeningBooks(user.openingBooks);
+  user.openingBooks = before.filter((book) => book.id !== id);
+  return user.openingBooks.length !== before.length;
+}
+
 function mergeUsers(primaryUsers, fallbackUsers) {
   const merged = [];
   const byId = new Map();
@@ -814,6 +896,7 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       avatarSeed: String(user.avatarSeed || randomBase36(4)),
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
       history: normalizeHistoryEntries(user.history),
+      openingBooks: normalizeOpeningBooks(user.openingBooks),
       createdAt: user.createdAt || nowIso(),
       lastSeenAt: user.lastSeenAt || "",
       currentActivity: sanitizeUserActivity(user.currentActivity || {}),
@@ -850,7 +933,11 @@ function mergeUsers(primaryUsers, fallbackUsers) {
     const combined = {
       ...existing,
       ...user,
-      history: mergeHistoryEntries(existing.history, user.history)
+      history: mergeHistoryEntries(existing.history, user.history),
+      openingBooks: normalizeOpeningBooks([
+        ...(Array.isArray(user.openingBooks) ? user.openingBooks : []),
+        ...(Array.isArray(existing.openingBooks) ? existing.openingBooks : [])
+      ])
     };
     merged[knownIndex] = combined;
     remember(combined, knownIndex);
@@ -1236,6 +1323,7 @@ function createLicenseUser(license, customerName = "") {
     avatarSeed: randomBase36(4),
     avatarUrl: defaultSystemAvatar(),
     history: [],
+    openingBooks: [],
     createdAt: now,
     lastSeenAt: now,
     currentActivity: { route: "home", roomKey: "", action: license.activatedAt ? "Da kich hoat license" : "Chua kich hoat", updatedAt: now },
@@ -1614,6 +1702,7 @@ function ensureAdminUser() {
     avatarSeed: randomBase36(4),
     avatarUrl: defaultAccessKeyAvatar(ADMIN_ACCESS_KEY || ADMIN_USERNAME),
     history: [],
+    openingBooks: [],
     createdAt: now,
     lastSeenAt: "",
     currentActivity: { route: "admin", roomKey: "", action: "Quản trị", updatedAt: "" }
@@ -2032,7 +2121,8 @@ function publicUser(user) {
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     visionQuota: visionQuotaStatus(user),
-    history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : []
+    history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [],
+    openingBooks: normalizeOpeningBooks(user.openingBooks)
   };
 }
 
@@ -2075,7 +2165,9 @@ function adminUserSummary(user) {
     currentRoomKey: room?.key || user.currentActivity?.roomKey || "",
     currentRoomRole: room ? roomAccessForUser(room, user.id).role : "",
     history: normalizeHistoryEntries(user.history),
-    historyCount: Array.isArray(user.history) ? user.history.length : 0
+    historyCount: Array.isArray(user.history) ? user.history.length : 0,
+    openingBooks: normalizeOpeningBooks(user.openingBooks),
+    openingBookCount: Array.isArray(user.openingBooks) ? user.openingBooks.length : 0
   };
 }
 
@@ -2188,6 +2280,7 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
     avatarSeed: randomBase36(4),
     avatarUrl: sanitizeAvatarUrl(avatarUrl),
     history: [],
+    openingBooks: [],
     createdAt: now,
     lastSeenAt: now,
     currentActivity: { route: "match", roomKey: "", action: "Khách vừa truy cập", updatedAt: now }
@@ -4311,6 +4404,7 @@ const server = http.createServer(async (req, res) => {
         avatarSeed: randomBase36(4),
         avatarUrl: "",
         history: [],
+        openingBooks: [],
         createdAt: now,
         lastSeenAt: now,
         currentActivity: { route: "home", roomKey: "", action: "Vừa đăng ký", updatedAt: now }
@@ -4378,6 +4472,38 @@ const server = http.createServer(async (req, res) => {
       const user = requireUser(req);
       json(res, 200, { ok: true, history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [] });
       return;
+    }
+
+    if (url.pathname === "/api/opening-books") {
+      const user = requireUser(req);
+      if (req.method === "GET") {
+        json(res, 200, { ok: true, books: normalizeOpeningBooks(user.openingBooks) });
+        return;
+      }
+      if (req.method === "POST") {
+        const body = await readBody(req);
+        const book = saveOpeningBookForUser(user, body.book || body);
+        if (!book) {
+          json(res, 400, { ok: false, error: "Ten khai cuoc hoac du lieu book khong hop le." });
+          return;
+        }
+        touchUserActivity(user, { route: "library", roomKey: "", action: `Luu book khai cuoc ${book.name}` });
+        await flushUserPersistence();
+        json(res, 200, { ok: true, book, books: normalizeOpeningBooks(user.openingBooks), user: publicUser(user) });
+        return;
+      }
+      if (req.method === "DELETE") {
+        const body = await readBody(req);
+        const deleted = deleteOpeningBookForUser(user, body.id || url.searchParams.get("id"));
+        if (!deleted) {
+          json(res, 404, { ok: false, error: "Khong tim thay book khai cuoc." });
+          return;
+        }
+        touchUserActivity(user, { route: "library", roomKey: "", action: "Xoa book khai cuoc" });
+        await flushUserPersistence();
+        json(res, 200, { ok: true, books: normalizeOpeningBooks(user.openingBooks), user: publicUser(user) });
+        return;
+      }
     }
 
     if (url.pathname === "/api/admin/users") {

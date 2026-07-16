@@ -295,11 +295,50 @@
           <section class="panel-card match-panel">
             <div class="panel-heading">
               <div>
-                <h2>Lịch sử ván đấu</h2>
-                <p>Tối đa 20 ván gần nhất. Bấm vào mỗi ván để tua lại và phân tích sau ván.</p>
+                <h2>Khu 3</h2>
+                <p>Lịch sử ván đấu, tạo book khai cuộc và thư viện khai cuộc của bạn.</p>
               </div>
             </div>
-            <div id="libraryHistoryList" class="history-list"></div>
+            <div class="library-tabs" role="tablist" aria-label="Khu 3">
+              <button id="libraryHistoryTab" class="secondary-button active" type="button" data-library-tab="history">Lịch sử ván đấu</button>
+              <button id="libraryBookCreateTab" class="secondary-button" type="button" data-library-tab="book-create">Tạo book khai cuộc</button>
+              <button id="libraryBookSavedTab" class="secondary-button" type="button" data-library-tab="book-saved">Khai cuộc đã lưu</button>
+            </div>
+
+            <div id="libraryHistoryPanel" class="library-panel" data-library-panel="history">
+              <div id="libraryHistoryList" class="history-list"></div>
+            </div>
+
+            <div id="libraryBookCreatePanel" class="library-panel hidden" data-library-panel="book-create">
+              <div class="opening-book-shell">
+                <div class="opening-book-board-wrap">
+                  <div id="openingBookBoard" class="room-board review-board opening-book-board" aria-label="Bàn tạo book khai cuộc">
+                    <div class="board-skin-layer" aria-hidden="true"></div>
+                    <canvas id="openingBookArrowCanvas"></canvas>
+                    <div id="openingBookMarks"></div>
+                    <div id="openingBookPieces"></div>
+                  </div>
+                </div>
+                <aside class="opening-book-side">
+                  <div class="review-controls opening-book-controls">
+                    <button id="openingBookPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
+                    <button id="openingBookNextBtn" class="secondary-button" type="button">Tiếp theo</button>
+                    <button id="openingBookResetBtn" class="secondary-button" type="button">Đặt lại</button>
+                    <button id="openingBookSaveBtn" class="primary-button" type="button">Lưu book</button>
+                  </div>
+                  <div id="openingBookStatus" class="notice-card">Thao tác cả hai bên Đỏ và Đen để soạn cây khai cuộc.</div>
+                  <div id="openingBookBranchChooser" class="opening-book-branch-chooser hidden"></div>
+                  <div>
+                    <strong>Các điểm rẽ nhánh</strong>
+                    <div id="openingBookMoveList" class="opening-book-move-list"></div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+
+            <div id="libraryBookSavedPanel" class="library-panel hidden" data-library-panel="book-saved">
+              <div id="openingBookSavedList" class="history-list"></div>
+            </div>
           </section>
         </div>
       </section>

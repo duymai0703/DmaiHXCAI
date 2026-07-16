@@ -172,6 +172,18 @@
     deviceId: initialDeviceId,
     deviceAvatarUrl: initialDeviceAvatar,
     history: readStoredHistory(),
+    libraryTab: "history",
+    openingBooks: [],
+    openingBookEditor: createOpeningBookEditorState(),
+    openingBookSelectedSquare: null,
+    openingBookHints: [],
+    openingBookDrawFrame: 0,
+    openingBookDrawForce: false,
+    openingBookLastBoardFrame: "",
+    openingBookLastPieceFrame: "",
+    openingBookSlots: null,
+    openingBookHintSlots: null,
+    openingBookSlotLayoutKey: "",
     route: "home",
     booting: true,
     pendingAccessKey: "",
@@ -393,6 +405,24 @@
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
     libraryHistoryList: byId("libraryHistoryList"),
+    libraryHistoryTab: byId("libraryHistoryTab"),
+    libraryBookCreateTab: byId("libraryBookCreateTab"),
+    libraryBookSavedTab: byId("libraryBookSavedTab"),
+    libraryHistoryPanel: byId("libraryHistoryPanel"),
+    libraryBookCreatePanel: byId("libraryBookCreatePanel"),
+    libraryBookSavedPanel: byId("libraryBookSavedPanel"),
+    openingBookBoard: byId("openingBookBoard"),
+    openingBookArrowCanvas: byId("openingBookArrowCanvas"),
+    openingBookMarks: byId("openingBookMarks"),
+    openingBookPieces: byId("openingBookPieces"),
+    openingBookPrevBtn: byId("openingBookPrevBtn"),
+    openingBookNextBtn: byId("openingBookNextBtn"),
+    openingBookResetBtn: byId("openingBookResetBtn"),
+    openingBookSaveBtn: byId("openingBookSaveBtn"),
+    openingBookStatus: byId("openingBookStatus"),
+    openingBookBranchChooser: byId("openingBookBranchChooser"),
+    openingBookMoveList: byId("openingBookMoveList"),
+    openingBookSavedList: byId("openingBookSavedList"),
     adminLicenseFilter: byId("adminLicenseFilter"),
     adminRefreshBtn: byId("adminRefreshBtn"),
     adminImportKeysBtn: byId("adminImportKeysBtn"),
@@ -964,6 +994,8 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
+    state.openingBookLastBoardFrame = "";
+    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
   }
 
   function applyPortalPieceSkin(skin, { persist = false } = {}) {
@@ -977,10 +1009,13 @@
     });
     state.lastPieceFrame = "";
     state.reviewLastPieceFrame = "";
+    state.openingBookLastPieceFrame = "";
     state.roomSlotLayoutKey = "";
     state.reviewSlotLayoutKey = "";
+    state.openingBookSlotLayoutKey = "";
     if (dom.roomView && !dom.roomView.classList.contains("hidden")) drawRoomScene(true, true);
     if (dom.reviewView && !dom.reviewView.classList.contains("hidden")) drawReviewScene(true, true);
+    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
   }
 
   function togglePortalBoardSkinMenu() {
@@ -1101,6 +1136,14 @@
       window.location.href = "/analysis.html";
     });
     dom.openLibraryBtn.addEventListener("click", () => goRoute("library"));
+    dom.libraryHistoryTab?.addEventListener("click", () => setLibraryTab("history"));
+    dom.libraryBookCreateTab?.addEventListener("click", () => setLibraryTab("book-create"));
+    dom.libraryBookSavedTab?.addEventListener("click", () => setLibraryTab("book-saved"));
+    dom.openingBookBoard?.addEventListener("pointerdown", onOpeningBookPointerDown);
+    dom.openingBookPrevBtn?.addEventListener("click", stepOpeningBookBack);
+    dom.openingBookNextBtn?.addEventListener("click", openOpeningBookBranchChooser);
+    dom.openingBookResetBtn?.addEventListener("click", resetOpeningBookEditor);
+    dom.openingBookSaveBtn?.addEventListener("click", saveOpeningBookEditor);
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
@@ -1785,6 +1828,9 @@
     if (route === "review") {
       renderReviewState(true);
     }
+    if (route === "library") {
+      renderLibrary();
+    }
     if (route === "admin") {
       startAdminPolling();
       renderAdminState();
@@ -1856,6 +1902,7 @@
       avatarUrl: user.avatarUrl || state.deviceAvatarUrl
     } : null;
     state.sessionSuspended = false;
+    state.openingBooks = normalizeOpeningBookList(user?.openingBooks);
     if (accessKey) {
       state.savedAccessKey = String(accessKey || "").trim();
       writePersistentValue(STORAGE_ACCESS_KEY, state.savedAccessKey);
@@ -2157,6 +2204,318 @@
     }
   }
 
+  function createOpeningBookEditorState(book = null) {
+    const parsed = XiangqiCore.parseFenState(book?.startFen || START_FEN);
+    return {
+      id: book?.id || "",
+      name: book?.name || "",
+      startFen: book?.startFen || START_FEN,
+      root: normalizeOpeningBookNode(book?.tree || {}),
+      path: [],
+      board: parsed.board,
+      side: parsed.side,
+      lastBackNode: null
+    };
+  }
+
+  function normalizeOpeningBookNode(node) {
+    const move = /^[a-i][0-9][a-i][0-9]$/.test(String(node?.move || "")) ? String(node.move) : "";
+    const notation = String(node?.notation || "").trim().slice(0, 32);
+    const children = Array.isArray(node?.children)
+      ? node.children.map(normalizeOpeningBookNode).filter((child) => child.move)
+      : [];
+    return { move, notation, children };
+  }
+
+  function normalizeOpeningBookList(books) {
+    return Array.isArray(books)
+      ? books.map((book) => ({
+          ...(book || {}),
+          id: String(book?.id || ""),
+          name: String(book?.name || "Khai cuộc chưa đặt tên"),
+          startFen: book?.startFen || START_FEN,
+          tree: normalizeOpeningBookNode(book?.tree || {})
+        })).filter((book) => book.id)
+      : [];
+  }
+
+  function setLibraryTab(tab) {
+    state.libraryTab = ["history", "book-create", "book-saved"].includes(tab) ? tab : "history";
+    renderLibrary();
+    if (state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+  }
+
+  function renderLibrary() {
+    renderHistory();
+    renderOpeningBookTabs();
+    renderOpeningBookEditor();
+    renderOpeningBookSavedList();
+  }
+
+  function renderOpeningBookTabs() {
+    const active = state.libraryTab || "history";
+    [
+      [dom.libraryHistoryTab, dom.libraryHistoryPanel, "history"],
+      [dom.libraryBookCreateTab, dom.libraryBookCreatePanel, "book-create"],
+      [dom.libraryBookSavedTab, dom.libraryBookSavedPanel, "book-saved"]
+    ].forEach(([button, panel, key]) => {
+      button?.classList.toggle("active", active === key);
+      button?.setAttribute("aria-selected", active === key ? "true" : "false");
+      panel?.classList.toggle("hidden", active !== key);
+    });
+  }
+
+  function openingBookCurrentNode() {
+    let node = state.openingBookEditor.root;
+    for (const index of state.openingBookEditor.path) {
+      node = node.children?.[index] || node;
+    }
+    return node;
+  }
+
+  function nodeAtOpeningBookPath(path) {
+    let node = state.openingBookEditor.root;
+    for (const index of path || []) node = node.children?.[index] || node;
+    return node;
+  }
+
+  function rebuildOpeningBookBoard() {
+    const parsed = XiangqiCore.parseFenState(state.openingBookEditor.startFen || START_FEN);
+    const board = parsed.board;
+    let side = parsed.side;
+    let node = state.openingBookEditor.root;
+    for (const index of state.openingBookEditor.path) {
+      const child = node.children?.[index];
+      if (!child || !XiangqiCore.isLegalMove(board, child.move, side)) break;
+      XiangqiCore.applyMoveToBoard(board, child.move);
+      side = oppositeSide(side);
+      node = child;
+    }
+    state.openingBookEditor.board = board;
+    state.openingBookEditor.side = side;
+  }
+
+  function renderOpeningBookEditor() {
+    if (!dom.openingBookStatus) return;
+    const editor = state.openingBookEditor;
+    const current = openingBookCurrentNode();
+    const branchCount = current.children?.length || 0;
+    dom.openingBookStatus.textContent = `Đang ở nước ${editor.path.length}. Tới lượt ${editor.side === "w" ? "Đỏ" : "Đen"}. ${branchCount >= 2 ? `Có ${branchCount} biến ở điểm này.` : "Đi tiếp để tạo biến mới."}`;
+    dom.openingBookPrevBtn.disabled = editor.path.length <= 0;
+    dom.openingBookNextBtn.disabled = !branchCount;
+    renderOpeningBookMoveList();
+    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true);
+  }
+
+  function renderOpeningBookMoveList() {
+    if (!dom.openingBookMoveList) return;
+    dom.openingBookMoveList.innerHTML = "";
+    const rows = [];
+    walkOpeningBookNodes(state.openingBookEditor.root, [], (node, path) => {
+      if ((node.children?.length || 0) >= 2) rows.push({ node, path });
+    });
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Chưa có điểm rẽ nhánh nào.";
+      dom.openingBookMoveList.appendChild(empty);
+      return;
+    }
+    rows.slice(0, 24).forEach((item) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "opening-book-branch-row";
+      row.textContent = `Nước ${item.path.length}: ${item.node.children.map((child, index) => `${index + 1}. ${child.notation || child.move}`).join("  ")}`;
+      row.addEventListener("click", () => {
+        state.openingBookEditor.path = item.path.slice();
+        state.openingBookSelectedSquare = null;
+        state.openingBookHints = [];
+        rebuildOpeningBookBoard();
+        renderOpeningBookEditor();
+      });
+      dom.openingBookMoveList.appendChild(row);
+    });
+  }
+
+  function walkOpeningBookNodes(node, path, visit) {
+    visit(node, path);
+    (node.children || []).forEach((child, index) => walkOpeningBookNodes(child, [...path, index], visit));
+  }
+
+  function stepOpeningBookBack() {
+    if (!state.openingBookEditor.path.length) return;
+    const parentPath = state.openingBookEditor.path.slice(0, -1);
+    const removedIndex = state.openingBookEditor.path[state.openingBookEditor.path.length - 1];
+    const parent = nodeAtOpeningBookPath(parentPath);
+    state.openingBookEditor.lastBackNode = parent?.children?.[removedIndex] || null;
+    state.openingBookEditor.path = parentPath;
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    rebuildOpeningBookBoard();
+    renderOpeningBookEditor();
+  }
+
+  function openOpeningBookBranchChooser() {
+    const children = openingBookCurrentNode().children || [];
+    if (!children.length) return;
+    if (children.length === 1) {
+      state.openingBookEditor.path.push(0);
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+      rebuildOpeningBookBoard();
+      renderOpeningBookEditor();
+      return;
+    }
+    renderOpeningBookBranchChooser(false);
+  }
+
+  function renderOpeningBookBranchChooser(editMode) {
+    if (!dom.openingBookBranchChooser) return;
+    const node = openingBookCurrentNode();
+    const children = node.children || [];
+    dom.openingBookBranchChooser.innerHTML = "";
+    dom.openingBookBranchChooser.classList.remove("hidden");
+    const title = document.createElement("strong");
+    title.textContent = editMode ? "Xóa biến không muốn lưu" : "Chọn biến tiếp theo";
+    dom.openingBookBranchChooser.appendChild(title);
+    children.forEach((child, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary-button";
+      button.textContent = `${index + 1}. ${child.notation || child.move}`;
+      button.addEventListener("click", () => {
+        if (editMode) {
+          children.splice(index, 1);
+          dom.openingBookBranchChooser.classList.add("hidden");
+          renderOpeningBookEditor();
+          return;
+        }
+        state.openingBookEditor.path.push(index);
+        dom.openingBookBranchChooser.classList.add("hidden");
+        state.openingBookSelectedSquare = null;
+        state.openingBookHints = [];
+        rebuildOpeningBookBoard();
+        renderOpeningBookEditor();
+      });
+      dom.openingBookBranchChooser.appendChild(button);
+    });
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "ghost-button";
+    edit.textContent = editMode ? "Xong" : "Tùy chỉnh";
+    edit.addEventListener("click", () => renderOpeningBookBranchChooser(!editMode));
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ghost-button";
+    close.textContent = "Đóng";
+    close.addEventListener("click", () => dom.openingBookBranchChooser.classList.add("hidden"));
+    dom.openingBookBranchChooser.append(edit, close);
+  }
+
+  function resetOpeningBookEditor() {
+    state.openingBookEditor = createOpeningBookEditorState();
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    state.openingBookLastBoardFrame = "";
+    state.openingBookLastPieceFrame = "";
+    renderOpeningBookEditor();
+  }
+
+  async function saveOpeningBookEditor() {
+    const name = window.prompt("Nhập tên khai cuộc", state.openingBookEditor.name || "");
+    if (!name || !name.trim()) return;
+    try {
+      const payload = await api("/api/opening-books", {
+        method: "POST",
+        body: {
+          book: {
+            id: state.openingBookEditor.id,
+            name: name.trim(),
+            startFen: state.openingBookEditor.startFen,
+            tree: state.openingBookEditor.root
+          }
+        }
+      });
+      state.openingBooks = normalizeOpeningBookList(payload.books);
+      if (payload.user) applySession(payload.user, state.token);
+      state.openingBookEditor.id = payload.book?.id || state.openingBookEditor.id;
+      state.openingBookEditor.name = payload.book?.name || name.trim();
+      renderLibrary();
+      showToast("Đã lưu book khai cuộc.");
+    } catch (error) {
+      showToast(error.message || "Không thể lưu book khai cuộc.");
+    }
+  }
+
+  function renderOpeningBookSavedList() {
+    if (!dom.openingBookSavedList) return;
+    dom.openingBookSavedList.innerHTML = "";
+    const books = normalizeOpeningBookList(state.openingBooks);
+    if (!books.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Chưa có book khai cuộc nào.";
+      dom.openingBookSavedList.appendChild(empty);
+      return;
+    }
+    books.forEach((book) => {
+      const item = document.createElement("article");
+      item.className = "history-item opening-book-item";
+      const header = document.createElement("header");
+      const title = document.createElement("strong");
+      title.textContent = book.name;
+      const pill = document.createElement("span");
+      pill.className = "result-pill draw";
+      pill.textContent = `${Math.max(0, countOpeningBookNodes(book.tree) - 1)} nước`;
+      header.append(title, pill);
+      const detail = document.createElement("div");
+      detail.style.color = "var(--muted)";
+      detail.style.fontSize = "13px";
+      detail.textContent = `Cập nhật: ${formatDate(book.updatedAt || book.createdAt)}`;
+      const actions = document.createElement("div");
+      actions.className = "opening-book-item-actions";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "secondary-button";
+      open.textContent = "Mở soạn";
+      open.addEventListener("click", () => {
+        state.openingBookEditor = createOpeningBookEditorState(book);
+        state.openingBookSelectedSquare = null;
+        state.openingBookHints = [];
+        setLibraryTab("book-create");
+      });
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "ghost-button";
+      remove.textContent = "Xóa";
+      remove.addEventListener("click", () => deleteOpeningBook(book.id));
+      actions.append(open, remove);
+      item.append(header, detail, actions);
+      dom.openingBookSavedList.appendChild(item);
+    });
+  }
+
+  function countOpeningBookNodes(node) {
+    if (!node) return 0;
+    return 1 + (node.children || []).reduce((sum, child) => sum + countOpeningBookNodes(child), 0);
+  }
+
+  async function deleteOpeningBook(id) {
+    if (!id || !window.confirm("Xóa book khai cuộc này?")) return;
+    try {
+      const payload = await api("/api/opening-books", {
+        method: "DELETE",
+        body: { id }
+      });
+      state.openingBooks = normalizeOpeningBookList(payload.books);
+      if (payload.user) applySession(payload.user, state.token);
+      renderLibrary();
+      showToast("Đã xóa book khai cuộc.");
+    } catch (error) {
+      showToast(error.message || "Không thể xóa book khai cuộc.");
+    }
+  }
+
   function renderHistory() {
     persistStoredHistory(state.history);
     const options = {
@@ -2173,7 +2532,8 @@
       online: Boolean(user?.online),
       currentActivity: user?.currentActivity || {},
       currentRoomKey: user?.currentRoomKey || "",
-      currentRoomRole: user?.currentRoomRole || ""
+      currentRoomRole: user?.currentRoomRole || "",
+      openingBooks: normalizeOpeningBookList(user?.openingBooks)
     };
   }
 
@@ -2342,9 +2702,41 @@
       emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
       onOpen: openHistoryReview
     });
+    renderAdminOpeningBookPanel(selected);
     renderAdminRenamePanel(selected);
     renderAdminAvatarPanel(selected);
     renderAdminWatchPanel(selected);
+  }
+
+  function renderAdminOpeningBookPanel(user) {
+    if (!dom.adminHistoryList || !user) return;
+    const panel = document.createElement("div");
+    panel.className = "admin-opening-book-card";
+    const title = document.createElement("strong");
+    title.textContent = "Thư viện khai cuộc";
+    panel.appendChild(title);
+    const books = normalizeOpeningBookList(user.openingBooks);
+    if (!books.length) {
+      const empty = document.createElement("span");
+      empty.textContent = "Tài khoản này chưa lưu book khai cuộc nào.";
+      panel.appendChild(empty);
+    } else {
+      books.slice(0, 12).forEach((book) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "opening-book-branch-row";
+        row.textContent = `${book.name} - ${Math.max(0, countOpeningBookNodes(book.tree) - 1)} nước`;
+        row.addEventListener("click", () => {
+          state.openingBookEditor = createOpeningBookEditorState(book);
+          state.openingBookSelectedSquare = null;
+          state.openingBookHints = [];
+          goRoute("library");
+          setLibraryTab("book-create");
+        });
+        panel.appendChild(row);
+      });
+    }
+    dom.adminHistoryList.prepend(panel);
   }
 
   function renderAdminRenamePanel(user) {
@@ -4347,6 +4739,245 @@
     drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
   }
 
+  function drawOpeningBookScene(forceBoard, immediate = false) {
+    if (dom.libraryBookCreatePanel?.classList.contains("hidden")) return;
+    const draw = () => {
+      drawOpeningBookBoard(forceBoard);
+      drawOpeningBookPieces(forceBoard);
+      drawOpeningBookArrows();
+    };
+    if (immediate) {
+      if (state.openingBookDrawFrame) {
+        window.cancelAnimationFrame(state.openingBookDrawFrame);
+        state.openingBookDrawFrame = 0;
+      }
+      state.openingBookDrawForce = false;
+      draw();
+      return;
+    }
+    state.openingBookDrawForce = state.openingBookDrawForce || Boolean(forceBoard);
+    if (state.openingBookDrawFrame) return;
+    state.openingBookDrawFrame = window.requestAnimationFrame(() => {
+      const force = state.openingBookDrawForce;
+      state.openingBookDrawFrame = 0;
+      state.openingBookDrawForce = false;
+      drawOpeningBookBoard(force);
+      drawOpeningBookPieces(force);
+      drawOpeningBookArrows();
+    });
+  }
+
+  function drawOpeningBookBoard(force) {
+    if (!dom.openingBookBoard || !dom.openingBookArrowCanvas) return;
+    const metrics = boardMetrics(dom.openingBookBoard);
+    if (!metrics.width || !metrics.height) return;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    if (!force && signature === state.openingBookLastBoardFrame) return;
+    state.openingBookLastBoardFrame = signature;
+    const canvas = dom.openingBookArrowCanvas;
+    canvas.width = Math.round(metrics.width * devicePixelRatio);
+    canvas.height = Math.round(metrics.height * devicePixelRatio);
+    canvas.style.width = `${metrics.width}px`;
+    canvas.style.height = `${metrics.height}px`;
+  }
+
+  function ensureOpeningBookSlots() {
+    if (!dom.openingBookBoard || dom.libraryBookCreatePanel?.classList.contains("hidden")) return { pieceSlots: [], hintSlots: [] };
+    const metrics = boardMetrics(dom.openingBookBoard);
+    if (!metrics.width || !metrics.height) return { pieceSlots: [], hintSlots: [] };
+    const layoutKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    if (state.openingBookSlots && state.openingBookHintSlots && state.openingBookSlots.length === 90 && state.openingBookHintSlots.length === 90) {
+      if (state.openingBookSlotLayoutKey !== layoutKey) {
+        for (let y = 0; y < 10; y += 1) {
+          for (let x = 0; x < 9; x += 1) {
+            const index = y * 9 + x;
+            const pixel = openingBookSquareToPixel({ x, y });
+            state.openingBookSlots[index].style.left = `${pixel.x}px`;
+            state.openingBookSlots[index].style.top = `${pixel.y}px`;
+            state.openingBookHintSlots[index].style.left = `${pixel.x}px`;
+            state.openingBookHintSlots[index].style.top = `${pixel.y}px`;
+          }
+        }
+        state.openingBookSlotLayoutKey = layoutKey;
+      }
+      return { pieceSlots: state.openingBookSlots, hintSlots: state.openingBookHintSlots };
+    }
+    state.openingBookSlotLayoutKey = layoutKey;
+    state.openingBookSlots = [];
+    state.openingBookHintSlots = [];
+    const pieceFragment = document.createDocumentFragment();
+    const hintFragment = document.createDocumentFragment();
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const pixel = openingBookSquareToPixel({ x, y });
+        const hint = document.createElement("div");
+        hint.className = "hint";
+        hint.style.left = `${pixel.x}px`;
+        hint.style.top = `${pixel.y}px`;
+        hintFragment.appendChild(hint);
+        state.openingBookHintSlots.push(hint);
+
+        const piece = document.createElement("div");
+        piece.className = "piece image-piece";
+        piece.style.left = `${pixel.x}px`;
+        piece.style.top = `${pixel.y}px`;
+        piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "sync";
+        image.loading = "eager";
+        image.fetchPriority = "high";
+        image.draggable = false;
+        piece.appendChild(image);
+        pieceFragment.appendChild(piece);
+        state.openingBookSlots.push(piece);
+      }
+    }
+    dom.openingBookMarks.replaceChildren(hintFragment);
+    dom.openingBookPieces.replaceChildren(pieceFragment);
+    return { pieceSlots: state.openingBookSlots, hintSlots: state.openingBookHintSlots };
+  }
+
+  function drawOpeningBookPieces(force) {
+    const board = state.openingBookEditor.board;
+    const checkedSides = getCheckedSides(board);
+    const selectedKey = state.openingBookSelectedSquare ? XiangqiCore.squareToUci(state.openingBookSelectedSquare) : "";
+    const hintKey = state.openingBookHints.map(XiangqiCore.squareToUci).join(",");
+    const signature = `${boardSignature(board)}|${currentPieceSkin()}|${selectedKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    if (!force && signature === state.openingBookLastPieceFrame) return;
+    state.openingBookLastPieceFrame = signature;
+    const { pieceSlots, hintSlots } = ensureOpeningBookSlots();
+    if (!pieceSlots.length) return;
+    const hintIndexes = new Set(state.openingBookHints.map((square) => square.y * 9 + square.x));
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const index = y * 9 + x;
+        const el = pieceSlots[index];
+        const piece = board[y]?.[x] || "";
+        if (!piece) {
+          el.classList.remove("is-visible", "selected", "in-check");
+          el.setAttribute("aria-hidden", "true");
+          if (el.dataset.piece) {
+            el.dataset.piece = "";
+            el.removeAttribute("aria-label");
+          }
+        } else {
+          const image = el.querySelector(".piece-skin");
+          if (el.dataset.piece !== piece || (image && image.getAttribute("src") !== roomPieceImageFor(piece))) {
+            setRoomPieceSlotImage(el, piece);
+          }
+          el.classList.add("is-visible");
+          el.classList.toggle("selected", Boolean(state.openingBookSelectedSquare && state.openingBookSelectedSquare.x === x && state.openingBookSelectedSquare.y === y));
+          el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
+          el.setAttribute("aria-hidden", "false");
+        }
+        const mark = hintSlots[index];
+        const showHint = hintIndexes.has(index);
+        mark.classList.toggle("is-visible", showHint);
+        mark.setAttribute("aria-hidden", showHint ? "false" : "true");
+      }
+    }
+  }
+
+  function drawOpeningBookArrows() {
+    if (!dom.openingBookArrowCanvas) return;
+    const metrics = boardMetrics(dom.openingBookBoard);
+    const ctx = dom.openingBookArrowCanvas.getContext("2d");
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.clearRect(0, 0, metrics.width, metrics.height);
+    const children = openingBookCurrentNode().children || [];
+    if (children.length < 2) return;
+    children.forEach((child, index) => drawOpeningBookBranchArrow(ctx, child.move, index + 1));
+  }
+
+  function drawOpeningBookBranchArrow(ctx, move, number) {
+    if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return;
+    const metrics = boardMetrics(dom.openingBookBoard);
+    const from = openingBookSquareToPixel(uciToSquare(move.slice(0, 2)));
+    const to = openingBookSquareToPixel(uciToSquare(move.slice(2, 4)));
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const dir = { x: Math.cos(angle), y: Math.sin(angle) };
+    const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
+    const head = Math.max(34, metrics.width / 15.5);
+    const halfWidth = Math.max(9, head * 0.2);
+    const tip = to;
+    const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
+    ctx.lineWidth = Math.max(3.2, metrics.width / 175);
+    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(79, 188, 82, 0.88)"));
+    const labelX = base.x - normal.x * (halfWidth + 12);
+    const labelY = base.y - normal.y * (halfWidth + 12);
+    ctx.save();
+    ctx.fillStyle = "rgba(24, 20, 15, 0.86)";
+    ctx.strokeStyle = "rgba(255, 231, 160, 0.96)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(labelX, labelY, Math.max(11, metrics.width / 42), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fff4c6";
+    ctx.font = `700 ${Math.max(12, metrics.width / 32)}px "Segoe UI"`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(number), labelX, labelY);
+    ctx.restore();
+  }
+
+  function onOpeningBookPointerDown(event) {
+    if (state.route !== "library" || state.libraryTab !== "book-create") return;
+    event.preventDefault();
+    const square = eventToOpeningBookSquare(event);
+    if (!square) return;
+    const board = state.openingBookEditor.board;
+    const piece = board[square.y]?.[square.x] || "";
+    const side = state.openingBookEditor.side;
+    if (state.openingBookSelectedSquare && state.openingBookSelectedSquare.x === square.x && state.openingBookSelectedSquare.y === square.y) {
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+      renderOpeningBookEditor();
+      return;
+    }
+    if (state.openingBookSelectedSquare) {
+      const valid = state.openingBookHints.some((hint) => hint.x === square.x && hint.y === square.y);
+      if (valid) {
+        const move = XiangqiCore.squareToUci(state.openingBookSelectedSquare) + XiangqiCore.squareToUci(square);
+        playOpeningBookMove(move);
+        return;
+      }
+    }
+    if (piece && XiangqiCore.pieceColor(piece) === side) {
+      state.openingBookSelectedSquare = square;
+      state.openingBookHints = XiangqiCore.getLegalMovesForSquare(board, side, square);
+    } else {
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+    }
+    renderOpeningBookEditor();
+  }
+
+  function playOpeningBookMove(move) {
+    const board = state.openingBookEditor.board;
+    const side = state.openingBookEditor.side;
+    if (!XiangqiCore.isLegalMove(board, move, side)) return;
+    const node = openingBookCurrentNode();
+    node.children = Array.isArray(node.children) ? node.children : [];
+    let childIndex = node.children.findIndex((child) => child.move === move);
+    if (childIndex < 0) {
+      childIndex = node.children.length;
+      node.children.push({
+        move,
+        notation: XiangqiCore.formatMoveNotation(move, board, side),
+        children: []
+      });
+    }
+    state.openingBookEditor.path.push(childIndex);
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    state.openingBookEditor.lastBackNode = null;
+    rebuildOpeningBookBoard();
+    renderOpeningBookEditor();
+  }
+
   function clearReviewArrow() {
     const metrics = boardMetrics(dom.reviewBoard);
     const ctx = dom.reviewArrowCanvas.getContext("2d");
@@ -5112,6 +5743,10 @@
     return state.reviewGame?.sideCode === "b" ? "b" : "w";
   }
 
+  function openingBookViewSide() {
+    return "w";
+  }
+
   function geometry() {
     const metrics = boardMetrics(dom.roomBoard);
     const pad = metrics.width * 0.07;
@@ -5133,6 +5768,21 @@
     const usableW = metrics.width - pad * 2;
     const usableH = metrics.height - pad * 2;
     const flipped = reviewViewSide() === "b";
+    return {
+      rect: metrics.rect,
+      offsetX: metrics.offsetX,
+      offsetY: metrics.offsetY,
+      x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
+      y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
+    };
+  }
+
+  function openingBookGeometry() {
+    const metrics = boardMetrics(dom.openingBookBoard);
+    const pad = metrics.width * 0.07;
+    const usableW = metrics.width - pad * 2;
+    const usableH = metrics.height - pad * 2;
+    const flipped = openingBookViewSide() === "b";
     return {
       rect: metrics.rect,
       offsetX: metrics.offsetX,
@@ -5165,6 +5815,11 @@
 
   function reviewSquareToPixel(square) {
     const g = reviewGeometry();
+    return { x: g.x(square.x), y: g.y(square.y) };
+  }
+
+  function openingBookSquareToPixel(square) {
+    const g = openingBookGeometry();
     return { x: g.x(square.x), y: g.y(square.y) };
   }
 
@@ -5201,6 +5856,24 @@
       }
     }
     return bestDistance < boardMetrics(dom.roomBoard).width / 9.4 ? best : null;
+  }
+
+  function eventToOpeningBookSquare(event) {
+    const g = openingBookGeometry();
+    let best = null;
+    let bestDistance = Infinity;
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const px = g.x(x);
+        const py = g.y(y);
+        const distance = Math.hypot(event.clientX - g.rect.left - g.offsetX - px, event.clientY - g.rect.top - g.offsetY - py);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { x, y };
+        }
+      }
+    }
+    return bestDistance < boardMetrics(dom.openingBookBoard).width / 9.4 ? best : null;
   }
 
   function line(ctx, x1, y1, x2, y2) {
