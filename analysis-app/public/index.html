@@ -45,7 +45,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260716-opening-book-side-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260716-mobile-library-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -184,6 +184,7 @@
               <button id="showJoinRoom" class="secondary-button active" type="button">Vào phòng đấu</button>
               <button id="showCreateRoom" class="secondary-button" type="button">Tạo phòng đấu</button>
               <button id="showBotRoom" class="secondary-button" type="button">Đánh với máy</button>
+              <button id="showMobileLibrary" class="secondary-button mobile-library-shortcut" type="button">Thư viện cá nhân</button>
             </div>
 
             <form id="joinRoomForm" class="subpanel">
@@ -646,7 +647,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260716-opening-book-side-v1"></script>
+    <script src="/portal.js?v=20260716-mobile-library-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

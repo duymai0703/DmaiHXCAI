@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260716-opening-book-side-v1";
+  const ASSET_WARMUP_VERSION = "20260716-mobile-library-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -147,9 +147,9 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/lubo1.png",
-    "/assets/posters/lubo2.png",
-    "/assets/posters/lubo3.png",
+    "/assets/posters/vancu1.png",
+    "/assets/posters/vancu2.png",
+    "/assets/posters/vancu3.png",
     "/assets/posters/vanca2.png",
     "/assets/posters/vanca1.png",
     "/assets/posters/vanca3.png"
@@ -319,6 +319,7 @@
     showJoinRoom: byId("showJoinRoom"),
     showCreateRoom: byId("showCreateRoom"),
     showBotRoom: byId("showBotRoom"),
+    showMobileLibrary: byId("showMobileLibrary"),
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
     botRoomForm: byId("botRoomForm"),
@@ -1154,6 +1155,10 @@
       window.location.href = "/analysis.html";
     });
     dom.openLibraryBtn.addEventListener("click", () => goRoute("library"));
+    dom.showMobileLibrary?.addEventListener("click", () => {
+      setLibraryTab("history");
+      goRoute("library");
+    });
     dom.libraryHistoryTab?.addEventListener("click", () => setLibraryTab("history"));
     dom.libraryBookCreateTab?.addEventListener("click", () => setLibraryTab("book-create"));
     dom.libraryBookSavedTab?.addEventListener("click", () => setLibraryTab("book-saved"));

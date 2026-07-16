@@ -2325,6 +2325,12 @@ a {
     gap: 10px;
   }
 
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] .mobile-library-shortcut {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   body.mobile-room-entry.portal-mobile-mode[data-route="match"] .subpanel {
     gap: 12px;
   }
@@ -4232,16 +4238,20 @@ textarea:focus {
   filter: brightness(1.08) drop-shadow(0 0 12px rgba(56, 189, 248, 0.34));
 }
 
+.mobile-library-shortcut {
+  display: none;
+}
+
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/lubo1.png");
+  --poster-image: url("/assets/posters/vancu1.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/lubo2.png");
+  --poster-image: url("/assets/posters/vancu2.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/lubo3.png");
+  --poster-image: url("/assets/posters/vancu3.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
