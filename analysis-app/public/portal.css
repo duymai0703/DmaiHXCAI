@@ -4179,27 +4179,27 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/darkmagi1.png");
+  --poster-image: url("/assets/posters/lubo1.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/darkmagi2.png");
+  --poster-image: url("/assets/posters/lubo3.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/darkmagi3.png");
+  --poster-image: url("/assets/posters/lubo2.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/white1.png");
+  --poster-image: url("/assets/posters/vanca2.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/white2.png");
+  --poster-image: url("/assets/posters/vanca1.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/white3.png");
+  --poster-image: url("/assets/posters/vanca3.png");
 }
 
 :root[data-theme="light"] {

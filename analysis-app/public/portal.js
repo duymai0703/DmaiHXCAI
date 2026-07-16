@@ -147,12 +147,12 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/darkmagi1.png",
-    "/assets/posters/darkmagi2.png",
-    "/assets/posters/darkmagi3.png",
-    "/assets/posters/white1.png",
-    "/assets/posters/white2.png",
-    "/assets/posters/white3.png"
+    "/assets/posters/lubo1.png",
+    "/assets/posters/lubo3.png",
+    "/assets/posters/lubo2.png",
+    "/assets/posters/vanca2.png",
+    "/assets/posters/vanca1.png",
+    "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
@@ -1890,7 +1890,7 @@
     return {
       home: "Đang ở sảnh chính",
       match: "Đang ở khu phòng đấu",
-      library: "Đang xem lịch sử ván đấu",
+      library: "Đang xem thư viện cá nhân",
       admin: "Đang mở trang quản trị",
       review: "Đang xem lại ván đấu",
       analysis: "Đang dùng phần mềm phân tích"
@@ -2757,9 +2757,6 @@
     state.openingBookHints = [];
     rebuildOpeningBookBoard();
     renderOpeningBookEditor();
-    if (byMachine) {
-      showToast(`Máy chọn biến ${targetIndex + 1}.`);
-    }
   }
 
   function completeOpeningBookPracticeLine() {
@@ -3170,7 +3167,7 @@
     return {
       home: "Sảnh chính",
       match: "Phòng đấu",
-      library: "Lịch sử ván đấu",
+      library: "Thư viện cá nhân",
       admin: "Quản trị",
       room: "Đang trong phòng",
       review: "Xem lại ván",
