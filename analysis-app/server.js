@@ -4215,10 +4215,33 @@ function kydaoTitlePartsFromPath(gamePath) {
   };
 }
 
+function isKydaoTargetPlayer(name) {
+  return KYDAO_TARGET_ORDER.has(normalizeKydaoName(name));
+}
+
+function kydaoReviewSideFromTitleParts(titleParts) {
+  const redIsTarget = isKydaoTargetPlayer(titleParts?.red || "");
+  const blackIsTarget = isKydaoTargetPlayer(titleParts?.black || "");
+  return blackIsTarget && !redIsTarget ? "b" : "w";
+}
+
+function normalizeKydaoReviewGame(game, gamePath) {
+  const titleParts = kydaoTitlePartsFromPath(gamePath);
+  return {
+    ...game,
+    title: titleParts.title || game?.title || "Ván đấu danh thủ",
+    side: titleParts.red || game?.side || "Đỏ",
+    opponent: titleParts.black || game?.opponent || "Đen",
+    result: titleParts.result || game?.result || "",
+    reason: "",
+    sideCode: kydaoReviewSideFromTitleParts(titleParts)
+  };
+}
+
 async function getKydaoGame(gamePath) {
   const cleanPath = kydaoRelativePath(gamePath);
   const cached = kydaoCache.games[cleanPath];
-  if (cached && isFreshKydaoEntry(cached, KYDAO_CACHE_TTL_MS * 4)) return cached.game;
+  if (cached && isFreshKydaoEntry(cached, KYDAO_CACHE_TTL_MS * 4)) return normalizeKydaoReviewGame(cached.game, cleanPath);
 
   const pageHtml = await fetchKydaoText(cleanPath);
   const iframeMatch = String(pageHtml || "").match(/<iframe[^>]+id=['"]game['"][^>]+src=['"]([^'"]+)['"]/i)
@@ -4254,15 +4277,15 @@ async function getKydaoGame(gamePath) {
     id: `kydao:${(cleanPath.match(/\/van-dau\/([^/]+)/) || [])[1] || crypto.createHash("sha1").update(cleanPath).digest("hex").slice(0, 12)}`,
     source: "kydao",
     sourceUrl: `${KYDAO_BASE_URL}${cleanPath}`,
-    title: titleParts.title || "Ván đấu Kydao",
+    title: titleParts.title || "Ván đấu danh thủ",
     side: titleParts.red || "Đỏ",
     opponent: titleParts.black || "Đen",
-    result: titleParts.result || "Kydao",
-    reason: "Kydao Kỳ vương",
+    result: titleParts.result || "",
+    reason: "",
     startedAt: fetchedAt,
     endedAt: fetchedAt,
     startFen,
-    sideCode: startSide,
+    sideCode: kydaoReviewSideFromTitleParts(titleParts),
     plies: parsed.plies,
     moves: parsed.plies.map((ply) => ply.notation || ply.sourceNotation || ply.move),
     kydaoTokens: tokens,
@@ -5357,11 +5380,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 function friendlyErrorVi(code) {
-  if (code === "KYDAO_BAD_PATH") return "Duong dan Kydao khong hop le.";
-  if (code === "KYDAO_MASTER_NOT_FOUND") return "Khong tim thay danh thu Kydao trong danh sach da chon.";
-  if (code === "KYDAO_GAME_NOT_FOUND") return "Khong doc duoc van dau Kydao nay.";
-  if (code === "KYDAO_MOVE_PARSE_FAILED") return "Khong giai ma duoc bien ban Kydao cua van nay.";
-  if (/^KYDAO_HTTP_/i.test(code)) return "Kydao dang phan hoi loi hoac qua cham. Hay thu lai sau.";
+  if (code === "KYDAO_BAD_PATH") return "Duong dan van dau khong hop le.";
+  if (code === "KYDAO_MASTER_NOT_FOUND") return "Khong tim thay danh thu trong danh sach da chon.";
+  if (code === "KYDAO_GAME_NOT_FOUND") return "Khong doc duoc van dau nay.";
+  if (code === "KYDAO_MOVE_PARSE_FAILED") return "Khong giai ma duoc bien ban cua van nay.";
+  if (/^KYDAO_HTTP_/i.test(code)) return "Nguon van danh thu dang phan hoi loi hoac qua cham. Hay thu lai sau.";
   if (code === "VISION_LOCAL_UNAVAILABLE") return "Bo nhan dien anh noi bo chua san sang. Hay kiem tra goi sharp tren server.";
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
   if (code === "REPEATED_CHECK") return "Khong duoc chieu lap lien tuc qua 6 lan.";

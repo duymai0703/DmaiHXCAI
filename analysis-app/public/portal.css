@@ -519,7 +519,10 @@ a {
   content: "";
   position: absolute;
   inset: -4%;
-  background: var(--poster-image) center / cover no-repeat;
+  background-image: var(--poster-image), var(--poster-fallback, none);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   filter: blur(3px) brightness(0.68);
   transform: scale(1.06);
 }
@@ -546,6 +549,10 @@ a {
   font-size: 28px;
   line-height: 1.08;
   text-align: center;
+}
+
+.launcher-card:nth-child(1) strong {
+  transform: translateY(7px);
 }
 
 .launcher-card small {
@@ -1493,7 +1500,7 @@ a {
 
 .kydao-list {
   display: grid;
-  gap: 8px;
+  gap: 12px;
   max-height: min(620px, calc(var(--app-vh, 1vh) * 70));
   overflow: auto;
   padding-right: 3px;
@@ -1504,7 +1511,7 @@ a {
   display: grid;
   gap: 4px;
   min-width: 0;
-  padding: 11px 12px;
+  padding: 14px 14px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   background: color-mix(in srgb, var(--panel) 82%, white 18%);
@@ -1525,16 +1532,18 @@ a {
 .kydao-card strong {
   color: var(--ink);
   font-size: 14px;
+  line-height: 1.48;
 }
 
 .kydao-card span {
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.58;
 }
 
 .kydao-game-card strong {
   font-size: 13px;
+  line-height: 1.62;
 }
 
 :root[data-theme="dark"] .kydao-card {
@@ -4359,7 +4368,8 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/vancu1.png");
+  --poster-image: url("/assets/posters/vancu4.png");
+  --poster-fallback: url("/assets/posters/vancu1.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {

@@ -1,10 +1,10 @@
-const CACHE_NAME = "dmaihxcai-shell-v154";
+const CACHE_NAME = "dmaihxcai-shell-v155";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260716-kydao-kings-v1",
-  "/portal.js?v=20260716-kydao-kings-v1",
+  "/portal.css?v=20260717-master-games-v1",
+  "/portal.js?v=20260717-master-games-v1",
   "/styles.css?v=20260715-clipboard-vision-v1",
   "/app.js?v=20260715-clipboard-vision-v1",
   "/config.js",

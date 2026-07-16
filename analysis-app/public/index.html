@@ -45,7 +45,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260716-kydao-kings-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260717-master-games-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -304,7 +304,7 @@
               <button id="libraryHistoryTab" class="secondary-button active" type="button" data-library-tab="history">Lịch sử ván đấu</button>
               <button id="libraryBookCreateTab" class="secondary-button" type="button" data-library-tab="book-create">Tạo book khai cuộc</button>
               <button id="libraryBookSavedTab" class="secondary-button" type="button" data-library-tab="book-saved">Khai cuộc đã lưu</button>
-              <button id="libraryKydaoTab" class="secondary-button" type="button" data-library-tab="kydao">Kỳ vương Kydao</button>
+              <button id="libraryKydaoTab" class="secondary-button" type="button" data-library-tab="kydao">Ván đấu danh thủ</button>
             </div>
 
             <div id="libraryHistoryPanel" class="library-panel" data-library-panel="history">
@@ -364,8 +364,8 @@
                 <section class="kydao-column">
                   <div class="kydao-panel-head">
                     <div>
-                      <strong>Danh thủ Kỳ vương</strong>
-                      <small>Chỉ lấy 11 danh thủ đã chọn.</small>
+                      <strong>Danh thủ</strong>
+                      <small>Chỉ lấy các danh thủ đã chọn.</small>
                     </div>
                     <button id="kydaoRefreshBtn" class="secondary-button small-button" type="button">Làm mới</button>
                   </div>
@@ -677,7 +677,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260716-kydao-kings-v1"></script>
+    <script src="/portal.js?v=20260717-master-games-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

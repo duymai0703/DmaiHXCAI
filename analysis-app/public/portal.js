@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260716-kydao-kings-v1";
+  const ASSET_WARMUP_VERSION = "20260717-master-games-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -3133,11 +3133,11 @@
     renderKydaoGames();
     if (dom.kydaoStatus) {
       dom.kydaoStatus.textContent = state.kydaoLoading
-        ? "Đang tải danh sách Kỳ vương..."
+        ? "Đang tải danh sách danh thủ..."
         : state.kydaoGamesLoading
         ? "Đang tải danh sách ván..."
         : state.kydaoOpeningPath
-        ? "Đang giải mã biên bản Kydao..."
+        ? "Đang giải mã biên bản..."
         : "";
     }
   }
@@ -3156,7 +3156,7 @@
     if (!state.kydaoMasters.length) {
       const empty = document.createElement("div");
       empty.className = "history-empty";
-      empty.textContent = "Chưa có dữ liệu Kydao. Bấm Làm mới để tải.";
+      empty.textContent = "Chưa có dữ liệu. Bấm Làm mới để tải.";
       container.appendChild(empty);
       return;
     }
@@ -3215,9 +3215,7 @@
       item.disabled = state.kydaoOpeningPath === game.path;
       const title = document.createElement("strong");
       title.textContent = `${game.number || ""}. ${game.red || "Đỏ"} ${game.result || ""} ${game.black || "Đen"}`.trim();
-      const event = document.createElement("span");
-      event.textContent = game.event || game.title || "Kydao";
-      item.append(title, event);
+      item.append(title);
       item.addEventListener("click", () => openKydaoGame(game));
       container.appendChild(item);
     });
@@ -3245,7 +3243,7 @@
         await loadKydaoGames(state.kydaoMasters[0], 1);
       }
     } catch (error) {
-      showToast(error.message || "Không tải được danh sách Kỳ vương.");
+      showToast(error.message || "Không tải được danh sách danh thủ.");
     } finally {
       state.kydaoLoading = false;
       renderKydaoLibrary();
