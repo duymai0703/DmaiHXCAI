@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260717-bannew-board-v1";
+  const ASSET_WARMUP_VERSION = "20260717-css-board-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -105,14 +105,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260717-bannew-board-v1",
-    "/app.js?v=20260717-bannew-board-v1",
-    "/assets/board/bannew1.png",
-    "/assets/board/bannew2.png",
-    "/assets/board/bannew3.png",
-    "/assets/board/bannew4.png",
-    "/assets/board/bannew5.png",
-    "/assets/board/bannew6.png",
+    "/styles.css?v=20260717-css-board-v1",
+    "/app.js?v=20260717-css-board-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -438,6 +432,7 @@
     kydaoNextPageBtn: byId("kydaoNextPageBtn"),
     kydaoStatus: byId("kydaoStatus"),
     openingBookBoard: byId("openingBookBoard"),
+    openingBookBoardCanvas: byId("openingBookBoardCanvas"),
     openingBookArrowCanvas: byId("openingBookArrowCanvas"),
     openingBookMarks: byId("openingBookMarks"),
     openingBookPieces: byId("openingBookPieces"),
@@ -5246,31 +5241,48 @@
     return state.reviewPieceSlots;
   }
 
-  function drawRoomBoard(force) {
-    if (dom.roomView.classList.contains("hidden")) return;
-    const metrics = boardMetrics(dom.roomBoard);
-    const rect = metrics.rect;
-    if (!metrics.width || !metrics.height) return;
-    state.lastBoardSizeKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
-    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${viewSide()}`;
-    if (!force && signature === state.lastBoardFrame) return;
-    state.lastBoardFrame = signature;
-    return;
+  function cssBoardColor(style, name, fallback) {
+    return (style.getPropertyValue(name) || "").trim() || fallback;
+  }
 
-    const canvas = dom.roomBoardCanvas;
-    canvas.width = Math.round(rect.width * devicePixelRatio);
-    canvas.height = Math.round(rect.height * devicePixelRatio);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+  function drawBoardPointMark(ctx, px, py, leftEdge, rightEdge, size) {
+    const inner = size * 0.34;
+    const outer = size;
+    ctx.beginPath();
+    if (!leftEdge) {
+      ctx.moveTo(px - outer, py - inner);
+      ctx.lineTo(px - inner, py - inner);
+      ctx.lineTo(px - inner, py - outer);
+      ctx.moveTo(px - outer, py + inner);
+      ctx.lineTo(px - inner, py + inner);
+      ctx.lineTo(px - inner, py + outer);
+    }
+    if (!rightEdge) {
+      ctx.moveTo(px + outer, py - inner);
+      ctx.lineTo(px + inner, py - inner);
+      ctx.lineTo(px + inner, py - outer);
+      ctx.moveTo(px + outer, py + inner);
+      ctx.lineTo(px + inner, py + inner);
+      ctx.lineTo(px + inner, py + outer);
+    }
+    ctx.stroke();
+  }
 
-    const ctx = canvas.getContext("2d");
+  function drawXiangqiBoardGrid(ctx, metrics, g, style) {
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    const g = geometry();
-    ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
-    ctx.lineWidth = Math.max(1.5, rect.width / 420);
-
+    ctx.clearRect(0, 0, metrics.width, metrics.height);
+    const lineColor = cssBoardColor(style, "--board-line", "rgba(28, 44, 50, 0.9)");
+    const markColor = cssBoardColor(style, "--board-mark", lineColor);
+    const riverColor = cssBoardColor(style, "--board-river-text", "rgba(28, 44, 50, 0.56)");
+    const left = g.x(0);
+    const right = g.x(8);
+    const top = Math.min(g.y(0), g.y(9));
+    const bottom = Math.max(g.y(0), g.y(9));
+    ctx.save();
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = Math.max(1, metrics.width / 620);
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "miter";
     for (let x = 0; x < 9; x += 1) {
       line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
       line(ctx, g.x(x), g.y(5), g.x(x), g.y(9));
@@ -5282,11 +5294,59 @@
     line(ctx, g.x(5), g.y(0), g.x(3), g.y(2));
     line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
     line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
-    ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-    ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
+
+    ctx.strokeStyle = markColor;
+    ctx.lineWidth = Math.max(0.9, metrics.width / 760);
+    const markSize = Math.max(8, metrics.width / 38);
+    const markSquares = [
+      [1, 2], [7, 2], [0, 3], [2, 3], [4, 3], [6, 3], [8, 3],
+      [0, 6], [2, 6], [4, 6], [6, 6], [8, 6], [1, 7], [7, 7]
+    ];
+    for (const [x, y] of markSquares) {
+      const px = g.x(x);
+      const py = g.y(y);
+      drawBoardPointMark(ctx, px, py, Math.abs(px - left) < 0.5, Math.abs(px - right) < 0.5, markSize);
+    }
+
+    ctx.fillStyle = riverColor;
+    ctx.font = `${Math.max(22, metrics.width / 17)}px "Noto Serif SC", "KaiTi", "STKaiti", "SimSun", serif`;
     ctx.textAlign = "center";
-    ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
-    ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
+    ctx.textBaseline = "middle";
+    ctx.fillText("楚河", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
+    ctx.fillText("漢界", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
+
+    ctx.strokeStyle = cssBoardColor(style, "--board-frame-line", lineColor);
+    ctx.lineWidth = Math.max(1.2, metrics.width / 520);
+    ctx.strokeRect(left, top, right - left, bottom - top);
+    ctx.restore();
+  }
+
+  function resizeBoardCanvas(canvas, metrics) {
+    if (!canvas) return null;
+    canvas.width = Math.round(metrics.width * devicePixelRatio);
+    canvas.height = Math.round(metrics.height * devicePixelRatio);
+    canvas.style.width = `${metrics.width}px`;
+    canvas.style.height = `${metrics.height}px`;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    ctx.clearRect(0, 0, metrics.width, metrics.height);
+    return ctx;
+  }
+
+  function boardSkinSignature() {
+    return `${document.documentElement.dataset.theme || ""}|${document.documentElement.dataset.boardSkin || ""}`;
+  }
+
+  function drawRoomBoard(force) {
+    if (dom.roomView.classList.contains("hidden")) return;
+    const metrics = boardMetrics(dom.roomBoard);
+    if (!metrics.width || !metrics.height) return;
+    state.lastBoardSizeKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${viewSide()}|${boardSkinSignature()}`;
+    if (!force && signature === state.lastBoardFrame) return;
+    state.lastBoardFrame = signature;
+    const boardCtx = resizeBoardCanvas(dom.roomBoardCanvas, metrics);
+    if (boardCtx) drawXiangqiBoardGrid(boardCtx, metrics, geometry(), getComputedStyle(dom.roomBoard));
   }
 
   function drawRoomPieces(force) {
@@ -5365,9 +5425,8 @@
   function drawReviewBoard(force) {
     if (dom.reviewView.classList.contains("hidden")) return;
     const metrics = boardMetrics(dom.reviewBoard);
-    const rect = metrics.rect;
     if (!metrics.width || !metrics.height) return;
-    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${reviewViewSide()}`;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${reviewViewSide()}|${boardSkinSignature()}`;
     if (!force && signature === state.reviewLastBoardFrame) return;
     state.reviewLastBoardFrame = signature;
 
@@ -5379,32 +5438,7 @@
       item.style.width = `${metrics.width}px`;
       item.style.height = `${metrics.height}px`;
     }
-    return;
-
-    const ctx = canvas.getContext("2d");
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    const g = reviewGeometry();
-    ctx.strokeStyle = "rgba(82, 53, 25, 0.78)";
-    ctx.lineWidth = Math.max(1.5, rect.width / 420);
-
-    for (let x = 0; x < 9; x += 1) {
-      line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
-      line(ctx, g.x(x), g.y(5), g.x(x), g.y(9));
-    }
-    for (let y = 0; y < 10; y += 1) {
-      line(ctx, g.x(0), g.y(y), g.x(8), g.y(y));
-    }
-    line(ctx, g.x(3), g.y(0), g.x(5), g.y(2));
-    line(ctx, g.x(5), g.y(0), g.x(3), g.y(2));
-    line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
-    line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
-    ctx.font = `${Math.max(18, rect.width / 24)}px "Segoe UI"`;
-    ctx.fillStyle = "rgba(102, 57, 15, 0.86)";
-    ctx.textAlign = "center";
-    ctx.fillText("楚河", g.x(2.2), (g.y(4) + g.y(5)) / 2 + 8);
-    ctx.fillText("漢界", g.x(5.8), (g.y(4) + g.y(5)) / 2 + 8);
+    drawXiangqiBoardGrid(canvas.getContext("2d"), metrics, reviewGeometry(), getComputedStyle(dom.reviewBoard));
   }
 
   function drawReviewPieces(force) {
@@ -5548,14 +5582,12 @@
     if (!dom.openingBookBoard || !dom.openingBookArrowCanvas) return;
     const metrics = boardMetrics(dom.openingBookBoard);
     if (!metrics.width || !metrics.height) return;
-    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${openingBookViewSide()}|${boardSkinSignature()}`;
     if (!force && signature === state.openingBookLastBoardFrame) return;
     state.openingBookLastBoardFrame = signature;
-    const canvas = dom.openingBookArrowCanvas;
-    canvas.width = Math.round(metrics.width * devicePixelRatio);
-    canvas.height = Math.round(metrics.height * devicePixelRatio);
-    canvas.style.width = `${metrics.width}px`;
-    canvas.style.height = `${metrics.height}px`;
+    const boardCtx = resizeBoardCanvas(dom.openingBookBoardCanvas, metrics);
+    if (boardCtx) drawXiangqiBoardGrid(boardCtx, metrics, openingBookGeometry(), getComputedStyle(dom.openingBookBoard));
+    resizeBoardCanvas(dom.openingBookArrowCanvas, metrics);
   }
 
   function ensureOpeningBookSlots() {

@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-bannew-board-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-css-board-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -100,12 +100,6 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  "/assets/board/bannew1.png",
-  "/assets/board/bannew2.png",
-  "/assets/board/bannew3.png",
-  "/assets/board/bannew4.png",
-  "/assets/board/bannew5.png",
-  "/assets/board/bannew6.png",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -3351,11 +3345,92 @@ function drawNow() {
   drawArrowLayer();
 }
 
+function cssBoardColor(style, name, fallback) {
+  return (style.getPropertyValue(name) || "").trim() || fallback;
+}
+
+function drawBoardPointMark(ctx, px, py, leftEdge, rightEdge, size) {
+  const inner = size * 0.34;
+  const outer = size;
+  ctx.beginPath();
+  if (!leftEdge) {
+    ctx.moveTo(px - outer, py - inner);
+    ctx.lineTo(px - inner, py - inner);
+    ctx.lineTo(px - inner, py - outer);
+    ctx.moveTo(px - outer, py + inner);
+    ctx.lineTo(px - inner, py + inner);
+    ctx.lineTo(px - inner, py + outer);
+  }
+  if (!rightEdge) {
+    ctx.moveTo(px + outer, py - inner);
+    ctx.lineTo(px + inner, py - inner);
+    ctx.lineTo(px + inner, py - outer);
+    ctx.moveTo(px + outer, py + inner);
+    ctx.lineTo(px + inner, py + inner);
+    ctx.lineTo(px + inner, py + outer);
+  }
+  ctx.stroke();
+}
+
+function drawXiangqiBoardGrid(ctx, metrics, g, style) {
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.clearRect(0, 0, metrics.width, metrics.height);
+  const lineColor = cssBoardColor(style, "--board-line", "rgba(28, 44, 50, 0.9)");
+  const markColor = cssBoardColor(style, "--board-mark", lineColor);
+  const riverColor = cssBoardColor(style, "--board-river-text", "rgba(28, 44, 50, 0.56)");
+  const left = g.x(0);
+  const right = g.x(8);
+  const top = Math.min(g.y(0), g.y(9));
+  const bottom = Math.max(g.y(0), g.y(9));
+  ctx.save();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = Math.max(1, metrics.width / 620);
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+  for (let x = 0; x < 9; x += 1) {
+    line(ctx, g.x(x), g.y(0), g.x(x), g.y(4));
+    line(ctx, g.x(x), g.y(5), g.x(x), g.y(9));
+  }
+  for (let y = 0; y < 10; y += 1) {
+    line(ctx, g.x(0), g.y(y), g.x(8), g.y(y));
+  }
+  line(ctx, g.x(3), g.y(0), g.x(5), g.y(2));
+  line(ctx, g.x(5), g.y(0), g.x(3), g.y(2));
+  line(ctx, g.x(3), g.y(7), g.x(5), g.y(9));
+  line(ctx, g.x(5), g.y(7), g.x(3), g.y(9));
+
+  ctx.strokeStyle = markColor;
+  ctx.lineWidth = Math.max(0.9, metrics.width / 760);
+  const markSize = Math.max(8, metrics.width / 38);
+  const markSquares = [
+    [1, 2], [7, 2], [0, 3], [2, 3], [4, 3], [6, 3], [8, 3],
+    [0, 6], [2, 6], [4, 6], [6, 6], [8, 6], [1, 7], [7, 7]
+  ];
+  for (const [x, y] of markSquares) {
+    const px = g.x(x);
+    const py = g.y(y);
+    drawBoardPointMark(ctx, px, py, Math.abs(px - left) < 0.5, Math.abs(px - right) < 0.5, markSize);
+  }
+
+  ctx.fillStyle = riverColor;
+  ctx.font = `${Math.max(22, metrics.width / 17)}px "Noto Serif SC", "KaiTi", "STKaiti", "SimSun", serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("楚河", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
+  ctx.fillText("漢界", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
+
+  ctx.strokeStyle = cssBoardColor(style, "--board-frame-line", lineColor);
+  ctx.lineWidth = Math.max(1.2, metrics.width / 520);
+  ctx.strokeRect(left, top, right - left, bottom - top);
+  ctx.restore();
+}
+
 function drawBoard() {
   const metrics = boardMetrics(boardEl);
   if (!metrics.width || !metrics.height) return;
   state.lastBoardSizeKey = `${Math.round(metrics.width)}`;
-  const signature = `${state.lastBoardSizeKey}|${state.flipped ? "b" : "w"}`;
+  const skinKey = `${document.documentElement.dataset.theme || ""}|${document.documentElement.dataset.boardSkin || ""}`;
+  const signature = `${state.lastBoardSizeKey}|${state.flipped ? "b" : "w"}|${skinKey}`;
   if (signature === state.lastBoardFrame) return;
   state.lastBoardFrame = signature;
   for (const canvas of [boardCanvas, arrowCanvas]) {
@@ -3364,6 +3439,7 @@ function drawBoard() {
     canvas.style.width = `${metrics.width}px`;
     canvas.style.height = `${metrics.height}px`;
   }
+  drawXiangqiBoardGrid(boardCanvas.getContext("2d"), metrics, geometry(), getComputedStyle(boardEl));
 }
 
 function ensureBoardSlots() {

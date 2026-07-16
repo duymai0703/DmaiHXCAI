@@ -35,17 +35,11 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
-    <link rel="preload" href="/assets/board/bannew1.png" as="image">
-    <link rel="preload" href="/assets/board/bannew2.png" as="image">
-    <link rel="preload" href="/assets/board/bannew3.png" as="image">
-    <link rel="preload" href="/assets/board/bannew4.png" as="image">
-    <link rel="preload" href="/assets/board/bannew5.png" as="image">
-    <link rel="preload" href="/assets/board/bannew6.png" as="image">
     <link rel="preload" href="/assets/sounds/diquan.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260717-bannew-board-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260717-css-board-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -316,6 +310,7 @@
                 <div class="opening-book-board-wrap">
                   <div id="openingBookBoard" class="room-board review-board opening-book-board" aria-label="Bàn tạo book khai cuộc">
                     <div class="board-skin-layer" aria-hidden="true"></div>
+                    <canvas id="openingBookBoardCanvas"></canvas>
                     <canvas id="openingBookArrowCanvas"></canvas>
                     <div id="openingBookMarks"></div>
                     <div id="openingBookPieces"></div>
@@ -676,7 +671,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260717-bannew-board-v1"></script>
+    <script src="/portal.js?v=20260717-css-board-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

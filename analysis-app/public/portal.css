@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --app-vh: 1vh;
-  --board-skin: url("/assets/board/bannew1.png");
+  --board-skin: none;
   --board-grid-pad-x: 1.4;
   --board-grid-pad-y: 1.2;
   --ink: #201913;
@@ -3771,7 +3771,7 @@ textarea:focus {
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --board-skin: url("/assets/board/bannew1.png");
+  --board-skin: none;
   --ink: #eef8ff;
   --muted: #93abc2;
   --paper: #0d1624;
@@ -3808,7 +3808,7 @@ textarea:focus {
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --board-skin: url("/assets/board/bannew1.png");
+  --board-skin: none;
   --ink: #102033;
   --muted: #526b80;
   --paper: #edf7ff;
@@ -3843,7 +3843,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="ice"] {
-  --board-skin: url("/assets/board/bannew1.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -3862,7 +3862,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="gold"] {
-  --board-skin: url("/assets/board/bannew2.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -3881,7 +3881,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/bannew3.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -3900,7 +3900,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="stone"] {
-  --board-skin: url("/assets/board/bannew4.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -3919,7 +3919,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="pink"] {
-  --board-skin: url("/assets/board/bannew5.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -3938,7 +3938,7 @@ textarea:focus {
 }
 
 :root[data-board-skin="dark"] {
-  --board-skin: url("/assets/board/bannew6.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
@@ -4086,32 +4086,32 @@ body {
 
 .skin-swatch-ice {
   background:
-    url("/assets/board/bannew1.png") center / 100% 100% no-repeat, linear-gradient(145deg, #f1ead2, #c8bea0);
+    linear-gradient(145deg, #f1ead2, #c8bea0);
 }
 
 .skin-swatch-gold {
   background:
-    url("/assets/board/bannew2.png") center / 100% 100% no-repeat, linear-gradient(145deg, #d7aa55, #956626);
+    linear-gradient(145deg, #d7aa55, #956626);
 }
 
 .skin-swatch-emerald {
   background:
-    url("/assets/board/bannew3.png") center / 100% 100% no-repeat, linear-gradient(145deg, #317a54, #1d4f39);
+    linear-gradient(145deg, #317a54, #1d4f39);
 }
 
 .skin-swatch-stone {
   background:
-    url("/assets/board/bannew4.png") center / 100% 100% no-repeat, linear-gradient(145deg, #999a90, #626861);
+    linear-gradient(145deg, #999a90, #626861);
 }
 
 .skin-swatch-pink {
   background:
-    url("/assets/board/bannew5.png") center / 100% 100% no-repeat, linear-gradient(145deg, #aa442c, #67231b);
+    linear-gradient(145deg, #aa442c, #67231b);
 }
 
 .skin-swatch-dark {
   background:
-    url("/assets/board/bannew6.png") center / 100% 100% no-repeat, linear-gradient(145deg, #24242a, #0c0f13);
+    linear-gradient(145deg, #24242a, #0c0f13);
 }
 
 .piece-skin-swatch {
@@ -4431,7 +4431,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="ice"] {
-  --board-skin: url("/assets/board/bannew1.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 10%, rgba(255, 255, 246, 0.74), transparent 24%),
     radial-gradient(circle at 76% 86%, rgba(92, 129, 120, 0.15), transparent 31%),
@@ -4450,7 +4450,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="gold"] {
-  --board-skin: url("/assets/board/bannew2.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(255, 224, 130, 0.34), transparent 24%),
     radial-gradient(circle at 82% 84%, rgba(112, 72, 24, 0.24), transparent 31%),
@@ -4469,7 +4469,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="emerald"] {
-  --board-skin: url("/assets/board/bannew3.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 12%, rgba(119, 213, 154, 0.23), transparent 23%),
     radial-gradient(circle at 82% 82%, rgba(5, 34, 27, 0.27), transparent 32%),
@@ -4488,7 +4488,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="stone"] {
-  --board-skin: url("/assets/board/bannew4.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 14%, rgba(240, 241, 232, 0.24), transparent 24%),
     radial-gradient(circle at 80% 82%, rgba(48, 51, 47, 0.22), transparent 30%),
@@ -4507,7 +4507,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="pink"] {
-  --board-skin: url("/assets/board/bannew5.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(223, 114, 72, 0.2), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(57, 14, 11, 0.28), transparent 31%),
@@ -4526,7 +4526,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"][data-board-skin="dark"] {
-  --board-skin: url("/assets/board/bannew6.png");
+  --board-skin: none;
   --board-bg:
     radial-gradient(circle at 18% 13%, rgba(169, 142, 67, 0.14), transparent 25%),
     radial-gradient(circle at 82% 82%, rgba(0, 0, 0, 0.34), transparent 31%),
@@ -4960,3 +4960,116 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   overflow: visible !important;
   contain: layout style !important;
 }
+
+/* CSS-drawn board skins: keep all board modes on the same intersection geometry. */
+:root {
+  --board-skin: none !important;
+  --board-grid-pad-x: 7;
+  --board-grid-pad-y: 6.3;
+  --board-bg: linear-gradient(145deg, #e9fbff 0%, #c9f1fb 48%, #8fd2ec 100%);
+  --board-border: #2299c7;
+  --board-line: rgba(16, 66, 78, 0.86);
+  --board-mark: rgba(16, 66, 78, 0.76);
+  --board-frame-line: rgba(20, 125, 160, 0.92);
+  --board-river-text: rgba(14, 83, 105, 0.54);
+  --board-shadow: 0 20px 42px rgba(20, 102, 135, 0.26), inset 0 0 34px rgba(255, 255, 255, 0.42);
+}
+
+:root[data-board-skin="ice"] {
+  --board-bg: linear-gradient(145deg, #ecfcff 0%, #c8f0fb 48%, #8ecfe8 100%);
+  --board-border: #2299c7;
+  --board-line: rgba(15, 61, 73, 0.86);
+  --board-mark: rgba(15, 61, 73, 0.74);
+  --board-frame-line: rgba(18, 131, 170, 0.92);
+  --board-river-text: rgba(15, 82, 106, 0.54);
+  --board-shadow: 0 20px 42px rgba(21, 116, 154, 0.24), inset 0 0 36px rgba(255, 255, 255, 0.42);
+}
+
+:root[data-board-skin="gold"] {
+  --board-bg: linear-gradient(145deg, #f4cf91 0%, #e3ae55 52%, #b97929 100%);
+  --board-border: #8d5a1c;
+  --board-line: rgba(71, 45, 17, 0.88);
+  --board-mark: rgba(71, 45, 17, 0.76);
+  --board-frame-line: rgba(111, 70, 22, 0.92);
+  --board-river-text: rgba(84, 47, 12, 0.52);
+  --board-shadow: 0 20px 42px rgba(91, 58, 22, 0.26), inset 0 0 34px rgba(255, 236, 176, 0.26);
+}
+
+:root[data-board-skin="emerald"] {
+  --board-bg: linear-gradient(145deg, #147b69 0%, #0b6b56 50%, #064537 100%);
+  --board-border: #c9a44e;
+  --board-line: rgba(238, 205, 101, 0.94);
+  --board-mark: rgba(238, 205, 101, 0.88);
+  --board-frame-line: rgba(250, 219, 112, 0.96);
+  --board-river-text: rgba(248, 219, 121, 0.52);
+  --board-shadow: 0 22px 46px rgba(5, 35, 29, 0.42), inset 0 0 38px rgba(80, 196, 157, 0.2);
+}
+
+:root[data-board-skin="stone"] {
+  --board-bg: linear-gradient(145deg, #d0d4d1 0%, #a9afaa 50%, #737b75 100%);
+  --board-border: #565e59;
+  --board-line: rgba(36, 42, 39, 0.82);
+  --board-mark: rgba(36, 42, 39, 0.72);
+  --board-frame-line: rgba(45, 54, 49, 0.9);
+  --board-river-text: rgba(38, 47, 43, 0.48);
+  --board-shadow: 0 20px 42px rgba(50, 58, 54, 0.26), inset 0 0 34px rgba(255, 255, 255, 0.22);
+}
+
+:root[data-board-skin="pink"] {
+  --board-bg: linear-gradient(145deg, #7d1e2b 0%, #651722 50%, #3d0e16 100%);
+  --board-border: #d7a353;
+  --board-line: rgba(239, 199, 103, 0.9);
+  --board-mark: rgba(239, 199, 103, 0.82);
+  --board-frame-line: rgba(252, 219, 126, 0.94);
+  --board-river-text: rgba(255, 219, 137, 0.48);
+  --board-shadow: 0 22px 46px rgba(58, 7, 16, 0.42), inset 0 0 38px rgba(255, 132, 132, 0.14);
+}
+
+:root[data-board-skin="dark"] {
+  --board-bg: linear-gradient(145deg, #2f3137 0%, #1d2228 52%, #0c0f13 100%);
+  --board-border: #b88745;
+  --board-line: rgba(229, 183, 95, 0.88);
+  --board-mark: rgba(229, 183, 95, 0.8);
+  --board-frame-line: rgba(246, 205, 112, 0.92);
+  --board-river-text: rgba(246, 205, 112, 0.45);
+  --board-shadow: 0 22px 46px rgba(2, 5, 8, 0.48), inset 0 0 38px rgba(255, 221, 128, 0.08);
+}
+
+.room-board,
+.review-board,
+.opening-book-board {
+  background: var(--board-bg) !important;
+  border-color: var(--board-border) !important;
+  box-shadow: var(--board-shadow) !important;
+}
+
+.room-board::before,
+.review-board::before,
+.opening-book-board::before {
+  background: var(--board-bg) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--board-frame-line), transparent 34%) !important;
+}
+
+.board-skin-layer {
+  display: none !important;
+}
+
+#roomBoardCanvas,
+#reviewBoardCanvas,
+#openingBookBoardCanvas {
+  display: block !important;
+  z-index: 1 !important;
+  pointer-events: none;
+}
+
+#openingBookArrowCanvas {
+  z-index: 5;
+  pointer-events: none;
+}
+
+.skin-swatch-ice { background: linear-gradient(145deg, #ecfcff, #8ecfe8) !important; }
+.skin-swatch-gold { background: linear-gradient(145deg, #f4cf91, #b97929) !important; }
+.skin-swatch-emerald { background: linear-gradient(145deg, #147b69, #064537) !important; }
+.skin-swatch-stone { background: linear-gradient(145deg, #d0d4d1, #737b75) !important; }
+.skin-swatch-pink { background: linear-gradient(145deg, #7d1e2b, #3d0e16) !important; }
+.skin-swatch-dark { background: linear-gradient(145deg, #2f3137, #0c0f13) !important; }
