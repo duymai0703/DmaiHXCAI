@@ -42,7 +42,7 @@ const LICENSE_TOKEN_SECRET = process.env.DMAIHXCAI_LICENSE_SECRET || TOKEN_SECRE
 const LICENSE_TTL_MS = 1000 * 60 * 60 * 24 * 183;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
-const MAX_OPENING_BOOKS = 40;
+const MAX_OPENING_BOOKS = 200;
 const MAX_OPENING_BOOK_NODES = 600;
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
@@ -801,15 +801,22 @@ function normalizeOpeningNode(node, counter) {
   return { move, notation, children };
 }
 
+function normalizeOpeningBookSide(value) {
+  return value === "b" ? "b" : "w";
+}
+
 function normalizeOpeningBookEntry(entry) {
   if (!entry || typeof entry !== "object") return null;
   const counter = { count: 0 };
   const tree = normalizeOpeningNode(entry.tree || {}, counter);
   const name = sanitizeAccountName(entry.name || "", "").slice(0, 60);
+  const bookSide = normalizeOpeningBookSide(entry.bookSide || entry.sideChoice || entry.viewSide || entry.side);
   if (!name) return null;
   return {
     id: String(entry.id || randomId(10)).slice(0, 40),
     name,
+    bookSide,
+    side: bookSide,
     createdAt: entry.createdAt && !Number.isNaN(Date.parse(entry.createdAt)) ? entry.createdAt : nowIso(),
     updatedAt: entry.updatedAt && !Number.isNaN(Date.parse(entry.updatedAt)) ? entry.updatedAt : nowIso(),
     startFen: String(entry.startFen || XiangqiCore.START_FEN).trim().slice(0, 160) || XiangqiCore.START_FEN,

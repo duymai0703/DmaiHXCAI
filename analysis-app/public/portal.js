@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260716-dark-poster-zoom-v1";
+  const ASSET_WARMUP_VERSION = "20260716-opening-book-side-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -158,6 +158,7 @@
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
   const ROOM_MOVE_ANIMATION_MS = 320;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
+  const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
   const CHECKMATE_EFFECT_MS = 3000;
   const REVIEW_EVAL_BAR_LIMIT = 2000;
 
@@ -185,6 +186,11 @@
     openingBookSlots: null,
     openingBookHintSlots: null,
     openingBookSlotLayoutKey: "",
+    openingBookAnimation: null,
+    openingBookAnimationTimer: 0,
+    openingBookAnimationRunning: false,
+    activeOpeningBookMoveSlotEl: null,
+    lastAnimatedOpeningBookMoveKey: "",
     route: "home",
     booting: true,
     pendingAccessKey: "",
@@ -416,6 +422,8 @@
     openingBookArrowCanvas: byId("openingBookArrowCanvas"),
     openingBookMarks: byId("openingBookMarks"),
     openingBookPieces: byId("openingBookPieces"),
+    openingBookRedSideBtn: byId("openingBookRedSideBtn"),
+    openingBookBlackSideBtn: byId("openingBookBlackSideBtn"),
     openingBookPrevBtn: byId("openingBookPrevBtn"),
     openingBookNextBtn: byId("openingBookNextBtn"),
     openingBookResetBtn: byId("openingBookResetBtn"),
@@ -1150,6 +1158,8 @@
     dom.libraryBookCreateTab?.addEventListener("click", () => setLibraryTab("book-create"));
     dom.libraryBookSavedTab?.addEventListener("click", () => setLibraryTab("book-saved"));
     dom.openingBookBoard?.addEventListener("pointerdown", onOpeningBookPointerDown);
+    dom.openingBookRedSideBtn?.addEventListener("click", () => setOpeningBookSide("w"));
+    dom.openingBookBlackSideBtn?.addEventListener("click", () => setOpeningBookSide("b"));
     dom.openingBookPrevBtn?.addEventListener("click", stepOpeningBookBack);
     dom.openingBookNextBtn?.addEventListener("click", openOpeningBookBranchChooser);
     dom.openingBookResetBtn?.addEventListener("click", resetOpeningBookEditor);
@@ -2218,12 +2228,18 @@
     }
   }
 
+  function normalizeOpeningBookSide(value) {
+    return value === "b" ? "b" : "w";
+  }
+
   function createOpeningBookEditorState(book = null) {
     const parsed = XiangqiCore.parseFenState(book?.startFen || START_FEN);
+    const bookSide = normalizeOpeningBookSide(book?.bookSide || book?.sideChoice || book?.viewSide || book?.side);
     return {
       id: book?.id || "",
       name: book?.name || "",
       startFen: book?.startFen || START_FEN,
+      bookSide,
       root: normalizeOpeningBookNode(book?.tree || {}),
       path: [],
       board: parsed.board,
@@ -2258,13 +2274,18 @@
 
   function normalizeOpeningBookList(books) {
     return Array.isArray(books)
-      ? books.map((book) => ({
+      ? books.map((book) => {
+          const bookSide = normalizeOpeningBookSide(book?.bookSide || book?.sideChoice || book?.viewSide || book?.side);
+          return {
           ...(book || {}),
           id: String(book?.id || ""),
           name: String(book?.name || "Khai cuộc chưa đặt tên"),
           startFen: book?.startFen || START_FEN,
+          bookSide,
+          side: bookSide,
           tree: normalizeOpeningBookNode(book?.tree || {})
-        })).filter((book) => book.id)
+          };
+        }).filter((book) => book.id)
       : [];
   }
 
@@ -2324,6 +2345,26 @@
     state.openingBookEditor.side = side;
   }
 
+  function setOpeningBookSide(side) {
+    if (state.openingBookPractice?.active) return;
+    const nextSide = normalizeOpeningBookSide(side);
+    if (state.openingBookEditor.bookSide === nextSide) return;
+    clearOpeningBookMoveAnimation();
+    state.openingBookEditor.bookSide = nextSide;
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    state.openingBookLastBoardFrame = "";
+    state.openingBookLastPieceFrame = "";
+    state.openingBookSlotLayoutKey = "";
+    renderOpeningBookEditor();
+  }
+
+  function invalidateOpeningBookLayout() {
+    state.openingBookLastBoardFrame = "";
+    state.openingBookLastPieceFrame = "";
+    state.openingBookSlotLayoutKey = "";
+  }
+
   function renderOpeningBookEditor() {
     if (!dom.openingBookStatus) return;
     const editor = state.openingBookEditor;
@@ -2345,6 +2386,17 @@
     dom.openingBookNextBtn.disabled = practicing || !branchCount;
     dom.openingBookResetBtn.disabled = practicing;
     dom.openingBookSaveBtn.disabled = practicing;
+    const bookSide = normalizeOpeningBookSide(editor.bookSide);
+    if (dom.openingBookRedSideBtn) {
+      dom.openingBookRedSideBtn.classList.toggle("active", bookSide === "w");
+      dom.openingBookRedSideBtn.setAttribute("aria-pressed", bookSide === "w" ? "true" : "false");
+      dom.openingBookRedSideBtn.disabled = practicing;
+    }
+    if (dom.openingBookBlackSideBtn) {
+      dom.openingBookBlackSideBtn.classList.toggle("active", bookSide === "b");
+      dom.openingBookBlackSideBtn.setAttribute("aria-pressed", bookSide === "b" ? "true" : "false");
+      dom.openingBookBlackSideBtn.disabled = practicing;
+    }
     if (dom.openingBookPracticeBtn) {
       dom.openingBookPracticeBtn.classList.toggle("hidden", practicing);
       dom.openingBookPracticeBtn.disabled = practicing || !countOpeningBookNodes(editor.root) || !collectOpeningBookPracticePaths(editor.root).length;
@@ -2421,24 +2473,37 @@
     const parentPath = state.openingBookEditor.path.slice(0, -1);
     const removedIndex = state.openingBookEditor.path[state.openingBookEditor.path.length - 1];
     const parent = nodeAtOpeningBookPath(parentPath);
+    const removedMove = parent?.children?.[removedIndex]?.move || "";
+    const animation = removedMove ? buildOpeningBookMoveAnimation(removedMove, { reverse: true }) : null;
+    if (animation) {
+      primeOpeningBookMoveAnimation(animation);
+      playMoveSound("move", OPENING_BOOK_MOVE_ANIMATION_MS);
+    } else {
+      clearOpeningBookMoveAnimation();
+    }
     state.openingBookEditor.lastBackNode = parent?.children?.[removedIndex] || null;
     state.openingBookEditor.path = parentPath;
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     rebuildOpeningBookBoard();
     renderOpeningBookEditor();
+    if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
   function openOpeningBookBranchChooser() {
     const children = openingBookCurrentNode().children || [];
     if (!children.length) return;
     if (children.length === 1) {
+      const animation = buildOpeningBookMoveAnimation(children[0].move);
+      if (animation) primeOpeningBookMoveAnimation(animation);
+      else clearOpeningBookMoveAnimation();
       playOpeningBookMoveSound(state.openingBookEditor.board, children[0].move, state.openingBookEditor.side);
       state.openingBookEditor.path.push(0);
       state.openingBookSelectedSquare = null;
       state.openingBookHints = [];
       rebuildOpeningBookBoard();
       renderOpeningBookEditor();
+      if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
       return;
     }
     renderOpeningBookBranchChooser(false);
@@ -2466,12 +2531,16 @@
           return;
         }
         playOpeningBookMoveSound(state.openingBookEditor.board, child.move, state.openingBookEditor.side);
+        const animation = buildOpeningBookMoveAnimation(child.move);
+        if (animation) primeOpeningBookMoveAnimation(animation);
+        else clearOpeningBookMoveAnimation();
         state.openingBookEditor.path.push(index);
         dom.openingBookBranchChooser.classList.add("hidden");
         state.openingBookSelectedSquare = null;
         state.openingBookHints = [];
         rebuildOpeningBookBoard();
         renderOpeningBookEditor();
+        if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
       });
       dom.openingBookBranchChooser.appendChild(button);
     });
@@ -2489,12 +2558,15 @@
   }
 
   function resetOpeningBookEditor() {
+    const bookSide = normalizeOpeningBookSide(state.openingBookEditor?.bookSide);
     stopOpeningBookPractice({ silent: true });
-    state.openingBookEditor = createOpeningBookEditorState();
+    clearOpeningBookMoveAnimation();
+    state.openingBookEditor = createOpeningBookEditorState({ bookSide });
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     state.openingBookLastBoardFrame = "";
     state.openingBookLastPieceFrame = "";
+    state.openingBookSlotLayoutKey = "";
     renderOpeningBookEditor();
   }
 
@@ -2509,6 +2581,7 @@
             id: state.openingBookEditor.id,
             name: name.trim(),
             startFen: state.openingBookEditor.startFen,
+            bookSide: normalizeOpeningBookSide(state.openingBookEditor.bookSide),
             tree: state.openingBookEditor.root
           }
         }
@@ -2517,6 +2590,7 @@
       if (payload.user) applySession(payload.user, state.token);
       state.openingBookEditor.id = payload.book?.id || state.openingBookEditor.id;
       state.openingBookEditor.name = payload.book?.name || name.trim();
+      state.openingBookEditor.bookSide = normalizeOpeningBookSide(payload.book?.bookSide || state.openingBookEditor.bookSide);
       renderLibrary();
       showToast("Đã lưu book khai cuộc.");
     } catch (error) {
@@ -2528,6 +2602,10 @@
     if (!dom.openingBookSavedList) return;
     dom.openingBookSavedList.innerHTML = "";
     const books = normalizeOpeningBookList(state.openingBooks);
+    if (books.length) {
+      renderOpeningBookSavedSections(books);
+      return;
+    }
     if (!books.length) {
       const empty = document.createElement("div");
       empty.className = "history-empty";
@@ -2578,6 +2656,79 @@
     });
   }
 
+  function renderOpeningBookSavedSections(books) {
+    if (!dom.openingBookSavedList) return;
+    dom.openingBookSavedList.innerHTML = "";
+    const groups = [
+      { side: "w", title: "Khai cuộc đi tiên" },
+      { side: "b", title: "Khai cuộc đi hậu" }
+    ];
+    groups.forEach((group) => {
+      const section = document.createElement("section");
+      section.className = "opening-book-saved-section";
+      const heading = document.createElement("h3");
+      heading.textContent = group.title;
+      section.appendChild(heading);
+      const list = document.createElement("div");
+      list.className = "opening-book-saved-list";
+      const items = books.filter((book) => normalizeOpeningBookSide(book.bookSide || book.side) === group.side);
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "history-empty";
+        empty.textContent = "Chưa có khai cuộc nào.";
+        list.appendChild(empty);
+      } else {
+        items.forEach((book) => list.appendChild(createOpeningBookSavedItem(book)));
+      }
+      section.appendChild(list);
+      dom.openingBookSavedList.appendChild(section);
+    });
+  }
+
+  function createOpeningBookSavedItem(book) {
+    const item = document.createElement("article");
+    item.className = "history-item opening-book-item";
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = book.name;
+    const pill = document.createElement("span");
+    pill.className = "result-pill draw";
+    pill.textContent = `${Math.max(0, countOpeningBookNodes(book.tree) - 1)} nước`;
+    header.append(title, pill);
+    const detail = document.createElement("div");
+    detail.style.color = "var(--muted)";
+    detail.style.fontSize = "13px";
+    detail.textContent = `Cập nhật: ${formatDate(book.updatedAt || book.createdAt)}`;
+    const actions = document.createElement("div");
+    actions.className = "opening-book-item-actions";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "secondary-button";
+    open.textContent = "Mở soạn";
+    open.addEventListener("click", () => {
+      stopOpeningBookPractice({ silent: true });
+      clearOpeningBookMoveAnimation();
+      state.openingBookEditor = createOpeningBookEditorState(book);
+      invalidateOpeningBookLayout();
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+      setLibraryTab("book-create");
+    });
+    const practice = document.createElement("button");
+    practice.type = "button";
+    practice.className = "primary-button";
+    practice.textContent = "Luyện khai cuộc với máy";
+    practice.addEventListener("click", () => startOpeningBookPractice(book));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ghost-button";
+    remove.textContent = "Xóa";
+    remove.addEventListener("click", () => deleteOpeningBook(book.id));
+    actions.append(open, practice, remove);
+    item.append(header, detail, actions);
+    return item;
+  }
+
   function countOpeningBookNodes(node) {
     if (!node) return 0;
     return 1 + (node.children || []).reduce((sum, child) => sum + countOpeningBookNodes(child), 0);
@@ -2617,10 +2768,12 @@
   }
 
   function startOpeningBookPractice(book = null) {
+    const bookSide = normalizeOpeningBookSide(book?.bookSide || book?.sideChoice || book?.viewSide || book?.side || state.openingBookEditor.bookSide);
     const source = {
       id: String(book?.id || state.openingBookEditor.id || ""),
       name: String(book?.name || state.openingBookEditor.name || "Book khai cuộc"),
       startFen: book?.startFen || state.openingBookEditor.startFen || START_FEN,
+      bookSide,
       tree: normalizeOpeningBookNode(book?.tree || book?.root || state.openingBookEditor.root || {})
     };
     const startSide = XiangqiCore.parseFenState(source.startFen || START_FEN).side || "w";
@@ -2631,6 +2784,7 @@
     }
     stopOpeningBookPractice({ silent: true });
     state.openingBookEditor = createOpeningBookEditorState(source);
+    invalidateOpeningBookLayout();
     state.openingBookPractice = {
       ...createOpeningBookPracticeState(),
       active: true,
@@ -2653,6 +2807,7 @@
     }
     const wasActive = Boolean(state.openingBookPractice?.active);
     state.openingBookPractice = createOpeningBookPracticeState();
+    clearOpeningBookMoveAnimation();
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     renderOpeningBookPracticeModal();
@@ -2750,6 +2905,9 @@
     const node = openingBookCurrentNode();
     const target = node.children?.[targetIndex];
     if (!target || target.move !== move) return;
+    const animation = buildOpeningBookMoveAnimation(move);
+    if (animation) primeOpeningBookMoveAnimation(animation);
+    else clearOpeningBookMoveAnimation();
     playOpeningBookMoveSound(state.openingBookEditor.board, move, state.openingBookEditor.side);
     state.openingBookEditor.path.push(targetIndex);
     practice.step += 1;
@@ -2757,6 +2915,7 @@
     state.openingBookHints = [];
     rebuildOpeningBookBoard();
     renderOpeningBookEditor();
+    if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
   function completeOpeningBookPracticeLine() {
@@ -2784,6 +2943,7 @@
     practice.awaitingLineConfirm = false;
     practice.machineSide = currentOpeningBookPracticeLine()?.machineSide || practice.machineSide || "b";
     state.openingBookEditor.path = [];
+    clearOpeningBookMoveAnimation();
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     rebuildOpeningBookBoard();
@@ -2809,6 +2969,113 @@
       return;
     }
     playMoveSound(captured ? "capture" : "move", ROOM_MOVE_ANIMATION_MS);
+  }
+
+  function clearOpeningBookMoveAnimation({ preserveKey = false } = {}) {
+    if (state.openingBookAnimationTimer) {
+      clearTimeout(state.openingBookAnimationTimer);
+      state.openingBookAnimationTimer = 0;
+    }
+    if (state.activeOpeningBookMoveSlotEl) {
+      state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
+      state.activeOpeningBookMoveSlotEl.style.transition = "none";
+      state.activeOpeningBookMoveSlotEl.style.transform = roomPieceRestTransform();
+      state.activeOpeningBookMoveSlotEl.style.opacity = "";
+    }
+    state.openingBookAnimationRunning = false;
+    state.openingBookAnimation = null;
+    state.activeOpeningBookMoveSlotEl = null;
+    state.openingBookLastPieceFrame = "";
+    if (!preserveKey) state.lastAnimatedOpeningBookMoveKey = "";
+  }
+
+  function primeOpeningBookMoveAnimation(animation) {
+    if (!animation) return;
+    if (state.openingBookAnimationTimer) {
+      clearTimeout(state.openingBookAnimationTimer);
+      state.openingBookAnimationTimer = 0;
+    }
+    if (state.activeOpeningBookMoveSlotEl) {
+      state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
+      state.activeOpeningBookMoveSlotEl.style.transition = "none";
+      state.activeOpeningBookMoveSlotEl.style.transform = roomPieceRestTransform();
+      state.activeOpeningBookMoveSlotEl.style.opacity = "";
+    }
+    state.openingBookAnimationRunning = false;
+    state.openingBookAnimation = animation;
+    state.lastAnimatedOpeningBookMoveKey = animation.moveKey;
+    state.openingBookLastPieceFrame = "";
+  }
+
+  function finalizeOpeningBookMoveAnimation(animation) {
+    if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) return;
+    const movedSlotEl = state.activeOpeningBookMoveSlotEl;
+    if (state.openingBookAnimationTimer) {
+      clearTimeout(state.openingBookAnimationTimer);
+      state.openingBookAnimationTimer = 0;
+    }
+    state.openingBookAnimationRunning = false;
+    state.openingBookAnimation = null;
+    state.activeOpeningBookMoveSlotEl = null;
+    state.openingBookLastPieceFrame = "";
+    drawOpeningBookPieces(true);
+    drawOpeningBookArrows();
+    if (movedSlotEl) {
+      movedSlotEl.classList.remove("opening-book-moving-piece");
+      movedSlotEl.style.transition = "none";
+      movedSlotEl.style.transform = roomPieceRestTransform();
+      movedSlotEl.style.opacity = "";
+    }
+  }
+
+  function startOpeningBookMoveAnimation(animation, { prepared = false } = {}) {
+    if (!animation) return;
+    if (prepared) {
+      if (state.openingBookAnimationTimer) {
+        clearTimeout(state.openingBookAnimationTimer);
+        state.openingBookAnimationTimer = 0;
+      }
+      state.openingBookAnimation = animation;
+      state.lastAnimatedOpeningBookMoveKey = animation.moveKey;
+    } else {
+      primeOpeningBookMoveAnimation(animation);
+    }
+
+    const { pieceSlots } = ensureOpeningBookSlots();
+    const movingSlotEl = pieceSlots[animation.fromIndex];
+    if (!movingSlotEl) return;
+    setRoomPieceSlotImage(movingSlotEl, animation.piece);
+    state.activeOpeningBookMoveSlotEl = movingSlotEl;
+    state.openingBookAnimationRunning = false;
+    movingSlotEl.classList.add("is-visible", "opening-book-moving-piece");
+    movingSlotEl.style.transition = "none";
+    movingSlotEl.style.transform = roomPieceRestTransform();
+    movingSlotEl.style.opacity = "";
+    movingSlotEl.setAttribute("aria-hidden", "false");
+
+    void movingSlotEl.offsetWidth;
+    if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) {
+      movingSlotEl.classList.remove("opening-book-moving-piece");
+      return;
+    }
+    movingSlotEl.style.transition = `transform ${OPENING_BOOK_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
+    movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, openingBookSquareToPixel, roomPieceRestTransform());
+    state.openingBookAnimationRunning = true;
+    state.openingBookAnimationTimer = window.setTimeout(() => {
+      finalizeOpeningBookMoveAnimation(animation);
+    }, OPENING_BOOK_MOVE_ANIMATION_MS + 8);
+  }
+
+  function buildOpeningBookMoveAnimation(move, { reverse = false } = {}) {
+    const key = [
+      "opening",
+      state.openingBookEditor.id || "draft",
+      state.openingBookEditor.path.join(".") || "root",
+      reverse ? "back" : "next",
+      move,
+      Date.now()
+    ].join(":");
+    return buildDirectionalMoveAnimation(state.openingBookEditor.board, move, key, { reverse });
   }
 
   function renderHistory() {
@@ -3020,9 +3287,11 @@
         const row = document.createElement("button");
         row.type = "button";
         row.className = "opening-book-branch-row";
-        row.textContent = `${book.name} - ${Math.max(0, countOpeningBookNodes(book.tree) - 1)} nước`;
+        row.textContent = `${book.name} - ${normalizeOpeningBookSide(book.bookSide || book.side) === "b" ? "đi hậu" : "đi tiên"} - ${Math.max(0, countOpeningBookNodes(book.tree) - 1)} nước`;
         row.addEventListener("click", () => {
           state.openingBookEditor = createOpeningBookEditorState(book);
+          clearOpeningBookMoveAnimation();
+          invalidateOpeningBookLayout();
           state.openingBookSelectedSquare = null;
           state.openingBookHints = [];
           goRoute("library");
@@ -5139,7 +5408,8 @@
     const checkedSides = getCheckedSides(board);
     const selectedKey = state.openingBookSelectedSquare ? XiangqiCore.squareToUci(state.openingBookSelectedSquare) : "";
     const hintKey = state.openingBookHints.map(XiangqiCore.squareToUci).join(",");
-    const signature = `${boardSignature(board)}|${currentPieceSkin()}|${selectedKey}|${hintKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
+    const animationKey = state.openingBookAnimation?.moveKey || "";
+    const signature = `${boardSignature(board)}|${openingBookViewSide()}|${currentPieceSkin()}|${selectedKey}|${hintKey}|${animationKey}|${checkedSides.w ? "1" : "0"}${checkedSides.b ? "1" : "0"}`;
     if (!force && signature === state.openingBookLastPieceFrame) return;
     state.openingBookLastPieceFrame = signature;
     const { pieceSlots, hintSlots } = ensureOpeningBookSlots();
@@ -5149,11 +5419,26 @@
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
         const el = pieceSlots[index];
-        const piece = board[y]?.[x] || "";
+        const animation = state.openingBookAnimation;
+        const isAnimatingFromSlot = animation && index === animation.fromIndex;
+        if (isAnimatingFromSlot && state.openingBookAnimationRunning && state.activeOpeningBookMoveSlotEl === el) {
+          const mark = hintSlots[index];
+          const showHint = hintIndexes.has(index);
+          mark.classList.toggle("is-visible", showHint);
+          mark.setAttribute("aria-hidden", showHint ? "false" : "true");
+          continue;
+        }
+        let piece = board[y]?.[x] || "";
+        if (animation) {
+          if (index === animation.fromIndex) piece = animation.piece;
+          else if (index === animation.toIndex) piece = "";
+        }
         if (!piece) {
           el.classList.remove("is-visible", "selected", "in-check");
+          el.style.transition = "none";
+          el.style.transform = roomPieceRestTransform();
           el.setAttribute("aria-hidden", "true");
-          if (el.dataset.piece) {
+          if (el.dataset.piece && !(animation && index === animation.toIndex)) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
           }
@@ -5165,6 +5450,17 @@
           el.classList.add("is-visible");
           el.classList.toggle("selected", Boolean(state.openingBookSelectedSquare && state.openingBookSelectedSquare.x === x && state.openingBookSelectedSquare.y === y));
           el.classList.toggle("in-check", piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(piece)]);
+          if (state.openingBookAnimation && state.openingBookAnimation.fromIndex === index) {
+            const keepRunningTransform = state.openingBookAnimationRunning && state.activeOpeningBookMoveSlotEl === el;
+            state.activeOpeningBookMoveSlotEl = el;
+            if (!keepRunningTransform) {
+              el.style.transition = "none";
+              el.style.transform = roomPieceRestTransform();
+            }
+          } else {
+            el.style.transition = "none";
+            el.style.transform = roomPieceRestTransform();
+          }
           el.setAttribute("aria-hidden", "false");
         }
         const mark = hintSlots[index];
@@ -5277,6 +5573,9 @@
         children: []
       });
     }
+    const animation = buildOpeningBookMoveAnimation(move);
+    if (animation) primeOpeningBookMoveAnimation(animation);
+    else clearOpeningBookMoveAnimation();
     playOpeningBookMoveSound(board, move, side);
     state.openingBookEditor.path.push(childIndex);
     state.openingBookSelectedSquare = null;
@@ -5284,6 +5583,7 @@
     state.openingBookEditor.lastBackNode = null;
     rebuildOpeningBookBoard();
     renderOpeningBookEditor();
+    if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
   function clearReviewArrow() {
@@ -6052,7 +6352,7 @@
   }
 
   function openingBookViewSide() {
-    return "w";
+    return normalizeOpeningBookSide(state.openingBookEditor?.bookSide);
   }
 
   function geometry() {

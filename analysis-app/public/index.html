@@ -45,7 +45,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260716-dark-poster-zoom-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260716-opening-book-side-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -330,6 +330,11 @@
                   </div>
                 </div>
                 <aside class="opening-book-side">
+                  <div id="openingBookSideChoice" class="opening-book-side-choice" role="group" aria-label="Chọn bên soạn book">
+                    <span>Soạn book cho</span>
+                    <button id="openingBookRedSideBtn" class="secondary-button active" type="button" data-opening-book-side="w">Đỏ đi tiên</button>
+                    <button id="openingBookBlackSideBtn" class="secondary-button" type="button" data-opening-book-side="b">Đen đi hậu</button>
+                  </div>
                   <div class="review-controls opening-book-controls">
                     <button id="openingBookPrevBtn" class="secondary-button" type="button">Hoàn tác</button>
                     <button id="openingBookNextBtn" class="secondary-button" type="button">Tiếp theo</button>
@@ -641,7 +646,7 @@
     </div>
 
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260716-dark-poster-zoom-v1"></script>
+    <script src="/portal.js?v=20260716-opening-book-side-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
