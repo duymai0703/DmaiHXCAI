@@ -1,10 +1,10 @@
-const CACHE_NAME = "dmaihxcai-shell-v150";
+const CACHE_NAME = "dmaihxcai-shell-v151";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260716-library-posters-v2",
-  "/portal.js?v=20260716-library-posters-v2",
+  "/portal.css?v=20260716-dark-poster-zoom-v1",
+  "/portal.js?v=20260716-dark-poster-zoom-v1",
   "/styles.css?v=20260715-clipboard-vision-v1",
   "/app.js?v=20260715-clipboard-vision-v1",
   "/config.js",
@@ -85,8 +85,8 @@ const STATIC_ASSETS = [
   "/assets/pieces/sets/boquan4/black-cannon.png",
   "/assets/pieces/sets/boquan4/black-pawn.png",
   "/assets/posters/lubo1.png",
-  "/assets/posters/lubo3.png",
   "/assets/posters/lubo2.png",
+  "/assets/posters/lubo3.png",
   "/assets/posters/vanca2.png",
   "/assets/posters/vanca1.png",
   "/assets/posters/vanca3.png",

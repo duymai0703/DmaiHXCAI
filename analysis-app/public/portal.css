@@ -4183,11 +4183,11 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/lubo3.png");
+  --poster-image: url("/assets/posters/lubo2.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/lubo2.png");
+  --poster-image: url("/assets/posters/lubo3.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
@@ -4349,6 +4349,10 @@ textarea:focus {
 
 .launcher-card.has-poster::before {
   filter: blur(2.4px) brightness(0.72) saturate(1.12) !important;
+}
+
+:root[data-theme="dark"] .launcher-card.has-poster::before {
+  transform: scale(1.14) !important;
 }
 
 :root[data-theme="light"] .launcher-card.has-poster::before {

@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260716-library-posters-v2";
+  const ASSET_WARMUP_VERSION = "20260716-dark-poster-zoom-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -148,8 +148,8 @@
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
     "/assets/posters/lubo1.png",
-    "/assets/posters/lubo3.png",
     "/assets/posters/lubo2.png",
+    "/assets/posters/lubo3.png",
     "/assets/posters/vanca2.png",
     "/assets/posters/vanca1.png",
     "/assets/posters/vanca3.png"
