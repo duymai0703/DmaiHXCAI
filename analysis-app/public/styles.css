@@ -514,8 +514,8 @@ h2 {
     inset 0 0 0 2px rgba(80, 64, 42, 0.25),
     0 18px 42px rgba(55, 37, 18, 0.28);
   touch-action: manipulation;
-  contain: layout paint style;
-  overflow: hidden;
+  contain: layout style;
+  overflow: visible;
   isolation: isolate;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -3969,4 +3969,35 @@ select,
     padding-right: 0 !important;
     transform: translateX(-4px);
   }
+}
+
+/* Let edge pieces extend naturally beyond the grid without being clipped. */
+.board {
+  overflow: visible !important;
+  contain: layout style !important;
+}
+
+.board::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  inset: -5.8% !important;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  background:
+    var(--board-skin) center / 100% 100% no-repeat,
+    var(--board-bg, #f4cf91) !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+#pieces,
+#motionLayer {
+  overflow: visible !important;
+  contain: layout style !important;
 }
