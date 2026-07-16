@@ -1430,11 +1430,17 @@ a {
 
 .library-panel {
   min-width: 0;
+  width: 100%;
+}
+
+#libraryView .match-panel {
+  width: min(100%, 1380px);
+  margin-inline: auto;
 }
 
 .opening-book-shell {
   display: grid;
-  grid-template-columns: minmax(520px, 760px) minmax(300px, 1fr);
+  grid-template-columns: minmax(720px, 940px) minmax(300px, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -1444,7 +1450,7 @@ a {
 }
 
 .opening-book-board {
-  width: min(100%, 760px);
+  width: min(100%, 940px);
   margin: 0 auto;
 }
 

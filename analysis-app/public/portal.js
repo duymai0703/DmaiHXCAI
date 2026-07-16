@@ -2231,6 +2231,7 @@
       paths: [],
       pathIndex: 0,
       step: 0,
+      machineSide: "b",
       autoTimer: 0,
       completed: false
     };
@@ -2564,19 +2565,20 @@
     }
   }
 
-  function collectOpeningBookPracticePaths(root) {
+  function collectOpeningBookPracticePaths(root, startSide = "w") {
     const paths = [];
-    const walk = (node, path) => {
+    const walk = (node, path, side, firstBranchSide = "") => {
       const children = Array.isArray(node?.children) ? node.children : [];
+      const branchSide = firstBranchSide || (children.length >= 2 ? side : "");
       if (!children.length) {
-        if (path.length) paths.push(path.slice());
+        if (path.length) paths.push({ indexes: path.slice(), machineSide: branchSide || oppositeSide(startSide) });
         return;
       }
       for (let index = children.length - 1; index >= 0; index -= 1) {
-        walk(children[index], [...path, index]);
+        walk(children[index], [...path, index], oppositeSide(side), branchSide);
       }
     };
-    walk(root || {}, []);
+    walk(root || {}, [], startSide || "w");
     return paths;
   }
 
@@ -2587,7 +2589,8 @@
       startFen: book?.startFen || state.openingBookEditor.startFen || START_FEN,
       tree: normalizeOpeningBookNode(book?.tree || book?.root || state.openingBookEditor.root || {})
     };
-    const paths = collectOpeningBookPracticePaths(source.tree);
+    const startSide = XiangqiCore.parseFenState(source.startFen || START_FEN).side || "w";
+    const paths = collectOpeningBookPracticePaths(source.tree, startSide);
     if (!paths.length) {
       showToast("Book này chưa có biến để luyện.");
       return;
@@ -2601,7 +2604,8 @@
       bookName: source.name || "Book khai cuộc",
       paths,
       pathIndex: 0,
-      step: 0
+      step: 0,
+      machineSide: paths[0]?.machineSide || oppositeSide(startSide)
     };
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
@@ -2627,7 +2631,13 @@
   function currentOpeningBookPracticePath() {
     const practice = state.openingBookPractice;
     if (!practice?.active) return [];
-    return practice.paths[practice.pathIndex] || [];
+    return practice.paths[practice.pathIndex]?.indexes || [];
+  }
+
+  function currentOpeningBookPracticeLine() {
+    const practice = state.openingBookPractice;
+    if (!practice?.active) return null;
+    return practice.paths[practice.pathIndex] || null;
   }
 
   function scheduleOpeningBookAutoMove(delay = 180) {
@@ -2650,7 +2660,7 @@
     }
     const node = openingBookCurrentNode();
     const children = Array.isArray(node.children) ? node.children : [];
-    if (children.length < 2) {
+    if (!shouldOpeningBookPracticeAutoMove()) {
       renderOpeningBookEditor();
       return;
     }
@@ -2664,6 +2674,13 @@
     scheduleOpeningBookAutoMove(360);
   }
 
+  function shouldOpeningBookPracticeAutoMove() {
+    const practice = state.openingBookPractice;
+    if (!practice?.active || practice.completed) return false;
+    const children = openingBookCurrentNode().children || [];
+    return children.length >= 2 || state.openingBookEditor.side === practice.machineSide;
+  }
+
   function playOpeningBookPracticeUserMove(move) {
     const practice = state.openingBookPractice;
     if (!practice?.active || practice.completed) return;
@@ -2674,8 +2691,11 @@
       completeOpeningBookPracticeLine();
       return;
     }
-    if (children.length >= 2) {
-      showToast("Đến điểm rẽ nhánh, máy sẽ tự chọn biến.");
+    if (shouldOpeningBookPracticeAutoMove()) {
+      showToast("Đến lượt máy trong bài luyện.");
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+      renderOpeningBookEditor();
       scheduleOpeningBookAutoMove(120);
       return;
     }
@@ -2720,6 +2740,7 @@
     }
     practice.pathIndex += 1;
     practice.step = 0;
+    practice.machineSide = currentOpeningBookPracticeLine()?.machineSide || practice.machineSide || "b";
     state.openingBookEditor.path = [];
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
@@ -5158,6 +5179,13 @@
   function onOpeningBookPointerDown(event) {
     if (state.route !== "library" || state.libraryTab !== "book-create") return;
     event.preventDefault();
+    if (shouldOpeningBookPracticeAutoMove()) {
+      state.openingBookSelectedSquare = null;
+      state.openingBookHints = [];
+      renderOpeningBookEditor();
+      scheduleOpeningBookAutoMove(80);
+      return;
+    }
     const square = eventToOpeningBookSquare(event);
     if (!square) return;
     const board = state.openingBookEditor.board;
