@@ -4005,8 +4005,8 @@ select,
 /* CSS-drawn board skins: keep the grid geometry stable and stop using bitmap boards. */
 :root {
   --board-skin: none !important;
-  --board-grid-pad-x: 7;
-  --board-grid-pad-y: 6.3;
+  --board-grid-pad-x: 5.8;
+  --board-grid-pad-y: 5.5;
   --board-bg: linear-gradient(145deg, #e9fbff 0%, #c9f1fb 48%, #8fd2ec 100%);
   --board-border: #2299c7;
   --board-line: rgba(16, 66, 78, 0.86);
@@ -4078,14 +4078,15 @@ select,
 
 .board {
   background: var(--board-bg) !important;
-  border-width: 2px !important;
+  border-width: 1px !important;
   border-color: var(--board-border) !important;
   box-shadow: var(--board-shadow) !important;
 }
 
 .board::before {
+  inset: 0 !important;
   background: var(--board-bg) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--board-frame-line), transparent 34%) !important;
+  box-shadow: inset 0 0 0 0.75px color-mix(in srgb, var(--board-frame-line), transparent 42%) !important;
 }
 
 .board-skin-layer {
