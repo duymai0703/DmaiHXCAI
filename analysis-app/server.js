@@ -55,6 +55,7 @@ const ROOM_MAX_REPEATED_CHASES = 6;
 const ROOM_REPETITION_WARNING_COUNT = 5;
 const ROOM_REPETITION_DRAW_COUNT = 6;
 const ROOM_RULE_NOTICE_MS = 3000;
+const BOT_MOVE_DELAY_MS = Math.max(220, Math.min(1600, Number(process.env.DMAIHXCAI_BOT_MOVE_DELAY_MS) || 620));
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const VISION_DAILY_LIMIT = 10;
@@ -89,6 +90,10 @@ const BOT_PLAYERS = [
 const BOT_USER_PREFIX = "bot-level-";
 const botMoveJobs = new Map();
 const licenseRateMap = new Map();
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
 
 const DEFAULT_ENGINE_CANDIDATES = [
   process.env.PIKAFISH_ENGINE,
@@ -3102,6 +3107,9 @@ async function runBotTurn(room) {
     finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "no-moves" });
     return;
   }
+  await sleepMs(BOT_MOVE_DELAY_MS + Math.min(360, depth * 45));
+  materializeRoomClock(room);
+  if (!isBotTurn(room) || room.result || room.status !== "active") return;
   try {
     applyMoveInRoom(room, side, move);
     room.lastBotMoveAt = Date.now();

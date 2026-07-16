@@ -156,7 +156,7 @@
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
-  const ROOM_MOVE_ANIMATION_MS = 228;
+  const ROOM_MOVE_ANIMATION_MS = 320;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const CHECKMATE_EFFECT_MS = 3000;
   const REVIEW_EVAL_BAR_LIMIT = 2000;
@@ -422,6 +422,11 @@
     openingBookSaveBtn: byId("openingBookSaveBtn"),
     openingBookPracticeBtn: byId("openingBookPracticeBtn"),
     openingBookPracticeExitBtn: byId("openingBookPracticeExitBtn"),
+    openingBookPracticeModal: byId("openingBookPracticeModal"),
+    openingBookPracticeModalTitle: byId("openingBookPracticeModalTitle"),
+    openingBookPracticeModalText: byId("openingBookPracticeModalText"),
+    openingBookPracticeYesBtn: byId("openingBookPracticeYesBtn"),
+    openingBookPracticeNoBtn: byId("openingBookPracticeNoBtn"),
     openingBookStatus: byId("openingBookStatus"),
     openingBookBranchChooser: byId("openingBookBranchChooser"),
     openingBookMoveList: byId("openingBookMoveList"),
@@ -465,7 +470,9 @@
   const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent) || isIpadDesktop;
   const mobileRoomParams = new URLSearchParams(window.location.search || "");
   const isMobileRoomEntry = mobileRoomParams.has("mobileRoom");
-  if (isMobileDevice && !isMobileRoomEntry) {
+  const initialMobileRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase();
+  const keepPortalOnMobile = ["library", "review", "admin"].includes(initialMobileRoute);
+  if (isMobileDevice && !isMobileRoomEntry && !keepPortalOnMobile) {
     window.location.replace("/analysis");
     return;
   }
@@ -1149,6 +1156,8 @@
     dom.openingBookSaveBtn?.addEventListener("click", saveOpeningBookEditor);
     dom.openingBookPracticeBtn?.addEventListener("click", () => startOpeningBookPractice(state.openingBookEditor));
     dom.openingBookPracticeExitBtn?.addEventListener("click", stopOpeningBookPractice);
+    dom.openingBookPracticeYesBtn?.addEventListener("click", continueOpeningBookPracticeLine);
+    dom.openingBookPracticeNoBtn?.addEventListener("click", stopOpeningBookPractice);
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
@@ -2233,6 +2242,7 @@
       step: 0,
       machineSide: "b",
       autoTimer: 0,
+      awaitingLineConfirm: false,
       completed: false
     };
   }
@@ -2343,8 +2353,32 @@
       dom.openingBookPracticeExitBtn.classList.toggle("hidden", !practicing);
     }
     if (practicing) dom.openingBookBranchChooser?.classList.add("hidden");
+    renderOpeningBookPracticeModal();
     renderOpeningBookMoveList();
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true);
+  }
+
+  function renderOpeningBookPracticeModal() {
+    if (!dom.openingBookPracticeModal) return;
+    const practice = state.openingBookPractice;
+    const show = Boolean(practice?.active && practice.awaitingLineConfirm);
+    dom.openingBookPracticeModal.classList.toggle("hidden", !show);
+    if (!show) return;
+    const hasNext = practice.pathIndex + 1 < practice.paths.length;
+    if (dom.openingBookPracticeModalTitle) {
+      dom.openingBookPracticeModalTitle.textContent = hasNext ? "Đã hoàn thành biến này" : "Đã hoàn thành toàn bộ book";
+    }
+    if (dom.openingBookPracticeModalText) {
+      dom.openingBookPracticeModalText.textContent = hasNext
+        ? `Chuyển sang biến ${practice.pathIndex + 2}/${practice.paths.length}?`
+        : "Bạn đã luyện xong tất cả các biến đã soạn.";
+    }
+    if (dom.openingBookPracticeYesBtn) {
+      dom.openingBookPracticeYesBtn.textContent = hasNext ? "Đồng ý" : "Luyện lại";
+    }
+    if (dom.openingBookPracticeNoBtn) {
+      dom.openingBookPracticeNoBtn.textContent = hasNext ? "Không" : "Thoát";
+    }
   }
 
   function renderOpeningBookMoveList() {
@@ -2610,7 +2644,7 @@
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     setLibraryTab("book-create");
-    scheduleOpeningBookAutoMove(260);
+    scheduleOpeningBookAutoMove(760);
   }
 
   function stopOpeningBookPractice(options = {}) {
@@ -2621,6 +2655,7 @@
     state.openingBookPractice = createOpeningBookPracticeState();
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
+    renderOpeningBookPracticeModal();
     if (wasActive && !options.silent) {
       rebuildOpeningBookBoard();
       renderOpeningBookEditor();
@@ -2642,7 +2677,7 @@
 
   function scheduleOpeningBookAutoMove(delay = 180) {
     const practice = state.openingBookPractice;
-    if (!practice?.active || practice.completed) return;
+    if (!practice?.active || practice.completed || practice.awaitingLineConfirm) return;
     if (practice.autoTimer) clearTimeout(practice.autoTimer);
     practice.autoTimer = window.setTimeout(() => {
       practice.autoTimer = 0;
@@ -2652,7 +2687,7 @@
 
   function runOpeningBookAutoMove() {
     const practice = state.openingBookPractice;
-    if (!practice?.active || practice.completed) return;
+    if (!practice?.active || practice.completed || practice.awaitingLineConfirm) return;
     const path = currentOpeningBookPracticePath();
     if (practice.step >= path.length) {
       completeOpeningBookPracticeLine();
@@ -2671,7 +2706,7 @@
       return;
     }
     advanceOpeningBookPracticeMove(target.move, true);
-    scheduleOpeningBookAutoMove(360);
+    scheduleOpeningBookAutoMove(820);
   }
 
   function shouldOpeningBookPracticeAutoMove() {
@@ -2696,7 +2731,7 @@
       state.openingBookSelectedSquare = null;
       state.openingBookHints = [];
       renderOpeningBookEditor();
-      scheduleOpeningBookAutoMove(120);
+      scheduleOpeningBookAutoMove(220);
       return;
     }
     const target = children[path[practice.step]];
@@ -2705,7 +2740,7 @@
       return;
     }
     advanceOpeningBookPracticeMove(move, false);
-    scheduleOpeningBookAutoMove(280);
+    scheduleOpeningBookAutoMove(680);
   }
 
   function advanceOpeningBookPracticeMove(move, byMachine) {
@@ -2730,16 +2765,26 @@
   function completeOpeningBookPracticeLine() {
     const practice = state.openingBookPractice;
     if (!practice?.active) return;
+    practice.awaitingLineConfirm = true;
     if (practice.pathIndex + 1 >= practice.paths.length) {
       practice.completed = true;
-      state.openingBookSelectedSquare = null;
-      state.openingBookHints = [];
-      renderOpeningBookEditor();
-      showToast("Đã luyện xong toàn bộ book khai cuộc.");
-      return;
     }
-    practice.pathIndex += 1;
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    renderOpeningBookEditor();
+  }
+
+  function continueOpeningBookPracticeLine() {
+    const practice = state.openingBookPractice;
+    if (!practice?.active) return;
+    if (practice.pathIndex + 1 >= practice.paths.length) {
+      practice.pathIndex = 0;
+      practice.completed = false;
+    } else {
+      practice.pathIndex += 1;
+    }
     practice.step = 0;
+    practice.awaitingLineConfirm = false;
     practice.machineSide = currentOpeningBookPracticeLine()?.machineSide || practice.machineSide || "b";
     state.openingBookEditor.path = [];
     state.openingBookSelectedSquare = null;
@@ -2747,7 +2792,7 @@
     rebuildOpeningBookBoard();
     renderOpeningBookEditor();
     showToast(`Chuyển sang biến ${practice.pathIndex + 1}/${practice.paths.length}.`);
-    scheduleOpeningBookAutoMove(480);
+    scheduleOpeningBookAutoMove(760);
   }
 
   function playOpeningBookMoveSound(board, move, side) {
@@ -5179,6 +5224,7 @@
   function onOpeningBookPointerDown(event) {
     if (state.route !== "library" || state.libraryTab !== "book-create") return;
     event.preventDefault();
+    if (state.openingBookPractice?.awaitingLineConfirm) return;
     if (shouldOpeningBookPracticeAutoMove()) {
       state.openingBookSelectedSquare = null;
       state.openingBookHints = [];

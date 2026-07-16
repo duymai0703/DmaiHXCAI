@@ -1434,23 +1434,34 @@ a {
 }
 
 #libraryView .match-panel {
-  width: min(100%, 1380px);
+  width: min(100%, 1540px);
   margin-inline: auto;
+}
+
+#libraryView .single-panel-wrap {
+  max-width: min(1540px, 100%);
 }
 
 .opening-book-shell {
   display: grid;
-  grid-template-columns: minmax(720px, 940px) minmax(300px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 780px) minmax(292px, 320px);
+  gap: 18px;
   align-items: start;
+  justify-content: center;
+  max-width: 1140px;
+  margin: 16px auto 0;
 }
 
 .opening-book-board-wrap {
+  position: relative;
+  display: grid;
+  place-items: start center;
   min-width: 0;
+  padding: 0;
 }
 
 .opening-book-board {
-  width: min(100%, 940px);
+  width: min(100%, 780px);
   margin: 0 auto;
 }
 
@@ -1477,8 +1488,10 @@ a {
 
 .opening-book-side {
   display: grid;
+  align-content: start;
   gap: 12px;
   min-width: 0;
+  height: fit-content;
 }
 
 .opening-book-controls {
@@ -1489,6 +1502,57 @@ a {
 .opening-book-controls #openingBookPracticeBtn,
 .opening-book-controls #openingBookPracticeExitBtn {
   grid-column: 1 / -1;
+}
+
+.opening-book-practice-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  pointer-events: none;
+}
+
+.opening-book-practice-modal.hidden {
+  display: none !important;
+}
+
+.opening-book-practice-card {
+  display: grid;
+  gap: 12px;
+  width: min(360px, 92%);
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 245, 0.98), rgba(236, 246, 255, 0.96));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  box-shadow: 0 22px 48px rgba(13, 37, 75, 0.22);
+  color: var(--ink);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.opening-book-practice-card strong {
+  font-size: 20px;
+}
+
+.opening-book-practice-card span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.opening-book-practice-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+:root[data-theme="dark"] .opening-book-practice-card {
+  background:
+    linear-gradient(180deg, rgba(12, 27, 47, 0.98), rgba(4, 12, 24, 0.96));
+  color: #eef8ff;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.42);
 }
 
 .opening-book-branch-chooser,
@@ -4495,13 +4559,134 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 @media (max-width: 920px) {
   .opening-book-shell {
     grid-template-columns: 1fr;
+    max-width: 100%;
   }
 
   .library-tabs {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .opening-book-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body.portal-mobile-mode[data-route="library"] {
+    min-height: calc(var(--app-vh, 1vh) * 100);
+    overflow: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .portal-header {
+    min-height: calc(54px + env(safe-area-inset-top, 0px));
+    padding: max(8px, env(safe-area-inset-top, 0px)) 10px 6px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .brand-copy strong {
+    font-size: 18px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .theme-toggle {
+    max-width: 174px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .theme-toggle button {
+    min-height: 34px;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .portal-main {
+    width: 100%;
+    padding: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] #libraryView .single-panel-wrap,
+  body.portal-mobile-mode[data-route="library"] #libraryView .match-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body.portal-mobile-mode[data-route="library"] #libraryView .match-panel {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .panel-heading {
+    margin-bottom: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .panel-heading p {
+    display: none;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .library-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 8px 0 10px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .library-tabs button {
+    min-height: 38px;
+    padding: 0 6px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.15;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-shell {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-board-wrap {
+    place-items: center;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-board {
+    width: min(100%, calc((var(--app-vh, 1vh) * 100 - 218px) * 0.9), 520px);
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-side {
+    gap: 8px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-controls button {
+    min-height: 38px;
+    padding-inline: 6px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-controls #openingBookPracticeBtn,
+  body.portal-mobile-mode[data-route="library"] .opening-book-controls #openingBookPracticeExitBtn {
+    grid-column: 1 / -1;
+  }
+
+  body.portal-mobile-mode[data-route="library"] #openingBookStatus {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-branch-chooser,
+  body.portal-mobile-mode[data-route="library"] .opening-book-move-list {
+    max-height: 132px;
+    overflow: auto;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-practice-card {
+    width: min(320px, 94%);
+    padding: 14px;
+  }
+
+  body.portal-mobile-mode[data-route="library"] .opening-book-practice-card strong {
+    font-size: 18px;
   }
 }
