@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260717-master-games-v2";
+  const ASSET_WARMUP_VERSION = "20260717-bannew-board-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -105,15 +105,14 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260715-clipboard-vision-v1",
-    "/app.js?v=20260715-clipboard-vision-v1",
-    "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-gold.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-stone.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-emerald.svg?v=20260713-lines-v3",
-    "/assets/board/board-skin-wine.svg?v=20260713-lines-v3",
+    "/styles.css?v=20260717-bannew-board-v1",
+    "/app.js?v=20260717-bannew-board-v1",
+    "/assets/board/bannew1.png",
+    "/assets/board/bannew2.png",
+    "/assets/board/bannew3.png",
+    "/assets/board/bannew4.png",
+    "/assets/board/bannew5.png",
+    "/assets/board/bannew6.png",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -6570,48 +6569,36 @@
   }
 
   function geometry() {
-    const metrics = boardMetrics(dom.roomBoard);
-    const pad = metrics.width * 0.07;
-    const usableW = metrics.width - pad * 2;
-    const usableH = metrics.height - pad * 2;
-    const flipped = viewSide() === "b";
-    return {
-      rect: metrics.rect,
-      offsetX: metrics.offsetX,
-      offsetY: metrics.offsetY,
-      x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
-      y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
-    };
+    return boardGridGeometry(dom.roomBoard, viewSide() === "b");
   }
 
   function reviewGeometry() {
-    const metrics = boardMetrics(dom.reviewBoard);
-    const pad = metrics.width * 0.07;
-    const usableW = metrics.width - pad * 2;
-    const usableH = metrics.height - pad * 2;
-    const flipped = reviewViewSide() === "b";
-    return {
-      rect: metrics.rect,
-      offsetX: metrics.offsetX,
-      offsetY: metrics.offsetY,
-      x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
-      y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
-    };
+    return boardGridGeometry(dom.reviewBoard, reviewViewSide() === "b");
   }
 
   function openingBookGeometry() {
-    const metrics = boardMetrics(dom.openingBookBoard);
-    const pad = metrics.width * 0.07;
-    const usableW = metrics.width - pad * 2;
-    const usableH = metrics.height - pad * 2;
-    const flipped = openingBookViewSide() === "b";
+    return boardGridGeometry(dom.openingBookBoard, openingBookViewSide() === "b");
+  }
+
+  function boardGridGeometry(element, flipped) {
+    const metrics = boardMetrics(element);
+    const style = getComputedStyle(element);
+    const padX = metrics.width * cssPercentValue(style, "--board-grid-pad-x", 1.4);
+    const padY = metrics.height * cssPercentValue(style, "--board-grid-pad-y", 1.2);
+    const stepX = (metrics.width - padX * 2) / 8;
+    const stepY = (metrics.height - padY * 2) / 9;
     return {
       rect: metrics.rect,
       offsetX: metrics.offsetX,
       offsetY: metrics.offsetY,
-      x: (file) => pad + (flipped ? 8 - file : file) * usableW / 8,
-      y: (rank) => pad + (flipped ? rank : 9 - rank) * usableH / 9
+      x: (file) => padX + (flipped ? 8 - file : file) * stepX,
+      y: (rank) => padY + (flipped ? rank : 9 - rank) * stepY
     };
+  }
+
+  function cssPercentValue(style, name, fallbackPercent) {
+    const parsed = Number.parseFloat(style.getPropertyValue(name));
+    return Number.isFinite(parsed) ? parsed / 100 : fallbackPercent / 100;
   }
 
   function boardMetrics(element) {

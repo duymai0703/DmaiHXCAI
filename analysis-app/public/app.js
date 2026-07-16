@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260715-clipboard-vision-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-bannew-board-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -100,13 +100,12 @@ const ANALYSIS_PRELOAD_TEXT = {
   done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
 };
 const ANALYSIS_BLOCKING_ASSETS = [
-  "/assets/board/board-skin-dark.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-light.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-mobile.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-gold.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-stone.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-emerald.svg?v=20260713-lines-v3",
-  "/assets/board/board-skin-wine.svg?v=20260713-lines-v3",
+  "/assets/board/bannew1.png",
+  "/assets/board/bannew2.png",
+  "/assets/board/bannew3.png",
+  "/assets/board/bannew4.png",
+  "/assets/board/bannew5.png",
+  "/assets/board/bannew6.png",
   ...Object.values(PIECE_IMAGES),
   ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -4210,16 +4209,23 @@ function applyMoveToBoard(board, move) {
 
 function geometry() {
   const metrics = boardMetrics(boardEl);
-  const pad = metrics.width * 0.07;
-  const usableW = metrics.width - pad * 2;
-  const usableH = metrics.height - pad * 2;
+  const style = getComputedStyle(boardEl);
+  const padX = metrics.width * cssPercentValue(style, "--board-grid-pad-x", 1.4);
+  const padY = metrics.height * cssPercentValue(style, "--board-grid-pad-y", 1.2);
+  const stepX = (metrics.width - padX * 2) / 8;
+  const stepY = (metrics.height - padY * 2) / 9;
   return {
     rect: metrics.rect,
     offsetX: metrics.offsetX,
     offsetY: metrics.offsetY,
-    x: (file) => pad + (state.flipped ? 8 - file : file) * usableW / 8,
-    y: (rank) => pad + (state.flipped ? rank : 9 - rank) * usableH / 9
+    x: (file) => padX + (state.flipped ? 8 - file : file) * stepX,
+    y: (rank) => padY + (state.flipped ? rank : 9 - rank) * stepY
   };
+}
+
+function cssPercentValue(style, name, fallbackPercent) {
+  const parsed = Number.parseFloat(style.getPropertyValue(name));
+  return Number.isFinite(parsed) ? parsed / 100 : fallbackPercent / 100;
 }
 
 function boardMetrics(element) {
