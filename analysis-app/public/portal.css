@@ -4997,11 +4997,11 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 :root[data-board-skin="emerald"] {
   --board-bg: linear-gradient(145deg, #147b69 0%, #0b6b56 50%, #064537 100%);
-  --board-border: #c9a44e;
-  --board-line: rgba(238, 205, 101, 0.94);
-  --board-mark: rgba(238, 205, 101, 0.88);
-  --board-frame-line: rgba(250, 219, 112, 0.96);
-  --board-river-text: rgba(248, 219, 121, 0.52);
+  --board-border: #86d98a;
+  --board-line: rgba(171, 245, 151, 0.92);
+  --board-mark: rgba(171, 245, 151, 0.84);
+  --board-frame-line: rgba(196, 255, 173, 0.9);
+  --board-river-text: rgba(196, 255, 173, 0.48);
   --board-shadow: 0 22px 46px rgba(5, 35, 29, 0.42), inset 0 0 38px rgba(80, 196, 157, 0.2);
 }
 
@@ -5017,21 +5017,21 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 :root[data-board-skin="pink"] {
   --board-bg: linear-gradient(145deg, #7d1e2b 0%, #651722 50%, #3d0e16 100%);
-  --board-border: #d7a353;
-  --board-line: rgba(239, 199, 103, 0.9);
-  --board-mark: rgba(239, 199, 103, 0.82);
-  --board-frame-line: rgba(252, 219, 126, 0.94);
-  --board-river-text: rgba(255, 219, 137, 0.48);
+  --board-border: #d7aa52;
+  --board-line: rgba(255, 215, 103, 0.94);
+  --board-mark: rgba(255, 215, 103, 0.86);
+  --board-frame-line: rgba(255, 226, 128, 0.9);
+  --board-river-text: rgba(255, 226, 142, 0.48);
   --board-shadow: 0 22px 46px rgba(58, 7, 16, 0.42), inset 0 0 38px rgba(255, 132, 132, 0.14);
 }
 
 :root[data-board-skin="dark"] {
   --board-bg: linear-gradient(145deg, #2f3137 0%, #1d2228 52%, #0c0f13 100%);
   --board-border: #b88745;
-  --board-line: rgba(229, 183, 95, 0.88);
-  --board-mark: rgba(229, 183, 95, 0.8);
-  --board-frame-line: rgba(246, 205, 112, 0.92);
-  --board-river-text: rgba(246, 205, 112, 0.45);
+  --board-line: rgba(255, 214, 105, 0.92);
+  --board-mark: rgba(255, 214, 105, 0.84);
+  --board-frame-line: rgba(255, 225, 126, 0.9);
+  --board-river-text: rgba(255, 225, 126, 0.45);
   --board-shadow: 0 22px 46px rgba(2, 5, 8, 0.48), inset 0 0 38px rgba(255, 221, 128, 0.08);
 }
 
@@ -5039,6 +5039,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .review-board,
 .opening-book-board {
   background: var(--board-bg) !important;
+  border-width: 2px !important;
   border-color: var(--board-border) !important;
   box-shadow: var(--board-shadow) !important;
 }

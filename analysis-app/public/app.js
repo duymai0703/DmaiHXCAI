@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-css-board-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-css-board-v2";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -3416,11 +3416,11 @@ function drawXiangqiBoardGrid(ctx, metrics, g, style) {
   ctx.font = `${Math.max(22, metrics.width / 17)}px "Noto Serif SC", "KaiTi", "STKaiti", "SimSun", serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("楚河", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
-  ctx.fillText("漢界", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
+  ctx.fillText("\u695A\u6CB3", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
+  ctx.fillText("\u6F22\u754C", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
 
   ctx.strokeStyle = cssBoardColor(style, "--board-frame-line", lineColor);
-  ctx.lineWidth = Math.max(1.2, metrics.width / 520);
+  ctx.lineWidth = Math.max(0.75, metrics.width / 900);
   ctx.strokeRect(left, top, right - left, bottom - top);
   ctx.restore();
 }

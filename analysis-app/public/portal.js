@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260717-css-board-v1";
+  const ASSET_WARMUP_VERSION = "20260717-css-board-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -105,8 +105,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260717-css-board-v1",
-    "/app.js?v=20260717-css-board-v1",
+    "/styles.css?v=20260717-css-board-v2",
+    "/app.js?v=20260717-css-board-v2",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -5312,11 +5312,11 @@
     ctx.font = `${Math.max(22, metrics.width / 17)}px "Noto Serif SC", "KaiTi", "STKaiti", "SimSun", serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("楚河", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
-    ctx.fillText("漢界", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
+    ctx.fillText("\u695A\u6CB3", left + (right - left) * 0.27, (g.y(4) + g.y(5)) / 2);
+    ctx.fillText("\u6F22\u754C", left + (right - left) * 0.73, (g.y(4) + g.y(5)) / 2);
 
     ctx.strokeStyle = cssBoardColor(style, "--board-frame-line", lineColor);
-    ctx.lineWidth = Math.max(1.2, metrics.width / 520);
+    ctx.lineWidth = Math.max(0.75, metrics.width / 900);
     ctx.strokeRect(left, top, right - left, bottom - top);
     ctx.restore();
   }
