@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260717-css-board-v3";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260718-mobile-board-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 228;
@@ -101,7 +101,6 @@ const ANALYSIS_PRELOAD_TEXT = {
 };
 const ANALYSIS_BLOCKING_ASSETS = [
   ...Object.values(PIECE_IMAGES),
-  ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
@@ -1380,7 +1379,7 @@ function pieceImageFor(piece) {
   if (selectedSet !== "default") {
     return CUSTOM_PIECE_IMAGES_BY_SET[selectedSet]?.[piece] || PIECE_IMAGES[piece];
   }
-  return (isCompactMobile() && MOBILE_RED_PIECE_IMAGES[piece]) || PIECE_IMAGES[piece];
+  return PIECE_IMAGES[piece];
 }
 
 function setupMobileActionStrip() {
@@ -2401,7 +2400,7 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
   const piece = getPiece(from);
   if (!piece) return;
   if (!isLegalMove(move, state.side)) return;
-  if (manual && !settledVisual && (state.selected || state.hints.length)) {
+  if (manual && !settledVisual && !isCompactMobile() && (state.selected || state.hints.length)) {
     clearManualMoveFrame();
     state.selected = null;
     state.hints = [];
