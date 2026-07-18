@@ -44,7 +44,7 @@ const LICENSE_TTL_MS = 1000 * 60 * 60 * 24 * 183;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
 const MAX_OPENING_BOOKS = 200;
-const MAX_OPENING_BOOK_NODES = 600;
+const MAX_OPENING_BOOK_NODES = Math.max(1000, Number(process.env.DMAIHXCAI_MAX_OPENING_BOOK_NODES) || 20000);
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
@@ -803,18 +803,26 @@ function mergeHistoryEntries(existingEntries, nextEntries) {
   ]);
 }
 
+class OpeningBookTooLargeError extends Error {
+  constructor() {
+    super("OPENING_BOOK_TOO_LARGE");
+    this.code = "OPENING_BOOK_TOO_LARGE";
+  }
+}
+
 function normalizeOpeningNode(node, counter) {
-  if (!node || typeof node !== "object" || counter.count >= MAX_OPENING_BOOK_NODES) {
+  if (!node || typeof node !== "object") {
+    return { move: "", notation: "", children: [] };
+  }
+  if (counter.count >= MAX_OPENING_BOOK_NODES) {
+    counter.truncated = true;
     return { move: "", notation: "", children: [] };
   }
   counter.count += 1;
   const move = /^[a-i][0-9][a-i][0-9]$/.test(String(node.move || "")) ? String(node.move) : "";
   const notation = String(node.notation || "").trim().slice(0, 32);
   const children = Array.isArray(node.children)
-    ? node.children
-        .slice(0, Math.max(0, MAX_OPENING_BOOK_NODES - counter.count))
-        .map((child) => normalizeOpeningNode(child, counter))
-        .filter((child) => child.move)
+    ? node.children.map((child) => normalizeOpeningNode(child, counter)).filter((child) => child.move)
     : [];
   return { move, notation, children };
 }
@@ -823,10 +831,11 @@ function normalizeOpeningBookSide(value) {
   return value === "b" ? "b" : "w";
 }
 
-function normalizeOpeningBookEntry(entry) {
+function normalizeOpeningBookEntry(entry, options = {}) {
   if (!entry || typeof entry !== "object") return null;
-  const counter = { count: 0 };
+  const counter = { count: 0, truncated: false };
   const tree = normalizeOpeningNode(entry.tree || {}, counter);
+  if (counter.truncated && options.rejectTooLarge) throw new OpeningBookTooLargeError();
   const name = sanitizeAccountName(entry.name || "", "").slice(0, 60);
   const bookSide = normalizeOpeningBookSide(entry.bookSide || entry.sideChoice || entry.viewSide || entry.side);
   if (!name) return null;
@@ -870,7 +879,7 @@ function saveOpeningBookForUser(user, payload) {
     id: payload?.id || randomId(10),
     createdAt: payload?.createdAt || now,
     updatedAt: now
-  });
+  }, { rejectTooLarge: true });
   if (!incoming) return null;
   const existing = normalizeOpeningBooks(user.openingBooks);
   const index = existing.findIndex((book) => book.id === incoming.id);
@@ -5370,6 +5379,7 @@ const server = http.createServer(async (req, res) => {
       KYDAO_MASTER_NOT_FOUND: 404,
       KYDAO_GAME_NOT_FOUND: 404,
       KYDAO_MOVE_PARSE_FAILED: 422,
+      OPENING_BOOK_TOO_LARGE: 413,
       RATE_LIMIT: 429,
       INVALID_SIDE: 400,
       SPECTATOR_READ_ONLY: 403,
@@ -5384,6 +5394,7 @@ function friendlyErrorVi(code) {
   if (code === "KYDAO_MASTER_NOT_FOUND") return "Khong tim thay danh thu trong danh sach da chon.";
   if (code === "KYDAO_GAME_NOT_FOUND") return "Khong doc duoc van dau nay.";
   if (code === "KYDAO_MOVE_PARSE_FAILED") return "Khong giai ma duoc bien ban cua van nay.";
+  if (code === "OPENING_BOOK_TOO_LARGE") return `Book khai cuoc qua lon. Gioi han hien tai la ${MAX_OPENING_BOOK_NODES} node, hay tach thanh nhieu book nho hon.`;
   if (/^KYDAO_HTTP_/i.test(code)) return "Nguon van danh thu dang phan hoi loi hoac qua cham. Hay thu lai sau.";
   if (code === "VISION_LOCAL_UNAVAILABLE") return "Bo nhan dien anh noi bo chua san sang. Hay kiem tra goi sharp tren server.";
   if (code === "SESSION_REPLACED") return "Tai khoan dang dang nhap o noi khac.";
