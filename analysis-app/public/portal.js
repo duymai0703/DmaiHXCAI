@@ -443,10 +443,12 @@
     openingBookResetBtn: byId("openingBookResetBtn"),
     openingBookSaveBtn: byId("openingBookSaveBtn"),
     openingBookPracticeBtn: byId("openingBookPracticeBtn"),
+    openingBookPracticeHintBtn: byId("openingBookPracticeHintBtn"),
     openingBookPracticeExitBtn: byId("openingBookPracticeExitBtn"),
     openingBookPracticeModal: byId("openingBookPracticeModal"),
     openingBookPracticeModalTitle: byId("openingBookPracticeModalTitle"),
     openingBookPracticeModalText: byId("openingBookPracticeModalText"),
+    openingBookPracticeChoiceList: byId("openingBookPracticeChoiceList"),
     openingBookPracticeYesBtn: byId("openingBookPracticeYesBtn"),
     openingBookPracticeNoBtn: byId("openingBookPracticeNoBtn"),
     openingBookStatus: byId("openingBookStatus"),
@@ -1193,9 +1195,10 @@
     dom.openingBookResetBtn?.addEventListener("click", resetOpeningBookEditor);
     dom.openingBookSaveBtn?.addEventListener("click", saveOpeningBookEditor);
     dom.openingBookPracticeBtn?.addEventListener("click", () => startOpeningBookPractice(state.openingBookEditor));
+    dom.openingBookPracticeHintBtn?.addEventListener("click", showOpeningBookPracticeHint);
     dom.openingBookPracticeExitBtn?.addEventListener("click", stopOpeningBookPractice);
     dom.openingBookPracticeYesBtn?.addEventListener("click", continueOpeningBookPracticeLine);
-    dom.openingBookPracticeNoBtn?.addEventListener("click", stopOpeningBookPractice);
+    dom.openingBookPracticeNoBtn?.addEventListener("click", handleOpeningBookPracticeSecondaryAction);
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
@@ -2279,12 +2282,17 @@
   function createOpeningBookPracticeState() {
     return {
       active: false,
+      choosingStart: false,
+      startSource: null,
+      startOptions: [],
+      startPath: [],
       bookId: "",
       bookName: "",
       paths: [],
       pathIndex: 0,
       step: 0,
       machineSide: "b",
+      hintMove: "",
       autoTimer: 0,
       awaitingLineConfirm: false,
       completed: false
@@ -2402,6 +2410,8 @@
     const current = openingBookCurrentNode();
     const branchCount = current.children?.length || 0;
     const practicing = Boolean(state.openingBookPractice?.active);
+    const choosingPracticeStart = Boolean(state.openingBookPractice?.choosingStart);
+    const practiceBusy = practicing || choosingPracticeStart;
     if (practicing) {
       const total = state.openingBookPractice.paths.length;
       const currentLine = Math.min(total, state.openingBookPractice.pathIndex + 1);
@@ -2413,24 +2423,28 @@
       dom.openingBookStatus.classList.add("hidden");
       dom.openingBookStatus.textContent = "";
     }
-    dom.openingBookPrevBtn.disabled = practicing || editor.path.length <= 0;
-    dom.openingBookNextBtn.disabled = practicing || !branchCount;
-    dom.openingBookResetBtn.disabled = practicing;
-    dom.openingBookSaveBtn.disabled = practicing;
+    dom.openingBookPrevBtn.disabled = practiceBusy || editor.path.length <= 0;
+    dom.openingBookNextBtn.disabled = practiceBusy || !branchCount;
+    dom.openingBookResetBtn.disabled = practiceBusy;
+    dom.openingBookSaveBtn.disabled = practiceBusy;
     const bookSide = normalizeOpeningBookSide(editor.bookSide);
     if (dom.openingBookRedSideBtn) {
       dom.openingBookRedSideBtn.classList.toggle("active", bookSide === "w");
       dom.openingBookRedSideBtn.setAttribute("aria-pressed", bookSide === "w" ? "true" : "false");
-      dom.openingBookRedSideBtn.disabled = practicing;
+      dom.openingBookRedSideBtn.disabled = practiceBusy;
     }
     if (dom.openingBookBlackSideBtn) {
       dom.openingBookBlackSideBtn.classList.toggle("active", bookSide === "b");
       dom.openingBookBlackSideBtn.setAttribute("aria-pressed", bookSide === "b" ? "true" : "false");
-      dom.openingBookBlackSideBtn.disabled = practicing;
+      dom.openingBookBlackSideBtn.disabled = practiceBusy;
     }
     if (dom.openingBookPracticeBtn) {
-      dom.openingBookPracticeBtn.classList.toggle("hidden", practicing);
-      dom.openingBookPracticeBtn.disabled = practicing || !countOpeningBookNodes(editor.root) || !collectOpeningBookPracticePaths(editor.root).length;
+      dom.openingBookPracticeBtn.classList.toggle("hidden", practiceBusy);
+      dom.openingBookPracticeBtn.disabled = practiceBusy || !countOpeningBookNodes(editor.root) || !collectOpeningBookPracticePaths(editor.root).length;
+    }
+    if (dom.openingBookPracticeHintBtn) {
+      dom.openingBookPracticeHintBtn.classList.toggle("hidden", !practicing);
+      dom.openingBookPracticeHintBtn.disabled = !canShowOpeningBookPracticeHint();
     }
     if (dom.openingBookPracticeExitBtn) {
       dom.openingBookPracticeExitBtn.classList.toggle("hidden", !practicing);
@@ -2444,9 +2458,41 @@
   function renderOpeningBookPracticeModal() {
     if (!dom.openingBookPracticeModal) return;
     const practice = state.openingBookPractice;
-    const show = Boolean(practice?.active && practice.awaitingLineConfirm);
+    const choosingStart = Boolean(practice?.choosingStart);
+    const show = choosingStart || Boolean(practice?.active && practice.awaitingLineConfirm);
     dom.openingBookPracticeModal.classList.toggle("hidden", !show);
     if (!show) return;
+    if (dom.openingBookPracticeChoiceList) {
+      dom.openingBookPracticeChoiceList.innerHTML = "";
+      dom.openingBookPracticeChoiceList.classList.toggle("hidden", !choosingStart);
+    }
+    if (choosingStart) {
+      if (dom.openingBookPracticeModalTitle) dom.openingBookPracticeModalTitle.textContent = "Chọn điểm luyện";
+      if (dom.openingBookPracticeModalText) dom.openingBookPracticeModalText.textContent = "Bạn muốn luyện khai cuộc từ đâu?";
+      if (dom.openingBookPracticeChoiceList) {
+        const fragment = document.createDocumentFragment();
+        (practice.startOptions || []).forEach((option, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "secondary-button opening-book-practice-choice";
+          button.textContent = option.label || (index === 0 ? "Từ đầu" : `Biến ${index}`);
+          button.addEventListener("click", () => beginOpeningBookPracticeFromOption(index));
+          fragment.appendChild(button);
+        });
+        dom.openingBookPracticeChoiceList.appendChild(fragment);
+      }
+      if (dom.openingBookPracticeYesBtn) {
+        dom.openingBookPracticeYesBtn.classList.add("hidden");
+        dom.openingBookPracticeYesBtn.textContent = "Đồng ý";
+      }
+      if (dom.openingBookPracticeNoBtn) {
+        dom.openingBookPracticeNoBtn.classList.remove("hidden");
+        dom.openingBookPracticeNoBtn.textContent = "Hủy";
+      }
+      return;
+    }
+    dom.openingBookPracticeYesBtn?.classList.remove("hidden");
+    dom.openingBookPracticeNoBtn?.classList.remove("hidden");
     const hasNext = practice.pathIndex + 1 < practice.paths.length;
     if (dom.openingBookPracticeModalTitle) {
       dom.openingBookPracticeModalTitle.textContent = hasNext ? "Đã hoàn thành biến này" : "Đã hoàn thành toàn bộ book";
@@ -2457,10 +2503,10 @@
         : "Bạn đã luyện xong tất cả các biến đã soạn.";
     }
     if (dom.openingBookPracticeYesBtn) {
-      dom.openingBookPracticeYesBtn.textContent = hasNext ? "Đồng ý" : "Luyện lại";
+      dom.openingBookPracticeYesBtn.textContent = hasNext ? "Đồng ý" : "Luyện lại từ đầu";
     }
     if (dom.openingBookPracticeNoBtn) {
-      dom.openingBookPracticeNoBtn.textContent = hasNext ? "Không" : "Thoát";
+      dom.openingBookPracticeNoBtn.textContent = "Luyện lại";
     }
   }
 
@@ -2798,15 +2844,77 @@
     return paths;
   }
 
-  function startOpeningBookPractice(book = null) {
+  function openingBookPathStartsWith(path, prefix) {
+    if (!Array.isArray(path) || !Array.isArray(prefix) || prefix.length > path.length) return false;
+    return prefix.every((value, index) => value === path[index]);
+  }
+
+  function openingBookPositionAtPath(startFen, root, path) {
+    const parsed = XiangqiCore.parseFenState(startFen || START_FEN);
+    let board = parsed.board;
+    let side = parsed.side || "w";
+    let node = root || {};
+    for (const index of Array.isArray(path) ? path : []) {
+      const child = node?.children?.[index];
+      if (!child?.move || !XiangqiCore.isLegalMove(board, child.move, side)) break;
+      XiangqiCore.applyMoveToBoard(board, child.move);
+      side = oppositeSide(side);
+      node = child;
+    }
+    return { board, side };
+  }
+
+  function findFirstOpeningBookBranch(root) {
+    let node = root || {};
+    const path = [];
+    while (node) {
+      const children = Array.isArray(node.children) ? node.children : [];
+      if (children.length >= 2) return { node, path: path.slice() };
+      if (children.length !== 1) return null;
+      path.push(0);
+      node = children[0];
+    }
+    return null;
+  }
+
+  function openingBookPracticeMoveLabel(source, branchPath, child) {
+    const position = openingBookPositionAtPath(source.startFen, source.tree, branchPath);
+    return child?.notation
+      || (child?.move ? XiangqiCore.formatMoveNotation(child.move, position.board, position.side) : "")
+      || child?.move
+      || "Biến";
+  }
+
+  function buildOpeningBookPracticeStartOptions(source, allPaths) {
+    const options = [{ label: "Từ đầu", startPath: [], paths: allPaths }];
+    const firstBranch = findFirstOpeningBookBranch(source.tree);
+    const children = Array.isArray(firstBranch?.node?.children) ? firstBranch.node.children : [];
+    children.forEach((child, index) => {
+      const branchPath = [...firstBranch.path, index];
+      const paths = allPaths.filter((entry) => openingBookPathStartsWith(entry.indexes, branchPath));
+      if (!paths.length) return;
+      options.push({
+        label: openingBookPracticeMoveLabel(source, firstBranch.path, child),
+        startPath: firstBranch.path.slice(),
+        paths
+      });
+    });
+    return options.filter((option) => Array.isArray(option.paths) && option.paths.length);
+  }
+
+  function openingBookPracticeSource(book = null) {
     const bookSide = normalizeOpeningBookSide(book?.bookSide || book?.sideChoice || book?.viewSide || book?.side || state.openingBookEditor.bookSide);
-    const source = {
+    return {
       id: String(book?.id || state.openingBookEditor.id || ""),
       name: String(book?.name || state.openingBookEditor.name || "Book khai cuộc"),
       startFen: book?.startFen || state.openingBookEditor.startFen || START_FEN,
       bookSide,
       tree: normalizeOpeningBookNode(book?.tree || book?.root || state.openingBookEditor.root || {})
     };
+  }
+
+  function startOpeningBookPractice(book = null) {
+    const source = openingBookPracticeSource(book);
     const startSide = XiangqiCore.parseFenState(source.startFen || START_FEN).side || "w";
     const paths = collectOpeningBookPracticePaths(source.tree, startSide);
     if (!paths.length) {
@@ -2816,18 +2924,45 @@
     stopOpeningBookPractice({ silent: true });
     state.openingBookEditor = createOpeningBookEditorState(source);
     invalidateOpeningBookLayout();
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    state.openingBookPractice = {
+      ...createOpeningBookPracticeState(),
+      choosingStart: true,
+      startSource: source,
+      startOptions: buildOpeningBookPracticeStartOptions(source, paths)
+    };
+    setLibraryTab("book-create");
+    renderOpeningBookEditor();
+  }
+
+  function beginOpeningBookPracticeFromOption(optionIndex = 0) {
+    const choosing = state.openingBookPractice;
+    const source = choosing?.startSource;
+    const option = choosing?.startOptions?.[optionIndex] || choosing?.startOptions?.[0];
+    if (!source || !option?.paths?.length) {
+      stopOpeningBookPractice({ silent: true });
+      showToast("Không tìm thấy biến luyện hợp lệ.");
+      return;
+    }
+    const startSide = XiangqiCore.parseFenState(source.startFen || START_FEN).side || "w";
+    state.openingBookEditor = createOpeningBookEditorState(source);
+    state.openingBookEditor.path = Array.isArray(option.startPath) ? option.startPath.slice() : [];
+    invalidateOpeningBookLayout();
     state.openingBookPractice = {
       ...createOpeningBookPracticeState(),
       active: true,
       bookId: source.id || "",
       bookName: source.name || "Book khai cuộc",
-      paths,
+      paths: option.paths,
       pathIndex: 0,
-      step: 0,
-      machineSide: paths[0]?.machineSide || oppositeSide(startSide)
+      step: state.openingBookEditor.path.length,
+      startPath: state.openingBookEditor.path.slice(),
+      machineSide: option.paths[0]?.machineSide || oppositeSide(startSide)
     };
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
+    rebuildOpeningBookBoard();
     setLibraryTab("book-create");
     scheduleOpeningBookAutoMove(760);
   }
@@ -2859,6 +2994,32 @@
     const practice = state.openingBookPractice;
     if (!practice?.active) return null;
     return practice.paths[practice.pathIndex] || null;
+  }
+
+  function nextOpeningBookPracticeMove() {
+    const practice = state.openingBookPractice;
+    if (!practice?.active || practice.completed || practice.awaitingLineConfirm) return "";
+    const path = currentOpeningBookPracticePath();
+    if (practice.step >= path.length) return "";
+    const node = openingBookCurrentNode();
+    const targetIndex = path[practice.step];
+    return node?.children?.[targetIndex]?.move || "";
+  }
+
+  function canShowOpeningBookPracticeHint() {
+    return Boolean(state.openingBookPractice?.active && !shouldOpeningBookPracticeAutoMove() && nextOpeningBookPracticeMove());
+  }
+
+  function showOpeningBookPracticeHint() {
+    const practice = state.openingBookPractice;
+    if (!canShowOpeningBookPracticeHint()) {
+      showToast("Chưa có nước cần gợi ý ở lượt này.");
+      return;
+    }
+    practice.hintMove = nextOpeningBookPracticeMove();
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    drawOpeningBookScene(false, true);
   }
 
   function scheduleOpeningBookAutoMove(delay = 180) {
@@ -2942,6 +3103,7 @@
     playOpeningBookMoveSound(state.openingBookEditor.board, move, state.openingBookEditor.side);
     state.openingBookEditor.path.push(targetIndex);
     practice.step += 1;
+    practice.hintMove = "";
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     rebuildOpeningBookBoard();
@@ -2956,6 +3118,7 @@
     if (practice.pathIndex + 1 >= practice.paths.length) {
       practice.completed = true;
     }
+    practice.hintMove = "";
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     renderOpeningBookEditor();
@@ -2963,6 +3126,10 @@
 
   function continueOpeningBookPracticeLine() {
     const practice = state.openingBookPractice;
+    if (practice?.choosingStart) {
+      beginOpeningBookPracticeFromOption(0);
+      return;
+    }
     if (!practice?.active) return;
     if (practice.pathIndex + 1 >= practice.paths.length) {
       practice.pathIndex = 0;
@@ -2970,10 +3137,11 @@
     } else {
       practice.pathIndex += 1;
     }
-    practice.step = 0;
+    practice.step = Array.isArray(practice.startPath) ? practice.startPath.length : 0;
     practice.awaitingLineConfirm = false;
     practice.machineSide = currentOpeningBookPracticeLine()?.machineSide || practice.machineSide || "b";
-    state.openingBookEditor.path = [];
+    practice.hintMove = "";
+    state.openingBookEditor.path = Array.isArray(practice.startPath) ? practice.startPath.slice() : [];
     clearOpeningBookMoveAnimation();
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
@@ -2981,6 +3149,36 @@
     renderOpeningBookEditor();
     showToast(`Chuyển sang biến ${practice.pathIndex + 1}/${practice.paths.length}.`);
     scheduleOpeningBookAutoMove(760);
+  }
+
+  function replayOpeningBookPracticeLine() {
+    const practice = state.openingBookPractice;
+    if (!practice?.active) return;
+    practice.completed = false;
+    practice.awaitingLineConfirm = false;
+    practice.step = Array.isArray(practice.startPath) ? practice.startPath.length : 0;
+    practice.hintMove = "";
+    state.openingBookEditor.path = Array.isArray(practice.startPath) ? practice.startPath.slice() : [];
+    clearOpeningBookMoveAnimation();
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    rebuildOpeningBookBoard();
+    renderOpeningBookEditor();
+    scheduleOpeningBookAutoMove(760);
+  }
+
+  function handleOpeningBookPracticeSecondaryAction() {
+    const practice = state.openingBookPractice;
+    if (practice?.choosingStart) {
+      stopOpeningBookPractice({ silent: true });
+      renderOpeningBookEditor();
+      return;
+    }
+    if (practice?.active && practice.awaitingLineConfirm) {
+      replayOpeningBookPracticeLine();
+      return;
+    }
+    stopOpeningBookPractice();
   }
 
   function playOpeningBookMoveSound(board, move, side) {
@@ -5722,6 +5920,11 @@
     const ctx = dom.openingBookArrowCanvas.getContext("2d");
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.clearRect(0, 0, metrics.width, metrics.height);
+    if (state.openingBookPractice?.active && state.openingBookPractice.hintMove) {
+      drawOpeningBookBranchArrow(ctx, state.openingBookPractice.hintMove, "");
+      return;
+    }
+    if (state.openingBookPractice?.active) return;
     const children = openingBookCurrentNode().children || [];
     if (children.length < 2) return;
     children.forEach((child, index) => drawOpeningBookBranchArrow(ctx, child.move, index + 1));
@@ -5741,6 +5944,7 @@
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
     ctx.lineWidth = Math.max(3.2, metrics.width / 175);
     drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(79, 188, 82, 0.88)"));
+    if (!number) return;
     const labelX = base.x - normal.x * (halfWidth + 12);
     const labelY = base.y - normal.y * (halfWidth + 12);
     ctx.save();
@@ -5762,7 +5966,7 @@
   function onOpeningBookPointerDown(event) {
     if (state.route !== "library" || state.libraryTab !== "book-create") return;
     event.preventDefault();
-    if (state.openingBookPractice?.awaitingLineConfirm) return;
+    if (state.openingBookPractice?.awaitingLineConfirm || state.openingBookPractice?.choosingStart) return;
     if (shouldOpeningBookPracticeAutoMove()) {
       state.openingBookSelectedSquare = null;
       state.openingBookHints = [];
