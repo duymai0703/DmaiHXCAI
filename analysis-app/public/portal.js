@@ -1761,8 +1761,10 @@
 
   function renderRoomMobilePanels() {
     const compact = isCompactMobile();
+    const libraryBookMobile = compact && state.route === "library" && state.libraryTab === "book-create";
     document.body.classList.toggle("portal-mobile-mode", compact);
     document.body.classList.toggle("room-mobile-menu-open", compact && !!state.roomMobileMenuOpen);
+    document.body.classList.toggle("library-book-mobile-mode", libraryBookMobile);
     document.body.dataset.route = state.route || "home";
     renderPortalBrandMark();
     if (compact && state.route === "room") {
@@ -2328,6 +2330,7 @@
   function setLibraryTab(tab) {
     state.libraryTab = ["history", "book-create", "book-saved", "kydao"].includes(tab) ? tab : "history";
     renderLibrary();
+    renderRoomMobilePanels();
     if (state.libraryTab === "book-create") drawOpeningBookScene(true, true);
     if (state.libraryTab === "kydao") void loadKydaoMasters(false);
   }
