@@ -1671,6 +1671,10 @@ a {
   grid-column: 1 / -1;
 }
 
+.opening-book-mobile-back {
+  display: none;
+}
+
 .opening-book-practice-modal {
   position: absolute;
   inset: 0;
@@ -4978,7 +4982,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
   body.library-book-mobile-mode[data-route="library"] .opening-book-shell {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-auto-rows: auto;
     gap: 7px 5px;
     width: 100vw;
@@ -5005,7 +5009,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   body.library-book-mobile-mode[data-route="library"] .opening-book-board {
-    width: min(calc(100vw - 10px), calc((var(--app-vh, 1vh) * 100 - 182px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * 0.9), 560px);
+    width: min(calc(100vw - 10px), calc((var(--app-vh, 1vh) * 100 - 184px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * 0.9), 560px);
     max-width: 100%;
     margin: 0 auto;
     border-width: 1px !important;
@@ -5028,9 +5032,29 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece {
     transition: none;
     will-change: transform;
+    opacity: 0;
+    visibility: visible !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    transform-style: flat;
+    -webkit-transform-style: flat;
+    contain: layout style;
     -webkit-tap-highlight-color: transparent;
   }
 
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece.is-visible {
+    opacity: 1 !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece .piece-skin {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: auto;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn,
   body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn,
   body.library-book-mobile-mode[data-route="library"] #openingBookNextBtn,
   body.library-book-mobile-mode[data-route="library"] #openingBookResetBtn {
@@ -5054,18 +5078,24 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
     overflow: hidden;
   }
 
-  body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn {
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn {
     grid-column: 1;
+    display: grid;
   }
 
-  body.library-book-mobile-mode[data-route="library"] #openingBookNextBtn {
+  body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn {
     grid-column: 2;
   }
 
-  body.library-book-mobile-mode[data-route="library"] #openingBookResetBtn {
+  body.library-book-mobile-mode[data-route="library"] #openingBookNextBtn {
     grid-column: 3;
   }
 
+  body.library-book-mobile-mode[data-route="library"] #openingBookResetBtn {
+    grid-column: 4;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before,
   body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn::before,
   body.library-book-mobile-mode[data-route="library"] #openingBookNextBtn::before,
   body.library-book-mobile-mode[data-route="library"] #openingBookResetBtn::before {
@@ -5076,6 +5106,12 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
     background-repeat: no-repeat;
     background-size: contain;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before {
+    width: 39px;
+    height: 39px;
+    background-image: url("/assets/icons/backgr.png");
   }
 
   :root[data-theme="light"] body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn::before {
@@ -5114,22 +5150,22 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   body.library-book-mobile-mode[data-route="library"] #openingBookSaveBtn {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 3;
   }
 
   body.library-book-mobile-mode[data-route="library"] #openingBookPracticeBtn {
-    grid-column: 2 / -1 !important;
+    grid-column: 3 / -1 !important;
     grid-row: 3;
   }
 
   body.library-book-mobile-mode[data-route="library"] #openingBookPracticeHintBtn {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 4;
   }
 
   body.library-book-mobile-mode[data-route="library"] #openingBookPracticeExitBtn {
-    grid-column: 2 / -1 !important;
+    grid-column: 3 / -1 !important;
     grid-row: 4;
   }
 
@@ -5204,6 +5240,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
     border-radius: 18px;
   }
 
+  :root[data-theme="dark"] body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn,
   :root[data-theme="dark"] body.library-book-mobile-mode[data-route="library"] #openingBookPrevBtn,
   :root[data-theme="dark"] body.library-book-mobile-mode[data-route="library"] #openingBookNextBtn,
   :root[data-theme="dark"] body.library-book-mobile-mode[data-route="library"] #openingBookResetBtn {

@@ -438,6 +438,7 @@
     openingBookPieces: byId("openingBookPieces"),
     openingBookRedSideBtn: byId("openingBookRedSideBtn"),
     openingBookBlackSideBtn: byId("openingBookBlackSideBtn"),
+    openingBookBackBtn: byId("openingBookBackBtn"),
     openingBookPrevBtn: byId("openingBookPrevBtn"),
     openingBookNextBtn: byId("openingBookNextBtn"),
     openingBookResetBtn: byId("openingBookResetBtn"),
@@ -1190,6 +1191,7 @@
     dom.openingBookBoard?.addEventListener("pointerdown", onOpeningBookPointerDown);
     dom.openingBookRedSideBtn?.addEventListener("click", () => setOpeningBookSide("w"));
     dom.openingBookBlackSideBtn?.addEventListener("click", () => setOpeningBookSide("b"));
+    dom.openingBookBackBtn?.addEventListener("click", exitOpeningBookMobileMode);
     dom.openingBookPrevBtn?.addEventListener("click", stepOpeningBookBack);
     dom.openingBookNextBtn?.addEventListener("click", openOpeningBookBranchChooser);
     dom.openingBookResetBtn?.addEventListener("click", resetOpeningBookEditor);
@@ -2335,6 +2337,16 @@
     if (state.libraryTab === "kydao") void loadKydaoMasters(false);
   }
 
+  function exitOpeningBookMobileMode() {
+    if (state.openingBookPractice?.active || state.openingBookPractice?.choosingStart) {
+      stopOpeningBookPractice();
+    }
+    state.openingBookSelectedSquare = null;
+    state.openingBookHints = [];
+    clearOpeningBookMoveAnimation();
+    setLibraryTab("history");
+  }
+
   function renderLibrary() {
     renderHistory();
     renderOpeningBookTabs();
@@ -3276,6 +3288,8 @@
     const { pieceSlots } = ensureOpeningBookSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (targetSlotEl) setRoomPieceSlotImage(targetSlotEl, animation.piece);
     setRoomPieceSlotImage(movingSlotEl, animation.piece);
     state.activeOpeningBookMoveSlotEl = movingSlotEl;
     state.openingBookAnimationRunning = false;
@@ -5860,6 +5874,7 @@
     state.openingBookLastPieceFrame = signature;
     const { pieceSlots, hintSlots } = ensureOpeningBookSlots();
     if (!pieceSlots.length) return;
+    const keepHiddenPieceSkins = isCompactMobile();
     const hintIndexes = new Set(state.openingBookHints.map((square) => square.y * 9 + square.x));
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
@@ -5884,7 +5899,7 @@
           el.style.transition = "none";
           el.style.transform = roomPieceRestTransform();
           el.setAttribute("aria-hidden", "true");
-          if (el.dataset.piece && !(animation && index === animation.toIndex)) {
+          if (!keepHiddenPieceSkins && el.dataset.piece && !(animation && index === animation.toIndex)) {
             el.dataset.piece = "";
             el.removeAttribute("aria-label");
           }
