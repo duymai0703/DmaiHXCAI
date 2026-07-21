@@ -436,6 +436,8 @@
     openingBookArrowCanvas: byId("openingBookArrowCanvas"),
     openingBookMarks: byId("openingBookMarks"),
     openingBookPieces: byId("openingBookPieces"),
+    openingBookMotionLayer: byId("openingBookMotionLayer"),
+    openingBookMotionPiece: byId("openingBookMotionPiece"),
     openingBookRedSideBtn: byId("openingBookRedSideBtn"),
     openingBookBlackSideBtn: byId("openingBookBlackSideBtn"),
     openingBookBackBtn: byId("openingBookBackBtn"),
@@ -2467,7 +2469,7 @@
     if (practicing) dom.openingBookBranchChooser?.classList.add("hidden");
     renderOpeningBookPracticeModal();
     renderOpeningBookMoveList();
-    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true);
+    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(false);
   }
 
   function renderOpeningBookPracticeModal() {
@@ -3220,17 +3222,34 @@
       clearTimeout(state.openingBookAnimationTimer);
       state.openingBookAnimationTimer = 0;
     }
-    if (state.activeOpeningBookMoveSlotEl) {
-      state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
-      state.activeOpeningBookMoveSlotEl.style.transition = "none";
-      state.activeOpeningBookMoveSlotEl.style.transform = roomPieceRestTransform();
-      state.activeOpeningBookMoveSlotEl.style.opacity = "";
-    }
+    hideOpeningBookAnimationElements();
     state.openingBookAnimationRunning = false;
     state.openingBookAnimation = null;
     state.activeOpeningBookMoveSlotEl = null;
     state.openingBookLastPieceFrame = "";
     if (!preserveKey) state.lastAnimatedOpeningBookMoveKey = "";
+  }
+
+  function hideOpeningBookAnimationElements({
+    resetActiveSlot = true,
+    resetMovingPiece = true
+  } = {}) {
+    if (state.activeOpeningBookMoveSlotEl) {
+      if (resetActiveSlot) {
+        state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
+        state.activeOpeningBookMoveSlotEl.style.transition = "none";
+        state.activeOpeningBookMoveSlotEl.style.transform = roomPieceRestTransform();
+        state.activeOpeningBookMoveSlotEl.style.opacity = "";
+      }
+    }
+    if (resetMovingPiece && dom.openingBookMotionPiece) {
+      dom.openingBookMotionPiece.style.transition = "none";
+      dom.openingBookMotionPiece.classList.remove("is-visible");
+      dom.openingBookMotionPiece.style.left = "0px";
+      dom.openingBookMotionPiece.style.top = "0px";
+      dom.openingBookMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
+      dom.openingBookMotionPiece.setAttribute("aria-hidden", "true");
+    }
   }
 
   function primeOpeningBookMoveAnimation(animation) {
@@ -3239,37 +3258,83 @@
       clearTimeout(state.openingBookAnimationTimer);
       state.openingBookAnimationTimer = 0;
     }
-    if (state.activeOpeningBookMoveSlotEl) {
-      state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
-      state.activeOpeningBookMoveSlotEl.style.transition = "none";
-      state.activeOpeningBookMoveSlotEl.style.transform = roomPieceRestTransform();
-      state.activeOpeningBookMoveSlotEl.style.opacity = "";
-    }
+    hideOpeningBookAnimationElements();
     state.openingBookAnimationRunning = false;
     state.openingBookAnimation = animation;
     state.lastAnimatedOpeningBookMoveKey = animation.moveKey;
     state.openingBookLastPieceFrame = "";
   }
 
+  function useOpeningBookMobileHandoff() {
+    return isCompactMobile();
+  }
+
+  function prepareOpeningBookDestinationHandoff(animation) {
+    if (!animation) return;
+    const { pieceSlots } = ensureOpeningBookSlots();
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (!targetSlotEl) return;
+    const checkedSides = getCheckedSides(state.openingBookEditor.board);
+    setRoomPieceSlotImage(targetSlotEl, animation.piece);
+    targetSlotEl.classList.add("is-visible");
+    targetSlotEl.classList.remove("selected");
+    targetSlotEl.classList.toggle("in-check", animation.piece.toLowerCase() === "k" && checkedSides[XiangqiCore.pieceColor(animation.piece)]);
+    targetSlotEl.style.transition = "none";
+    targetSlotEl.style.transform = roomPieceRestTransform();
+    targetSlotEl.setAttribute("aria-hidden", "false");
+  }
+
+  function showOpeningBookMoveLandingShield(animation) {
+    if (!animation || !dom.openingBookMotionPiece) return;
+    const toPos = openingBookSquareToPixel(animation.to);
+    paintRoomMotionPiece(dom.openingBookMotionPiece, animation.piece);
+    dom.openingBookMotionPiece.style.transition = "none";
+    dom.openingBookMotionPiece.style.left = `${toPos.x}px`;
+    dom.openingBookMotionPiece.style.top = `${toPos.y}px`;
+    dom.openingBookMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
+    dom.openingBookMotionPiece.classList.add("is-visible");
+    dom.openingBookMotionPiece.setAttribute("aria-hidden", "false");
+  }
+
+  function hideOpeningBookMoveLandingShieldSoon() {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        hideOpeningBookAnimationElements({ resetActiveSlot: false });
+      });
+    });
+  }
+
   function finalizeOpeningBookMoveAnimation(animation) {
     if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) return;
     const movedSlotEl = state.activeOpeningBookMoveSlotEl;
+    const useMobileHandoff = useOpeningBookMobileHandoff();
     if (state.openingBookAnimationTimer) {
       clearTimeout(state.openingBookAnimationTimer);
       state.openingBookAnimationTimer = 0;
     }
     state.openingBookAnimationRunning = false;
+    if (useMobileHandoff) {
+      showOpeningBookMoveLandingShield(animation);
+      prepareOpeningBookDestinationHandoff(animation);
+    }
+    hideOpeningBookAnimationElements({ resetActiveSlot: false, resetMovingPiece: !useMobileHandoff });
     state.openingBookAnimation = null;
     state.activeOpeningBookMoveSlotEl = null;
     state.openingBookLastPieceFrame = "";
-    drawOpeningBookPieces(true);
-    drawOpeningBookArrows();
-    if (movedSlotEl) {
-      movedSlotEl.classList.remove("opening-book-moving-piece");
-      movedSlotEl.style.transition = "none";
-      movedSlotEl.style.transform = roomPieceRestTransform();
-      movedSlotEl.style.opacity = "";
-    }
+    const finish = () => {
+      drawOpeningBookPieces();
+      drawOpeningBookArrows();
+      if (movedSlotEl) {
+        movedSlotEl.classList.remove("opening-book-moving-piece");
+        movedSlotEl.style.transition = "none";
+        movedSlotEl.style.transform = roomPieceRestTransform();
+        movedSlotEl.style.opacity = "";
+      }
+      if (useMobileHandoff) hideOpeningBookMoveLandingShieldSoon();
+      else hideOpeningBookAnimationElements({ resetActiveSlot: false });
+    };
+    if (useMobileHandoff) window.requestAnimationFrame(finish);
+    else finish();
   }
 
   function startOpeningBookMoveAnimation(animation, { prepared = false } = {}) {
@@ -3298,10 +3363,15 @@
     movingSlotEl.style.transform = roomPieceRestTransform();
     movingSlotEl.style.opacity = "";
     movingSlotEl.setAttribute("aria-hidden", "false");
+    if (useOpeningBookMobileHandoff() && dom.openingBookMotionPiece) {
+      paintRoomMotionPiece(dom.openingBookMotionPiece, animation.piece);
+    }
 
     void movingSlotEl.offsetWidth;
     if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) {
       movingSlotEl.classList.remove("opening-book-moving-piece");
+      movingSlotEl.style.opacity = "";
+      hideOpeningBookAnimationElements({ resetActiveSlot: false });
       return;
     }
     movingSlotEl.style.transition = `transform ${OPENING_BOOK_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
@@ -5864,6 +5934,7 @@
   }
 
   function drawOpeningBookPieces(force) {
+    if (!force && useOpeningBookMobileHandoff() && state.openingBookAnimationRunning) return;
     const board = state.openingBookEditor.board;
     const checkedSides = getCheckedSides(board);
     const selectedKey = state.openingBookSelectedSquare ? XiangqiCore.squareToUci(state.openingBookSelectedSquare) : "";

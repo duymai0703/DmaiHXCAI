@@ -1599,7 +1599,8 @@ a {
 
 .opening-book-board canvas,
 .opening-book-board #openingBookMarks,
-.opening-book-board #openingBookPieces {
+.opening-book-board #openingBookPieces,
+.opening-book-board #openingBookMotionLayer {
   position: absolute;
   inset: 0;
 }
@@ -1615,6 +1616,11 @@ a {
 
 .opening-book-board #openingBookArrowCanvas {
   z-index: 5;
+  pointer-events: none;
+}
+
+.opening-book-board #openingBookMotionLayer {
+  z-index: 7;
   pointer-events: none;
 }
 
@@ -5022,31 +5028,42 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   body.library-book-mobile-mode[data-route="library"] #openingBookBoardCanvas,
   body.library-book-mobile-mode[data-route="library"] #openingBookArrowCanvas,
   body.library-book-mobile-mode[data-route="library"] #openingBookMarks,
-  body.library-book-mobile-mode[data-route="library"] #openingBookPieces {
+  body.library-book-mobile-mode[data-route="library"] #openingBookPieces,
+  body.library-book-mobile-mode[data-route="library"] #openingBookMotionLayer {
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    will-change: transform;
+    contain: layout paint style;
   }
 
-  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece {
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece,
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .motion-piece {
     transition: none;
-    will-change: transform;
     opacity: 0;
     visibility: visible !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
     transform-style: flat;
     -webkit-transform-style: flat;
+    will-change: auto !important;
     contain: layout style;
     -webkit-tap-highlight-color: transparent;
   }
 
-  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece.is-visible {
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece.is-visible,
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .motion-piece.is-visible {
     opacity: 1 !important;
   }
 
-  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece .piece-skin {
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece.opening-book-moving-piece,
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .motion-piece.moving-piece {
+    will-change: transform !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .piece .piece-skin,
+  body.library-book-mobile-mode[data-route="library"] .opening-book-board .motion-piece .piece-skin {
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     backface-visibility: hidden;
