@@ -84,7 +84,7 @@ const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
 const ANALYSIS_ASSET_WARMUP_VERSION = "20260718-mobile-board-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
-const ANALYSIS_MOVE_ANIMATION_MS = 228;
+const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
@@ -3516,6 +3516,8 @@ function drawPieces() {
   if (signature === state.lastPieceFrame) return;
   state.lastPieceFrame = signature;
   const hintIndexes = new Set(state.hints.map((hint) => hint.y * 9 + hint.x));
+  const selectedPiece = state.selected ? state.board[state.selected.y]?.[state.selected.x] : "";
+  const selectedColor = selectedPiece ? pieceColor(selectedPiece) : "";
   for (let y = 0; y < 10; y++) {
     for (let x = 0; x < 9; x++) {
       const index = y * 9 + x;
@@ -3563,7 +3565,10 @@ function drawPieces() {
 
       const hintEl = hintSlots[index];
       const showHint = hintIndexes.has(index);
+      const targetPiece = state.board[y]?.[x] || "";
+      const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && pieceColor(targetPiece) !== selectedColor);
       hintEl.classList.toggle("is-visible", showHint);
+      hintEl.classList.toggle("capture-hint", showCaptureHint);
       hintEl.setAttribute("aria-hidden", showHint ? "false" : "true");
     }
   }

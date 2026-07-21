@@ -150,7 +150,7 @@
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
-  const ROOM_MOVE_ANIMATION_MS = 320;
+  const ROOM_MOVE_ANIMATION_MS = 220;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
   const CHECKMATE_EFFECT_MS = 3000;
@@ -5685,6 +5685,8 @@
     if (!pieceSlots.length || !hintSlots.length) return;
     const keepHiddenPieceSkins = isCompactMobile();
     const hintIndexes = new Set(state.hints.map((square) => square.y * 9 + square.x));
+    const selectedPiece = state.selectedSquare ? board[state.selectedSquare.y]?.[state.selectedSquare.x] : "";
+    const selectedColor = selectedPiece ? XiangqiCore.pieceColor(selectedPiece) : "";
 
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
@@ -5695,7 +5697,10 @@
         if (isAnimatingFromSlot && state.roomAnimationRunning && state.activeRoomMoveSlotEl === el) {
           const mark = hintSlots[index];
           const showHint = hintIndexes.has(index);
+          const targetPiece = board[y]?.[x] || "";
+          const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && XiangqiCore.pieceColor(targetPiece) !== selectedColor);
           mark.classList.toggle("is-visible", showHint);
+          mark.classList.toggle("capture-hint", showCaptureHint);
           mark.setAttribute("aria-hidden", showHint ? "false" : "true");
           continue;
         }
@@ -5738,7 +5743,10 @@
 
         const mark = hintSlots[index];
         const showHint = hintIndexes.has(index);
+        const targetPiece = board[y]?.[x] || "";
+        const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && XiangqiCore.pieceColor(targetPiece) !== selectedColor);
         mark.classList.toggle("is-visible", showHint);
+        mark.classList.toggle("capture-hint", showCaptureHint);
         mark.setAttribute("aria-hidden", showHint ? "false" : "true");
       }
     }
@@ -5984,6 +5992,8 @@
     if (!pieceSlots.length) return;
     const keepHiddenPieceSkins = isCompactMobile();
     const hintIndexes = new Set(state.openingBookHints.map((square) => square.y * 9 + square.x));
+    const selectedPiece = state.openingBookSelectedSquare ? board[state.openingBookSelectedSquare.y]?.[state.openingBookSelectedSquare.x] : "";
+    const selectedColor = selectedPiece ? XiangqiCore.pieceColor(selectedPiece) : "";
     for (let y = 0; y < 10; y += 1) {
       for (let x = 0; x < 9; x += 1) {
         const index = y * 9 + x;
@@ -5993,7 +6003,10 @@
         if (isAnimatingFromSlot && state.openingBookAnimationRunning && state.activeOpeningBookMoveSlotEl === el) {
           const mark = hintSlots[index];
           const showHint = hintIndexes.has(index);
+          const targetPiece = board[y]?.[x] || "";
+          const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && XiangqiCore.pieceColor(targetPiece) !== selectedColor);
           mark.classList.toggle("is-visible", showHint);
+          mark.classList.toggle("capture-hint", showCaptureHint);
           mark.setAttribute("aria-hidden", showHint ? "false" : "true");
           continue;
         }
@@ -6034,7 +6047,10 @@
         }
         const mark = hintSlots[index];
         const showHint = hintIndexes.has(index);
+        const targetPiece = board[y]?.[x] || "";
+        const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && XiangqiCore.pieceColor(targetPiece) !== selectedColor);
         mark.classList.toggle("is-visible", showHint);
+        mark.classList.toggle("capture-hint", showCaptureHint);
         mark.setAttribute("aria-hidden", showHint ? "false" : "true");
       }
     }
