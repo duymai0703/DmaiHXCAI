@@ -150,7 +150,7 @@
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
-  const ROOM_MOVE_ANIMATION_MS = 220;
+  const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
   const CHECKMATE_EFFECT_MS = 3000;
@@ -2422,7 +2422,7 @@
     state.openingBookSlotLayoutKey = "";
   }
 
-  function renderOpeningBookEditor() {
+  function renderOpeningBookEditor({ immediateBoard = false } = {}) {
     if (!dom.openingBookStatus) return;
     const editor = state.openingBookEditor;
     const current = openingBookCurrentNode();
@@ -2470,7 +2470,7 @@
     if (practicing) dom.openingBookBranchChooser?.classList.add("hidden");
     renderOpeningBookPracticeModal();
     renderOpeningBookMoveList();
-    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(false);
+    if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(false, immediateBoard);
   }
 
   function renderOpeningBookPracticeModal() {
@@ -2580,8 +2580,9 @@
     state.openingBookEditor.path = parentPath;
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
+    hideOpeningBookHintsImmediately();
     rebuildOpeningBookBoard();
-    renderOpeningBookEditor();
+    renderOpeningBookEditor({ immediateBoard: true });
     if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
@@ -2596,8 +2597,9 @@
       state.openingBookEditor.path.push(0);
       state.openingBookSelectedSquare = null;
       state.openingBookHints = [];
+      hideOpeningBookHintsImmediately();
       rebuildOpeningBookBoard();
-      renderOpeningBookEditor();
+      renderOpeningBookEditor({ immediateBoard: true });
       if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
       return;
     }
@@ -2633,8 +2635,9 @@
         dom.openingBookBranchChooser.classList.add("hidden");
         state.openingBookSelectedSquare = null;
         state.openingBookHints = [];
+        hideOpeningBookHintsImmediately();
         rebuildOpeningBookBoard();
-        renderOpeningBookEditor();
+        renderOpeningBookEditor({ immediateBoard: true });
         if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
       });
       dom.openingBookBranchChooser.appendChild(button);
@@ -3124,8 +3127,9 @@
     practice.hintMove = "";
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
+    hideOpeningBookHintsImmediately();
     rebuildOpeningBookBoard();
-    renderOpeningBookEditor();
+    renderOpeningBookEditor({ immediateBoard: true });
     if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
@@ -3258,6 +3262,14 @@
       dom.openingBookMotionPiece.style.top = "0px";
       dom.openingBookMotionPiece.style.transform = `${roomPieceRestTransform()} translate3d(0, 0, 0)`;
       dom.openingBookMotionPiece.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function hideOpeningBookHintsImmediately() {
+    const { hintSlots } = ensureOpeningBookSlots();
+    for (const hintEl of hintSlots || []) {
+      hintEl.classList.remove("is-visible", "capture-hint");
+      hintEl.setAttribute("aria-hidden", "true");
     }
   }
 
@@ -4801,6 +4813,16 @@
     setRoomPieceSlotImage(targetSlotEl, animation.piece);
   }
 
+  function hideRoomTargetSlot(animation, pieceSlots) {
+    if (!animation || !pieceSlots?.length) return;
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (!targetSlotEl) return;
+    targetSlotEl.classList.remove("is-visible", "selected", "in-check");
+    targetSlotEl.style.transition = "none";
+    targetSlotEl.style.transform = roomPieceRestTransform();
+    targetSlotEl.setAttribute("aria-hidden", "true");
+  }
+
   function showRoomMoveLandingShield(animation) {
     if (!animation || !dom.roomMotionPiece) return;
     const toPos = squareToPixel(animation.to);
@@ -4899,6 +4921,7 @@
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
     primeRoomMoveDestinationImage(animation);
+    hideRoomTargetSlot(animation, pieceSlots);
     state.activeRoomMoveSlotEl = movingSlotEl;
     state.roomAnimationRunning = false;
     movingSlotEl.classList.add("room-moving-piece");
@@ -6131,6 +6154,7 @@
       const valid = state.openingBookHints.some((hint) => hint.x === square.x && hint.y === square.y);
       if (valid) {
         const move = XiangqiCore.squareToUci(state.openingBookSelectedSquare) + XiangqiCore.squareToUci(square);
+        hideOpeningBookHintsImmediately();
         playOpeningBookMove(move);
         return;
       }
@@ -6172,8 +6196,9 @@
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     state.openingBookEditor.lastBackNode = null;
+    hideOpeningBookHintsImmediately();
     rebuildOpeningBookBoard();
-    renderOpeningBookEditor();
+    renderOpeningBookEditor({ immediateBoard: true });
     if (animation) startOpeningBookMoveAnimation(animation, { prepared: true });
   }
 
@@ -6205,6 +6230,7 @@
       const valid = state.hints.some((hint) => hint.x === square.x && hint.y === square.y);
       if (valid) {
         const move = XiangqiCore.squareToUci(state.selectedSquare) + XiangqiCore.squareToUci(square);
+        hideRoomHintsImmediately();
         void sendMove(move);
         return;
       }
@@ -6224,7 +6250,16 @@
   function clearSelection() {
     state.selectedSquare = null;
     state.hints = [];
+    hideRoomHintsImmediately();
     drawRoomPieces();
+  }
+
+  function hideRoomHintsImmediately() {
+    const { hintSlots } = ensureRoomSlots();
+    for (const hintEl of hintSlots || []) {
+      hintEl.classList.remove("is-visible", "capture-hint");
+      hintEl.setAttribute("aria-hidden", "true");
+    }
   }
 
   async function sendMove(move) {
@@ -6251,6 +6286,7 @@
     const localGameState = XiangqiCore.determineGameState(localBoard, oppositeSide(side));
     state.selectedSquare = null;
     state.hints = [];
+    hideRoomHintsImmediately();
     state.roomBoard = localBoard;
     state.room.boardFen = XiangqiCore.boardToFen(localBoard, oppositeSide(side));
     const nextTurnStartedAt = Date.now();

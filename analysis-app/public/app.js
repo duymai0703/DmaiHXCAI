@@ -2061,6 +2061,7 @@ function onBoardClick(event) {
   if (state.selected) {
     const move = squareToUci(state.selected) + squareToUci(square);
     if (state.hints.some((hint) => hint.x === square.x && hint.y === square.y)) {
+      hideAnalysisHintsImmediately();
       makeMove(move);
       return;
     }
@@ -2073,6 +2074,17 @@ function onBoardClick(event) {
     state.hints = [];
   }
   draw();
+}
+
+function hideAnalysisHintsImmediately() {
+  state.selected = null;
+  state.hints = [];
+  state.lastPieceFrame = "";
+  const { hintSlots } = ensureBoardSlots();
+  for (const hintEl of hintSlots || []) {
+    hintEl.classList.remove("is-visible", "capture-hint");
+    hintEl.setAttribute("aria-hidden", "true");
+  }
 }
 
 function buildMoveAnimation(board, move, moveKey) {
