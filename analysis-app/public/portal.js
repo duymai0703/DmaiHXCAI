@@ -190,6 +190,7 @@
     openingBookSlotLayoutKey: "",
     openingBookAnimation: null,
     openingBookAnimationTimer: 0,
+    openingBookAnimationEndCleanup: null,
     openingBookAnimationRunning: false,
     activeOpeningBookMoveSlotEl: null,
     lastAnimatedOpeningBookMoveKey: "",
@@ -3218,6 +3219,7 @@
   }
 
   function clearOpeningBookMoveAnimation({ preserveKey = false } = {}) {
+    detachOpeningBookAnimationEndListener();
     if (state.openingBookAnimationTimer) {
       clearTimeout(state.openingBookAnimationTimer);
       state.openingBookAnimationTimer = 0;
@@ -3228,6 +3230,13 @@
     state.activeOpeningBookMoveSlotEl = null;
     state.openingBookLastPieceFrame = "";
     if (!preserveKey) state.lastAnimatedOpeningBookMoveKey = "";
+  }
+
+  function detachOpeningBookAnimationEndListener() {
+    if (typeof state.openingBookAnimationEndCleanup !== "function") return;
+    const cleanup = state.openingBookAnimationEndCleanup;
+    state.openingBookAnimationEndCleanup = null;
+    cleanup();
   }
 
   function hideOpeningBookAnimationElements({
@@ -3308,6 +3317,7 @@
     if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) return;
     const movedSlotEl = state.activeOpeningBookMoveSlotEl;
     const useMobileHandoff = useOpeningBookMobileHandoff();
+    detachOpeningBookAnimationEndListener();
     if (state.openingBookAnimationTimer) {
       clearTimeout(state.openingBookAnimationTimer);
       state.openingBookAnimationTimer = 0;
@@ -3353,8 +3363,6 @@
     const { pieceSlots } = ensureOpeningBookSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
-    const targetSlotEl = pieceSlots[animation.toIndex];
-    if (targetSlotEl) setRoomPieceSlotImage(targetSlotEl, animation.piece);
     setRoomPieceSlotImage(movingSlotEl, animation.piece);
     state.activeOpeningBookMoveSlotEl = movingSlotEl;
     state.openingBookAnimationRunning = false;
@@ -3377,9 +3385,26 @@
     movingSlotEl.style.transition = `transform ${OPENING_BOOK_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, openingBookSquareToPixel, roomPieceRestTransform());
     state.openingBookAnimationRunning = true;
-    state.openingBookAnimationTimer = window.setTimeout(() => {
+    let completed = false;
+    const finishAnimation = () => {
+      if (completed) return;
+      completed = true;
+      movingSlotEl.removeEventListener("transitionend", handleTransitionEnd);
+      if (state.openingBookAnimationEndCleanup === cleanupTransitionEnd) {
+        state.openingBookAnimationEndCleanup = null;
+      }
       finalizeOpeningBookMoveAnimation(animation);
-    }, OPENING_BOOK_MOVE_ANIMATION_MS + 8);
+    };
+    const handleTransitionEnd = (event) => {
+      if (event.target === movingSlotEl && event.propertyName === "transform") finishAnimation();
+    };
+    const cleanupTransitionEnd = () => {
+      completed = true;
+      movingSlotEl.removeEventListener("transitionend", handleTransitionEnd);
+    };
+    state.openingBookAnimationEndCleanup = cleanupTransitionEnd;
+    movingSlotEl.addEventListener("transitionend", handleTransitionEnd);
+    state.openingBookAnimationTimer = window.setTimeout(finishAnimation, OPENING_BOOK_MOVE_ANIMATION_MS + 140);
   }
 
   function buildOpeningBookMoveAnimation(move, { reverse = false } = {}) {
