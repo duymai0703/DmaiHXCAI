@@ -3373,6 +3373,7 @@
     const { pieceSlots } = ensureOpeningBookSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
+    drawOpeningBookPieces(true);
     hideOpeningBookTargetSlot(animation, pieceSlots);
     setRoomPieceSlotImage(movingSlotEl, animation.piece);
     state.activeOpeningBookMoveSlotEl = movingSlotEl;
