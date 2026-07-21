@@ -3305,6 +3305,16 @@
     dom.openingBookMotionPiece.setAttribute("aria-hidden", "false");
   }
 
+  function hideOpeningBookTargetSlot(animation, pieceSlots) {
+    if (!animation || !pieceSlots?.length) return;
+    const targetSlotEl = pieceSlots[animation.toIndex];
+    if (!targetSlotEl) return;
+    targetSlotEl.classList.remove("is-visible", "selected", "in-check");
+    targetSlotEl.style.transition = "none";
+    targetSlotEl.style.transform = roomPieceRestTransform();
+    targetSlotEl.setAttribute("aria-hidden", "true");
+  }
+
   function hideOpeningBookMoveLandingShieldSoon() {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -3363,6 +3373,7 @@
     const { pieceSlots } = ensureOpeningBookSlots();
     const movingSlotEl = pieceSlots[animation.fromIndex];
     if (!movingSlotEl) return;
+    hideOpeningBookTargetSlot(animation, pieceSlots);
     setRoomPieceSlotImage(movingSlotEl, animation.piece);
     state.activeOpeningBookMoveSlotEl = movingSlotEl;
     state.openingBookAnimationRunning = false;
