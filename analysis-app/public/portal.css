@@ -4440,7 +4440,7 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/shark1.png");
+  --poster-image: url("/assets/posters/shark2.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
@@ -4448,11 +4448,11 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/shark2.png");
+  --poster-image: url("/assets/posters/shark1.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/shark1.png");
+  --poster-image: url("/assets/posters/shark2.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(2) {
@@ -4460,7 +4460,7 @@ textarea:focus {
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/shark2.png");
+  --poster-image: url("/assets/posters/shark1.png");
 }
 
 :root[data-theme="light"] {
