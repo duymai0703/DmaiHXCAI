@@ -2546,31 +2546,31 @@ select {
 :root[data-theme="dark"] {
   color-scheme: dark;
   --board-skin: none;
-  --ink: #eef8ff;
-  --muted: #93abc2;
-  --panel: #0b1422;
-  --paper: #0f1b2c;
-  --line: rgba(91, 206, 255, 0.36);
+  --ink: #edfaff;
+  --muted: #9fc8d8;
+  --panel: #071927;
+  --paper: #0d2638;
+  --line: rgba(99, 224, 255, 0.42);
   --red: #ff4d6d;
   --black: #e2edf7;
-  --accent: #38bdf8;
-  --accent-2: #ff8a2a;
-  --soft: #162338;
-  --control-bg: linear-gradient(180deg, rgba(18, 34, 55, 0.98), rgba(8, 16, 29, 0.98));
-  --control-hover: linear-gradient(180deg, #27c8ff, #1675d1);
-  --control-active: linear-gradient(180deg, #ffb454, #ff7a1f);
-  --field-bg: rgba(5, 12, 23, 0.92);
+  --accent: #22d3ee;
+  --accent-2: #ffb45f;
+  --soft: #11334a;
+  --control-bg: linear-gradient(180deg, rgba(15, 49, 70, 0.98), rgba(5, 25, 42, 0.98));
+  --control-hover: linear-gradient(180deg, #54e6ff, #0e88bd);
+  --control-active: linear-gradient(180deg, #ffd56b, #ff9f43);
+  --field-bg: rgba(4, 19, 34, 0.94);
   --machine-panel:
-    linear-gradient(180deg, rgba(13, 22, 36, 0.97), rgba(5, 10, 20, 0.99));
+    linear-gradient(180deg, rgba(8, 32, 50, 0.97), rgba(3, 15, 28, 0.99));
   --machine-cell:
-    linear-gradient(180deg, rgba(17, 31, 51, 0.84), rgba(7, 14, 25, 0.88));
+    linear-gradient(180deg, rgba(14, 48, 68, 0.84), rgba(4, 21, 36, 0.9));
   --app-background:
-    radial-gradient(circle at 14% 12%, rgba(56, 189, 248, 0.22), transparent 28%),
-    radial-gradient(circle at 84% 18%, rgba(255, 77, 109, 0.16), transparent 26%),
-    radial-gradient(circle at 48% 88%, rgba(78, 70, 229, 0.14), transparent 32%),
-    linear-gradient(135deg, #040812 0%, #091426 52%, #02050a 100%);
-  --header-bg: linear-gradient(180deg, rgba(7, 13, 24, 0.96), rgba(3, 8, 16, 0.94));
-  --header-line: rgba(56, 189, 248, 0.42);
+    radial-gradient(circle at 12% 10%, rgba(34, 211, 238, 0.24), transparent 29%),
+    radial-gradient(circle at 86% 16%, rgba(14, 165, 233, 0.18), transparent 27%),
+    radial-gradient(circle at 48% 88%, rgba(20, 184, 166, 0.14), transparent 34%),
+    linear-gradient(135deg, #020b13 0%, #052034 52%, #010609 100%);
+  --header-bg: linear-gradient(180deg, rgba(5, 26, 41, 0.97), rgba(2, 13, 24, 0.95));
+  --header-line: rgba(73, 220, 255, 0.48);
   --board-bg: linear-gradient(145deg, #f7fdff 0%, #bfeeff 48%, #84d4ff 100%);
   --board-border: #0597cf;
   --board-shadow:
@@ -2584,31 +2584,31 @@ select {
 :root[data-theme="light"] {
   color-scheme: light;
   --board-skin: none;
-  --ink: #102033;
-  --muted: #526b80;
-  --panel: #edf7ff;
+  --ink: #092438;
+  --muted: #477083;
+  --panel: #e9fbff;
   --paper: #ffffff;
-  --line: rgba(47, 122, 171, 0.28);
+  --line: rgba(19, 142, 188, 0.3);
   --red: #d92f50;
   --black: #102033;
-  --accent: #0ea5e9;
-  --accent-2: #ff7a1f;
-  --soft: #d9eefc;
-  --control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(224, 243, 255, 0.98));
-  --control-hover: linear-gradient(180deg, #72d7ff, #2b9ff0);
-  --control-active: linear-gradient(180deg, #ffb454, #ff7a1f);
+  --accent: #06b6d4;
+  --accent-2: #ff9f3f;
+  --soft: #d2f4ff;
+  --control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(215, 247, 255, 0.98));
+  --control-hover: linear-gradient(180deg, #8af0ff, #22aeea);
+  --control-active: linear-gradient(180deg, #ffd56b, #ffa53d);
   --field-bg: rgba(255, 255, 255, 0.96);
   --machine-panel:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(226, 243, 255, 0.97));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(216, 248, 255, 0.97));
   --machine-cell:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(219, 240, 255, 0.92));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(205, 242, 251, 0.93));
   --app-background:
-    radial-gradient(circle at 14% 12%, rgba(14, 165, 233, 0.16), transparent 30%),
-    radial-gradient(circle at 86% 18%, rgba(255, 122, 31, 0.14), transparent 28%),
-    radial-gradient(circle at 50% 88%, rgba(49, 130, 206, 0.11), transparent 34%),
-    linear-gradient(135deg, #edf7ff 0%, #f7fbff 52%, #dbeeff 100%);
-  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(225, 242, 255, 0.92));
-  --header-line: rgba(14, 118, 180, 0.32);
+    radial-gradient(circle at 14% 12%, rgba(34, 211, 238, 0.18), transparent 30%),
+    radial-gradient(circle at 84% 18%, rgba(20, 184, 166, 0.15), transparent 28%),
+    radial-gradient(circle at 50% 88%, rgba(14, 165, 233, 0.12), transparent 34%),
+    linear-gradient(135deg, #e8fbff 0%, #f7feff 52%, #d5f3fb 100%);
+  --header-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(218, 249, 255, 0.92));
+  --header-line: rgba(6, 148, 188, 0.34);
   --board-bg: linear-gradient(145deg, #eaf8ff 0%, #bfe8ff 48%, #9dd1ef 100%);
   --board-border: #2d6684;
   --board-shadow:

@@ -81,7 +81,8 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260718-mobile-board-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260725-ymegalodon-ocean-v1";
+const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
@@ -109,10 +110,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.check,
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
-  "/assets/icons/header-logo.png",
-  "/assets/icons/logow-header.png",
-  "/assets/icons/logob-header.png",
-  "/assets/icons/icon-192.png",
+  BRAND_LOGO,
+  "/assets/icons/ymegalodon-192.png",
   "/assets/icons/mb1-light.png",
   "/assets/icons/mb2-light.png",
   "/assets/icons/mb3-light.png",
@@ -129,8 +128,6 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-light.png",
   "/assets/icons/sosach-dark.png",
-  "/assets/icons/logow.png",
-  "/assets/icons/logob.png",
   "/assets/effects/sat-cutout.png"
 ];
 let wakePromise = null;
@@ -879,13 +876,13 @@ function applyTheme(theme, { persist = false } = {}) {
 }
 
 function updateBrandLogo(theme) {
-  const logo = theme === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+  const logo = BRAND_LOGO;
   document.querySelectorAll(".brand-mark").forEach((image) => {
     if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
       image.src = logo;
     }
   });
-  const mobileLogo = theme === "light" ? "/assets/icons/logow.png" : "/assets/icons/logob.png";
+  const mobileLogo = BRAND_LOGO;
   mobileThemeButtons.forEach((button) => {
     const image = button.querySelector("img");
     if (image instanceof HTMLImageElement && !image.src.endsWith(mobileLogo)) {
@@ -1524,8 +1521,8 @@ function renderMobilePanelState() {
 async function refreshStatus() {
   const status = await api("/api/status");
   if (enginePathEl) enginePathEl.value = status.enginePath || "";
-  if (engineStatusEl) engineStatusEl.textContent = status.exists ? `Engine connected: ${status.enginePath}` : "No Pikafish binary yet. Click Build engine or set the .exe path.";
-  if (networkStatusEl) networkStatusEl.textContent = status.networkExists ? `NNUE: ${status.networkPath}` : "NNUE: missing pikafish.nnue. Download it before deep analysis.";
+  if (engineStatusEl) engineStatusEl.textContent = status.exists ? `Y-Megalodon đã kết nối: ${status.enginePath}` : "Chưa tìm thấy Y-Megalodon. Hãy cấu hình đường dẫn engine.";
+  if (networkStatusEl) networkStatusEl.textContent = status.networkExists ? `NNUE: ${status.networkPath}` : "NNUE: chưa sẵn sàng. Cần mạng đánh giá trước khi phân tích sâu.";
 }
 
 async function saveEnginePath() {
@@ -1537,7 +1534,7 @@ async function buildEngine() {
   const button = document.getElementById("buildEngineBtn");
   button.disabled = true;
   button.textContent = "Building...";
-  engineStatusEl.textContent = "Building Pikafish with local compiler. This can take a few minutes.";
+  engineStatusEl.textContent = "Đang dựng Y-Megalodon bằng trình biên dịch cục bộ. Việc này có thể mất vài phút.";
   try {
     const result = await api("/api/build-engine", {});
     enginePathEl.value = result.enginePath || "";
@@ -1555,7 +1552,7 @@ async function downloadNetwork() {
   const button = document.getElementById("downloadNetBtn");
   button.disabled = true;
   button.textContent = "Downloading...";
-  networkStatusEl.textContent = "Downloading pikafish.nnue from official Pikafish Networks...";
+  networkStatusEl.textContent = "Đang tải mạng đánh giá cho Y-Megalodon...";
   try {
     const result = await api("/api/download-network", {});
     networkStatusEl.textContent = result.exists ? `NNUE: ${result.networkPath}` : "NNUE download failed.";
@@ -1569,7 +1566,7 @@ async function downloadNetwork() {
 }
 
 async function startManualAnalysis() {
-  reportAnalysisActivity("Bấm phân tích bằng Pikafish");
+  reportAnalysisActivity("Bấm phân tích bằng Y-Megalodon");
   stopAutoPlay(true);
   cancelScheduledAnalysisRefresh();
   state.analysisMode = true;

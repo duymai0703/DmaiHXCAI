@@ -16,7 +16,8 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260717-css-board-v3";
+  const ASSET_WARMUP_VERSION = "20260725-ymegalodon-ocean-v1";
+  const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -127,16 +128,15 @@
     "/assets/icons/cole-dark.png",
     "/assets/icons/guom-dark.png",
     "/assets/icons/sosach-dark.png",
-    "/assets/icons/logow.png",
-    "/assets/icons/logob.png",
+    BRAND_LOGO,
+    "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
     ...Object.values(PIECE_IMAGES),
     ...Object.values(MOBILE_RED_PIECE_IMAGES),
     ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
   ];
   const THEME_LOGO_ASSETS = [
-    "/assets/icons/logow-header.png",
-    "/assets/icons/logob-header.png"
+    BRAND_LOGO
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
@@ -1090,7 +1090,7 @@
   }
 
   function updateBrandLogo(theme) {
-    const logo = theme === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+    const logo = BRAND_LOGO;
     document.querySelectorAll(".brand-mark").forEach((image) => {
       if (image.id === "portalBrandMark" && shouldUseAvatarBrandMark()) return;
       if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
@@ -1109,7 +1109,7 @@
     const image = dom.portalBrandMark;
     if (!(image instanceof HTMLImageElement)) return;
     if (!shouldUseAvatarBrandMark()) {
-      const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+      const logo = BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");
@@ -1121,7 +1121,7 @@
     const user = state.user || {};
     const avatarUrl = user.avatarUrl || state.deviceAvatarUrl || "";
     if (!avatarUrl) {
-      const logo = currentTheme() === "light" ? "/assets/icons/logow-header.png" : "/assets/icons/logob-header.png";
+      const logo = BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");
@@ -2743,12 +2743,7 @@
       practice.className = "primary-button";
       practice.textContent = "Luyện khai cuộc với máy";
       practice.addEventListener("click", () => startOpeningBookPractice(book));
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "ghost-button";
-      remove.textContent = "Xóa";
-      remove.addEventListener("click", () => deleteOpeningBook(book.id));
-      actions.append(open, practice, remove);
+      actions.append(open, practice, createOpeningBookLockDeleteControls(book));
       item.append(header, detail, actions);
       dom.openingBookSavedList.appendChild(item);
     });
@@ -2817,14 +2812,35 @@
     practice.className = "primary-button";
     practice.textContent = "Luyện khai cuộc với máy";
     practice.addEventListener("click", () => startOpeningBookPractice(book));
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "ghost-button";
-    remove.textContent = "Xóa";
-    remove.addEventListener("click", () => deleteOpeningBook(book.id));
-    actions.append(open, practice, remove);
+    actions.append(open, practice, createOpeningBookLockDeleteControls(book));
     item.append(header, detail, actions);
     return item;
+  }
+
+  function createOpeningBookLockDeleteControls(book) {
+    const group = document.createElement("span");
+    group.className = "opening-book-delete-lock";
+    const lock = document.createElement("button");
+    lock.type = "button";
+    lock.className = "ghost-button";
+    lock.textContent = "Khóa";
+    lock.setAttribute("aria-expanded", "false");
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger-button opening-book-delete-button hidden";
+    remove.textContent = "Xóa";
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteOpeningBook(book.id);
+    });
+    lock.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isHidden = remove.classList.toggle("hidden");
+      lock.setAttribute("aria-expanded", String(!isHidden));
+      lock.textContent = isHidden ? "Khóa" : "Đóng";
+    });
+    group.append(lock, remove);
+    return group;
   }
 
   function countOpeningBookNodes(node) {
@@ -2833,7 +2849,7 @@
   }
 
   async function deleteOpeningBook(id) {
-    if (!id || !window.confirm("Xóa book khai cuộc này?")) return;
+    if (!id || !window.confirm("Bạn chắc chắn muốn xóa chứ?")) return;
     try {
       const payload = await api("/api/opening-books", {
         method: "DELETE",
@@ -3511,7 +3527,7 @@
     if (dom.kydaoSelectedTitle) dom.kydaoSelectedTitle.textContent = master ? master.name : "Chọn danh thủ";
     if (dom.kydaoPageInfo) {
       dom.kydaoPageInfo.textContent = master
-        ? `Trang ${state.kydaoPage}/${state.kydaoTotalPages}. Mỗi ván mở ra có thể phân tích Pikafish.`
+        ? `Trang ${state.kydaoPage}/${state.kydaoTotalPages}. Mỗi ván mở ra có thể phân tích Y-Megalodon.`
         : "Mở ván nào sẽ chuyển thành bàn cờ xem lại.";
     }
     if (dom.kydaoPrevPageBtn) dom.kydaoPrevPageBtn.disabled = !master || state.kydaoGamesLoading || state.kydaoPage <= 1;
@@ -4264,7 +4280,7 @@
       });
       state.reviewAnalysis = Array.isArray(payload.items) ? payload.items : [];
       renderReviewState(true);
-      showToast("Pikafish đã phân tích xong ván cờ.");
+      showToast("Y-Megalodon đã phân tích xong ván cờ.");
     } catch (error) {
       showToast(error.message || "Không thể phân tích ván cờ này.");
     } finally {
@@ -4285,7 +4301,7 @@
       dom.reviewTitle.textContent = "Xem lại ván đấu";
       dom.reviewMeta.textContent = "Chọn một ván trong lịch sử để tua lại.";
       dom.reviewResultBadge.textContent = "Lịch sử";
-      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
+      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.";
       dom.reviewInsight.textContent = "Tua lại từng nước để xem diễn biến của ván cờ.";
       renderReviewEvalBar(null);
       dom.reviewPrevBtn.disabled = true;
@@ -4299,8 +4315,8 @@
     dom.reviewMeta.textContent = `Bắt đầu: ${formatDate(game.startedAt || game.endedAt)} • Kết thúc: ${formatDate(game.endedAt)}`;
     dom.reviewResultBadge.textContent = game.result || "Lịch sử";
     dom.reviewMoveMeta.textContent = state.reviewAnalysis.length
-      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của Pikafish."
-      : "Mỗi nước sẽ được gắn nhãn sau khi Pikafish quét toàn ván.";
+      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của Y-Megalodon."
+      : "Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.";
     dom.reviewPrevBtn.disabled = state.reviewCursor <= 0 || state.reviewAnalyzing;
     dom.reviewNextBtn.disabled = state.reviewCursor >= game.plies.length || state.reviewAnalyzing;
     dom.reviewAnalyzeBtn.disabled = state.reviewAnalyzing;
@@ -4328,10 +4344,10 @@
 
     renderReviewEvalBar(analysis);
     const recommendText = analysis.grade === "book"
-      ? "Nước này nằm trong book mở đầu: trùng gợi ý Pikafish hoặc nhóm nước đầu của data book."
+      ? "Nước này nằm trong book mở đầu: trùng gợi ý Y-Megalodon hoặc nhóm nước đầu của data book."
       : analysis.grade === "brilliant"
-      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Pikafish."
-      : `Pikafish đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
+      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Y-Megalodon."
+      : `Y-Megalodon đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
     const badge = reviewBadgeForGrade(analysis.grade);
     dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} - ${analysis.gradeLabel || badge.label || "Đã phân tích"}</strong><div>${recommendText}</div>`;
   }

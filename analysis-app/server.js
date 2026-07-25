@@ -3353,7 +3353,7 @@ class UciEngine {
 
   async ensureStarted() {
     if (!this.enginePath || !fs.existsSync(this.enginePath)) {
-      throw new Error("Chưa tìm thấy engine. Đặt biến PIKAFISH_ENGINE hoặc cấu hình đường dẫn .exe trong giao diện.");
+      throw new Error("Chưa tìm thấy Y-Megalodon. Hãy cấu hình đường dẫn engine trước khi phân tích.");
     }
     if (this.proc && !this.proc.killed && this.ready) return;
     if (this.bootPromise) return this.bootPromise;
@@ -5449,9 +5449,9 @@ async function startServer() {
     };
     const onListening = () => {
       server.off("error", onError);
-      console.log(`Pikafish analysis app: http://localhost:${PORT}`);
+      console.log(`Y-Megalodon analysis app: http://localhost:${PORT}`);
       if (!configuredEnginePath) {
-        console.log("No engine binary found. Set PIKAFISH_ENGINE or configure it in the UI.");
+        console.log("No Y-Megalodon engine binary found. Configure the engine path before deep analysis.");
       }
       resolve();
     };
