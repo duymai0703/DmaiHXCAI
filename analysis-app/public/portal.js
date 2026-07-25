@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260725-ymegalodon-ocean-v1";
+  const ASSET_WARMUP_VERSION = "20260725-ymegalodon-shark-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
@@ -106,8 +106,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260717-css-board-v3",
-    "/app.js?v=20260717-css-board-v3",
+    "/styles.css?v=20260725-ymegalodon-shark-v1",
+    "/app.js?v=20260725-ymegalodon-shark-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -140,13 +140,9 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/vancu1.png",
-    "/assets/posters/vancu4.png",
-    "/assets/posters/vancu2.png",
-    "/assets/posters/vancu3.png",
-    "/assets/posters/vanca2.png",
-    "/assets/posters/vanca1.png",
-    "/assets/posters/vanca3.png"
+    "/assets/posters/shark1.png",
+    "/assets/posters/shark3.png",
+    "/assets/posters/shark2.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
@@ -155,6 +151,7 @@
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
   const CHECKMATE_EFFECT_MS = 3000;
   const REVIEW_EVAL_BAR_LIMIT = 2000;
+  let wakePromise = null;
 
   const initialToken = readPersistentValue(STORAGE_TOKEN) || readPersistentValue(LEGACY_STORAGE_TOKEN) || "";
   const initialDeviceId = readOrCreateDeviceId();
@@ -517,6 +514,7 @@
   const assetWarmupPromise = warmPortalAssets();
   syncViewportHeight();
   setupRoomMobileDock();
+  wakeBackend();
   startActivityHeartbeat();
   setLobbyMode("join");
   updateTimeLabels();
@@ -1115,7 +1113,7 @@
       image.removeAttribute("role");
       image.removeAttribute("tabindex");
       image.removeAttribute("title");
-      image.alt = "DmaiHXCAI";
+      image.alt = "Y-Megalodon";
       return;
     }
     const user = state.user || {};
@@ -1127,7 +1125,7 @@
       image.removeAttribute("role");
       image.removeAttribute("tabindex");
       image.removeAttribute("title");
-      image.alt = "DmaiHXCAI";
+      image.alt = "Y-Megalodon";
       return;
     }
     if (!image.src.endsWith(avatarUrl)) image.src = avatarUrl;
@@ -7399,6 +7397,7 @@
   }
 
   async function api(url, options = {}, behavior = {}) {
+    const target = apiTarget(url);
     const method = options.method || (options.body !== undefined ? "POST" : "GET");
     const headers = {};
     if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -7410,15 +7409,29 @@
     }
 
     let lastError = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    const attempts = Math.max(1, Number(behavior.attempts || 8));
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(target, {
           method,
           headers,
           body,
           cache: "no-store"
         });
-        const data = await response.json().catch(() => ({}));
+        const raw = await response.text();
+        let data = {};
+
+        if (raw) {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            if (looksLikeRenderWakePage(raw)) throw new Error("BACKEND_WAKING");
+            throw Object.assign(new Error(`Unexpected server response (${response.status})`), {
+              status: response.status
+            });
+          }
+        }
+
         if (!response.ok || data.ok === false) {
           const error = Object.assign(new Error(data.error || `HTTP ${response.status}`), {
             status: response.status,
@@ -7432,8 +7445,11 @@
         return data;
       } catch (error) {
         lastError = error;
-        if (!API_RETRYABLE_STATUS.has(Number(error.status)) || attempt === 3) break;
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        if (!isRetryableError(error) || attempt === attempts - 1) {
+          lastError = friendlyApiError(error);
+          break;
+        }
+        await delay(1200 + attempt * 900);
       }
     }
 
@@ -7446,5 +7462,46 @@
     }
     renderProfileAfterApiFailure();
     throw lastError || new Error("Không thể kết nối tới máy chủ.");
+  }
+  function apiTarget(url) {
+    const base = String(window.DMAIHXCAI_API_BASE || "").replace(/\/$/, "");
+    return base && url.startsWith("/") ? `${base}${url}` : url;
+  }
+
+  function looksLikeRenderWakePage(text) {
+    const sample = String(text || "").toLowerCase();
+    return sample.includes("service waking up") || sample.includes("welcome to render") || sample.includes("render");
+  }
+
+  function isRetryableStatus(status, raw, message) {
+    return API_RETRYABLE_STATUS.has(Number(status)) || looksLikeRenderWakePage(raw) || /waking|temporarily unavailable|failed to fetch/i.test(String(message || ""));
+  }
+
+  function isRetryableError(error) {
+    const message = String(error?.message || "");
+    return Boolean(error) && (
+      error.name === "TypeError" ||
+      message === "BACKEND_WAKING" ||
+      isRetryableStatus(error.status, "", message) ||
+      /fetch|network|load failed|unexpected server response/i.test(message)
+    );
+  }
+
+  function friendlyApiError(error) {
+    const message = String(error?.message || "");
+    if (message === "BACKEND_WAKING" || /unexpected server response|fetch|network|load failed/i.test(message)) {
+      return new Error("Backend Render dang khoi dong. Trang van chay tren Netlify va se thu lai khi ban thao tac tiep.");
+    }
+    return error instanceof Error ? error : new Error("Khong the ket noi toi may chu.");
+  }
+
+  function wakeBackend() {
+    if (!window.DMAIHXCAI_API_BASE || wakePromise) return wakePromise;
+    wakePromise = fetch(apiTarget("/api/status"), { cache: "no-store" })
+      .catch(() => {})
+      .finally(() => {
+        wakePromise = null;
+      });
+    return wakePromise;
   }
 })();

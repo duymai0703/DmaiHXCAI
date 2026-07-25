@@ -1,12 +1,12 @@
-const CACHE_NAME = "dmaihxcai-shell-v162";
+const CACHE_NAME = "ymegalodon-shell-v163";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260725-ymegalodon-ocean-v1",
-  "/portal.js?v=20260725-ymegalodon-ocean-v1",
-  "/styles.css?v=20260725-ymegalodon-ocean-v1",
-  "/app.js?v=20260725-ymegalodon-ocean-v1",
+  "/portal.css?v=20260725-ymegalodon-shark-v1",
+  "/portal.js?v=20260725-ymegalodon-shark-v1",
+  "/styles.css?v=20260725-ymegalodon-shark-v1",
+  "/app.js?v=20260725-ymegalodon-shark-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -77,13 +77,6 @@ const STATIC_ASSETS = [
   "/assets/pieces/sets/boquan4/black-king.png",
   "/assets/pieces/sets/boquan4/black-cannon.png",
   "/assets/pieces/sets/boquan4/black-pawn.png",
-  "/assets/posters/vancu1.png",
-  "/assets/posters/vancu4.png",
-  "/assets/posters/vancu2.png",
-  "/assets/posters/vancu3.png",
-  "/assets/posters/vanca2.png",
-  "/assets/posters/vanca1.png",
-  "/assets/posters/vanca3.png",
   "/assets/icons/backgr.png",
   "/assets/icons/ymegalodon-192.png",
   "/assets/icons/ymegalodon-512.png",
@@ -118,10 +111,18 @@ const STATIC_ASSETS = [
   "/assets/review-badges/bang.png",
   "/assets/review-badges/x.png"
 ];
+const OPTIONAL_ASSETS = [
+  "/assets/posters/shark1.png",
+  "/assets/posters/shark3.png",
+  "/assets/posters/shark2.png"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => Promise.all([
+      cache.addAll(STATIC_ASSETS),
+      Promise.allSettled(OPTIONAL_ASSETS.map((asset) => cache.add(asset)))
+    ]))
   );
   self.skipWaiting();
 });

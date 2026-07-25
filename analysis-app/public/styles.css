@@ -723,6 +723,15 @@ h2 {
   -webkit-user-drag: none;
 }
 
+:root[data-piece-skin="default"] .piece.image-piece .piece-skin,
+:root[data-piece-skin="default"] .motion-piece .piece-skin {
+  clip-path: circle(44% at 50% 50%);
+  -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
 .motion-layer {
   overflow: visible;
   pointer-events: none;
@@ -1356,6 +1365,13 @@ input:not([type]) {
 
 .piece-skin-swatch-default::after {
   background-image: url("/assets/pieces/black-king.png");
+}
+
+.piece-skin-swatch-default::before,
+.piece-skin-swatch-default::after {
+  clip-path: circle(44% at 50% 50%);
+  -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
 }
 
 .piece-skin-swatch-boquan1::before {

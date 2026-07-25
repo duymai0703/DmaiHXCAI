@@ -81,7 +81,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260725-ymegalodon-ocean-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260725-ymegalodon-shark-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
@@ -4550,7 +4550,7 @@ function handleAnalysisSessionReplaced() {
 async function api(url, body, behavior = {}) {
   const target = apiTarget(url);
   let lastError = null;
-  const attempts = Math.max(1, Number(behavior.attempts || 6));
+  const attempts = Math.max(1, Number(behavior.attempts || 8));
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     let timeoutId = null;

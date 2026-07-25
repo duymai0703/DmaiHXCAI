@@ -2090,6 +2090,15 @@ a {
   -webkit-user-drag: none;
 }
 
+:root[data-piece-skin="default"] .piece.image-piece .piece-skin,
+:root[data-piece-skin="default"] .motion-piece .piece-skin {
+  clip-path: circle(44% at 50% 50%);
+  -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
 .piece.is-visible {
   opacity: 1;
   visibility: visible;
@@ -4210,6 +4219,13 @@ body {
   background-image: url("/assets/pieces/black-king.png");
 }
 
+.piece-skin-swatch-default::before,
+.piece-skin-swatch-default::after {
+  clip-path: circle(44% at 50% 50%);
+  -webkit-mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side at center, #000 0 82%, rgba(0, 0, 0, 0.38) 91%, transparent 100%);
+}
+
 .piece-skin-swatch-boquan1::before {
   background-image: url("/assets/pieces/sets/boquan1/red-king.png");
 }
@@ -4424,28 +4440,27 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/vancu4.png");
-  --poster-fallback: url("/assets/posters/vancu1.png");
+  --poster-image: url("/assets/posters/shark1.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/vancu2.png");
+  --poster-image: url("/assets/posters/shark3.png");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/vancu3.png");
+  --poster-image: url("/assets/posters/shark2.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/vanca2.png");
+  --poster-image: url("/assets/posters/shark1.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/vanca1.png");
+  --poster-image: url("/assets/posters/shark3.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/vanca3.png");
+  --poster-image: url("/assets/posters/shark2.png");
 }
 
 :root[data-theme="light"] {

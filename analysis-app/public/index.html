@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#050914">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="DmaiHXCAI">
+    <meta name="apple-mobile-web-app-title" content="Y-Megalodon">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>DmaiHXCAI</title>
+    <title>Y-Megalodon</title>
     <script>
       try {
         const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
@@ -39,16 +39,16 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260725-ymegalodon-ocean-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260725-ymegalodon-shark-v1">
   </head>
   <body>
     <header class="portal-header">
       <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại"></button>
 
       <div class="brand">
-        <img id="portalBrandMark" class="brand-mark" src="/assets/icons/ymegalodon-512.png" alt="DmaiHXCAI">
+        <img id="portalBrandMark" class="brand-mark" src="/assets/icons/ymegalodon-512.png" alt="Y-Megalodon">
         <div class="brand-copy">
-          <strong>DmaiHXCAI</strong>
+          <strong>Y-Megalodon</strong>
         </div>
       </div>
 
@@ -116,7 +116,7 @@
     <div id="accessGate" class="access-gate hidden" role="dialog" aria-modal="true" aria-labelledby="accessGateTitle">
       <form id="accessKeyForm" class="access-gate-card">
         <strong id="accessGateTitle">Nhập Key kích hoạt</strong>
-        <p>Nhập Key được cấp để sử dụng DmaiHXCAI trên trình duyệt này.</p>
+        <p>Nhập Key được cấp để sử dụng Y-Megalodon trên trình duyệt này.</p>
         <input id="accessKeyInput" type="text" autocomplete="one-time-code" placeholder="Nhập Key kích hoạt" required>
         <input id="accessNameInput" class="hidden" type="text" autocomplete="name" maxlength="24" placeholder="Nhập tên khách hàng">
         <button class="primary-button" type="submit">Kích hoạt</button>
@@ -676,8 +676,9 @@
       </div>
     </div>
 
+    <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260725-ymegalodon-ocean-v1"></script>
+    <script src="/portal.js?v=20260725-ymegalodon-shark-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -3897,7 +3897,7 @@ async function fetchKydaoText(pathOrUrl) {
     const response = await fetch(target, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "DmaiHXCAI/1.0 (+https://dmaihxcai.onrender.com)",
+        "User-Agent": "Y-Megalodon/1.0 (+https://dmaihxcai.onrender.com)",
         "Accept": "text/html,application/xhtml+xml"
       }
     });
@@ -4310,7 +4310,7 @@ function json(res, status, payload) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Dmaihxcai-Device",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Cache-Control": "no-store",
     "Content-Length": Buffer.byteLength(body)
@@ -4321,7 +4321,7 @@ function json(res, status, payload) {
 function corsPreflight(res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Dmaihxcai-Device",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
   });
   res.end();

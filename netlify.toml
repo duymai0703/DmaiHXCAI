@@ -2,6 +2,16 @@
   publish = "analysis-app/public"
 
 [[redirects]]
+  from = "/analysis"
+  to = "/analysis.html"
+  status = 200
+
+[[redirects]]
+  from = "/analysis/"
+  to = "/analysis.html"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "https://dmaihxcai.onrender.com/api/:splat"
   status = 200
