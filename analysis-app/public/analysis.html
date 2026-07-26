@@ -11,7 +11,14 @@
     <title>Y-Megalodon</title>
     <script>
       try {
-        const theme = localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
+        const themeVersionKey = "dmaihxcai-theme-preference-version";
+        const themeVersion = "20260726-dark-default-v1";
+        const hasCurrentThemePreference = localStorage.getItem(themeVersionKey) === themeVersion;
+        const theme = hasCurrentThemePreference && localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
+        if (!hasCurrentThemePreference) {
+          localStorage.setItem("dmaihxcai-theme", "dark");
+          localStorage.setItem(themeVersionKey, themeVersion);
+        }
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
@@ -29,7 +36,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260726-light-logo-mobile-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260726-dark-default-v1">
   </head>
   <body>
     <header class="app-header">
@@ -264,7 +271,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260726-light-logo-mobile-v1"></script>
+    <script src="/app.js?v=20260726-dark-default-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {

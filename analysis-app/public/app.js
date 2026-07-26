@@ -74,6 +74,8 @@ const MOVE_SOUND_SOURCES = {
   checkmate: `/assets/sounds/tuyetsat1.mp3?v=${SOUND_ASSET_VERSION}`
 };
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
+const THEME_PREFERENCE_VERSION_KEY = "dmaihxcai-theme-preference-version";
+const THEME_PREFERENCE_VERSION = "20260726-dark-default-v1";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
@@ -83,9 +85,9 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260726-light-logo-mobile-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260726-dark-default-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-light-logo-mobile-v1";
+const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-dark-default-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
@@ -781,6 +783,7 @@ function setupThemeControls() {
 }
 
 function readTheme() {
+  if (readStorage(THEME_PREFERENCE_VERSION_KEY) !== THEME_PREFERENCE_VERSION) return "dark";
   return normalizeTheme(readStorage(THEME_STORAGE_KEY) || document.documentElement.dataset.theme || "dark");
 }
 
@@ -870,7 +873,10 @@ function applyTheme(theme, { persist = false } = {}) {
   document.documentElement.dataset.theme = normalized;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
   updateBrandLogo(normalized);
-  if (persist) writeStorage(THEME_STORAGE_KEY, normalized);
+  if (persist) {
+    writeStorage(THEME_STORAGE_KEY, normalized);
+    writeStorage(THEME_PREFERENCE_VERSION_KEY, THEME_PREFERENCE_VERSION);
+  }
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     const active = button.dataset.themeChoice === normalized;
     button.classList.toggle("active", active);

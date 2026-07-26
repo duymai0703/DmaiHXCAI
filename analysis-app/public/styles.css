@@ -4274,7 +4274,7 @@ select,
   }
 
   :root[data-piece-skin="default"] .board {
-    --piece-size: 12.15% !important;
+    --piece-size: 11.85% !important;
   }
 
   .board::before {

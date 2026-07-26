@@ -13,12 +13,14 @@
   const STORAGE_DEVICE_HISTORY = "dmaihxcai-device-history";
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
+  const STORAGE_THEME_PREFERENCE_VERSION = "dmaihxcai-theme-preference-version";
+  const THEME_PREFERENCE_VERSION = "20260726-dark-default-v1";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260726-light-logo-mobile-v1";
+  const ASSET_WARMUP_VERSION = "20260726-dark-default-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-light-logo-mobile-v1";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-dark-default-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -109,8 +111,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260726-light-logo-mobile-v1",
-    "/app.js?v=20260726-light-logo-mobile-v1",
+    "/styles.css?v=20260726-dark-default-v1",
+    "/app.js?v=20260726-dark-default-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -977,6 +979,7 @@
   }
 
   function readTheme() {
+    if (readPersistentValue(STORAGE_THEME_PREFERENCE_VERSION) !== THEME_PREFERENCE_VERSION) return "dark";
     return normalizeTheme(readPersistentValue(STORAGE_THEME) || document.documentElement.dataset.theme || "dark");
   }
 
@@ -1087,7 +1090,10 @@
     document.documentElement.dataset.theme = normalized;
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
     updateBrandLogo(normalized);
-    if (persist) writePersistentValue(STORAGE_THEME, normalized);
+    if (persist) {
+      writePersistentValue(STORAGE_THEME, normalized);
+      writePersistentValue(STORAGE_THEME_PREFERENCE_VERSION, THEME_PREFERENCE_VERSION);
+    }
     document.querySelectorAll("[data-theme-choice]").forEach((button) => {
       const active = button.dataset.themeChoice === normalized;
       button.classList.toggle("active", active);

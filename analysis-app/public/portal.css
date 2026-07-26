@@ -5479,6 +5479,6 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   :root[data-piece-skin="default"] body.portal-mobile-mode[data-route="room"] .room-board,
   :root[data-piece-skin="default"] body.portal-mobile-mode .review-board,
   :root[data-piece-skin="default"] body.library-book-mobile-mode[data-route="library"] .opening-book-board {
-    --piece-size: 12.15% !important;
+    --piece-size: 11.85% !important;
   }
 }
