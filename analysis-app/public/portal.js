@@ -16,7 +16,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260725-ymegalodon-shark-v1";
+  const ASSET_WARMUP_VERSION = "20260726-mobile-pieces-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
@@ -37,30 +37,32 @@
     "/assets/device-avatars/tv7.png",
     "/assets/device-avatars/tv8.png"
   ];
+  const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
+  const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
   const PIECE_IMAGES = {
-    R: "assets/pieces/red-rook.png",
-    N: "assets/pieces/red-knight.png",
-    B: "assets/pieces/red-elephant.png",
-    A: "assets/pieces/red-advisor.png",
-    K: "assets/pieces/red-king.png",
-    C: "assets/pieces/red-cannon.png",
-    P: "assets/pieces/red-pawn.png",
-    r: "assets/pieces/black-rook.png",
-    n: "assets/pieces/black-knight.png",
-    b: "assets/pieces/black-elephant.png",
-    a: "assets/pieces/black-advisor.png",
-    k: "assets/pieces/black-king.png",
-    c: "assets/pieces/black-cannon.png",
-    p: "assets/pieces/black-pawn.png"
+    R: defaultPieceAsset("red-rook.png"),
+    N: defaultPieceAsset("red-knight.png"),
+    B: defaultPieceAsset("red-elephant.png"),
+    A: defaultPieceAsset("red-advisor.png"),
+    K: defaultPieceAsset("red-king.png"),
+    C: defaultPieceAsset("red-cannon.png"),
+    P: defaultPieceAsset("red-pawn.png"),
+    r: defaultPieceAsset("black-rook.png"),
+    n: defaultPieceAsset("black-knight.png"),
+    b: defaultPieceAsset("black-elephant.png"),
+    a: defaultPieceAsset("black-advisor.png"),
+    k: defaultPieceAsset("black-king.png"),
+    c: defaultPieceAsset("black-cannon.png"),
+    p: defaultPieceAsset("black-pawn.png")
   };
   const MOBILE_RED_PIECE_IMAGES = {
-    R: "assets/pieces/mobile-red-rook.png",
-    N: "assets/pieces/mobile-red-knight.png",
-    B: "assets/pieces/mobile-red-elephant.png",
-    A: "assets/pieces/mobile-red-advisor.png",
-    K: "assets/pieces/mobile-red-king.png",
-    C: "assets/pieces/mobile-red-cannon.png",
-    P: "assets/pieces/mobile-red-pawn.png"
+    R: defaultPieceAsset("mobile-red-rook.png"),
+    N: defaultPieceAsset("mobile-red-knight.png"),
+    B: defaultPieceAsset("mobile-red-elephant.png"),
+    A: defaultPieceAsset("mobile-red-advisor.png"),
+    K: defaultPieceAsset("mobile-red-king.png"),
+    C: defaultPieceAsset("mobile-red-cannon.png"),
+    P: defaultPieceAsset("mobile-red-pawn.png")
   };
   const CUSTOM_PIECE_SET_KEYS = ["boquan1", "boquan2", "boquan3", "boquan4"];
   const CUSTOM_PIECE_FILE_NAMES = {
@@ -106,8 +108,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260725-ymegalodon-shark-v1",
-    "/app.js?v=20260725-ymegalodon-shark-v1",
+    "/styles.css?v=20260726-mobile-pieces-v1",
+    "/app.js?v=20260726-mobile-pieces-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -140,9 +142,12 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/shark1.png",
+    "/assets/posters/shark2.png",
     "/assets/posters/shark3.png",
-    "/assets/posters/shark2.png"
+    "/assets/posters/shark1.png",
+    "/assets/posters/vanca1.png",
+    "/assets/posters/vanca2.png",
+    "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];

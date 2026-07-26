@@ -1,12 +1,12 @@
-const CACHE_NAME = "ymegalodon-shell-v164";
+const CACHE_NAME = "ymegalodon-shell-v165";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260725-ymegalodon-shark-v2",
-  "/portal.js?v=20260725-ymegalodon-shark-v1",
-  "/styles.css?v=20260725-ymegalodon-shark-v1",
-  "/app.js?v=20260725-ymegalodon-shark-v1",
+  "/portal.css?v=20260726-mobile-pieces-v1",
+  "/portal.js?v=20260726-mobile-pieces-v1",
+  "/styles.css?v=20260726-mobile-pieces-v1",
+  "/app.js?v=20260726-mobile-pieces-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -14,13 +14,27 @@ const STATIC_ASSETS = [
   "/assets/sounds/an.mp3?v=20260713-audio-v9",
   "/assets/sounds/chieu.mp3?v=20260713-audio-v9",
   "/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9",
-  "/assets/pieces/mobile-red-rook.png",
-  "/assets/pieces/mobile-red-knight.png",
-  "/assets/pieces/mobile-red-elephant.png",
-  "/assets/pieces/mobile-red-advisor.png",
-  "/assets/pieces/mobile-red-king.png",
-  "/assets/pieces/mobile-red-cannon.png",
-  "/assets/pieces/mobile-red-pawn.png",
+  "/assets/pieces/red-rook.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-knight.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-elephant.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-advisor.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-king.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-cannon.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/red-pawn.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-rook.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-knight.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-elephant.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-advisor.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-king.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-cannon.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/black-pawn.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-rook.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-knight.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-elephant.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-advisor.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-king.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-cannon.png?v=20260726-mobile-pieces-v1",
+  "/assets/pieces/mobile-red-pawn.png?v=20260726-mobile-pieces-v1",
   "/assets/pieces/sets/boquan1/red-rook.png",
   "/assets/pieces/sets/boquan1/red-knight.png",
   "/assets/pieces/sets/boquan1/red-elephant.png",
@@ -112,9 +126,12 @@ const STATIC_ASSETS = [
   "/assets/review-badges/x.png"
 ];
 const OPTIONAL_ASSETS = [
-  "/assets/posters/shark1.png",
+  "/assets/posters/shark2.png",
   "/assets/posters/shark3.png",
-  "/assets/posters/shark2.png"
+  "/assets/posters/shark1.png",
+  "/assets/posters/vanca1.png",
+  "/assets/posters/vanca2.png",
+  "/assets/posters/vanca3.png"
 ];
 
 self.addEventListener("install", (event) => {

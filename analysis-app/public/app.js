@@ -4,30 +4,32 @@ const PIECE_NAMES = {
   R: "\u8eca", N: "\u99ac", B: "\u76f8", A: "\u4ed5", K: "\u5e25", C: "\u70ae", P: "\u5175",
   r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
 };
+const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
+const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
 const PIECE_IMAGES = {
-  R: "assets/pieces/red-rook.png",
-  N: "assets/pieces/red-knight.png",
-  B: "assets/pieces/red-elephant.png",
-  A: "assets/pieces/red-advisor.png",
-  K: "assets/pieces/red-king.png",
-  C: "assets/pieces/red-cannon.png",
-  P: "assets/pieces/red-pawn.png",
-  r: "assets/pieces/black-rook.png",
-  n: "assets/pieces/black-knight.png",
-  b: "assets/pieces/black-elephant.png",
-  a: "assets/pieces/black-advisor.png",
-  k: "assets/pieces/black-king.png",
-  c: "assets/pieces/black-cannon.png",
-  p: "assets/pieces/black-pawn.png"
+  R: defaultPieceAsset("red-rook.png"),
+  N: defaultPieceAsset("red-knight.png"),
+  B: defaultPieceAsset("red-elephant.png"),
+  A: defaultPieceAsset("red-advisor.png"),
+  K: defaultPieceAsset("red-king.png"),
+  C: defaultPieceAsset("red-cannon.png"),
+  P: defaultPieceAsset("red-pawn.png"),
+  r: defaultPieceAsset("black-rook.png"),
+  n: defaultPieceAsset("black-knight.png"),
+  b: defaultPieceAsset("black-elephant.png"),
+  a: defaultPieceAsset("black-advisor.png"),
+  k: defaultPieceAsset("black-king.png"),
+  c: defaultPieceAsset("black-cannon.png"),
+  p: defaultPieceAsset("black-pawn.png")
 };
 const MOBILE_RED_PIECE_IMAGES = {
-  R: "assets/pieces/mobile-red-rook.png",
-  N: "assets/pieces/mobile-red-knight.png",
-  B: "assets/pieces/mobile-red-elephant.png",
-  A: "assets/pieces/mobile-red-advisor.png",
-  K: "assets/pieces/mobile-red-king.png",
-  C: "assets/pieces/mobile-red-cannon.png",
-  P: "assets/pieces/mobile-red-pawn.png"
+  R: defaultPieceAsset("mobile-red-rook.png"),
+  N: defaultPieceAsset("mobile-red-knight.png"),
+  B: defaultPieceAsset("mobile-red-elephant.png"),
+  A: defaultPieceAsset("mobile-red-advisor.png"),
+  K: defaultPieceAsset("mobile-red-king.png"),
+  C: defaultPieceAsset("mobile-red-cannon.png"),
+  P: defaultPieceAsset("mobile-red-pawn.png")
 };
 const CUSTOM_PIECE_SET_KEYS = ["boquan1", "boquan2", "boquan3", "boquan4"];
 const CUSTOM_PIECE_FILE_NAMES = {
@@ -81,7 +83,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260725-ymegalodon-shark-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260726-mobile-pieces-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
@@ -102,6 +104,7 @@ const ANALYSIS_PRELOAD_TEXT = {
 };
 const ANALYSIS_BLOCKING_ASSETS = [
   ...Object.values(PIECE_IMAGES),
+  ...Object.values(MOBILE_RED_PIECE_IMAGES),
   ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
 ];
 const ANALYSIS_BACKGROUND_ASSETS = [
