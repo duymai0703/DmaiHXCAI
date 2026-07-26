@@ -1,12 +1,12 @@
-const CACHE_NAME = "ymegalodon-shell-v165";
+const CACHE_NAME = "ymegalodon-shell-v166";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260726-mobile-pieces-v1",
-  "/portal.js?v=20260726-mobile-pieces-v1",
-  "/styles.css?v=20260726-mobile-pieces-v1",
-  "/app.js?v=20260726-mobile-pieces-v1",
+  "/portal.css?v=20260726-light-logo-mobile-v1",
+  "/portal.js?v=20260726-light-logo-mobile-v1",
+  "/styles.css?v=20260726-light-logo-mobile-v1",
+  "/app.js?v=20260726-light-logo-mobile-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -94,6 +94,7 @@ const STATIC_ASSETS = [
   "/assets/icons/backgr.png",
   "/assets/icons/ymegalodon-192.png",
   "/assets/icons/ymegalodon-512.png",
+  "/assets/icons/sharklight.png?v=20260726-light-logo-mobile-v1",
   "/assets/icons/mb1-light.png",
   "/assets/icons/mb2-light.png",
   "/assets/icons/mb3-light.png",

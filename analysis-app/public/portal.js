@@ -16,8 +16,9 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260726-mobile-pieces-v1";
+  const ASSET_WARMUP_VERSION = "20260726-light-logo-mobile-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-light-logo-mobile-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -108,8 +109,8 @@
   };
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260726-mobile-pieces-v1",
-    "/app.js?v=20260726-mobile-pieces-v1",
+    "/styles.css?v=20260726-light-logo-mobile-v1",
+    "/app.js?v=20260726-light-logo-mobile-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -131,6 +132,7 @@
     "/assets/icons/guom-dark.png",
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
+    LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
     ...Object.values(PIECE_IMAGES),
@@ -138,7 +140,8 @@
     ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
   ];
   const THEME_LOGO_ASSETS = [
-    BRAND_LOGO
+    BRAND_LOGO,
+    LIGHT_BRAND_LOGO
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
@@ -1093,7 +1096,7 @@
   }
 
   function updateBrandLogo(theme) {
-    const logo = BRAND_LOGO;
+    const logo = theme === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
     document.querySelectorAll(".brand-mark").forEach((image) => {
       if (image.id === "portalBrandMark" && shouldUseAvatarBrandMark()) return;
       if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
@@ -1112,7 +1115,7 @@
     const image = dom.portalBrandMark;
     if (!(image instanceof HTMLImageElement)) return;
     if (!shouldUseAvatarBrandMark()) {
-      const logo = BRAND_LOGO;
+      const logo = currentTheme() === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");
@@ -1124,7 +1127,7 @@
     const user = state.user || {};
     const avatarUrl = user.avatarUrl || state.deviceAvatarUrl || "";
     if (!avatarUrl) {
-      const logo = BRAND_LOGO;
+      const logo = currentTheme() === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");

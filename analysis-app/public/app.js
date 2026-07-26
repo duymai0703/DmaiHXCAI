@@ -83,8 +83,9 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260726-mobile-pieces-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260726-light-logo-mobile-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
+const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-light-logo-mobile-v1";
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
@@ -114,6 +115,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
   BRAND_LOGO,
+  LIGHT_BRAND_LOGO,
   "/assets/icons/ymegalodon-192.png",
   "/assets/icons/mb1-light.png",
   "/assets/icons/mb2-light.png",
@@ -879,13 +881,13 @@ function applyTheme(theme, { persist = false } = {}) {
 }
 
 function updateBrandLogo(theme) {
-  const logo = BRAND_LOGO;
+  const logo = theme === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
   document.querySelectorAll(".brand-mark").forEach((image) => {
     if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
       image.src = logo;
     }
   });
-  const mobileLogo = BRAND_LOGO;
+  const mobileLogo = logo;
   mobileThemeButtons.forEach((button) => {
     const image = button.querySelector("img");
     if (image instanceof HTMLImageElement && !image.src.endsWith(mobileLogo)) {

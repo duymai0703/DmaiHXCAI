@@ -4436,11 +4436,11 @@ textarea:focus {
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/vanca1.png");
+  --poster-image: url("/assets/posters/vanca2.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/vanca2.png");
+  --poster-image: url("/assets/posters/vanca1.png");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(3) {
@@ -5473,5 +5473,12 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   .opening-book-board::before {
     background: var(--board-bg) !important;
     box-shadow: inset 0 0 0 0.75px color-mix(in srgb, var(--board-frame-line), transparent 42%) !important;
+  }
+
+  :root[data-piece-skin="default"] body.mobile-room-entry.portal-mobile-mode[data-route="room"] .room-board,
+  :root[data-piece-skin="default"] body.portal-mobile-mode[data-route="room"] .room-board,
+  :root[data-piece-skin="default"] body.portal-mobile-mode .review-board,
+  :root[data-piece-skin="default"] body.library-book-mobile-mode[data-route="library"] .opening-book-board {
+    --piece-size: 12.15% !important;
   }
 }

@@ -4273,6 +4273,10 @@ select,
     box-shadow: var(--board-shadow) !important;
   }
 
+  :root[data-piece-skin="default"] .board {
+    --piece-size: 12.15% !important;
+  }
+
   .board::before {
     background: var(--board-bg) !important;
     box-shadow: inset 0 0 0 0.75px color-mix(in srgb, var(--board-frame-line), transparent 42%) !important;
@@ -4281,24 +4285,34 @@ select,
   .cloud-row,
   .cloud-placeholder,
   .cloud-empty {
-    background: var(--machine-cell) !important;
-    border-color: color-mix(in srgb, var(--line) 50%, transparent) !important;
+    background: transparent !important;
+    border-color: transparent !important;
     color: var(--ink) !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      0 0 10px color-mix(in srgb, var(--accent) 8%, transparent) !important;
+    box-shadow: none !important;
   }
 
   .cloud-row:hover,
   .cloud-row:active {
-    background: var(--machine-cell) !important;
+    background: transparent !important;
   }
 
-  .cloud-win,
-  .cloud-win.positive,
-  .cloud-win.negative,
+  .cloud-row.equal .cloud-move,
+  .cloud-row.equal .cloud-score,
+  .cloud-row.equal .cloud-win,
+  .cloud-row.equal .cloud-note,
+  .cloud-score.equal,
   .cloud-win.equal,
-  .cloud-row.equal .cloud-win {
+  .cloud-note.equal {
     color: #fff !important;
+  }
+
+  .cloud-win.negative,
+  .cloud-note.negative {
+    color: #ff4d6d !important;
+  }
+
+  :root[data-theme="light"] .cloud-win.negative,
+  :root[data-theme="light"] .cloud-note.negative {
+    color: #d21f38 !important;
   }
 }
