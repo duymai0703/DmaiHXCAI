@@ -106,12 +106,12 @@ const BOT_PLAYERS = [
 ];
 const BOT_USER_PREFIX = "bot-level-";
 const RANK_TIERS = [
-  { key: "dong", label: "\u0110\u1ed3ng", threshold: 30, icon: "/assets/ranks/dong.png" },
-  { key: "bac", label: "B\u1ea1c", threshold: 40, icon: "/assets/ranks/bac.png" },
-  { key: "vang", label: "V\u00e0ng", threshold: 50, icon: "/assets/ranks/vang.png" },
-  { key: "kimcuong", label: "Kim c\u01b0\u01a1ng", threshold: 70, icon: "/assets/ranks/kimcuong.png" },
-  { key: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/tinhanh.png" },
-  { key: "vodich", label: "V\u00f4 \u0111\u1ecbch", threshold: null, icon: "/assets/ranks/vodich.png" }
+  { key: "dong", label: "\u0110\u1ed3ng", threshold: 30, icon: "/assets/ranks/source-dong.png?v=20260727-rank-source-v2" },
+  { key: "bac", label: "B\u1ea1c", threshold: 40, icon: "/assets/ranks/source-bac.png?v=20260727-rank-source-v2" },
+  { key: "vang", label: "V\u00e0ng", threshold: 50, icon: "/assets/ranks/source-vang.png?v=20260727-rank-source-v2" },
+  { key: "kimcuong", label: "Kim c\u01b0\u01a1ng", threshold: 70, icon: "/assets/ranks/source-kimcuong.png?v=20260727-rank-source-v2" },
+  { key: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/source-tinhanh.png?v=20260727-rank-source-v2" },
+  { key: "vodich", label: "V\u00f4 \u0111\u1ecbch", threshold: null, icon: "/assets/ranks/source-vodich.png?v=20260727-rank-source-v2" }
 ];
 const RANK_TIER_INDEX = new Map(RANK_TIERS.map((tier, index) => [tier.key, index]));
 const RANKED_MATCH_MAX_TIER_GAP = 1;

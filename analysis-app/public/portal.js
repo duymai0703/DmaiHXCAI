@@ -18,9 +18,9 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260727-rank-source-v1";
+  const ASSET_WARMUP_VERSION = "20260727-rank-source-v2";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v1";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -120,18 +120,18 @@
   ];
   const BOT_ASSETS = BOT_PLAYERS.map((bot) => bot.avatarUrl);
   const RANK_TIERS = [
-    { tier: "dong", label: "Đồng", threshold: 30, icon: "/assets/ranks/dong.png?v=20260727-rank-source-v1" },
-    { tier: "bac", label: "Bạc", threshold: 40, icon: "/assets/ranks/bac.png?v=20260727-rank-source-v1" },
-    { tier: "vang", label: "Vàng", threshold: 50, icon: "/assets/ranks/vang.png?v=20260727-rank-source-v1" },
-    { tier: "kimcuong", label: "Kim cương", threshold: 70, icon: "/assets/ranks/kimcuong.png?v=20260727-rank-source-v1" },
-    { tier: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/tinhanh.png?v=20260727-rank-source-v1" },
-    { tier: "vodich", label: "Vô địch", threshold: null, icon: "/assets/ranks/vodich.png?v=20260727-rank-source-v1" }
+    { tier: "dong", label: "Đồng", threshold: 30, icon: "/assets/ranks/source-dong.png?v=20260727-rank-source-v2" },
+    { tier: "bac", label: "Bạc", threshold: 40, icon: "/assets/ranks/source-bac.png?v=20260727-rank-source-v2" },
+    { tier: "vang", label: "Vàng", threshold: 50, icon: "/assets/ranks/source-vang.png?v=20260727-rank-source-v2" },
+    { tier: "kimcuong", label: "Kim cương", threshold: 70, icon: "/assets/ranks/source-kimcuong.png?v=20260727-rank-source-v2" },
+    { tier: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/source-tinhanh.png?v=20260727-rank-source-v2" },
+    { tier: "vodich", label: "Vô địch", threshold: null, icon: "/assets/ranks/source-vodich.png?v=20260727-rank-source-v2" }
   ];
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260727-rank-source-v1",
-    "/app.js?v=20260727-rank-source-v1",
+    "/styles.css?v=20260727-rank-source-v2",
+    "/app.js?v=20260727-rank-source-v2",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -2004,7 +2004,7 @@
       tier: info.tier,
       tierIndex: Number.isFinite(Number(raw.tierIndex)) ? Number(raw.tierIndex) : RANK_TIERS.indexOf(info),
       label: raw.label || info.label,
-      icon: raw.icon || info.icon,
+      icon: info.icon,
       threshold,
       points,
       games,
