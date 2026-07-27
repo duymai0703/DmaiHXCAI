@@ -105,7 +105,23 @@ const BOT_PLAYERS = [
   { level: 7, depth: 7, name: "Duy Mai" }
 ];
 const BOT_USER_PREFIX = "bot-level-";
+const RANK_TIERS = [
+  { key: "dong", label: "\u0110\u1ed3ng", threshold: 30, icon: "/assets/ranks/dong.png" },
+  { key: "bac", label: "B\u1ea1c", threshold: 40, icon: "/assets/ranks/bac.png" },
+  { key: "vang", label: "V\u00e0ng", threshold: 50, icon: "/assets/ranks/vang.png" },
+  { key: "kimcuong", label: "Kim c\u01b0\u01a1ng", threshold: 70, icon: "/assets/ranks/kimcuong.png" },
+  { key: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/tinhanh.png" },
+  { key: "vodich", label: "V\u00f4 \u0111\u1ecbch", threshold: null, icon: "/assets/ranks/vodich.png" }
+];
+const RANK_TIER_INDEX = new Map(RANK_TIERS.map((tier, index) => [tier.key, index]));
+const RANKED_MATCH_MAX_TIER_GAP = 1;
+const RANKED_MATCH_MINUTES = Math.max(1, Math.min(20, Number(process.env.DMAIHXCAI_RANKED_MINUTES) || 10));
+const RANKED_MATCH_INCREMENT_SECONDS = ALLOWED_INCREMENT_SECONDS.has(Number(process.env.DMAIHXCAI_RANKED_INCREMENT_SECONDS))
+  ? Number(process.env.DMAIHXCAI_RANKED_INCREMENT_SECONDS)
+  : 3;
+const RANKED_QUEUE_TTL_MS = Math.max(30000, Number(process.env.DMAIHXCAI_RANKED_QUEUE_TTL_MS) || 1000 * 60 * 8);
 const botMoveJobs = new Map();
+const rankedQueue = new Map();
 const licenseRateMap = new Map();
 
 function sleepMs(ms) {
@@ -569,6 +585,9 @@ function loadUsers() {
     Array.isArray(stateData.users) ? stateData.users : [],
     Array.isArray(legacyData.users) ? legacyData.users : []
   );
+  merged.forEach((user) => {
+    if (user && user.role !== "admin") ensureUserRank(user);
+  });
   stateStore.write("users", { users: merged });
   writeJsonFile(USERS_FILE, { users: merged });
   return merged;
@@ -630,6 +649,11 @@ function loadRooms() {
     room.sideToMove = room.sideToMove === "b" ? "b" : "w";
     room.status = room.status || "waiting";
     room.turnStartedAt = Number(room.turnStartedAt || (room.status === "active" ? room.lastTickAt || room.updatedAt || now : 0));
+    if (room.mode === "ranked") {
+      room.ranked = true;
+      room.rankProcessed = Boolean(room.rankProcessed);
+      room.rankResults = room.rankResults && typeof room.rankResults === "object" ? room.rankResults : {};
+    }
     map.set(room.key, room);
   });
   const mergedRooms = [...map.values()];
@@ -2146,6 +2170,114 @@ function latestLicenseExportFile() {
   }
 }
 
+function rankTierIndex(tierKey) {
+  const index = RANK_TIER_INDEX.get(String(tierKey || ""));
+  return Number.isInteger(index) ? index : 0;
+}
+
+function rankTierByKey(tierKey) {
+  return RANK_TIERS[rankTierIndex(tierKey)] || RANK_TIERS[0];
+}
+
+function settleRankProgress(progress) {
+  let tierIndex = rankTierIndex(progress?.tier);
+  let points = Math.round(Number(progress?.points || 0));
+
+  while (points < 0 && tierIndex > 0) {
+    tierIndex -= 1;
+    const previousThreshold = RANK_TIERS[tierIndex].threshold;
+    points = Number(previousThreshold || 0) + points;
+  }
+
+  if (tierIndex <= 0 && points < 0) points = 0;
+
+  while (tierIndex < RANK_TIERS.length - 1) {
+    const threshold = Number(RANK_TIERS[tierIndex].threshold || 0);
+    if (!threshold || points < threshold) break;
+    points -= threshold;
+    tierIndex += 1;
+  }
+
+  if (points < 0) points = 0;
+  return {
+    ...progress,
+    tier: RANK_TIERS[tierIndex].key,
+    points
+  };
+}
+
+function normalizeRankProgress(rawRank = {}) {
+  const rank = rawRank && typeof rawRank === "object" ? rawRank : {};
+  return settleRankProgress({
+    tier: rankTierByKey(rank.tier || rank.key).key,
+    points: Math.round(Number(rank.points || 0)),
+    games: Math.max(0, Math.round(Number(rank.games || 0))),
+    wins: Math.max(0, Math.round(Number(rank.wins || 0))),
+    losses: Math.max(0, Math.round(Number(rank.losses || 0))),
+    draws: Math.max(0, Math.round(Number(rank.draws || 0)))
+  });
+}
+
+function publicRank(rawRank = {}) {
+  const rank = normalizeRankProgress(rawRank);
+  const tierIndex = rankTierIndex(rank.tier);
+  const tier = RANK_TIERS[tierIndex] || RANK_TIERS[0];
+  const threshold = tier.threshold === null ? null : Number(tier.threshold || 0);
+  return {
+    tier: tier.key,
+    tierIndex,
+    label: tier.label,
+    threshold,
+    points: Number(rank.points || 0),
+    icon: tier.icon,
+    progress: threshold ? Math.max(0, Math.min(100, Math.round((Number(rank.points || 0) / threshold) * 100))) : 100,
+    games: Number(rank.games || 0),
+    wins: Number(rank.wins || 0),
+    losses: Number(rank.losses || 0),
+    draws: Number(rank.draws || 0)
+  };
+}
+
+function ensureUserRank(user) {
+  if (!user) return normalizeRankProgress();
+  user.rank = normalizeRankProgress(user.rank);
+  return user.rank;
+}
+
+function rankedDeltaForOutcome(ownBefore, opponentBefore, outcome) {
+  if (outcome === "draw") return 0;
+  const ownIndex = Number(ownBefore?.tierIndex || 0);
+  const opponentIndex = Number(opponentBefore?.tierIndex || 0);
+  if (outcome === "win") {
+    if (opponentIndex < ownIndex) return 5;
+    if (opponentIndex > ownIndex) return 15;
+    return 10;
+  }
+  if (opponentIndex < ownIndex) return -15;
+  if (opponentIndex > ownIndex) return -5;
+  return -10;
+}
+
+function applyRankOutcome(user, ownBefore, opponentBefore, outcome) {
+  const delta = rankedDeltaForOutcome(ownBefore, opponentBefore, outcome);
+  const next = normalizeRankProgress({
+    ...ensureUserRank(user),
+    tier: ownBefore.tier,
+    points: Number(ownBefore.points || 0) + delta
+  });
+  next.games = Number(next.games || 0) + 1;
+  if (outcome === "win") next.wins = Number(next.wins || 0) + 1;
+  else if (outcome === "loss") next.losses = Number(next.losses || 0) + 1;
+  else next.draws = Number(next.draws || 0) + 1;
+  user.rank = settleRankProgress(next);
+  return {
+    outcome,
+    delta,
+    before: cloneJsonValue(ownBefore),
+    after: publicRank(user.rank)
+  };
+}
+
 function publicUser(user) {
   const license = user.role === "admin" ? null : licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
   return {
@@ -2159,6 +2291,7 @@ function publicUser(user) {
     license: license ? publicLicense(license) : null,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
+    rank: publicRank(user.rank),
     visionQuota: visionQuotaStatus(user),
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [],
     openingBooks: normalizeOpeningBooks(user.openingBooks)
@@ -2197,6 +2330,7 @@ function adminUserSummary(user) {
     activated: Boolean(license ? license.status === "activated" : user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
+    rank: publicRank(user.rank),
     createdAt: user.createdAt || nowIso(),
     lastSeenAt: user.lastSeenAt || "",
     online,
@@ -2249,7 +2383,8 @@ function roomPlayerSnapshot(userId) {
     username: user.username,
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
-    avatarUrl: user.avatarUrl || ""
+    avatarUrl: user.avatarUrl || "",
+    rank: publicRank(user.rank)
   };
 }
 
@@ -2267,7 +2402,8 @@ function syncRoomPlayerProfile(room, side, userOrId = room?.players?.[side]) {
     username: userOrId.username,
     displayName: userOrId.displayName,
     avatarSeed: userOrId.avatarSeed,
-    avatarUrl: userOrId.avatarUrl || ""
+    avatarUrl: userOrId.avatarUrl || "",
+    ...(userOrId.role === "bot" ? {} : { rank: publicRank(userOrId.rank) })
   };
   room.playerProfiles[side] = snapshot || null;
   return room.playerProfiles[side];
@@ -2704,6 +2840,110 @@ function createBotRoom(user, { minutes = 10, side = "w", incrementSeconds = 0, b
   return room;
 }
 
+function createRankedRoom(userA, userB) {
+  ensureUserRank(userA);
+  ensureUserRank(userB);
+  const userAIsRed = Math.random() >= 0.5;
+  const redUser = userAIsRed ? userA : userB;
+  const blackUser = userAIsRed ? userB : userA;
+  const room = createRoom(redUser, {
+    yourMinutes: RANKED_MATCH_MINUTES,
+    opponentMinutes: RANKED_MATCH_MINUTES,
+    side: "w",
+    incrementSeconds: RANKED_MATCH_INCREMENT_SECONDS
+  });
+  room.mode = "ranked";
+  room.ranked = true;
+  room.rankProcessed = false;
+  room.rankResults = {};
+  room.rankedMatchedAt = nowIso();
+  joinRoom(blackUser, room.key);
+  room.mode = "ranked";
+  room.ranked = true;
+  room.rankProcessed = false;
+  room.rankResults = {};
+  room.rankedMatchedAt = room.rankedMatchedAt || nowIso();
+  syncRoomPlayerProfile(room, "w", redUser);
+  syncRoomPlayerProfile(room, "b", blackUser);
+  resetRoomForGame(room);
+  touchPresence(room, redUser.id, "player");
+  touchPresence(room, blackUser.id, "player");
+  room.updatedAt = Date.now();
+  saveRooms();
+  return room;
+}
+
+function removeRankedQueueUser(userId) {
+  return rankedQueue.delete(String(userId || ""));
+}
+
+function pruneRankedQueue() {
+  const now = Date.now();
+  for (const [userId, entry] of rankedQueue.entries()) {
+    const queuedUser = users.find((item) => item.id === userId);
+    if (!queuedUser || now - Number(entry.queuedAt || 0) > RANKED_QUEUE_TTL_MS || currentRoomForUser(userId)) {
+      rankedQueue.delete(userId);
+    }
+  }
+}
+
+function rankedQueueStatusForUser(user) {
+  pruneRankedQueue();
+  const current = currentRoomForUser(user.id);
+  if (current && current.mode === "ranked" && current.status !== "finished") {
+    return { status: "matched", rank: publicRank(user.rank), room: current };
+  }
+  const entry = rankedQueue.get(user.id);
+  if (entry) {
+    return {
+      status: "queued",
+      rank: publicRank(user.rank),
+      queuedAt: Number(entry.queuedAt || Date.now()),
+      maxTierGap: RANKED_MATCH_MAX_TIER_GAP
+    };
+  }
+  return { status: "idle", rank: publicRank(user.rank), maxTierGap: RANKED_MATCH_MAX_TIER_GAP };
+}
+
+function joinRankedQueue(user) {
+  pruneRankedQueue();
+  ensureUserRank(user);
+  const current = currentRoomForUser(user.id);
+  if (current && current.status !== "finished") {
+    if (current.mode === "ranked") return { status: "matched", rank: publicRank(user.rank), room: current };
+    throw new Error("ROOM_ALREADY_ACTIVE");
+  }
+
+  const userRank = publicRank(user.rank);
+  removeRankedQueueUser(user.id);
+
+  for (const [queuedUserId] of rankedQueue.entries()) {
+    const opponent = users.find((item) => item.id === queuedUserId);
+    if (!opponent || currentRoomForUser(queuedUserId)) {
+      rankedQueue.delete(queuedUserId);
+      continue;
+    }
+    const opponentRank = publicRank(opponent.rank);
+    if (Math.abs(opponentRank.tierIndex - userRank.tierIndex) > RANKED_MATCH_MAX_TIER_GAP) continue;
+    rankedQueue.delete(queuedUserId);
+    const room = createRankedRoom(user, opponent);
+    return { status: "matched", rank: publicRank(user.rank), room };
+  }
+
+  rankedQueue.set(user.id, {
+    userId: user.id,
+    queuedAt: Date.now(),
+    tier: userRank.tier,
+    tierIndex: userRank.tierIndex
+  });
+  return {
+    status: "queued",
+    rank: userRank,
+    queuedAt: Date.now(),
+    maxTierGap: RANKED_MATCH_MAX_TIER_GAP
+  };
+}
+
 function userSideInRoom(room, userId) {
   if (room.players?.w === userId) return "w";
   if (room.players?.b === userId) return "b";
@@ -2829,6 +3069,32 @@ function ensureRoomAccess(room, userId) {
   return access;
 }
 
+function rankedOutcomeForSide(room, side) {
+  if (!room?.result?.winnerSide) return "draw";
+  return room.result.winnerSide === side ? "win" : "loss";
+}
+
+function processRankedRoomResult(room) {
+  if (!room || room.mode !== "ranked" || room.rankProcessed || !room.result) return;
+  const redId = room.players?.w;
+  const blackId = room.players?.b;
+  const red = redId && !isBotUserId(redId) ? users.find((item) => item.id === redId) : null;
+  const black = blackId && !isBotUserId(blackId) ? users.find((item) => item.id === blackId) : null;
+  room.rankProcessed = true;
+  room.rankResults = room.rankResults && typeof room.rankResults === "object" ? room.rankResults : {};
+  if (!red || !black) return;
+
+  const redBefore = publicRank(red.rank);
+  const blackBefore = publicRank(black.rank);
+  const redResult = applyRankOutcome(red, redBefore, blackBefore, rankedOutcomeForSide(room, "w"));
+  const blackResult = applyRankOutcome(black, blackBefore, redBefore, rankedOutcomeForSide(room, "b"));
+  room.rankResults[red.id] = redResult;
+  room.rankResults[black.id] = blackResult;
+  syncRoomPlayerProfile(room, "w", red);
+  syncRoomPlayerProfile(room, "b", black);
+  saveUsers();
+}
+
 function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw" } = {}) {
   if (room.result) return;
   room.status = "finished";
@@ -2842,6 +3108,7 @@ function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw"
     reason,
     endedAt: nowIso()
   };
+  processRankedRoomResult(room);
   if (!room.historySaved) {
     recordRoomHistory(room);
     room.historySaved = true;
@@ -2957,7 +3224,8 @@ function roomStateForUser(room, user) {
   const spectators = activeSpectatorIds(room).map(roomPlayerSnapshot).filter(Boolean);
   return {
     key: room.key,
-    mode: room.mode === "bot" ? "bot" : "human",
+    mode: room.mode === "bot" ? "bot" : room.mode === "ranked" ? "ranked" : "human",
+    ranked: room.mode === "ranked",
     bot: room.mode === "bot" ? {
       side: botSideInRoom(room),
       level: Number(room.bot?.level || 1),
@@ -3004,6 +3272,10 @@ function roomStateForUser(room, user) {
       opponent: access.role === "player" ? Boolean(room.rematchReady?.[oppositeSide(yourSide)]) : false
     },
     result: room.result,
+    rank: publicRank(user.rank),
+    rankResult: room.mode === "ranked" && access.role === "player"
+      ? cloneJsonValue(room.rankResults?.[user.id] || null)
+      : null,
     chat: (room.chat || []).slice(-MAX_CHAT_MESSAGES).map((entry) => ({
       id: entry.id,
       userId: entry.userId,
@@ -3218,6 +3490,7 @@ function resignRoom(room, side) {
 
 function setRematchReady(room, side, ready) {
   if (room.status !== "finished") throw new Error("ROOM_NOT_FINISHED");
+  if (room.mode === "ranked") throw new Error("RANKED_REMATCH_DISABLED");
   room.rematchReady[side] = Boolean(ready);
   room.updatedAt = Date.now();
   if (room.mode === "bot") {
@@ -3280,6 +3553,11 @@ function leaveRoom(room, userId) {
 
   const side = access.side;
   if (!side) return;
+
+  if (room.mode === "ranked" && ["ready", "starting", "active"].includes(room.status) && room.players?.w && room.players?.b) {
+    finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "resign" });
+    return;
+  }
 
   if (room.status === "active") {
     finishRoom(room, { winnerSide: oppositeSide(side), loserSide: side, reason: "resign" });
@@ -5159,6 +5437,41 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/rank/status") {
+      const user = requireUser(req);
+      ensureUserRank(user);
+      const status = rankedQueueStatusForUser(user);
+      if (status.room) {
+        touchUserActivity(user, { route: "room", roomKey: status.room.key, action: `Leo rank phòng ${status.room.key}` });
+        json(res, 200, { ok: true, status: status.status, rank: publicRank(user.rank), room: roomStateForUser(status.room, user) });
+        return;
+      }
+      json(res, 200, { ok: true, status: status.status, rank: publicRank(user.rank), queuedAt: status.queuedAt || 0, maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      return;
+    }
+
+    if (url.pathname === "/api/rank/join" && req.method === "POST") {
+      const user = requireUser(req);
+      ensureUserRank(user);
+      const status = joinRankedQueue(user);
+      if (status.room) {
+        touchUserActivity(user, { route: "room", roomKey: status.room.key, action: `Vào trận leo rank ${status.room.key}` });
+        json(res, 200, { ok: true, status: "matched", rank: publicRank(user.rank), room: roomStateForUser(status.room, user) });
+        return;
+      }
+      touchUserActivity(user, { route: "match", roomKey: "", action: "Đang tìm trận leo rank" });
+      json(res, 200, { ok: true, status: "queued", rank: publicRank(user.rank), queuedAt: status.queuedAt || Date.now(), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      return;
+    }
+
+    if (url.pathname === "/api/rank/cancel" && req.method === "POST") {
+      const user = requireUser(req);
+      removeRankedQueueUser(user.id);
+      touchUserActivity(user, { route: "match", roomKey: "", action: "Hủy tìm trận leo rank" });
+      json(res, 200, { ok: true, status: "idle", rank: publicRank(user.rank), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      return;
+    }
+
     if (url.pathname === "/api/rooms/current") {
       const user = requireUser(req);
       const room = currentRoomForUser(user.id);
@@ -5169,6 +5482,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/create" && req.method === "POST") {
       const user = requireUser(req);
+      removeRankedQueueUser(user.id);
       const body = await readBody(req);
       const yourMinutes = clampRoomMinutes(body.yourMinutes, 10);
       const opponentMinutes = clampRoomMinutes(body.opponentMinutes, 10);
@@ -5187,6 +5501,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/create-bot" && req.method === "POST") {
       const user = requireUser(req);
+      removeRankedQueueUser(user.id);
       const body = await readBody(req);
       const minutes = clampRoomMinutes(body.minutes, 10);
       const side = body.side === "b" ? "b" : "w";
@@ -5205,6 +5520,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rooms/join" && req.method === "POST") {
       const user = requireUser(req);
+      removeRankedQueueUser(user.id);
       const body = await readBody(req);
       const key = String(body.key || "").trim().toUpperCase();
       if (!key) {
@@ -5359,6 +5675,8 @@ const server = http.createServer(async (req, res) => {
       ROOM_NOT_FINISHED: 400,
       ROOM_NOT_READY: 400,
       ROOM_NOT_FULL: 400,
+      ROOM_ALREADY_ACTIVE: 400,
+      RANKED_REMATCH_DISABLED: 400,
       NO_PENDING_REQUEST: 400,
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
@@ -5427,6 +5745,8 @@ function friendlyErrorVi(code) {
     ROOM_NOT_FINISHED: "Ván cờ chưa kết thúc.",
     ROOM_NOT_READY: "Hai bên chưa ở trạng thái sẵn sàng bắt đầu.",
     ROOM_NOT_FULL: "Phòng chưa đủ hai người chơi.",
+    ROOM_ALREADY_ACTIVE: "Bạn đang ở trong một phòng khác.",
+    RANKED_REMATCH_DISABLED: "Leo rank cần ghép trận mới.",
     NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
     NO_MOVE_TO_UNDO: "Chưa có nước nào để đi lại.",
     SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",

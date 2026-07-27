@@ -18,9 +18,9 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260726-dark-default-v1";
+  const ASSET_WARMUP_VERSION = "20260727-ranked-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260726-dark-default-v1";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-ranked-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -109,10 +109,19 @@
     okay: { key: "okay", label: "Không hay", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Rất yếu", image: "/assets/review-badges/x.png" }
   };
+  const RANK_TIERS = [
+    { tier: "dong", label: "Đồng", threshold: 30, icon: "/assets/ranks/dong.png" },
+    { tier: "bac", label: "Bạc", threshold: 40, icon: "/assets/ranks/bac.png" },
+    { tier: "vang", label: "Vàng", threshold: 50, icon: "/assets/ranks/vang.png" },
+    { tier: "kimcuong", label: "Kim cương", threshold: 70, icon: "/assets/ranks/kimcuong.png" },
+    { tier: "tinhanh", label: "Tinh anh", threshold: 100, icon: "/assets/ranks/tinhanh.png" },
+    { tier: "vodich", label: "Vô địch", threshold: null, icon: "/assets/ranks/vodich.png" }
+  ];
+  const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260726-dark-default-v1",
-    "/app.js?v=20260726-dark-default-v1",
+    "/styles.css?v=20260727-ranked-v1",
+    "/app.js?v=20260727-ranked-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -137,6 +146,7 @@
     LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
+    ...RANK_ASSETS,
     ...Object.values(PIECE_IMAGES),
     ...Object.values(MOBILE_RED_PIECE_IMAGES),
     ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -155,7 +165,7 @@
     "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...DEVICE_AVATARS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -205,6 +215,9 @@
     booting: true,
     pendingAccessKey: "",
     lobbyMode: "join",
+    rankQueueActive: false,
+    rankQueueTimer: 0,
+    rankStatus: null,
     createSide: "w",
     botSide: "w",
     room: null,
@@ -324,15 +337,19 @@
     registerUsername: byId("registerUsername"),
     registerPassword: byId("registerPassword"),
     openMatchHub: byId("openMatchHub"),
+    openBotMatchBtn: byId("openBotMatchBtn"),
+    openRankedMatchBtn: byId("openRankedMatchBtn"),
     openAnalysisBtn: byId("openAnalysisBtn"),
     openLibraryBtn: byId("openLibraryBtn"),
     showJoinRoom: byId("showJoinRoom"),
     showCreateRoom: byId("showCreateRoom"),
     showBotRoom: byId("showBotRoom"),
+    showRankRoom: byId("showRankRoom"),
     showMobileLibrary: byId("showMobileLibrary"),
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
     botRoomForm: byId("botRoomForm"),
+    rankRoomForm: byId("rankRoomForm"),
     joinDisplayName: byId("joinDisplayName"),
     joinRoomKey: byId("joinRoomKey"),
     createDisplayName: byId("createDisplayName"),
@@ -350,6 +367,14 @@
     pickBlack: byId("pickBlack"),
     botPickRed: byId("botPickRed"),
     botPickBlack: byId("botPickBlack"),
+    rankCurrentLogo: byId("rankCurrentLogo"),
+    rankCurrentName: byId("rankCurrentName"),
+    rankCurrentRecord: byId("rankCurrentRecord"),
+    rankCurrentProgressBar: byId("rankCurrentProgressBar"),
+    rankCurrentProgressText: byId("rankCurrentProgressText"),
+    rankQueueBtn: byId("rankQueueBtn"),
+    rankCancelBtn: byId("rankCancelBtn"),
+    rankQueueStatus: byId("rankQueueStatus"),
     matchHubMessage: byId("matchHubMessage"),
     roomKeyLabel: byId("roomKeyLabel"),
     copyRoomKeyBtn: byId("copyRoomKeyBtn"),
@@ -379,6 +404,12 @@
     roomOverlayTitle: byId("roomOverlayTitle"),
     roomOverlayText: byId("roomOverlayText"),
     roomOverlayActions: byId("roomOverlayActions"),
+    rankResultCard: byId("rankResultCard"),
+    rankResultLogo: byId("rankResultLogo"),
+    rankResultName: byId("rankResultName"),
+    rankResultDelta: byId("rankResultDelta"),
+    rankResultProgressBar: byId("rankResultProgressBar"),
+    rankResultProgressText: byId("rankResultProgressText"),
     undoRequestBtn: byId("undoRequestBtn"),
     drawRequestBtn: byId("drawRequestBtn"),
     resignBtn: byId("resignBtn"),
@@ -1181,7 +1212,18 @@
         }
       });
     }
-    dom.openMatchHub.addEventListener("click", () => goRoute("match"));
+    dom.openMatchHub.addEventListener("click", () => {
+      setLobbyMode("join");
+      goRoute("match");
+    });
+    dom.openBotMatchBtn?.addEventListener("click", () => {
+      setLobbyMode("bot");
+      goRoute("match");
+    });
+    dom.openRankedMatchBtn?.addEventListener("click", () => {
+      setLobbyMode("rank");
+      goRoute("match");
+    });
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
     });
@@ -1219,9 +1261,12 @@
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
+    dom.showRankRoom?.addEventListener("click", () => setLobbyMode("rank"));
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
     dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
+    dom.rankRoomForm?.addEventListener("submit", onJoinRankQueue);
+    dom.rankCancelBtn?.addEventListener("click", cancelRankQueue);
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
     dom.botTimeRange.addEventListener("input", updateTimeLabels);
@@ -1817,14 +1862,20 @@
   }
 
   function setLobbyMode(mode) {
-    state.lobbyMode = ["create", "bot"].includes(mode) ? mode : "join";
+    state.lobbyMode = ["create", "bot", "rank"].includes(mode) ? mode : "join";
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
     dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
+    dom.showRankRoom?.classList.toggle("active", state.lobbyMode === "rank");
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
+    dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     setMessage(dom.matchHubMessage, "");
+    if (state.lobbyMode === "rank") {
+      renderRankPanel();
+      void refreshRankStatus();
+    }
   }
 
   function setCreateSide(side) {
@@ -1846,6 +1897,150 @@
     dom.yourTimeRangeValue.textContent = `${yourMinutes} phút`;
     dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phút`;
     dom.botTimeRangeValue.textContent = `${botMinutes} phút`;
+  }
+
+  function rankInfoForTier(tier) {
+    return RANK_TIERS.find((rank) => rank.tier === tier) || RANK_TIERS[0];
+  }
+
+  function normalizeRankPayload(payload) {
+    const raw = payload && typeof payload === "object" ? payload : {};
+    const info = rankInfoForTier(raw.tier || raw.key || "");
+    const threshold = raw.threshold === null || info.threshold === null
+      ? null
+      : Math.max(1, Number(raw.threshold || info.threshold || 30));
+    const points = Math.max(0, Math.round(Number(raw.points || 0)));
+    const games = Math.max(0, Math.round(Number(raw.games || 0)));
+    const wins = Math.max(0, Math.round(Number(raw.wins || 0)));
+    const losses = Math.max(0, Math.round(Number(raw.losses || 0)));
+    const draws = Math.max(0, Math.round(Number(raw.draws || 0)));
+    return {
+      tier: info.tier,
+      tierIndex: Number.isFinite(Number(raw.tierIndex)) ? Number(raw.tierIndex) : RANK_TIERS.indexOf(info),
+      label: raw.label || info.label,
+      icon: raw.icon || info.icon,
+      threshold,
+      points,
+      games,
+      wins,
+      losses,
+      draws,
+      progress: threshold ? Math.max(0, Math.min(100, (points / threshold) * 100)) : 100
+    };
+  }
+
+  function rankProgressText(rank) {
+    const current = normalizeRankPayload(rank);
+    return current.threshold ? `${current.points}/${current.threshold}` : `${current.points} điểm`;
+  }
+
+  function renderRankPanel(rankPayload = null) {
+    if (!dom.rankRoomForm) return;
+    const rank = normalizeRankPayload(rankPayload || state.rankStatus?.rank || state.user?.rank);
+    const queued = state.rankQueueActive || state.rankStatus?.status === "queued";
+    dom.rankCurrentLogo.src = rank.icon;
+    dom.rankCurrentName.textContent = rank.label;
+    dom.rankCurrentRecord.textContent = `${rank.games} ván`;
+    dom.rankCurrentProgressBar.style.width = `${rank.progress}%`;
+    dom.rankCurrentProgressText.textContent = rankProgressText(rank);
+    dom.rankQueueBtn.disabled = queued;
+    dom.rankQueueBtn.textContent = queued ? "Đang tìm trận" : "Tìm trận leo rank";
+    dom.rankCancelBtn.classList.toggle("hidden", !queued);
+    dom.rankQueueStatus.textContent = queued
+      ? "Đang tìm đối thủ cùng bậc hoặc lệch tối đa 1 bậc."
+      : "Sẵn sàng ghép trận leo rank.";
+  }
+
+  function startRankQueuePolling() {
+    if (state.rankQueueTimer) return;
+    state.rankQueueTimer = window.setInterval(() => {
+      void refreshRankStatus();
+    }, 2500);
+  }
+
+  function stopRankQueuePolling() {
+    if (!state.rankQueueTimer) return;
+    window.clearInterval(state.rankQueueTimer);
+    state.rankQueueTimer = 0;
+  }
+
+  function patchLocalRank(rankPayload) {
+    if (!rankPayload || !state.user) return;
+    state.user = {
+      ...state.user,
+      rank: normalizeRankPayload(rankPayload)
+    };
+    persistStoredUser(state.user);
+    patchLocalUserIntoRoom();
+  }
+
+  function handleRankQueuePayload(payload, { toast = false } = {}) {
+    const status = String(payload?.status || "idle");
+    if (payload?.rank) patchLocalRank(payload.rank);
+    state.rankStatus = {
+      ...payload,
+      status,
+      rank: payload?.rank || state.user?.rank || null
+    };
+    state.rankQueueActive = status === "queued";
+
+    if (status === "matched" && payload?.room) {
+      stopRankQueuePolling();
+      state.rankQueueActive = false;
+      applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
+      goRoute("room");
+      if (toast) showToast("Đã ghép trận leo rank.");
+      return;
+    }
+
+    if (state.rankQueueActive) startRankQueuePolling();
+    else stopRankQueuePolling();
+    renderRankPanel(state.rankStatus.rank);
+  }
+
+  async function refreshRankStatus() {
+    if (!state.token || !state.user) {
+      renderRankPanel();
+      return;
+    }
+    try {
+      const payload = await api("/api/rank/status", {}, { attempts: 2 });
+      handleRankQueuePayload(payload);
+    } catch (error) {
+      if (state.lobbyMode === "rank") {
+        dom.rankQueueStatus.textContent = error.message || "Chưa lấy được trạng thái leo rank.";
+      }
+    }
+  }
+
+  async function onJoinRankQueue(event) {
+    event.preventDefault();
+    setMessage(dom.matchHubMessage, "Đang tìm trận leo rank...", "info");
+    dom.rankQueueBtn.disabled = true;
+    try {
+      const payload = await api("/api/rank/join", { method: "POST" });
+      handleRankQueuePayload(payload, { toast: true });
+      setMessage(dom.matchHubMessage, "");
+    } catch (error) {
+      state.rankQueueActive = false;
+      renderRankPanel();
+      setMessage(dom.matchHubMessage, error.message || "Không thể tìm trận leo rank.");
+    }
+  }
+
+  async function cancelRankQueue() {
+    if (!state.token || !state.user) return;
+    dom.rankCancelBtn.disabled = true;
+    try {
+      const payload = await api("/api/rank/cancel", { method: "POST" }, { attempts: 2 });
+      state.rankQueueActive = false;
+      handleRankQueuePayload(payload);
+      setMessage(dom.matchHubMessage, "Đã hủy tìm trận.", "info");
+    } catch (error) {
+      dom.rankQueueStatus.textContent = error.message || "Không thể hủy tìm trận.";
+    } finally {
+      dom.rankCancelBtn.disabled = false;
+    }
   }
 
   function normalizeRoute(hash) {
@@ -1904,6 +2099,12 @@
     }
     if (route === "library") {
       renderLibrary();
+    }
+    if (route === "match" && state.lobbyMode === "rank") {
+      renderRankPanel();
+      void refreshRankStatus();
+    } else if (!state.rankQueueActive) {
+      stopRankQueuePolling();
     }
     if (route === "admin") {
       startAdminPolling();
@@ -1990,6 +2191,7 @@
     if (state.user) hideAccessGate();
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
+    renderRankPanel();
   }
 
   function patchLocalUserIntoRoom() {
@@ -2001,7 +2203,8 @@
           displayName: state.user.displayName,
           username: state.user.username,
           avatarSeed: state.user.avatarSeed,
-          avatarUrl: state.user.avatarUrl || ""
+          avatarUrl: state.user.avatarUrl || "",
+          rank: normalizeRankPayload(state.user.rank)
         };
       }
     });
@@ -2012,7 +2215,8 @@
             displayName: state.user.displayName,
             username: state.user.username,
             avatarSeed: state.user.avatarSeed,
-            avatarUrl: state.user.avatarUrl || ""
+            avatarUrl: state.user.avatarUrl || "",
+            rank: normalizeRankPayload(state.user.rank)
           }
         : item
     ));
@@ -2022,8 +2226,11 @@
     stopRoomPolling();
     clearRoomMoveAnimation();
     clearReviewMoveAnimation();
+    stopRankQueuePolling();
     state.user = null;
     state.token = "";
+    state.rankQueueActive = false;
+    state.rankStatus = null;
     state.history = readStoredHistory();
     state.room = null;
     state.roomKey = "";
@@ -4609,6 +4816,7 @@
     state.roomKey = room.key;
     state.roomSyncedAt = Date.now();
     localStorage.setItem(STORAGE_ROOM, room.key);
+    if (room.rank) patchLocalRank(room.rank);
     state.roomBoard = XiangqiCore.parseFenState(room.boardFen || START_FEN).board;
 
     if (!keepSelection || previous?.boardFen !== room.boardFen || previous?.role !== room.role) {
@@ -5182,12 +5390,13 @@
     dom.bottomPlayerName.textContent = bottomPlayer ? bottomPlayer.displayName || bottomPlayer.username : "Đang chờ người chơi";
 
     const isBotRoom = room.mode === "bot";
+    const isRankedRoom = room.mode === "ranked";
     const canAct = room.role === "player" && room.status === "active" && !state.roomActionBusy;
     dom.undoRequestBtn.disabled = isBotRoom || !canAct || Number(room.allowances?.undoRemaining || 0) <= 0 || Boolean(room.pendingRequest);
     dom.drawRequestBtn.disabled = isBotRoom || !canAct || Number(room.allowances?.drawRemaining || 0) <= 0 || Boolean(room.pendingRequest);
     dom.resignBtn.disabled = !canAct;
 
-    const showReadyButton = !isBotRoom && room.role === "player" && (room.status === "ready" || room.status === "finished");
+    const showReadyButton = !isBotRoom && !isRankedRoom && room.role === "player" && (room.status === "ready" || room.status === "finished");
     dom.roomReadyBtn.classList.toggle("hidden", !showReadyButton);
     if (room.status === "finished") {
       dom.roomReadyBtn.textContent = room.rematchReady?.you ? "Đã sẵn sàng ván mới" : "Sẵn sàng ván mới";
@@ -5223,6 +5432,7 @@
     dom.roomOverlayTitle.textContent = "";
     dom.roomOverlayText.textContent = "";
     dom.roomBoardOverlay.classList.add("hidden");
+    renderRankResultCard(null);
     if (!room) return;
 
     if (room.status === "starting") {
@@ -5279,8 +5489,9 @@
 
     dom.roomOverlayTitle.textContent = resultTitle(room);
     dom.roomOverlayText.textContent = resultDetail(room);
+    renderRankResultCard(room);
 
-    if (room.role === "player") {
+    if (room.role === "player" && room.mode !== "ranked") {
       const ready = document.createElement("button");
       ready.className = room.rematchReady?.you ? "primary-button" : "secondary-button";
       ready.type = "button";
@@ -5299,6 +5510,24 @@
     dom.roomOverlayActions.appendChild(leave);
 
     dom.roomBoardOverlay.classList.remove("hidden");
+  }
+
+  function renderRankResultCard(room) {
+    if (!dom.rankResultCard) return;
+    const result = room?.mode === "ranked" && room?.role === "player" && room?.result
+      ? room.rankResult
+      : null;
+    dom.rankResultCard.classList.toggle("hidden", !result);
+    if (!result) return;
+    const after = normalizeRankPayload(result.after);
+    const delta = Math.round(Number(result.delta || 0));
+    dom.rankResultLogo.src = after.icon;
+    dom.rankResultName.textContent = after.label;
+    dom.rankResultDelta.textContent = delta > 0 ? `+${delta}` : String(delta);
+    dom.rankResultDelta.classList.toggle("loss", delta < 0);
+    dom.rankResultDelta.classList.toggle("gain", delta > 0);
+    dom.rankResultProgressBar.style.width = `${after.progress}%`;
+    dom.rankResultProgressText.textContent = rankProgressText(after);
   }
 
   function renderViewerList() {
@@ -6466,6 +6695,10 @@
 
   async function toggleRematch() {
     if (!state.room || state.roomActionBusy) return;
+    if (state.room.mode === "ranked") {
+      showToast("Leo rank cần ghép trận mới.");
+      return;
+    }
     state.roomActionBusy = true;
     renderRoomMeta();
     try {
@@ -6485,6 +6718,15 @@
 
   function onLeaveRoomClick() {
     if (!state.room || state.roomActionBusy) return;
+    if (state.room.mode === "ranked" && state.room.role === "player" && ["ready", "starting", "active"].includes(state.room.status)) {
+      openModal({
+        title: "Rời trận leo rank?",
+        text: "Nếu rời trận leo rank lúc này, hệ thống sẽ xử thua và tính điểm rank cho ván đấu.",
+        confirmText: "Rời trận",
+        onConfirm: leaveRoomNow
+      });
+      return;
+    }
     if (state.room.status === "active" && state.room.role === "player") {
       openModal({
         title: "Rời phòng?",
@@ -6784,7 +7026,8 @@
       displayName: user.displayName,
       avatarSeed: user.avatarSeed,
       avatarUrl: user.avatarUrl || "",
-      role: user.role || "user"
+      role: user.role || "user",
+      rank: user.rank || null
     }));
   }
 
@@ -6793,6 +7036,9 @@
   }
 
   function roomStatusText(room) {
+    if (room.mode === "ranked" && room.status === "starting") return "Leo rank";
+    if (room.mode === "ranked" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Trận rank";
+    if (room.mode === "ranked" && room.status === "finished") return "Rank đã tính điểm";
     if (room.mode === "bot" && room.status === "starting") return "Đánh với máy";
     if (room.mode === "bot" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Bot đang nghĩ";
     if (room.status === "waiting") return "Đang chờ đối thủ";
@@ -6822,6 +7068,14 @@
       return room.yourTurn
         ? `Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}, đấu ${botName} cấp ${botLevel}. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.`
         : `${botName} cấp ${botLevel} đang suy nghĩ. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.`;
+    }
+
+    if (room.mode === "ranked") {
+      if (room.status === "starting") return "Trận leo rank đã ghép xong. Ván sẽ bắt đầu sau bảng đếm.";
+      if (room.status === "finished") return "Ván leo rank đã kết thúc. Điểm rank đã được cập nhật.";
+      return room.yourTurn
+        ? `Trận leo rank. Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}.`
+        : "Trận leo rank đang diễn ra.";
     }
 
     if (room.status === "waiting") {

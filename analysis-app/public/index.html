@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260726-dark-default-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260727-ranked-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -153,18 +153,30 @@
         <div class="launcher-grid">
           <button id="openMatchHub" class="launcher-card has-poster" type="button">
             <span class="card-eyebrow">Khu 1</span>
-            <strong>Phòng đấu</strong>
-            <small>Tạo phòng mới, vào phòng bằng Key hoặc xem ván đang diễn ra với tên bạn nhập khi tham gia.</small>
+            <strong>Chơi với bạn bè</strong>
+            <small>Tạo phòng mới hoặc vào phòng bằng Key để đấu online cùng bạn bè.</small>
+          </button>
+
+          <button id="openBotMatchBtn" class="launcher-card has-poster" type="button">
+            <span class="card-eyebrow">Khu 2</span>
+            <strong>Đánh với máy</strong>
+            <small>Chọn cấp độ bot, thời gian và bên cầm quân rồi vào bàn ngay.</small>
+          </button>
+
+          <button id="openRankedMatchBtn" class="launcher-card has-poster" type="button">
+            <span class="card-eyebrow">Khu 3</span>
+            <strong>Leo rank</strong>
+            <small>Ghép trận online theo cấp bậc, tính điểm sau mỗi ván đấu.</small>
           </button>
 
           <button id="openAnalysisBtn" class="launcher-card has-poster" type="button">
-            <span class="card-eyebrow">Khu 2</span>
+            <span class="card-eyebrow">Khu 4</span>
             <strong>Phần mềm phân tích</strong>
             <small>Mở bàn phân tích hiện tại với Y-Megalodon và cơ sở dữ liệu đám mây.</small>
           </button>
 
           <button id="openLibraryBtn" class="launcher-card has-poster" type="button">
-            <span class="card-eyebrow">Khu 3</span>
+            <span class="card-eyebrow">Khu 5</span>
             <strong>Thư viện cá nhân</strong>
             <small>Xem lại các ván gần nhất trên thiết bị này và mở phân tích sau ván.</small>
           </button>
@@ -185,6 +197,7 @@
               <button id="showJoinRoom" class="secondary-button active" type="button">Vào phòng đấu</button>
               <button id="showCreateRoom" class="secondary-button" type="button">Tạo phòng đấu</button>
               <button id="showBotRoom" class="secondary-button" type="button">Đánh với máy</button>
+              <button id="showRankRoom" class="secondary-button" type="button">Leo rank</button>
               <button id="showMobileLibrary" class="secondary-button mobile-library-shortcut" type="button">Thư viện cá nhân</button>
             </div>
 
@@ -285,6 +298,28 @@
               </div>
 
               <button class="primary-button" type="submit">Bắt đầu đánh máy</button>
+            </form>
+
+            <form id="rankRoomForm" class="subpanel rank-subpanel hidden">
+              <div class="rank-status-card">
+                <img id="rankCurrentLogo" class="rank-current-logo" src="/assets/ranks/dong.png" alt="Rank hiện tại" draggable="false">
+                <div class="rank-current-copy">
+                  <span>Rank hiện tại</span>
+                  <strong id="rankCurrentName">Đồng</strong>
+                  <small id="rankCurrentRecord">0 ván</small>
+                </div>
+              </div>
+              <div class="rank-progress-shell">
+                <div class="rank-progress-track" aria-hidden="true">
+                  <span id="rankCurrentProgressBar" class="rank-progress-fill"></span>
+                </div>
+                <strong id="rankCurrentProgressText">0/30</strong>
+              </div>
+              <div class="rank-actions">
+                <button id="rankQueueBtn" class="primary-button" type="submit">Tìm trận leo rank</button>
+                <button id="rankCancelBtn" class="ghost-button hidden" type="button">Hủy tìm</button>
+              </div>
+              <p id="rankQueueStatus" class="rank-queue-status" aria-live="polite"></p>
             </form>
 
             <p id="matchHubMessage" class="form-message" aria-live="polite"></p>
@@ -465,6 +500,19 @@
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
                     <p id="roomOverlayText"></p>
+                    <div id="rankResultCard" class="rank-result-card hidden">
+                      <img id="rankResultLogo" class="rank-result-logo" src="/assets/ranks/dong.png" alt="Rank" draggable="false">
+                      <div class="rank-result-copy">
+                        <strong id="rankResultName">Đồng</strong>
+                        <span id="rankResultDelta">+0</span>
+                      </div>
+                      <div class="rank-result-progress">
+                        <div class="rank-result-track" aria-hidden="true">
+                          <span id="rankResultProgressBar"></span>
+                        </div>
+                        <small id="rankResultProgressText">0/30</small>
+                      </div>
+                    </div>
                     <div id="roomOverlayActions" class="room-overlay-actions"></div>
                   </div>
                 </div>
@@ -685,7 +733,7 @@
 
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260726-dark-default-v1"></script>
+    <script src="/portal.js?v=20260727-ranked-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -1,12 +1,12 @@
-const CACHE_NAME = "ymegalodon-shell-v167";
+const CACHE_NAME = "ymegalodon-shell-v169";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260726-dark-default-v1",
-  "/portal.js?v=20260726-dark-default-v1",
-  "/styles.css?v=20260726-dark-default-v1",
-  "/app.js?v=20260726-dark-default-v1",
+  "/portal.css?v=20260727-ranked-v1",
+  "/portal.js?v=20260727-ranked-v1",
+  "/styles.css?v=20260727-ranked-v1",
+  "/app.js?v=20260727-ranked-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -94,7 +94,7 @@ const STATIC_ASSETS = [
   "/assets/icons/backgr.png",
   "/assets/icons/ymegalodon-192.png",
   "/assets/icons/ymegalodon-512.png",
-  "/assets/icons/sharklight.png?v=20260726-dark-default-v1",
+  "/assets/icons/sharklight.png?v=20260727-ranked-v1",
   "/assets/icons/mb1-light.png",
   "/assets/icons/mb2-light.png",
   "/assets/icons/mb3-light.png",
@@ -124,7 +124,13 @@ const STATIC_ASSETS = [
   "/assets/review-badges/sao.png",
   "/assets/review-badges/like.png",
   "/assets/review-badges/bang.png",
-  "/assets/review-badges/x.png"
+  "/assets/review-badges/x.png",
+  "/assets/ranks/dong.png",
+  "/assets/ranks/bac.png",
+  "/assets/ranks/vang.png",
+  "/assets/ranks/kimcuong.png",
+  "/assets/ranks/tinhanh.png",
+  "/assets/ranks/vodich.png"
 ];
 const OPTIONAL_ASSETS = [
   "/assets/posters/shark2.png",

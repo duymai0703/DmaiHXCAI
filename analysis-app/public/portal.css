@@ -490,7 +490,7 @@ a {
 
 .launcher-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 18px;
   min-height: calc(100vh - 160px);
 }
@@ -775,8 +775,99 @@ a {
 }
 
 .dual-actions {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   margin-bottom: 14px;
+}
+
+.rank-subpanel {
+  gap: 14px;
+}
+
+.rank-status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card-bg, rgba(255, 250, 242, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 28px rgba(0, 0, 0, 0.16);
+}
+
+.rank-current-logo {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
+}
+
+.rank-current-copy {
+  min-width: 0;
+}
+
+.rank-current-copy span,
+.rank-current-copy small {
+  display: block;
+  color: var(--muted);
+}
+
+.rank-current-copy strong {
+  display: block;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.rank-progress-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--chip-bg, rgba(255, 255, 255, 0.72));
+}
+
+.rank-progress-track,
+.rank-result-track {
+  position: relative;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(3, 20, 34, 0.34);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.rank-progress-fill,
+.rank-result-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fff4a8, #ffd24d 48%, #ff9f2e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    0 0 16px rgba(255, 198, 72, 0.42);
+  transition: width 0.32s ease;
+}
+
+.rank-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.rank-queue-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .range-field strong {
@@ -1086,7 +1177,7 @@ a {
 }
 
 .room-overlay-card {
-  width: min(100%, 320px);
+  width: min(100%, 360px);
   padding: 18px 18px 16px;
   border-radius: 18px;
   text-align: center;
@@ -1114,6 +1205,96 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+}
+
+.rank-result-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 12px auto 4px;
+  padding: 12px 12px 10px;
+  width: min(100%, 220px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 221, 128, 0.42);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 232, 145, 0.28), transparent 48%),
+    linear-gradient(180deg, rgba(11, 38, 55, 0.88), rgba(4, 18, 32, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 18px 34px rgba(0, 0, 0, 0.28);
+  perspective: 760px;
+}
+
+.rank-result-logo {
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+  animation: rankLogoLift3d 1800ms cubic-bezier(0.16, 0.86, 0.2, 1) both;
+  filter:
+    drop-shadow(0 18px 18px rgba(0, 0, 0, 0.34))
+    drop-shadow(0 0 18px rgba(255, 206, 83, 0.32));
+}
+
+.rank-result-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rank-result-copy strong {
+  margin: 0;
+  font-size: 18px;
+  color: #fff2c8;
+}
+
+.rank-result-copy span {
+  min-width: 42px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 211, 81, 0.18);
+  color: #ffe27b;
+  font-weight: 800;
+}
+
+.rank-result-copy span.loss {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ff9a8f;
+}
+
+.rank-result-progress {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  width: 96px;
+}
+
+.rank-result-track {
+  width: 100%;
+  height: 8px;
+}
+
+.rank-result-progress small {
+  color: #ffecb0;
+  font-weight: 800;
+}
+
+@keyframes rankLogoLift3d {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 34px, -70px) rotateX(24deg) scale(0.78);
+  }
+  42% {
+    opacity: 1;
+    transform: translate3d(0, -10px, 44px) rotateX(-8deg) scale(1.08);
+  }
+  70% {
+    transform: translate3d(0, 0, 18px) rotateX(4deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, -5px, 28px) rotateX(0deg) scale(1.02);
+  }
 }
 
 #reviewBoardCanvas,
@@ -3300,11 +3481,15 @@ a {
 }
 
 @media (max-width: 1180px) {
-  .launcher-grid,
   .room-shell,
   .review-shell,
   .admin-shell {
     grid-template-columns: 1fr;
+  }
+
+  .launcher-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
   }
 }
 
@@ -3357,6 +3542,12 @@ a {
   }
 
   .chat-form {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-grid,
+  .rank-actions,
+  .rank-progress-shell {
     grid-template-columns: 1fr;
   }
 
@@ -4435,15 +4626,31 @@ textarea:focus {
   --poster-image: url("/assets/posters/shark1.png");
 }
 
-:root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/vanca2.png");
+:root[data-theme="dark"] .launcher-card:nth-child(4) {
+  --poster-image: url("/assets/posters/shark3.png");
 }
 
-:root[data-theme="light"] .launcher-card:nth-child(2) {
+:root[data-theme="dark"] .launcher-card:nth-child(5) {
+  --poster-image: url("/assets/posters/shark1.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(1) {
   --poster-image: url("/assets/posters/vanca1.png");
 }
 
+:root[data-theme="light"] .launcher-card:nth-child(2) {
+  --poster-image: url("/assets/posters/vanca2.png");
+}
+
 :root[data-theme="light"] .launcher-card:nth-child(3) {
+  --poster-image: url("/assets/posters/vanca3.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(4) {
+  --poster-image: url("/assets/posters/vanca2.png");
+}
+
+:root[data-theme="light"] .launcher-card:nth-child(5) {
   --poster-image: url("/assets/posters/vanca3.png");
 }
 
@@ -5443,6 +5650,69 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .skin-swatch-stone { background: linear-gradient(145deg, #d0d4d1, #737b75) !important; }
 .skin-swatch-pink { background: linear-gradient(145deg, #7d1e2b, #3d0e16) !important; }
 .skin-swatch-dark { background: linear-gradient(145deg, #2f3137, #0c0f13) !important; }
+
+@media (hover: hover) and (pointer: fine) {
+  .launcher-card,
+  .panel-card,
+  .room-stage-panel,
+  .room-side,
+  .room-panel,
+  .subpanel,
+  .rank-status-card,
+  .rank-progress-shell,
+  .board-badge,
+  .room-key-box,
+  .room-status-badge,
+  .notice-card,
+  .viewer-item,
+  .history-item,
+  .admin-user-card,
+  .review-move-button,
+  .chat-item {
+    transform-style: preserve-3d;
+    transition:
+      transform 0.22s cubic-bezier(0.16, 0.84, 0.22, 1),
+      filter 0.22s ease,
+      box-shadow 0.22s ease,
+      border-color 0.22s ease,
+      background 0.22s ease;
+    will-change: transform, filter;
+  }
+
+  .launcher-card:hover,
+  .panel-card:hover,
+  .room-stage-panel:hover,
+  .room-side:hover,
+  .room-panel:hover,
+  .subpanel:hover,
+  .rank-status-card:hover,
+  .rank-progress-shell:hover,
+  .board-badge:hover,
+  .room-key-box:hover,
+  .room-status-badge:hover,
+  .notice-card:hover,
+  .viewer-item:hover,
+  .history-item:hover,
+  .admin-user-card:hover,
+  .review-move-button:hover,
+  .chat-item:hover {
+    transform: perspective(900px) translate3d(0, -4px, 18px) rotateX(1deg);
+    filter: brightness(1.07) saturate(1.06);
+    border-color: color-mix(in srgb, var(--accent) 62%, white 12%) !important;
+    box-shadow:
+      var(--shadow),
+      0 18px 34px color-mix(in srgb, var(--accent) 22%, transparent) !important;
+  }
+
+  button:not(.nav-back):not(:disabled):hover {
+    transform: translate3d(0, -2px, 10px);
+    filter: brightness(1.08) saturate(1.05);
+  }
+
+  .launcher-card.has-poster:hover::before {
+    filter: blur(1.8px) brightness(1.12) saturate(1.18) !important;
+  }
+}
 
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
   body.portal-mobile-mode,
