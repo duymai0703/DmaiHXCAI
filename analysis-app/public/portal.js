@@ -18,9 +18,9 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260727-hover-fix-v1";
+  const ASSET_WARMUP_VERSION = "20260727-bot-lock-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-hover-fix-v1";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-bot-lock-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -109,6 +109,16 @@
     okay: { key: "okay", label: "Không hay", image: "/assets/review-badges/bang.png" },
     bad: { key: "bad", label: "Rất yếu", image: "/assets/review-badges/x.png" }
   };
+  const BOT_PLAYERS = [
+    { level: 1, name: "Bạch Khởi", avatarUrl: "/assets/bots/bach-khoi.png" },
+    { level: 2, name: "Liêm Pha", avatarUrl: "/assets/bots/liem-pha.png" },
+    { level: 3, name: "Tôn Tẫn", avatarUrl: "/assets/bots/ton-tan.png" },
+    { level: 4, name: "Ngô Khởi", avatarUrl: "/assets/bots/ngo-khoi.png" },
+    { level: 5, name: "Nhạc Nghị", avatarUrl: "/assets/bots/nhac-nghi.png" },
+    { level: 6, name: "Điền Đan", avatarUrl: "/assets/bots/dien-dan.png" },
+    { level: 7, name: "Tín Lăng Quân", avatarUrl: "/assets/bots/tin-lang-quan.png" }
+  ];
+  const BOT_ASSETS = BOT_PLAYERS.map((bot) => bot.avatarUrl);
   const RANK_TIERS = [
     { tier: "dong", label: "Đồng", threshold: 30, icon: "/assets/ranks/dong.png" },
     { tier: "bac", label: "Bạc", threshold: 40, icon: "/assets/ranks/bac.png" },
@@ -120,8 +130,8 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260727-hover-fix-v1",
-    "/app.js?v=20260727-hover-fix-v1",
+    "/styles.css?v=20260727-bot-lock-v1",
+    "/app.js?v=20260727-bot-lock-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -146,6 +156,7 @@
     LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
+    ...BOT_ASSETS,
     ...RANK_ASSETS,
     ...Object.values(PIECE_IMAGES),
     ...Object.values(MOBILE_RED_PIECE_IMAGES),
@@ -165,7 +176,7 @@
     "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -362,6 +373,10 @@
     botTimeRange: byId("botTimeRange"),
     botTimeRangeValue: byId("botTimeRangeValue"),
     botLevelSelect: byId("botLevelSelect"),
+    botPreviewCard: byId("botPreviewCard"),
+    botPreviewAvatar: byId("botPreviewAvatar"),
+    botPreviewName: byId("botPreviewName"),
+    botPreviewMeta: byId("botPreviewMeta"),
     botIncrementSelect: byId("botIncrementSelect"),
     pickRed: byId("pickRed"),
     pickBlack: byId("pickBlack"),
@@ -559,6 +574,7 @@
   startActivityHeartbeat();
   setLobbyMode("join");
   updateTimeLabels();
+  renderBotOptions();
   renderHistory();
   syncRoute(true);
   bootstrap()
@@ -1263,6 +1279,7 @@
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
     dom.botTimeRange.addEventListener("input", updateTimeLabels);
+    dom.botLevelSelect?.addEventListener("change", renderBotPreview);
     dom.pickRed.addEventListener("click", () => setCreateSide("w"));
     dom.pickBlack.addEventListener("click", () => setCreateSide("b"));
     dom.botPickRed.addEventListener("click", () => setBotSide("w"));
@@ -1868,6 +1885,7 @@
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     setMessage(dom.matchHubMessage, "");
+    if (state.lobbyMode === "bot") renderBotOptions();
     if (state.lobbyMode === "rank") {
       renderRankPanel();
       void refreshRankStatus();
@@ -1893,6 +1911,78 @@
     dom.yourTimeRangeValue.textContent = `${yourMinutes} phút`;
     dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phút`;
     dom.botTimeRangeValue.textContent = `${botMinutes} phút`;
+  }
+
+  function botInfoForLevel(level) {
+    const safeLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(level) || 1)));
+    return BOT_PLAYERS.find((bot) => bot.level === safeLevel) || BOT_PLAYERS[0];
+  }
+
+  function normalizeBotProgressPayload(payload = null) {
+    const raw = payload && typeof payload === "object" ? payload : {};
+    const wins = {};
+    const rawWins = raw.wins && typeof raw.wins === "object" ? raw.wins : {};
+    BOT_PLAYERS.forEach((bot) => {
+      wins[bot.level] = Boolean(rawWins[bot.level] || rawWins[String(bot.level)]);
+    });
+    let unlockedLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(raw.unlockedLevel || 1))));
+    BOT_PLAYERS.forEach((bot) => {
+      if (wins[bot.level]) unlockedLevel = Math.max(unlockedLevel, Math.min(BOT_PLAYERS.length, bot.level + 1));
+    });
+    return { unlockedLevel, wins };
+  }
+
+  function botProgress() {
+    return normalizeBotProgressPayload(state.user?.botProgress || state.room?.botProgress);
+  }
+
+  function isBotUnlocked(level) {
+    return Number(level || 1) <= Number(botProgress().unlockedLevel || 1);
+  }
+
+  function patchLocalBotProgress(progressPayload) {
+    if (!progressPayload || !state.user) return;
+    state.user = {
+      ...state.user,
+      botProgress: normalizeBotProgressPayload(progressPayload)
+    };
+    persistStoredUser(state.user);
+    renderBotOptions();
+  }
+
+  function renderBotOptions() {
+    if (!dom.botLevelSelect) return;
+    const progress = botProgress();
+    const currentLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(dom.botLevelSelect.value || 1))));
+    dom.botLevelSelect.innerHTML = "";
+    BOT_PLAYERS.forEach((bot) => {
+      const option = document.createElement("option");
+      const unlocked = bot.level <= progress.unlockedLevel;
+      option.value = String(bot.level);
+      option.disabled = !unlocked;
+      option.textContent = `${bot.name} - cấp ${bot.level}${unlocked ? "" : " (khóa)"}`;
+      dom.botLevelSelect.appendChild(option);
+    });
+    const nextLevel = Math.min(currentLevel, progress.unlockedLevel);
+    dom.botLevelSelect.value = String(Math.max(1, nextLevel));
+    renderBotPreview();
+  }
+
+  function renderBotPreview() {
+    if (!dom.botPreviewCard || !dom.botLevelSelect) return;
+    const level = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(dom.botLevelSelect.value || 1))));
+    const bot = botInfoForLevel(level);
+    const progress = botProgress();
+    const unlocked = level <= progress.unlockedLevel;
+    const defeated = Boolean(progress.wins[level]);
+    dom.botPreviewAvatar.src = bot.avatarUrl;
+    dom.botPreviewName.textContent = bot.name;
+    dom.botPreviewMeta.textContent = unlocked
+      ? defeated
+        ? `Cấp ${level} đã thắng.`
+        : `Cấp ${level} đã mở khóa.`
+      : `Khóa: thắng bot cấp ${level - 1} để mở.`;
+    dom.botPreviewCard.classList.toggle("locked", !unlocked);
   }
 
   function rankInfoForTier(tier) {
@@ -2188,6 +2278,7 @@
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
     renderRankPanel();
+    renderBotOptions();
   }
 
   function patchLocalUserIntoRoom() {
@@ -4692,6 +4783,12 @@
 
   async function onCreateBotRoom(event) {
     event.preventDefault();
+    const botLevel = Number(dom.botLevelSelect.value || 1);
+    if (!isBotUnlocked(botLevel)) {
+      setMessage(dom.matchHubMessage, `Cần thắng bot cấp ${botLevel - 1} để mở khóa cấp ${botLevel}.`);
+      renderBotOptions();
+      return;
+    }
     setMessage(dom.matchHubMessage, "Dang tao ban danh may...", "info");
     try {
       const payload = await api("/api/rooms/create-bot", {
@@ -4699,7 +4796,7 @@
         body: {
           minutes: Number(dom.botTimeRange.value || 10),
           incrementSeconds: Number(dom.botIncrementSelect.value || 0),
-          botLevel: Number(dom.botLevelSelect.value || 1),
+          botLevel,
           side: state.botSide
         }
       });
@@ -4813,6 +4910,7 @@
     state.roomSyncedAt = Date.now();
     localStorage.setItem(STORAGE_ROOM, room.key);
     if (room.rank) patchLocalRank(room.rank);
+    if (room.botProgress) patchLocalBotProgress(room.botProgress);
     state.roomBoard = XiangqiCore.parseFenState(room.boardFen || START_FEN).board;
 
     if (!keepSelection || previous?.boardFen !== room.boardFen || previous?.role !== room.role) {
@@ -7023,7 +7121,8 @@
       avatarSeed: user.avatarSeed,
       avatarUrl: user.avatarUrl || "",
       role: user.role || "user",
-      rank: user.rank || null
+      rank: user.rank || null,
+      botProgress: user.botProgress || null
     }));
   }
 

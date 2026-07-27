@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260727-hover-fix-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260727-bot-lock-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -259,15 +259,22 @@
               <label>
                 <span>Chọn bot</span>
                 <select id="botLevelSelect">
-                  <option value="1">Trọng Phúc - cấp 1</option>
-                  <option value="2">Văn Phương - cấp 2</option>
-                  <option value="3">Tùng Em - cấp 3</option>
-                  <option value="4">Hà Duy - cấp 4</option>
-                  <option value="5">Jack 97 - cấp 5</option>
-                  <option value="6">Minh Trìu - cấp 6</option>
-                  <option value="7">Duy Mai - cấp 7</option>
+                  <option value="1">Bạch Khởi - cấp 1</option>
+                  <option value="2">Liêm Pha - cấp 2</option>
+                  <option value="3">Tôn Tẫn - cấp 3</option>
+                  <option value="4">Ngô Khởi - cấp 4</option>
+                  <option value="5">Nhạc Nghị - cấp 5</option>
+                  <option value="6">Điền Đan - cấp 6</option>
+                  <option value="7">Tín Lăng Quân - cấp 7</option>
                 </select>
               </label>
+              <div id="botPreviewCard" class="bot-preview-card">
+                <img id="botPreviewAvatar" class="bot-preview-avatar" src="/assets/bots/bach-khoi.png" alt="Avatar bot" draggable="false">
+                <div>
+                  <strong id="botPreviewName">Bạch Khởi</strong>
+                  <small id="botPreviewMeta">Cấp 1 đã mở khóa.</small>
+                </div>
+              </div>
 
               <label>
                 <span>Tích lũy sau mỗi nước</span>
@@ -724,7 +731,7 @@
 
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260727-hover-fix-v1"></script>
+    <script src="/portal.js?v=20260727-bot-lock-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

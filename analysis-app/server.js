@@ -96,13 +96,13 @@ const DEVICE_AVATAR_PATH_LIST = [
 ];
 const DEVICE_AVATAR_PATHS = new Set(DEVICE_AVATAR_PATH_LIST);
 const BOT_PLAYERS = [
-  { level: 1, depth: 1, name: "Trọng Phúc" },
-  { level: 2, depth: 2, name: "Văn Phương" },
-  { level: 3, depth: 3, name: "Tùng Em" },
-  { level: 4, depth: 4, name: "Hà Duy" },
-  { level: 5, depth: 5, name: "Jack 97" },
-  { level: 6, depth: 6, name: "Minh Trìu" },
-  { level: 7, depth: 7, name: "Duy Mai" }
+  { level: 1, depth: 1, name: "Bạch Khởi", avatarUrl: "/assets/bots/bach-khoi.png" },
+  { level: 2, depth: 2, name: "Liêm Pha", avatarUrl: "/assets/bots/liem-pha.png" },
+  { level: 3, depth: 3, name: "Tôn Tẫn", avatarUrl: "/assets/bots/ton-tan.png" },
+  { level: 4, depth: 4, name: "Ngô Khởi", avatarUrl: "/assets/bots/ngo-khoi.png" },
+  { level: 5, depth: 5, name: "Nhạc Nghị", avatarUrl: "/assets/bots/nhac-nghi.png" },
+  { level: 6, depth: 6, name: "Điền Đan", avatarUrl: "/assets/bots/dien-dan.png" },
+  { level: 7, depth: 7, name: "Tín Lăng Quân", avatarUrl: "/assets/bots/tin-lang-quan.png" }
 ];
 const BOT_USER_PREFIX = "bot-level-";
 const RANK_TIERS = [
@@ -586,7 +586,10 @@ function loadUsers() {
     Array.isArray(legacyData.users) ? legacyData.users : []
   );
   merged.forEach((user) => {
-    if (user && user.role !== "admin") ensureUserRank(user);
+    if (user && user.role !== "admin") {
+      ensureUserRank(user);
+      ensureUserBotProgress(user);
+    }
   });
   stateStore.write("users", { users: merged });
   writeJsonFile(USERS_FILE, { users: merged });
@@ -2278,6 +2281,52 @@ function applyRankOutcome(user, ownBefore, opponentBefore, outcome) {
   };
 }
 
+function normalizeBotProgress(rawProgress = {}) {
+  const progress = rawProgress && typeof rawProgress === "object" ? rawProgress : {};
+  const wins = {};
+  const rawWins = progress.wins && typeof progress.wins === "object" ? progress.wins : {};
+  BOT_PLAYERS.forEach((bot) => {
+    wins[bot.level] = Boolean(rawWins[bot.level] || rawWins[String(bot.level)]);
+  });
+  const maxLevel = BOT_PLAYERS.length;
+  let unlockedLevel = Math.max(1, Math.min(maxLevel, Math.round(Number(progress.unlockedLevel || 1))));
+  BOT_PLAYERS.forEach((bot) => {
+    if (wins[bot.level]) unlockedLevel = Math.max(unlockedLevel, Math.min(maxLevel, bot.level + 1));
+  });
+  return { unlockedLevel, wins };
+}
+
+function publicBotProgress(rawProgress = {}) {
+  const progress = normalizeBotProgress(rawProgress);
+  return {
+    unlockedLevel: progress.unlockedLevel,
+    wins: progress.wins,
+    bots: BOT_PLAYERS.map((bot) => ({
+      level: bot.level,
+      name: bot.name,
+      avatarUrl: bot.avatarUrl,
+      unlocked: bot.level <= progress.unlockedLevel,
+      defeated: Boolean(progress.wins[bot.level])
+    }))
+  };
+}
+
+function ensureUserBotProgress(user) {
+  if (!user) return normalizeBotProgress();
+  user.botProgress = normalizeBotProgress(user.botProgress);
+  return user.botProgress;
+}
+
+function isBotLevelUnlocked(user, level) {
+  const safeLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(level) || 1)));
+  const progress = ensureUserBotProgress(user);
+  return safeLevel <= Number(progress.unlockedLevel || 1);
+}
+
+function requireUnlockedBotLevel(user, level) {
+  if (!isBotLevelUnlocked(user, level)) throw new Error("BOT_LOCKED");
+}
+
 function publicUser(user) {
   const license = user.role === "admin" ? null : licenseById(user.licenseId) || licenseByHash(user.accessKeyHash);
   return {
@@ -2292,6 +2341,7 @@ function publicUser(user) {
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     rank: publicRank(user.rank),
+    botProgress: publicBotProgress(user.botProgress),
     visionQuota: visionQuotaStatus(user),
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [],
     openingBooks: normalizeOpeningBooks(user.openingBooks)
@@ -2331,6 +2381,7 @@ function adminUserSummary(user) {
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     rank: publicRank(user.rank),
+    botProgress: publicBotProgress(user.botProgress),
     createdAt: user.createdAt || nowIso(),
     lastSeenAt: user.lastSeenAt || "",
     online,
@@ -2367,7 +2418,7 @@ function botSnapshot(levelOrId) {
     username: `bot-${bot.level}`,
     displayName: bot.name,
     avatarSeed: `bot${bot.level}`,
-    avatarUrl: "",
+    avatarUrl: bot.avatarUrl || "",
     role: "bot",
     botLevel: bot.level,
     botDepth: bot.depth
@@ -2803,6 +2854,7 @@ function createRoom(user, { yourMinutes = 10, opponentMinutes = 10, side = "w", 
 }
 
 function createBotRoom(user, { minutes = 10, side = "w", incrementSeconds = 0, botLevel = 1 } = {}) {
+  requireUnlockedBotLevel(user, botLevel);
   const color = side === "b" ? "b" : "w";
   const botSide = oppositeSide(color);
   const bot = botDefinition(botLevel);
@@ -2820,7 +2872,8 @@ function createBotRoom(user, { minutes = 10, side = "w", incrementSeconds = 0, b
     userId: botId,
     level: bot.level,
     depth: bot.depth,
-    name: bot.name
+    name: bot.name,
+    avatarUrl: bot.avatarUrl || ""
   };
   room.players[botSide] = botId;
   room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
@@ -3040,6 +3093,7 @@ function resetRoomForGame(room) {
   room.countdownEndsAt = Date.now() + ROOM_START_DELAY_MS;
   room.rematchReady = { w: false, b: false };
   room.historySaved = false;
+  room.botProgressProcessed = false;
   resetRoomRuleState(room);
   room.updatedAt = Date.now();
 }
@@ -3095,6 +3149,23 @@ function processRankedRoomResult(room) {
   saveUsers();
 }
 
+function processBotRoomResult(room) {
+  if (!room || room.mode !== "bot" || room.botProgressProcessed || !room.result) return;
+  room.botProgressProcessed = true;
+  const botSide = botSideInRoom(room);
+  if (!botSide || room.result.winnerSide !== oppositeSide(botSide)) return;
+  const playerId = room.players?.[oppositeSide(botSide)];
+  const user = playerId && !isBotUserId(playerId) ? users.find((item) => item.id === playerId) : null;
+  if (!user) return;
+  const botLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Number(room.bot?.level || 1)));
+  const progress = ensureUserBotProgress(user);
+  progress.wins[botLevel] = true;
+  progress.unlockedLevel = Math.max(Number(progress.unlockedLevel || 1), Math.min(BOT_PLAYERS.length, botLevel + 1));
+  user.botProgress = normalizeBotProgress(progress);
+  syncRoomPlayerProfile(room, oppositeSide(botSide), user);
+  saveUsers();
+}
+
 function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw" } = {}) {
   if (room.result) return;
   room.status = "finished";
@@ -3109,6 +3180,7 @@ function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw"
     endedAt: nowIso()
   };
   processRankedRoomResult(room);
+  processBotRoomResult(room);
   if (!room.historySaved) {
     recordRoomHistory(room);
     room.historySaved = true;
@@ -3230,7 +3302,8 @@ function roomStateForUser(room, user) {
       side: botSideInRoom(room),
       level: Number(room.bot?.level || 1),
       depth: Number(room.bot?.depth || room.bot?.level || 1),
-      name: room.bot?.name || botDefinition(room.bot?.level || 1).name
+      name: room.bot?.name || botDefinition(room.bot?.level || 1).name,
+      avatarUrl: room.bot?.avatarUrl || botDefinition(room.bot?.level || 1).avatarUrl || ""
     } : null,
     status: room.status,
     timeControlMinutes: Math.round(room.timeControlMs / 60000),
@@ -3273,6 +3346,7 @@ function roomStateForUser(room, user) {
     },
     result: room.result,
     rank: publicRank(user.rank),
+    botProgress: publicBotProgress(user.botProgress),
     rankResult: room.mode === "ranked" && access.role === "player"
       ? cloneJsonValue(room.rankResults?.[user.id] || null)
       : null,
@@ -5677,6 +5751,7 @@ const server = http.createServer(async (req, res) => {
       ROOM_NOT_FULL: 400,
       ROOM_ALREADY_ACTIVE: 400,
       RANKED_REMATCH_DISABLED: 400,
+      BOT_LOCKED: 403,
       NO_PENDING_REQUEST: 400,
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
@@ -5747,6 +5822,7 @@ function friendlyErrorVi(code) {
     ROOM_NOT_FULL: "Phòng chưa đủ hai người chơi.",
     ROOM_ALREADY_ACTIVE: "Bạn đang ở trong một phòng khác.",
     RANKED_REMATCH_DISABLED: "Leo rank cần ghép trận mới.",
+    BOT_LOCKED: "Bạn cần thắng bot cấp trước để mở khóa cấp này.",
     NO_PENDING_REQUEST: "Không có yêu cầu đang chờ.",
     NO_MOVE_TO_UNDO: "Chưa có nước nào để đi lại.",
     SELF_REQUEST: "Bạn không thể tự xác nhận yêu cầu của mình.",
