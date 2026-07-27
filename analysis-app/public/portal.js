@@ -18,9 +18,9 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260727-ranked-v1";
+  const ASSET_WARMUP_VERSION = "20260727-hover-fix-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-ranked-v1";
+  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-hover-fix-v1";
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -120,8 +120,8 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260727-ranked-v1",
-    "/app.js?v=20260727-ranked-v1",
+    "/styles.css?v=20260727-hover-fix-v1",
+    "/app.js?v=20260727-hover-fix-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -337,15 +337,15 @@
     registerUsername: byId("registerUsername"),
     registerPassword: byId("registerPassword"),
     openMatchHub: byId("openMatchHub"),
-    openBotMatchBtn: byId("openBotMatchBtn"),
-    openRankedMatchBtn: byId("openRankedMatchBtn"),
     openAnalysisBtn: byId("openAnalysisBtn"),
     openLibraryBtn: byId("openLibraryBtn"),
+    showFriendRoom: byId("showFriendRoom"),
     showJoinRoom: byId("showJoinRoom"),
     showCreateRoom: byId("showCreateRoom"),
     showBotRoom: byId("showBotRoom"),
     showRankRoom: byId("showRankRoom"),
     showMobileLibrary: byId("showMobileLibrary"),
+    friendRoomChoices: byId("friendRoomChoices"),
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
     botRoomForm: byId("botRoomForm"),
@@ -1216,14 +1216,6 @@
       setLobbyMode("join");
       goRoute("match");
     });
-    dom.openBotMatchBtn?.addEventListener("click", () => {
-      setLobbyMode("bot");
-      goRoute("match");
-    });
-    dom.openRankedMatchBtn?.addEventListener("click", () => {
-      setLobbyMode("rank");
-      goRoute("match");
-    });
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
     });
@@ -1258,6 +1250,7 @@
     dom.openingBookPracticeExitBtn?.addEventListener("click", stopOpeningBookPractice);
     dom.openingBookPracticeYesBtn?.addEventListener("click", continueOpeningBookPracticeLine);
     dom.openingBookPracticeNoBtn?.addEventListener("click", handleOpeningBookPracticeSecondaryAction);
+    dom.showFriendRoom?.addEventListener("click", () => setLobbyMode(["join", "create"].includes(state.lobbyMode) ? state.lobbyMode : "join"));
     dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
@@ -1863,10 +1856,13 @@
 
   function setLobbyMode(mode) {
     state.lobbyMode = ["create", "bot", "rank"].includes(mode) ? mode : "join";
+    const isFriendMode = ["join", "create"].includes(state.lobbyMode);
+    dom.showFriendRoom?.classList.toggle("active", isFriendMode);
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
     dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
     dom.showRankRoom?.classList.toggle("active", state.lobbyMode === "rank");
+    dom.friendRoomChoices?.classList.toggle("hidden", !isFriendMode);
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
