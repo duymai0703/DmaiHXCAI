@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260727-rank-source-v2">
+    <link rel="stylesheet" href="/portal.css?v=20260727-puzzle-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -185,6 +185,7 @@
               <button id="showFriendRoom" class="secondary-button active" type="button">Chơi với bạn bè</button>
               <button id="showBotRoom" class="secondary-button" type="button">Đánh với máy</button>
               <button id="showRankRoom" class="secondary-button" type="button">Leo rank</button>
+              <button id="showPuzzleRoom" class="secondary-button" type="button">Giải cờ thế</button>
               <button id="showMobileLibrary" class="secondary-button mobile-library-shortcut" type="button">Thư viện cá nhân</button>
             </div>
             <div id="friendRoomChoices" class="friend-actions">
@@ -318,6 +319,27 @@
                 <button id="rankCancelBtn" class="ghost-button hidden" type="button">Hủy tìm</button>
               </div>
               <p id="rankQueueStatus" class="rank-queue-status" aria-live="polite"></p>
+            </form>
+
+            <form id="puzzleRoomForm" class="subpanel puzzle-subpanel hidden">
+              <div class="puzzle-status-card">
+                <div class="puzzle-level-mark" aria-hidden="true">棋</div>
+                <div class="puzzle-current-copy">
+                  <span>Giải cờ thế</span>
+                  <strong id="puzzleCurrentName">Thế cờ 1</strong>
+                  <small id="puzzleCurrentRecord">0/110 đã hoàn thành</small>
+                </div>
+              </div>
+              <div class="rank-progress-shell puzzle-progress-shell">
+                <div class="rank-progress-track" aria-hidden="true">
+                  <span id="puzzleCurrentProgressBar" class="rank-progress-fill"></span>
+                </div>
+                <strong id="puzzleCurrentProgressText">0/110</strong>
+              </div>
+              <div class="puzzle-actions">
+                <button id="puzzleStartBtn" class="primary-button" type="submit">Vào thế cờ</button>
+              </div>
+              <p id="puzzleStatusText" class="rank-queue-status" aria-live="polite"></p>
             </form>
 
             <p id="matchHubMessage" class="form-message" aria-live="polite"></p>
@@ -731,7 +753,8 @@
 
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
-    <script src="/portal.js?v=20260727-rank-source-v2"></script>
+    <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
+    <script src="/portal.js?v=20260727-puzzle-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

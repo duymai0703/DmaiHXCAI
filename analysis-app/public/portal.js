@@ -18,7 +18,7 @@
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260727-rank-source-v2";
+  const ASSET_WARMUP_VERSION = "20260727-puzzle-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -30,6 +30,28 @@
     done: "\u0110\u00e3 ho\u00e0n t\u1ea5t."
   };
   const START_FEN = XiangqiCore.START_FEN;
+  const PUZZLES = Array.isArray(globalThis.YMEGALODON_PUZZLES)
+    ? globalThis.YMEGALODON_PUZZLES.filter((item) => item && /^[1-9]\d*$/.test(String(item.level || "")) && item.fen)
+    : [];
+  const PUZZLE_TOTAL = PUZZLES.length;
+  const PUZZLE_MAX_PLAYER_MOVES = 8;
+  const PUZZLE_ENGINE_DELAY_MS = 260;
+  const PUZZLE_CLOCK_LABEL = "--";
+  const PUZZLE_BOT_PLAYER = {
+    id: "puzzle-engine",
+    username: "puzzle-engine",
+    displayName: "Máy cờ thế",
+    avatarUrl: "/assets/icons/ymegalodon-192.png"
+  };
+  const PUZZLE_PIECE_VALUES = {
+    k: 10000,
+    r: 900,
+    c: 480,
+    n: 430,
+    b: 220,
+    a: 220,
+    p: 120
+  };
   const DEVICE_AVATARS = [
     "/assets/device-avatars/tv1.png",
     "/assets/device-avatars/tv2.png",
@@ -132,6 +154,7 @@
     "/analysis.html",
     "/styles.css?v=20260727-rank-source-v2",
     "/app.js?v=20260727-rank-source-v2",
+    "/puzzle-data.js?v=20260727-puzzle-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -229,6 +252,9 @@
     rankQueueActive: false,
     rankQueueTimer: 0,
     rankStatus: null,
+    puzzleProgress: null,
+    puzzleSession: null,
+    puzzleBotTimer: 0,
     createSide: "w",
     botSide: "w",
     room: null,
@@ -355,12 +381,14 @@
     showCreateRoom: byId("showCreateRoom"),
     showBotRoom: byId("showBotRoom"),
     showRankRoom: byId("showRankRoom"),
+    showPuzzleRoom: byId("showPuzzleRoom"),
     showMobileLibrary: byId("showMobileLibrary"),
     friendRoomChoices: byId("friendRoomChoices"),
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
     botRoomForm: byId("botRoomForm"),
     rankRoomForm: byId("rankRoomForm"),
+    puzzleRoomForm: byId("puzzleRoomForm"),
     joinDisplayName: byId("joinDisplayName"),
     joinRoomKey: byId("joinRoomKey"),
     createDisplayName: byId("createDisplayName"),
@@ -390,6 +418,12 @@
     rankQueueBtn: byId("rankQueueBtn"),
     rankCancelBtn: byId("rankCancelBtn"),
     rankQueueStatus: byId("rankQueueStatus"),
+    puzzleCurrentName: byId("puzzleCurrentName"),
+    puzzleCurrentRecord: byId("puzzleCurrentRecord"),
+    puzzleCurrentProgressBar: byId("puzzleCurrentProgressBar"),
+    puzzleCurrentProgressText: byId("puzzleCurrentProgressText"),
+    puzzleStartBtn: byId("puzzleStartBtn"),
+    puzzleStatusText: byId("puzzleStatusText"),
     matchHubMessage: byId("matchHubMessage"),
     roomKeyLabel: byId("roomKeyLabel"),
     copyRoomKeyBtn: byId("copyRoomKeyBtn"),
@@ -1271,10 +1305,12 @@
     dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
     dom.showRankRoom?.addEventListener("click", () => setLobbyMode("rank"));
+    dom.showPuzzleRoom?.addEventListener("click", () => setLobbyMode("puzzle"));
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
     dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
     dom.rankRoomForm?.addEventListener("submit", onJoinRankQueue);
+    dom.puzzleRoomForm?.addEventListener("submit", onStartPuzzleFromPanel);
     dom.rankCancelBtn?.addEventListener("click", cancelRankQueue);
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
@@ -1872,23 +1908,29 @@
   }
 
   function setLobbyMode(mode) {
-    state.lobbyMode = ["create", "bot", "rank"].includes(mode) ? mode : "join";
+    state.lobbyMode = ["create", "bot", "rank", "puzzle"].includes(mode) ? mode : "join";
     const isFriendMode = ["join", "create"].includes(state.lobbyMode);
     dom.showFriendRoom?.classList.toggle("active", isFriendMode);
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
     dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
     dom.showRankRoom?.classList.toggle("active", state.lobbyMode === "rank");
+    dom.showPuzzleRoom?.classList.toggle("active", state.lobbyMode === "puzzle");
     dom.friendRoomChoices?.classList.toggle("hidden", !isFriendMode);
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
+    dom.puzzleRoomForm?.classList.toggle("hidden", state.lobbyMode !== "puzzle");
     setMessage(dom.matchHubMessage, "");
     if (state.lobbyMode === "bot") renderBotOptions();
     if (state.lobbyMode === "rank") {
       renderRankPanel();
       void refreshRankStatus();
+    }
+    if (state.lobbyMode === "puzzle") {
+      renderPuzzlePanel();
+      void refreshPuzzleProgress();
     }
   }
 
@@ -2129,6 +2171,415 @@
     }
   }
 
+  function normalizePuzzleProgressPayload(payload = null) {
+    const raw = payload && typeof payload === "object" ? payload : {};
+    const total = PUZZLE_TOTAL;
+    const completed = {};
+    const rawCompleted = raw.completed && typeof raw.completed === "object" ? raw.completed : {};
+    for (let level = 1; level <= total; level += 1) {
+      completed[level] = Boolean(rawCompleted[level] || rawCompleted[String(level)]);
+    }
+    let unlockedLevel = total
+      ? Math.max(1, Math.min(total, Math.round(Number(raw.unlockedLevel || 1))))
+      : 0;
+    for (let level = 1; level <= total; level += 1) {
+      if (completed[level]) unlockedLevel = Math.max(unlockedLevel, Math.min(total, level + 1));
+    }
+    const completedCount = Object.values(completed).filter(Boolean).length;
+    return {
+      total,
+      unlockedLevel,
+      currentLevel: total ? Math.min(total, Math.max(1, unlockedLevel)) : 0,
+      completedCount,
+      completed
+    };
+  }
+
+  function puzzleProgress() {
+    return normalizePuzzleProgressPayload(state.puzzleProgress || state.user?.puzzleProgress);
+  }
+
+  function patchLocalPuzzleProgress(progressPayload) {
+    if (!progressPayload) return;
+    state.puzzleProgress = normalizePuzzleProgressPayload(progressPayload);
+    if (state.user) {
+      state.user = {
+        ...state.user,
+        puzzleProgress: state.puzzleProgress
+      };
+      persistStoredUser(state.user);
+    }
+    renderPuzzlePanel();
+  }
+
+  function puzzleForLevel(level) {
+    const safeLevel = Math.max(1, Math.min(PUZZLE_TOTAL, Math.round(Number(level) || 1)));
+    return PUZZLES.find((item) => Number(item.level) === safeLevel) || PUZZLES[safeLevel - 1] || null;
+  }
+
+  function renderPuzzlePanel() {
+    if (!dom.puzzleRoomForm) return;
+    const progress = puzzleProgress();
+    const total = progress.total || PUZZLE_TOTAL;
+    const currentLevel = progress.currentLevel || 0;
+    const completedCount = Math.max(0, Math.min(total, Number(progress.completedCount || 0)));
+    const done = total > 0 && completedCount >= total;
+    const percent = total ? Math.max(0, Math.min(100, (completedCount / total) * 100)) : 0;
+    if (dom.puzzleCurrentName) dom.puzzleCurrentName.textContent = done ? "Đã hoàn thành" : currentLevel ? `Thế cờ ${currentLevel}` : "Chưa sẵn sàng";
+    if (dom.puzzleCurrentRecord) dom.puzzleCurrentRecord.textContent = `${completedCount}/${total || 0} đã hoàn thành`;
+    if (dom.puzzleCurrentProgressBar) dom.puzzleCurrentProgressBar.style.width = `${percent}%`;
+    if (dom.puzzleCurrentProgressText) dom.puzzleCurrentProgressText.textContent = `${completedCount}/${total || 0}`;
+    if (dom.puzzleStartBtn) {
+      dom.puzzleStartBtn.disabled = !total;
+      dom.puzzleStartBtn.textContent = done ? "Chơi lại thế cuối" : "Vào thế cờ";
+    }
+    if (dom.puzzleStatusText) {
+      dom.puzzleStatusText.textContent = total
+        ? "Chỉ mở khóa thế tiếp theo sau khi giải xong thế hiện tại."
+        : "Dữ liệu cờ thế chưa tải xong. Hãy tải lại trang.";
+    }
+  }
+
+  async function refreshPuzzleProgress() {
+    if (!state.token || !state.user) {
+      renderPuzzlePanel();
+      return;
+    }
+    try {
+      const payload = await api("/api/puzzles/progress", {}, { attempts: 2 });
+      if (payload.user) applySession(payload.user, payload.token || state.token);
+      else patchLocalPuzzleProgress(payload.progress);
+      if (payload.progress) patchLocalPuzzleProgress(payload.progress);
+    } catch (error) {
+      if (state.lobbyMode === "puzzle" && dom.puzzleStatusText) {
+        dom.puzzleStatusText.textContent = error.message || "Chưa lấy được tiến trình cờ thế.";
+      }
+    }
+  }
+
+  function onStartPuzzleFromPanel(event) {
+    event.preventDefault();
+    const progress = puzzleProgress();
+    if (!progress.total) {
+      setMessage(dom.matchHubMessage, "Dữ liệu cờ thế chưa sẵn sàng, hãy tải lại trang.", "error");
+      return;
+    }
+    startPuzzleLevel(progress.currentLevel || 1);
+  }
+
+  function isPuzzleRoom(room = state.room) {
+    return room?.mode === "puzzle";
+  }
+
+  function puzzlePlayerSnapshot() {
+    const user = state.user || {};
+    return {
+      id: user.id || "local-player",
+      username: user.username || "player",
+      displayName: user.displayName || user.username || "Bạn",
+      avatarSeed: user.avatarSeed || "",
+      avatarUrl: user.avatarUrl || state.deviceAvatarUrl || ""
+    };
+  }
+
+  function startPuzzleLevel(level) {
+    const puzzle = puzzleForLevel(level);
+    if (!puzzle) {
+      setMessage(dom.matchHubMessage, "Không tìm thấy thế cờ này.", "error");
+      return;
+    }
+    const parsed = XiangqiCore.parseFenState(puzzle.fen);
+    const sideToMove = parsed.side === "b" ? "b" : "w";
+    clearPuzzleBotTimer();
+    state.puzzleSession = {
+      level: Number(puzzle.level || level),
+      puzzle,
+      userMoves: 0,
+      status: "active",
+      startedAt: Date.now()
+    };
+    state.room = {
+      key: `THE-${state.puzzleSession.level}`,
+      mode: "puzzle",
+      status: "active",
+      role: "player",
+      yourSide: "w",
+      viewSide: "w",
+      sideToMove,
+      yourTurn: sideToMove === "w",
+      bothPlayersJoined: true,
+      waitingForOpponent: false,
+      boardFen: XiangqiCore.boardToFen(parsed.board, sideToMove),
+      players: {
+        w: puzzlePlayerSnapshot(),
+        b: PUZZLE_BOT_PLAYER
+      },
+      spectators: [],
+      viewerCount: 0,
+      chat: [],
+      moves: [],
+      allowances: { undoRemaining: 0, drawRemaining: 0 },
+      startReady: { you: false, opponent: false },
+      rematchReady: { you: false, opponent: false },
+      pendingRequest: null,
+      result: null,
+      turnStartedAt: Date.now(),
+      turnLimitMs: 0,
+      clocks: { w: 0, b: 0 },
+      clockSetupMs: { w: 0, b: 0 },
+      incrementSeconds: 0,
+      puzzle: puzzleRoomMeta()
+    };
+    state.roomKey = "";
+    state.roomSyncedAt = Date.now();
+    state.roomBoard = parsed.board;
+    state.selectedSquare = null;
+    state.hints = [];
+    state.roomActionBusy = false;
+    localStorage.removeItem(STORAGE_ROOM);
+    updateResumeButton();
+    goRoute("room");
+    renderRoomState({ forceBoard: true, keepSelection: false });
+    if (sideToMove === "b") schedulePuzzleBotTurn();
+  }
+
+  function puzzleRoomMeta() {
+    const session = state.puzzleSession || {};
+    return {
+      level: Number(session.level || 1),
+      userMoves: Number(session.userMoves || 0),
+      maxPlayerMoves: PUZZLE_MAX_PLAYER_MOVES,
+      total: PUZZLE_TOTAL,
+      status: session.status || "active"
+    };
+  }
+
+  function syncPuzzleRoomMeta() {
+    if (!isPuzzleRoom()) return;
+    state.room.puzzle = puzzleRoomMeta();
+  }
+
+  function clearPuzzleBotTimer() {
+    if (state.puzzleBotTimer) {
+      window.clearTimeout(state.puzzleBotTimer);
+      state.puzzleBotTimer = 0;
+    }
+  }
+
+  function allLegalMovesForSide(board, side) {
+    const moves = [];
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const piece = board[y]?.[x] || "";
+        if (!piece || XiangqiCore.pieceColor(piece) !== side) continue;
+        const from = { x, y };
+        XiangqiCore.getLegalMovesForSquare(board, side, from).forEach((to) => {
+          moves.push(XiangqiCore.squareToUci(from) + XiangqiCore.squareToUci(to));
+        });
+      }
+    }
+    return moves;
+  }
+
+  function puzzlePieceValue(piece) {
+    return PUZZLE_PIECE_VALUES[String(piece || "").toLowerCase()] || 0;
+  }
+
+  function puzzleMaterialScoreForBlack(board) {
+    let score = 0;
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const piece = board[y]?.[x] || "";
+        if (!piece) continue;
+        const value = puzzlePieceValue(piece);
+        score += XiangqiCore.pieceColor(piece) === "b" ? value : -value;
+      }
+    }
+    return score;
+  }
+
+  function hasImmediateMate(board, side, targetSide) {
+    return allLegalMovesForSide(board, side).some((move) => {
+      const next = board.map((row) => row.slice());
+      XiangqiCore.applyMoveToBoard(next, move);
+      const result = XiangqiCore.determineGameState(next, targetSide);
+      return result.finished && result.winnerSide === side;
+    });
+  }
+
+  function choosePuzzleBotMove(board) {
+    const moves = allLegalMovesForSide(board, "b");
+    let bestMove = "";
+    let bestScore = -Infinity;
+    moves.forEach((move) => {
+      const next = board.map((row) => row.slice());
+      const to = XiangqiCore.uciToSquare(move.slice(2, 4));
+      const captured = board[to.y]?.[to.x] || "";
+      XiangqiCore.applyMoveToBoard(next, move);
+      const result = XiangqiCore.determineGameState(next, "w");
+      let score = puzzleMaterialScoreForBlack(next);
+      if (captured) score += puzzlePieceValue(captured) * 6;
+      if (result.finished && result.winnerSide === "b") score += 100000;
+      if (XiangqiCore.isKingInCheck(next, "w")) score += 900;
+      if (hasImmediateMate(next, "w", "b")) score -= 50000;
+      score += move.charCodeAt(0) * 0.001 + move.charCodeAt(2) * 0.0001;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+    });
+    return bestMove || moves[0] || "";
+  }
+
+  function applyPuzzleMoveToRoom(side, move, nextSide) {
+    const previousBoard = state.roomBoard.map((row) => row.slice());
+    const nextBoard = state.roomBoard.map((row) => row.slice());
+    const notation = XiangqiCore.formatMoveNotation(move, previousBoard, side);
+    XiangqiCore.applyMoveToBoard(nextBoard, move);
+    const moveNumber = (Array.isArray(state.room.moves) ? state.room.moves.length : 0) + 1;
+    const animation = buildDirectionalMoveAnimation(previousBoard, move, `${state.room.key}:${moveNumber}:${move}`);
+    state.roomBoard = nextBoard;
+    state.room.boardFen = XiangqiCore.boardToFen(nextBoard, nextSide);
+    state.room.sideToMove = nextSide;
+    state.room.yourTurn = nextSide === "w" && state.room.status === "active" && !state.room.result;
+    state.room.turnStartedAt = Date.now();
+    state.room.moves = [...(state.room.moves || []), { side, move, notation }];
+    state.roomSyncedAt = Date.now();
+    if (animation) {
+      animation.soundKind = animation.capturedPiece ? "capture" : "move";
+      animation.suppressMoveSound = shouldUseStatusOnlySound(nextBoard, nextSide, state.room.result);
+      primeRoomMoveAnimation(animation);
+    }
+    return { animation, board: nextBoard };
+  }
+
+  function renderPuzzleMove(animation) {
+    syncPuzzleRoomMeta();
+    renderRoomAfterLocalMove();
+    if (animation) startRoomMoveAnimation(animation, { prepared: true });
+  }
+
+  function setPuzzleFinished(outcome, reason) {
+    if (!isPuzzleRoom() || !state.puzzleSession) return;
+    const success = outcome === "success";
+    state.puzzleSession.status = success ? "success" : "failed";
+    state.room.status = "finished";
+    state.room.yourTurn = false;
+    state.room.result = {
+      winnerSide: success ? "w" : "b",
+      loserSide: success ? "b" : "w",
+      reason,
+      endedAt: new Date().toISOString()
+    };
+    state.roomActionBusy = false;
+    state.selectedSquare = null;
+    state.hints = [];
+    syncPuzzleRoomMeta();
+  }
+
+  async function persistPuzzleSuccess(level) {
+    if (!state.token || !state.user) return;
+    try {
+      const payload = await api("/api/puzzles/complete", {
+        method: "POST",
+        body: { level }
+      });
+      if (payload.user) applySession(payload.user, payload.token || state.token);
+      if (payload.progress) patchLocalPuzzleProgress(payload.progress);
+    } catch (error) {
+      showToast(error.message || "Đã giải xong, nhưng chưa lưu được tiến trình.");
+    }
+  }
+
+  async function playPuzzleMove(move) {
+    if (!isPuzzleRoom() || !state.puzzleSession || state.roomActionBusy) return;
+    if (state.room.status !== "active" || state.room.sideToMove !== "w" || !state.room.yourTurn) return;
+    if (!XiangqiCore.isLegalMove(state.roomBoard, move, "w")) {
+      showToast("Nước đi không hợp lệ.");
+      return;
+    }
+    clearPuzzleBotTimer();
+    clearTurnFlash();
+    settleRoomAnimationNow();
+    state.roomActionBusy = true;
+    state.selectedSquare = null;
+    state.hints = [];
+    hideRoomHintsImmediately();
+
+    state.puzzleSession.userMoves += 1;
+    const { animation, board } = applyPuzzleMoveToRoom("w", move, "b");
+    const redResult = XiangqiCore.determineGameState(board, "b");
+    if (redResult.finished && redResult.winnerSide === "w") {
+      setPuzzleFinished("success", redResult.reason || "checkmate");
+      renderPuzzleMove(animation);
+      await persistPuzzleSuccess(state.puzzleSession.level);
+      renderRoomOverlay();
+      return;
+    }
+    if (state.puzzleSession.userMoves >= PUZZLE_MAX_PLAYER_MOVES) {
+      setPuzzleFinished("failed", "puzzle-limit");
+      renderPuzzleMove(animation);
+      return;
+    }
+    renderPuzzleMove(animation);
+    schedulePuzzleBotTurn();
+  }
+
+  function schedulePuzzleBotTurn() {
+    clearPuzzleBotTimer();
+    state.puzzleBotTimer = window.setTimeout(playPuzzleBotTurn, PUZZLE_ENGINE_DELAY_MS);
+  }
+
+  function playPuzzleBotTurn() {
+    state.puzzleBotTimer = 0;
+    if (!isPuzzleRoom() || !state.puzzleSession || state.room.status !== "active") return;
+    settleRoomAnimationNow();
+    const move = choosePuzzleBotMove(state.roomBoard);
+    if (!move) {
+      setPuzzleFinished("success", "checkmate");
+      renderRoomState({ forceBoard: true, keepSelection: false });
+      void persistPuzzleSuccess(state.puzzleSession.level);
+      return;
+    }
+    const { animation, board } = applyPuzzleMoveToRoom("b", move, "w");
+    const blackResult = XiangqiCore.determineGameState(board, "w");
+    if (blackResult.finished && blackResult.winnerSide === "b") {
+      setPuzzleFinished("failed", blackResult.reason || "checkmate");
+    } else {
+      state.roomActionBusy = false;
+      state.room.yourTurn = true;
+    }
+    renderPuzzleMove(animation);
+    if (state.room.status === "active") triggerTurnFlash();
+  }
+
+  function retryCurrentPuzzle() {
+    const level = state.puzzleSession?.level || puzzleProgress().currentLevel || 1;
+    startPuzzleLevel(level);
+  }
+
+  function startNextPuzzleAfterSuccess() {
+    const progress = puzzleProgress();
+    const level = progress.currentLevel || state.puzzleSession?.level || 1;
+    startPuzzleLevel(level);
+  }
+
+  function exitPuzzleRoom() {
+    clearPuzzleBotTimer();
+    state.puzzleSession = null;
+    state.room = null;
+    state.roomKey = "";
+    state.roomBoard = XiangqiCore.parseFenState(START_FEN).board;
+    state.selectedSquare = null;
+    state.hints = [];
+    state.roomActionBusy = false;
+    clearRoomMoveAnimation();
+    localStorage.removeItem(STORAGE_ROOM);
+    updateResumeButton();
+    goRoute("match", true);
+    renderPuzzlePanel();
+  }
+
   function normalizeRoute(hash) {
     const value = String(hash || location.hash || "").replace(/^#/, "").trim().toLowerCase();
     if (["home", "match", "library", "admin", "room", "review"].includes(value)) return value;
@@ -2189,6 +2640,9 @@
     if (route === "match" && state.lobbyMode === "rank") {
       renderRankPanel();
       void refreshRankStatus();
+    } else if (route === "match" && state.lobbyMode === "puzzle") {
+      renderPuzzlePanel();
+      void refreshPuzzleProgress();
     } else if (!state.rankQueueActive) {
       stopRankQueuePolling();
     }
@@ -2232,6 +2686,7 @@
 
   function activityLabelForRoute() {
     if (state.route === "room") {
+      if (isPuzzleRoom()) return "Đang giải cờ thế";
       return state.room?.key ? `Đang trong phòng ${state.room.key}` : "Đang trong phòng đấu";
     }
     return {
@@ -2246,7 +2701,7 @@
 
   function reportActivity(action = "") {
     if (!state.token || !state.user) return;
-    const roomKey = state.room?.key || state.roomKey || "";
+    const roomKey = isPuzzleRoom() ? "" : state.room?.key || state.roomKey || "";
     api("/api/activity", {
       method: "POST",
       body: {
@@ -2264,6 +2719,7 @@
     } : null;
     state.sessionSuspended = false;
     state.openingBooks = normalizeOpeningBookList(user?.openingBooks);
+    state.puzzleProgress = normalizePuzzleProgressPayload(user?.puzzleProgress);
     if (accessKey) {
       state.savedAccessKey = String(accessKey || "").trim();
       writePersistentValue(STORAGE_ACCESS_KEY, state.savedAccessKey);
@@ -2279,6 +2735,7 @@
     renderProfile();
     renderRankPanel();
     renderBotOptions();
+    renderPuzzlePanel();
   }
 
   function patchLocalUserIntoRoom() {
@@ -2318,6 +2775,9 @@
     state.token = "";
     state.rankQueueActive = false;
     state.rankStatus = null;
+    state.puzzleProgress = null;
+    state.puzzleSession = null;
+    clearPuzzleBotTimer();
     state.history = readStoredHistory();
     state.room = null;
     state.roomKey = "";
@@ -5383,7 +5843,7 @@
   }
 
   function updateResumeButton() {
-    const key = state.room?.key || state.roomKey || localStorage.getItem(STORAGE_ROOM) || "";
+    const key = isPuzzleRoom() ? "" : state.room?.key || state.roomKey || localStorage.getItem(STORAGE_ROOM) || "";
     const hiddenOnHome = state.route === "home";
     dom.resumeRoomBtn.classList.toggle("hidden", !key || !state.user || hiddenOnHome);
     if (key) dom.resumeRoomBtn.textContent = `Phòng ${key}`;
@@ -5440,6 +5900,7 @@
     const room = state.room;
     if (!room) {
       dom.roomKeyLabel.textContent = "------";
+      dom.copyRoomKeyBtn.disabled = true;
       dom.roomStatusBadge.textContent = "Chưa vào phòng";
       updateRoomPeopleBadge(null);
       dom.roomSummary.textContent = "Phòng đang được chuẩn bị.";
@@ -5461,12 +5922,44 @@
       return;
     }
 
+    if (isPuzzleRoom(room)) {
+      const topPlayer = room.players?.b || PUZZLE_BOT_PLAYER;
+      const bottomPlayer = room.players?.w || state.user || puzzlePlayerSnapshot();
+      dom.roomKeyLabel.textContent = "Cờ thế";
+      dom.copyRoomKeyBtn.disabled = true;
+      dom.roomStatusBadge.textContent = roomStatusText(room);
+      updateRoomPeopleBadge(room);
+      dom.roomSummary.textContent = roomSummaryText(room);
+      dom.undoCount.textContent = "0";
+      dom.drawCount.textContent = "0";
+      dom.requestState.innerHTML = "";
+      dom.requestState.classList.add("hidden");
+      dom.topSideLabel.textContent = "Đen";
+      dom.topSideLabel.classList.remove("side-red");
+      dom.bottomSideLabel.textContent = "Đỏ";
+      dom.bottomSideLabel.classList.add("side-red");
+      paintAvatar(dom.topPlayerAvatar, topPlayer, "M");
+      paintAvatar(dom.bottomPlayerAvatar, bottomPlayer, "Đ");
+      dom.topPlayerName.textContent = topPlayer.displayName || "Máy cờ thế";
+      dom.bottomPlayerName.textContent = bottomPlayer.displayName || bottomPlayer.username || "Bạn";
+      dom.undoRequestBtn.disabled = true;
+      dom.drawRequestBtn.disabled = true;
+      dom.resignBtn.disabled = true;
+      dom.roomReadyBtn.classList.add("hidden");
+      dom.roomReadyBtn.disabled = true;
+      dom.leaveRoomBtn.disabled = !!state.roomActionBusy;
+      renderRoomClocks();
+      syncRoomMobileActionState();
+      return;
+    }
+
     const bottomSide = room.role === "player" ? room.yourSide : "w";
     const topSide = oppositeSide(bottomSide);
     const topPlayer = room.players?.[topSide] || null;
     const bottomPlayer = room.players?.[bottomSide] || null;
 
     dom.roomKeyLabel.textContent = room.key;
+    dom.copyRoomKeyBtn.disabled = false;
     dom.roomStatusBadge.textContent = roomStatusText(room);
     updateRoomPeopleBadge(room);
     dom.roomSummary.textContent = roomSummaryText(room);
@@ -5579,6 +6072,34 @@
       return;
     }
 
+    if (isPuzzleRoom(room)) {
+      if (!room.result) return;
+      const success = room.result.winnerSide === "w";
+      const level = Number(room.puzzle?.level || state.puzzleSession?.level || 1);
+      dom.roomOverlayTitle.textContent = success ? "Chúc mừng" : "Thất bại";
+      dom.roomOverlayText.textContent = success
+        ? `Bạn đã giải xong Thế cờ ${level}.`
+        : room.result.reason === "puzzle-limit"
+          ? `Bạn đã dùng quá ${PUZZLE_MAX_PLAYER_MOVES} nước. Hãy giải lại thế này.`
+          : "Máy đã xử thắng sau khi bạn đi sai. Hãy giải lại thế này.";
+
+      const primary = document.createElement("button");
+      primary.className = "primary-button";
+      primary.type = "button";
+      primary.textContent = success ? "Thế tiếp theo" : "Giải lại";
+      primary.addEventListener("click", success ? startNextPuzzleAfterSuccess : retryCurrentPuzzle);
+
+      const exit = document.createElement("button");
+      exit.className = "ghost-button";
+      exit.type = "button";
+      exit.textContent = "Thoát ra";
+      exit.addEventListener("click", exitPuzzleRoom);
+
+      dom.roomOverlayActions.append(primary, exit);
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
     if (!room.result) return;
 
     dom.roomOverlayTitle.textContent = resultTitle(room);
@@ -5665,6 +6186,14 @@
     const room = state.room;
     dom.chatList.innerHTML = "";
     if (!room) return;
+    if (isPuzzleRoom(room)) {
+      const empty = document.createElement("div");
+      empty.className = "chat-empty";
+      empty.textContent = "Cờ thế đang chạy trên máy của bạn, không dùng chat phòng.";
+      dom.chatList.appendChild(empty);
+      state.lastChatSignature = "puzzle";
+      return;
+    }
 
     const messages = Array.isArray(room.chat) ? room.chat : [];
     const signature = messages.map((entry) => `${entry.id}:${entry.createdAt}`).join("|");
@@ -6615,6 +7144,10 @@
 
   async function sendMove(move) {
     if (!state.room) return;
+    if (isPuzzleRoom()) {
+      await playPuzzleMove(move);
+      return;
+    }
     clearTurnFlash();
     settleRoomAnimationNow();
     const side = state.room.yourSide;
@@ -6812,6 +7345,10 @@
 
   function onLeaveRoomClick() {
     if (!state.room || state.roomActionBusy) return;
+    if (isPuzzleRoom()) {
+      exitPuzzleRoom();
+      return;
+    }
     if (state.room.mode === "ranked" && state.room.role === "player" && ["ready", "starting", "active"].includes(state.room.status)) {
       openModal({
         title: "Rời trận leo rank?",
@@ -6835,6 +7372,10 @@
 
   async function leaveRoomNow() {
     if (!state.room || state.roomActionBusy) return;
+    if (isPuzzleRoom()) {
+      exitPuzzleRoom();
+      return;
+    }
     const room = state.room;
     if (room.status === "finished") {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
@@ -6864,6 +7405,10 @@
 
   async function leaveRoomFromMobileBack() {
     const room = state.room;
+    if (isPuzzleRoom(room)) {
+      exitPuzzleRoom();
+      return;
+    }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
       goRoute("match", true);
@@ -6896,6 +7441,11 @@
     event.preventDefault();
     const text = dom.chatInput.value.trim();
     if (!text || !state.room) return;
+    if (isPuzzleRoom()) {
+      dom.chatInput.value = "";
+      showToast("Cờ thế không dùng chat phòng.");
+      return;
+    }
     try {
       const payload = await api("/api/rooms/chat", {
         method: "POST",
@@ -6925,6 +7475,7 @@
   }
 
   async function pollRoomState({ force = false } = {}) {
+    if (isPuzzleRoom()) return;
     if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room") return;
     if (!force && (state.roomActionBusy || state.roomAnimation)) return;
     state.roomPollBusy = true;
@@ -6958,6 +7509,24 @@
       dom.bottomClock.dataset.clockLow = "0";
       dom.topClock.classList.remove("active", "low");
       dom.bottomClock.classList.remove("active", "low");
+      paintTurnProgress(dom.topPlayerAvatar, false);
+      paintTurnProgress(dom.bottomPlayerAvatar, false);
+      return;
+    }
+    if (isPuzzleRoom(room)) {
+      const used = Math.max(0, Number(state.puzzleSession?.userMoves || room.puzzle?.userMoves || 0));
+      dom.topClock.textContent = room.sideToMove === "b" && room.status === "active" ? "Đang đi" : PUZZLE_CLOCK_LABEL;
+      dom.bottomClock.textContent = `${used}/${PUZZLE_MAX_PLAYER_MOVES}`;
+      dom.topClock.dataset.clockLabel = dom.topClock.textContent;
+      dom.bottomClock.dataset.clockLabel = dom.bottomClock.textContent;
+      dom.topClock.dataset.clockActive = room.sideToMove === "b" && room.status === "active" ? "1" : "0";
+      dom.bottomClock.dataset.clockActive = room.yourTurn && room.status === "active" ? "1" : "0";
+      dom.topClock.dataset.clockLow = "0";
+      dom.bottomClock.dataset.clockLow = "0";
+      dom.topClock.classList.toggle("active", room.sideToMove === "b" && room.status === "active");
+      dom.bottomClock.classList.toggle("active", room.yourTurn && room.status === "active");
+      dom.topClock.classList.remove("low");
+      dom.bottomClock.classList.remove("low");
       paintTurnProgress(dom.topPlayerAvatar, false);
       paintTurnProgress(dom.bottomPlayerAvatar, false);
       return;
@@ -7041,6 +7610,7 @@
   }
 
   function requestRoomTimeoutSync() {
+    if (isPuzzleRoom()) return;
     const now = Date.now();
     if (now - Number(state.roomTimeoutSyncAt || 0) < 450) return;
     state.roomTimeoutSyncAt = now;
@@ -7122,7 +7692,8 @@
       avatarUrl: user.avatarUrl || "",
       role: user.role || "user",
       rank: user.rank || null,
-      botProgress: user.botProgress || null
+      botProgress: user.botProgress || null,
+      puzzleProgress: user.puzzleProgress || null
     }));
   }
 
@@ -7131,6 +7702,10 @@
   }
 
   function roomStatusText(room) {
+    if (isPuzzleRoom(room)) {
+      if (room.status === "finished") return room.result?.winnerSide === "w" ? "Đã giải xong" : "Giải sai";
+      return room.yourTurn ? "Tới lượt bạn" : "Máy đang đi";
+    }
     if (room.mode === "ranked" && room.status === "starting") return "Leo rank";
     if (room.mode === "ranked" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Trận rank";
     if (room.mode === "ranked" && room.status === "finished") return "Rank đã tính điểm";
@@ -7145,6 +7720,18 @@
   }
 
   function roomSummaryText(room) {
+    if (isPuzzleRoom(room)) {
+      const level = Number(room.puzzle?.level || state.puzzleSession?.level || 1);
+      const used = Number(room.puzzle?.userMoves || state.puzzleSession?.userMoves || 0);
+      if (room.status === "finished") {
+        return room.result?.winnerSide === "w"
+          ? `Thế cờ ${level} đã hoàn tất.`
+          : `Thế cờ ${level} chưa được giải đúng. Bạn có thể giải lại hoặc thoát ra.`;
+      }
+      return room.yourTurn
+        ? `Thế cờ ${level}. Bạn cầm Đỏ, giải trong tối đa ${PUZZLE_MAX_PLAYER_MOVES} nước. Đã đi ${used}/${PUZZLE_MAX_PLAYER_MOVES}.`
+        : `Thế cờ ${level}. Máy đang đáp trả nước vừa đi của bạn.`;
+    }
     const yourSide = room.role === "player" ? room.yourSide : "w";
     const yourClockMs = Number(room.clockSetupMs?.[yourSide] || 0);
     const opponentClockMs = Number(room.clockSetupMs?.[oppositeSide(yourSide)] || 0);

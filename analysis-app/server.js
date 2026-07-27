@@ -43,6 +43,7 @@ const LICENSE_TOKEN_SECRET = process.env.DMAIHXCAI_LICENSE_SECRET || TOKEN_SECRE
 const LICENSE_TTL_MS = 1000 * 60 * 60 * 24 * 183;
 const ROOM_REQUEST_LIMIT = 2;
 const MAX_HISTORY_ITEMS = 20;
+const PUZZLE_COUNT = 110;
 const MAX_OPENING_BOOKS = 200;
 const MAX_OPENING_BOOK_NODES = Math.max(1000, Number(process.env.DMAIHXCAI_MAX_OPENING_BOOK_NODES) || 20000);
 const MAX_CHAT_MESSAGES = 80;
@@ -589,6 +590,7 @@ function loadUsers() {
     if (user && user.role !== "admin") {
       ensureUserRank(user);
       ensureUserBotProgress(user);
+      ensureUserPuzzleProgress(user);
     }
   });
   stateStore.write("users", { users: merged });
@@ -2317,6 +2319,49 @@ function ensureUserBotProgress(user) {
   return user.botProgress;
 }
 
+function normalizePuzzleProgress(rawProgress = {}) {
+  const progress = rawProgress && typeof rawProgress === "object" ? rawProgress : {};
+  const completed = {};
+  const rawCompleted = progress.completed && typeof progress.completed === "object" ? progress.completed : {};
+  for (let level = 1; level <= PUZZLE_COUNT; level += 1) {
+    completed[level] = Boolean(rawCompleted[level] || rawCompleted[String(level)]);
+  }
+  let unlockedLevel = Math.max(1, Math.min(PUZZLE_COUNT, Math.round(Number(progress.unlockedLevel || 1))));
+  for (let level = 1; level <= PUZZLE_COUNT; level += 1) {
+    if (completed[level]) unlockedLevel = Math.max(unlockedLevel, Math.min(PUZZLE_COUNT, level + 1));
+  }
+  return { unlockedLevel, completed };
+}
+
+function publicPuzzleProgress(rawProgress = {}) {
+  const progress = normalizePuzzleProgress(rawProgress);
+  const completedCount = Object.values(progress.completed).filter(Boolean).length;
+  return {
+    total: PUZZLE_COUNT,
+    unlockedLevel: progress.unlockedLevel,
+    currentLevel: Math.min(PUZZLE_COUNT, Math.max(1, progress.unlockedLevel)),
+    completedCount,
+    completed: progress.completed
+  };
+}
+
+function ensureUserPuzzleProgress(user) {
+  if (!user) return normalizePuzzleProgress();
+  user.puzzleProgress = normalizePuzzleProgress(user.puzzleProgress);
+  return user.puzzleProgress;
+}
+
+function completePuzzleForUser(user, level) {
+  const safeLevel = Math.round(Number(level) || 0);
+  if (safeLevel < 1 || safeLevel > PUZZLE_COUNT) throw new Error("INVALID_PUZZLE_LEVEL");
+  const progress = ensureUserPuzzleProgress(user);
+  if (safeLevel > Number(progress.unlockedLevel || 1)) throw new Error("PUZZLE_LOCKED");
+  progress.completed[safeLevel] = true;
+  progress.unlockedLevel = Math.max(progress.unlockedLevel, Math.min(PUZZLE_COUNT, safeLevel + 1));
+  user.puzzleProgress = normalizePuzzleProgress(progress);
+  return publicPuzzleProgress(user.puzzleProgress);
+}
+
 function isBotLevelUnlocked(user, level) {
   const safeLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(level) || 1)));
   const progress = ensureUserBotProgress(user);
@@ -2342,6 +2387,7 @@ function publicUser(user) {
     avatarUrl: user.avatarUrl || "",
     rank: publicRank(user.rank),
     botProgress: publicBotProgress(user.botProgress),
+    puzzleProgress: publicPuzzleProgress(user.puzzleProgress),
     visionQuota: visionQuotaStatus(user),
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [],
     openingBooks: normalizeOpeningBooks(user.openingBooks)
@@ -2382,6 +2428,7 @@ function adminUserSummary(user) {
     avatarUrl: user.avatarUrl || "",
     rank: publicRank(user.rank),
     botProgress: publicBotProgress(user.botProgress),
+    puzzleProgress: publicPuzzleProgress(user.puzzleProgress),
     createdAt: user.createdAt || nowIso(),
     lastSeenAt: user.lastSeenAt || "",
     online,
@@ -5323,6 +5370,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/puzzles/progress" && req.method === "GET") {
+      const user = requireUser(req);
+      const progress = publicPuzzleProgress(ensureUserPuzzleProgress(user));
+      json(res, 200, { ok: true, progress, user: publicUser(user) });
+      return;
+    }
+
+    if (url.pathname === "/api/puzzles/complete" && req.method === "POST") {
+      const user = requireUser(req);
+      const body = await readBody(req);
+      const progress = completePuzzleForUser(user, body.level);
+      touchUserActivity(user, { route: "match", roomKey: "", action: `Giai xong the co ${Math.round(Number(body.level) || 0)}` });
+      await flushUserPersistence();
+      json(res, 200, { ok: true, progress, user: publicUser(user) });
+      return;
+    }
+
     if (url.pathname === "/api/kydao/kings") {
       requireUser(req);
       const masters = await getKydaoKings();
@@ -5752,6 +5816,8 @@ const server = http.createServer(async (req, res) => {
       ROOM_ALREADY_ACTIVE: 400,
       RANKED_REMATCH_DISABLED: 400,
       BOT_LOCKED: 403,
+      PUZZLE_LOCKED: 403,
+      INVALID_PUZZLE_LEVEL: 400,
       NO_PENDING_REQUEST: 400,
       NO_MOVE_TO_UNDO: 400,
       SELF_REQUEST: 400,
@@ -5783,6 +5849,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 function friendlyErrorVi(code) {
+  if (code === "PUZZLE_LOCKED") return "Ban can giai the co truoc de mo khoa the nay.";
+  if (code === "INVALID_PUZZLE_LEVEL") return "The co khong hop le.";
   if (code === "KYDAO_BAD_PATH") return "Duong dan van dau khong hop le.";
   if (code === "KYDAO_MASTER_NOT_FOUND") return "Khong tim thay danh thu trong danh sach da chon.";
   if (code === "KYDAO_GAME_NOT_FOUND") return "Khong doc duoc van dau nay.";
