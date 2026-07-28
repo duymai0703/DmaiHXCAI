@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-match-modes-v2">
+    <link rel="stylesheet" href="/portal.css?v=20260728-endgame-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -198,7 +198,7 @@
                 <img src="/assets/avtchibi/theco.png?v=20260728-match-modes-v2" alt="" draggable="false">
                 <span>Giải cờ thế</span>
               </button>
-              <button id="showEndgameRoom" class="match-mode-tile is-placeholder" type="button">
+              <button id="showEndgameRoom" class="match-mode-tile" type="button">
                 <img src="/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v2" alt="" draggable="false">
                 <span>Luyện tàn cuộc</span>
               </button>
@@ -371,6 +371,19 @@
               </div>
               <p id="puzzleStatusText" class="rank-queue-status" aria-live="polite"></p>
             </form>
+
+            <section id="endgameTrainingPanel" class="subpanel endgame-training-panel hidden">
+              <div class="endgame-training-heading">
+                <div>
+                  <h3>tàn cuộc thực dụng</h3>
+                  <p>Các thế tàn đã được lưu nội bộ để luyện trực tiếp trong web.</p>
+                </div>
+                <strong id="endgameTrainingCount">0 thế</strong>
+              </div>
+              <div id="endgameSectionTabs" class="endgame-section-tabs" role="tablist" aria-label="Tập tàn cuộc thực dụng"></div>
+              <div id="endgamePageTabs" class="endgame-page-tabs" aria-label="Trang tàn cuộc"></div>
+              <div id="endgameTrainingList" class="endgame-training-list"></div>
+            </section>
 
             <section id="pendingModePanel" class="subpanel pending-mode-panel hidden">
               <div class="pending-mode-card">
@@ -794,7 +807,8 @@
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
-    <script src="/portal.js?v=20260728-match-modes-v2"></script>
+    <script src="/endgame-data.js?v=20260728-endgame-v1"></script>
+    <script src="/portal.js?v=20260728-endgame-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -802,7 +816,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v183";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v184";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

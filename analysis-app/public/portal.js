@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-match-modes-v2";
+  const ASSET_WARMUP_VERSION = "20260728-endgame-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -38,6 +38,28 @@
   const PUZZLES = Array.isArray(globalThis.YMEGALODON_PUZZLES)
     ? globalThis.YMEGALODON_PUZZLES.filter((item) => item && /^[1-9]\d*$/.test(String(item.level || "")) && item.fen)
     : [];
+  const ENDGAME_DATA_VERSION = "20260728-endgame-v1";
+  const ENDGAME_DATA_ASSET = `/endgame-data.js?v=${ENDGAME_DATA_VERSION}`;
+  const ENDGAME_LIBRARY = globalThis.YMEGALODON_ENDGAMES && Array.isArray(globalThis.YMEGALODON_ENDGAMES.sections)
+    ? globalThis.YMEGALODON_ENDGAMES
+    : { title: "tàn cuộc thực dụng", total: 0, sections: [] };
+  const ENDGAME_PAGE_SIZE = 20;
+  const ENDGAME_PIECE_LABELS = {
+    K: "帥",
+    A: "仕",
+    B: "相",
+    N: "馬",
+    R: "車",
+    C: "炮",
+    P: "兵",
+    k: "將",
+    a: "士",
+    b: "象",
+    n: "馬",
+    r: "車",
+    c: "炮",
+    p: "卒"
+  };
   const PUZZLE_TOTAL = PUZZLES.length;
   const PUZZLE_MAX_PLAYER_MOVES = 8;
   const PUZZLE_ENGINE_DELAY_MS = 260;
@@ -174,6 +196,7 @@
     "/styles.css?v=20260727-rank-source-v2",
     "/app.js?v=20260727-rank-source-v2",
     "/puzzle-data.js?v=20260727-puzzle-v1",
+    ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -278,6 +301,8 @@
     puzzleMapIntroKey: "",
     puzzleMapAvatarLevel: 0,
     puzzleMapPendingJump: null,
+    endgameSectionIndex: 0,
+    endgamePage: 1,
     createSide: "w",
     botSide: "w",
     room: null,
@@ -415,6 +440,11 @@
     botRoomForm: byId("botRoomForm"),
     rankRoomForm: byId("rankRoomForm"),
     puzzleRoomForm: byId("puzzleRoomForm"),
+    endgameTrainingPanel: byId("endgameTrainingPanel"),
+    endgameTrainingCount: byId("endgameTrainingCount"),
+    endgameSectionTabs: byId("endgameSectionTabs"),
+    endgamePageTabs: byId("endgamePageTabs"),
+    endgameTrainingList: byId("endgameTrainingList"),
     pendingModePanel: byId("pendingModePanel"),
     pendingModeLogo: byId("pendingModeLogo"),
     pendingModeTitle: byId("pendingModeTitle"),
@@ -1954,7 +1984,8 @@
     state.lobbyMode = LOBBY_MODES.has(mode) ? mode : LOBBY_MENU_MODE;
     const isMenuMode = state.lobbyMode === LOBBY_MENU_MODE;
     const isFriendMode = ["join", "create"].includes(state.lobbyMode);
-    const isPendingMode = ["endgame", "opponent"].includes(state.lobbyMode);
+    const isEndgameMode = state.lobbyMode === "endgame";
+    const isPendingMode = state.lobbyMode === "opponent";
     if (previousMode !== state.lobbyMode && state.lobbyMode !== "puzzle") {
       state.puzzleMapIntroKey = "";
     }
@@ -1975,6 +2006,7 @@
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     dom.puzzleRoomForm?.classList.toggle("hidden", state.lobbyMode !== "puzzle");
+    dom.endgameTrainingPanel?.classList.toggle("hidden", !isEndgameMode);
     dom.pendingModePanel?.classList.toggle("hidden", !isPendingMode);
     dom.matchHubView?.classList.toggle("puzzle-map-mode", state.lobbyMode === "puzzle");
     setMessage(dom.matchHubMessage, "");
@@ -1988,6 +2020,7 @@
       renderPuzzlePanel();
       void refreshPuzzleProgress();
     }
+    if (isEndgameMode) renderEndgameTrainingPanel();
   }
 
   function openMatchMode(mode) {
@@ -2001,6 +2034,163 @@
     goMatchMode(mode, true);
   }
 
+  function endgameSections() {
+    return Array.isArray(ENDGAME_LIBRARY.sections)
+      ? ENDGAME_LIBRARY.sections.filter((section) => section && Array.isArray(section.puzzles))
+      : [];
+  }
+
+  function clampEndgameState() {
+    const sections = endgameSections();
+    state.endgameSectionIndex = Math.max(0, Math.min(sections.length - 1, Number(state.endgameSectionIndex) || 0));
+    const section = sections[state.endgameSectionIndex];
+    const pageCount = Math.max(1, Math.ceil((section?.puzzles?.length || 0) / ENDGAME_PAGE_SIZE));
+    state.endgamePage = Math.max(1, Math.min(pageCount, Number(state.endgamePage) || 1));
+    return { sections, section, pageCount };
+  }
+
+  function setEndgameSection(index) {
+    state.endgameSectionIndex = Number(index) || 0;
+    state.endgamePage = 1;
+    renderEndgameTrainingPanel();
+  }
+
+  function setEndgamePage(page) {
+    state.endgamePage = Number(page) || 1;
+    renderEndgameTrainingPanel();
+  }
+
+  function renderEndgameTrainingPanel() {
+    if (!dom.endgameTrainingPanel) return;
+    const { sections, section, pageCount } = clampEndgameState();
+    const total = Number(ENDGAME_LIBRARY.total || sections.reduce((sum, item) => sum + (item.puzzles?.length || 0), 0));
+    if (dom.endgameTrainingCount) dom.endgameTrainingCount.textContent = `${total} thế`;
+    renderEndgameSectionTabs(sections);
+    renderEndgamePageTabs(pageCount);
+    renderEndgameCards(section);
+  }
+
+  function renderEndgameSectionTabs(sections) {
+    if (!dom.endgameSectionTabs) return;
+    dom.endgameSectionTabs.innerHTML = "";
+    if (!sections.length) return;
+    const fragment = document.createDocumentFragment();
+    sections.forEach((section, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = index === state.endgameSectionIndex ? "active" : "";
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", index === state.endgameSectionIndex ? "true" : "false");
+      button.textContent = `${section.title || `Tập ${index + 1}`} · ${section.puzzles.length}`;
+      button.addEventListener("click", () => setEndgameSection(index));
+      fragment.appendChild(button);
+    });
+    dom.endgameSectionTabs.appendChild(fragment);
+  }
+
+  function renderEndgamePageTabs(pageCount) {
+    if (!dom.endgamePageTabs) return;
+    dom.endgamePageTabs.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+    for (let page = 1; page <= pageCount; page += 1) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = page === state.endgamePage ? "active" : "";
+      button.setAttribute("aria-label", `Trang ${page}`);
+      button.textContent = String(page);
+      button.addEventListener("click", () => setEndgamePage(page));
+      fragment.appendChild(button);
+    }
+    dom.endgamePageTabs.appendChild(fragment);
+  }
+
+  function renderEndgameCards(section) {
+    if (!dom.endgameTrainingList) return;
+    dom.endgameTrainingList.innerHTML = "";
+    const puzzles = Array.isArray(section?.puzzles) ? section.puzzles : [];
+    if (!puzzles.length) {
+      const empty = document.createElement("div");
+      empty.className = "endgame-empty";
+      empty.textContent = "Chưa có thế tàn nào trong dữ liệu nội bộ.";
+      dom.endgameTrainingList.appendChild(empty);
+      return;
+    }
+    const start = (state.endgamePage - 1) * ENDGAME_PAGE_SIZE;
+    const pageItems = puzzles.slice(start, start + ENDGAME_PAGE_SIZE);
+    const fragment = document.createDocumentFragment();
+    pageItems.forEach((item, index) => {
+      fragment.appendChild(createEndgameCard(item, start + index + 1));
+    });
+    dom.endgameTrainingList.appendChild(fragment);
+  }
+
+  function createEndgameCard(item, order) {
+    const card = document.createElement("article");
+    card.className = "endgame-card";
+
+    const header = document.createElement("header");
+    const title = document.createElement("strong");
+    title.textContent = item.label || `Thế tàn ${order}`;
+    const meta = document.createElement("small");
+    meta.textContent = "Tới lượt Đỏ";
+    header.appendChild(title);
+    header.appendChild(meta);
+
+    card.appendChild(header);
+    card.appendChild(createEndgameMiniBoard(item.fen, title.textContent));
+    return card;
+  }
+
+  function createEndgameMiniBoard(fen, label) {
+    const boardEl = document.createElement("div");
+    boardEl.className = "endgame-mini-board";
+    boardEl.setAttribute("role", "img");
+    boardEl.setAttribute("aria-label", label || "Thế tàn cuộc");
+
+    let board = XiangqiCore.emptyBoard();
+    try {
+      board = XiangqiCore.parseFenState(fen).board;
+    } catch {
+      board = XiangqiCore.emptyBoard();
+    }
+
+    for (let displayRow = 0; displayRow < 10; displayRow += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const cell = document.createElement("span");
+        cell.className = "endgame-mini-cell";
+        cell.style.gridColumn = String(x + 1);
+        cell.style.gridRow = String(displayRow + 1);
+        boardEl.appendChild(cell);
+      }
+    }
+
+    const topPalace = document.createElement("span");
+    topPalace.className = "endgame-mini-palace top";
+    const bottomPalace = document.createElement("span");
+    bottomPalace.className = "endgame-mini-palace bottom";
+    const river = document.createElement("span");
+    river.className = "endgame-mini-river";
+    river.innerHTML = "<span>楚河</span><span>漢界</span>";
+    boardEl.appendChild(topPalace);
+    boardEl.appendChild(bottomPalace);
+    boardEl.appendChild(river);
+
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const piece = board[y]?.[x];
+        if (!piece) continue;
+        const pieceEl = document.createElement("span");
+        pieceEl.className = `endgame-mini-piece ${XiangqiCore.pieceColor(piece) === "w" ? "red" : "black"}`;
+        pieceEl.style.gridColumn = String(x + 1);
+        pieceEl.style.gridRow = String(10 - y);
+        pieceEl.textContent = ENDGAME_PIECE_LABELS[piece] || piece;
+        boardEl.appendChild(pieceEl);
+      }
+    }
+
+    return boardEl;
+  }
+
   function pendingMatchModeMeta() {
     if (state.lobbyMode === "opponent") {
       return {
@@ -2010,9 +2200,9 @@
       };
     }
     return {
-      title: "Luyện tàn cuộc",
-      text: "Chức năng luyện tàn cuộc sẽ được bổ sung sau.",
-      logo: matchModeAsset("tancuoc.png")
+      title: "Giả lập đối thủ",
+      text: "Chức năng giả lập đối thủ sẽ được bổ sung sau.",
+      logo: matchModeAsset("nhanban.png")
     };
   }
 
