@@ -108,6 +108,21 @@ const BOT_PLAYERS = [
   { level: 7, depth: 7, name: "Tín Lăng Quân", avatarUrl: avtchibiAsset("bot7.png") }
 ];
 const BOT_USER_PREFIX = "bot-level-";
+const OPPONENT_USER_PREFIX = "opponent-sim-";
+const OPPONENT_SIM_AVATAR = avtchibiAsset("nhanban.png");
+const OPPONENT_SIM_DEFAULT_NAME = "Đối thủ giả lập";
+const OPPONENT_SIM_STRENGTHS = [
+  { key: "normal", label: "Bình thường", depth: 1 },
+  { key: "strong", label: "Khá mạnh", depth: 2 },
+  { key: "veryStrong", label: "Rất mạnh", depth: 4 }
+];
+const OPPONENT_SIM_STYLES = [
+  { key: "balanced", label: "Công thủ toàn diện" },
+  { key: "counter", label: "Phòng ngự phản công" },
+  { key: "passive", label: "Phòng thủ thụ động" },
+  { key: "attack", label: "Tấn công thuần túy" },
+  { key: "practical", label: "Thực dụng" }
+];
 const RANK_TIERS = [
   { key: "dong", label: "\u0110\u1ed3ng", threshold: 30, icon: "/assets/ranks/source-dong.png?v=20260727-rank-source-v2" },
   { key: "bac", label: "B\u1ea1c", threshold: 40, icon: "/assets/ranks/source-bac.png?v=20260727-rank-source-v2" },
@@ -652,6 +667,22 @@ function loadRooms() {
           w: roomPlayerSnapshot(room.players?.w),
           b: roomPlayerSnapshot(room.players?.b)
         };
+    if (isOpponentRoom(room)) {
+      const botSide = botSideInRoom(room);
+      const botId = room.bot?.userId || `${OPPONENT_USER_PREFIX}${String(room.key).toLowerCase()}`;
+      if (botSide) {
+        room.bot = {
+          ...(room.bot || {}),
+          kind: "opponent",
+          userId: botId,
+          side: botSide,
+          avatarUrl: room.bot?.avatarUrl || OPPONENT_SIM_AVATAR,
+          name: sanitizeOpponentName(room.bot?.name || "")
+        };
+        room.players[botSide] = botId;
+        room.playerProfiles[botSide] = opponentBotSnapshot(room.bot);
+      }
+    }
     room.boardFen = room.boardFen || XiangqiCore.START_FEN;
     room.sideToMove = room.sideToMove === "b" ? "b" : "w";
     room.status = room.status || "waiting";
@@ -2460,6 +2491,51 @@ function isBotUserId(userId) {
   return typeof userId === "string" && userId.startsWith(BOT_USER_PREFIX);
 }
 
+function isOpponentBotUserId(userId) {
+  return typeof userId === "string" && userId.startsWith(OPPONENT_USER_PREFIX);
+}
+
+function isSystemBotUserId(userId) {
+  return isBotUserId(userId) || isOpponentBotUserId(userId);
+}
+
+function isOpponentRoom(room) {
+  return Boolean(room && (room.mode === "opponent" || room.bot?.kind === "opponent"));
+}
+
+function isBotRoomMode(room) {
+  return Boolean(room && (room.mode === "bot" || isOpponentRoom(room)));
+}
+
+function opponentStrengthInfo(value) {
+  const key = String(value || "normal").trim();
+  return OPPONENT_SIM_STRENGTHS.find((item) => item.key === key) || OPPONENT_SIM_STRENGTHS[0];
+}
+
+function opponentStyleInfo(value) {
+  const key = String(value || "balanced").trim();
+  return OPPONENT_SIM_STYLES.find((item) => item.key === key) || OPPONENT_SIM_STYLES[0];
+}
+
+function sanitizeOpponentName(value) {
+  return sanitizeAccountName(value || "", OPPONENT_SIM_DEFAULT_NAME).slice(0, 24) || OPPONENT_SIM_DEFAULT_NAME;
+}
+
+function opponentBotSnapshot(bot = {}) {
+  const name = sanitizeOpponentName(bot.name || "");
+  const depth = Math.max(1, Math.min(4, Number(bot.depth || 1)));
+  return {
+    id: bot.userId || `${OPPONENT_USER_PREFIX}preview`,
+    username: "opponent-sim",
+    displayName: name,
+    avatarSeed: "opponent",
+    avatarUrl: bot.avatarUrl || OPPONENT_SIM_AVATAR,
+    role: "bot",
+    botDepth: depth,
+    botStyle: bot.style || "balanced"
+  };
+}
+
 function botSnapshot(levelOrId) {
   const bot = botDefinition(levelOrId);
   return {
@@ -2476,6 +2552,7 @@ function botSnapshot(levelOrId) {
 
 function roomPlayerSnapshot(userId) {
   if (isBotUserId(userId)) return botSnapshot(userId);
+  if (isOpponentBotUserId(userId)) return opponentBotSnapshot({ userId });
   const user = users.find((item) => item.id === userId);
   if (!user) return null;
   return {
@@ -2942,6 +3019,81 @@ function createBotRoom(user, { minutes = 10, side = "w", incrementSeconds = 0, b
   return room;
 }
 
+function openingBookHasMoves(node) {
+  return Array.isArray(node?.children) && node.children.some((child) => child?.move);
+}
+
+function opponentOpeningBookForUser(user, bookId) {
+  const id = String(bookId || "").trim();
+  if (!id) return null;
+  const book = normalizeOpeningBooks(user?.openingBooks).find((item) => item.id === id);
+  if (!book || !openingBookHasMoves(book.tree)) return null;
+  return {
+    id: book.id,
+    name: book.name,
+    startFen: book.startFen || XiangqiCore.START_FEN,
+    bookSide: normalizeOpeningBookSide(book.bookSide || book.side),
+    side: normalizeOpeningBookSide(book.bookSide || book.side),
+    tree: cloneJsonValue(book.tree),
+    outOfBook: false,
+    finished: false
+  };
+}
+
+function createOpponentRoom(user, {
+  minutes = 10,
+  side = "w",
+  incrementSeconds = 0,
+  strength = "normal",
+  style = "balanced",
+  opponentName = "",
+  openingBookId = ""
+} = {}) {
+  const color = side === "b" ? "b" : "w";
+  const botSide = oppositeSide(color);
+  const safeMinutes = clampRoomMinutes(minutes, 10);
+  const strengthInfo = opponentStrengthInfo(strength);
+  const styleInfo = opponentStyleInfo(style);
+  const room = createRoom(user, {
+    yourMinutes: safeMinutes,
+    opponentMinutes: safeMinutes,
+    side: color,
+    incrementSeconds
+  });
+  const botId = `${OPPONENT_USER_PREFIX}${room.key.toLowerCase()}`;
+  room.mode = "opponent";
+  room.bot = {
+    kind: "opponent",
+    side: botSide,
+    userId: botId,
+    level: strengthInfo.depth,
+    depth: Math.max(1, Math.min(4, strengthInfo.depth)),
+    strength: strengthInfo.key,
+    strengthLabel: strengthInfo.label,
+    style: styleInfo.key,
+    styleLabel: styleInfo.label,
+    name: sanitizeOpponentName(opponentName),
+    avatarUrl: OPPONENT_SIM_AVATAR,
+    openingBook: opponentOpeningBookForUser(user, openingBookId)
+  };
+  room.players[botSide] = botId;
+  room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
+  room.playerTimeMs[botId] = safeMinutes * 60 * 1000;
+  room.pendingOpponentTimeMs = safeMinutes * 60 * 1000;
+  syncRoomPlayerProfile(room, botSide, opponentBotSnapshot(room.bot));
+  syncVisibleClockSetup(room);
+  room.clocks = {
+    w: startingClockMsForSide(room, "w"),
+    b: startingClockMsForSide(room, "b")
+  };
+  room.initialClocks = { ...room.clocks };
+  resetRoomForGame(room);
+  touchPresence(room, user.id, "player");
+  room.updatedAt = Date.now();
+  saveRooms();
+  return room;
+}
+
 function createRankedRoom(userA, userB) {
   ensureUserRank(userA);
   ensureUserRank(userB);
@@ -3116,6 +3268,12 @@ function materializeRoomClock(room) {
   }
 }
 
+function resetOpponentOpeningBookState(room) {
+  if (!isOpponentRoom(room) || !room.bot?.openingBook) return;
+  room.bot.openingBook.outOfBook = false;
+  room.bot.openingBook.finished = false;
+}
+
 function resetRoomForGame(room) {
   syncVisibleClockSetup(room);
   room.boardFen = XiangqiCore.START_FEN;
@@ -3144,6 +3302,7 @@ function resetRoomForGame(room) {
   room.historySaved = false;
   room.botProgressProcessed = false;
   resetRoomRuleState(room);
+  resetOpponentOpeningBookState(room);
   room.updatedAt = Date.now();
 }
 
@@ -3239,8 +3398,8 @@ function finishRoom(room, { winnerSide = null, loserSide = null, reason = "draw"
 }
 
 function recordRoomHistory(room) {
-  const red = room.players?.w && !isBotUserId(room.players.w) ? users.find((item) => item.id === room.players.w) : null;
-  const black = room.players?.b && !isBotUserId(room.players.b) ? users.find((item) => item.id === room.players.b) : null;
+  const red = room.players?.w && !isSystemBotUserId(room.players.w) ? users.find((item) => item.id === room.players.w) : null;
+  const black = room.players?.b && !isSystemBotUserId(room.players.b) ? users.find((item) => item.id === room.players.b) : null;
   if (red) appendHistory(red, buildHistoryEntry(room, "w", black));
   if (black) appendHistory(black, buildHistoryEntry(room, "b", red));
   saveUsers();
@@ -3345,14 +3504,25 @@ function roomStateForUser(room, user) {
   const spectators = activeSpectatorIds(room).map(roomPlayerSnapshot).filter(Boolean);
   return {
     key: room.key,
-    mode: room.mode === "bot" ? "bot" : room.mode === "ranked" ? "ranked" : "human",
+    mode: isOpponentRoom(room) ? "opponent" : room.mode === "bot" ? "bot" : room.mode === "ranked" ? "ranked" : "human",
     ranked: room.mode === "ranked",
-    bot: room.mode === "bot" ? {
+    bot: isBotRoomMode(room) ? {
+      kind: isOpponentRoom(room) ? "opponent" : "bot",
       side: botSideInRoom(room),
       level: Number(room.bot?.level || 1),
       depth: Number(room.bot?.depth || room.bot?.level || 1),
       name: room.bot?.name || botDefinition(room.bot?.level || 1).name,
-      avatarUrl: room.bot?.avatarUrl || botDefinition(room.bot?.level || 1).avatarUrl || ""
+      avatarUrl: room.bot?.avatarUrl || (isOpponentRoom(room) ? OPPONENT_SIM_AVATAR : botDefinition(room.bot?.level || 1).avatarUrl || ""),
+      strength: room.bot?.strength || "",
+      strengthLabel: room.bot?.strengthLabel || "",
+      style: room.bot?.style || "",
+      styleLabel: room.bot?.styleLabel || "",
+      openingBook: room.bot?.openingBook?.name ? {
+        id: room.bot.openingBook.id || "",
+        name: room.bot.openingBook.name || "",
+        outOfBook: Boolean(room.bot.openingBook.outOfBook),
+        finished: Boolean(room.bot.openingBook.finished)
+      } : null
     } : null,
     status: room.status,
     timeControlMinutes: Math.round(room.timeControlMs / 60000),
@@ -3481,7 +3651,7 @@ function botSideInRoom(room) {
 
 function isBotTurn(room) {
   const botSide = botSideInRoom(room);
-  return Boolean(room && room.mode === "bot" && botSide && room.status === "active" && !room.result && !room.pendingRequest && room.sideToMove === botSide);
+  return Boolean(room && isBotRoomMode(room) && botSide && room.status === "active" && !room.result && !room.pendingRequest && room.sideToMove === botSide);
 }
 
 function firstLegalMoveForSide(board, side) {
@@ -3492,8 +3662,219 @@ function firstRuleSafeMoveForRoom(room, board, side) {
   return legalMovesForSide(board, side).find((move) => isRoomMoveAllowedByRules(room, side, move, board)) || "";
 }
 
+function ruleSafeMovesForRoom(room, board, side) {
+  return legalMovesForSide(board, side).filter((move) => isRoomMoveAllowedByRules(room, side, move, board));
+}
+
+function materialScoreForSide(board, side) {
+  let own = 0;
+  let enemy = 0;
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 9; x += 1) {
+      const piece = board[y]?.[x] || "";
+      if (!piece) continue;
+      const value = roomPieceChaseValue(piece);
+      if (XiangqiCore.pieceColor(piece) === side) own += value;
+      else enemy += value;
+    }
+  }
+  return own - enemy;
+}
+
+function moveFeaturesForStyle(room, board, side, move) {
+  const from = XiangqiCore.uciToSquare(move.slice(0, 2));
+  const to = XiangqiCore.uciToSquare(move.slice(2, 4));
+  const piece = board[from.y]?.[from.x] || "";
+  const target = board[to.y]?.[to.x] || "";
+  const pieceType = piece.toLowerCase();
+  const opponent = oppositeSide(side);
+  const nextBoard = XiangqiCore.cloneBoard(board);
+  XiangqiCore.applyMoveToBoard(nextBoard, move);
+  const movedValue = roomPieceChaseValue(piece);
+  const captureValue = target ? roomPieceChaseValue(target) : 0;
+  const materialBefore = materialScoreForSide(board, side);
+  const materialAfter = materialScoreForSide(nextBoard, side);
+  const attackedAfter = XiangqiCore.isSquareAttacked(nextBoard, to, opponent);
+  const protectedAfter = isProtectedPiece(nextBoard, to, side);
+  const advances = side === "w" ? to.y > from.y : to.y < from.y;
+  const retreats = side === "w" ? to.y < from.y : to.y > from.y;
+  const homeAfter = side === "w" ? to.y <= 4 : to.y >= 5;
+  const crossedAfter = side === "w" ? to.y >= 5 : to.y <= 4;
+  const developedFromHome = ["r", "n", "c"].includes(pieceType) && (side === "w" ? from.y <= 2 : from.y >= 7);
+  const targetWasProtected = target ? isProtectedPiece(board, to, opponent) : false;
+  const safeCapture = Boolean(target && (!attackedAfter || protectedAfter || captureValue >= movedValue));
+  const reckless = attackedAfter && !protectedAfter && captureValue < movedValue;
+  return {
+    move,
+    pieceType,
+    target,
+    captureValue,
+    movedValue,
+    materialBefore,
+    materialAfter,
+    materialGain: materialAfter - materialBefore,
+    givesCheck: XiangqiCore.isKingInCheck(nextBoard, opponent),
+    attackedAfter,
+    protectedAfter,
+    advances,
+    retreats,
+    homeAfter,
+    crossedAfter,
+    developedFromHome,
+    targetWasProtected,
+    safeCapture,
+    reckless,
+    plyCount: Array.isArray(room.moves) ? room.moves.length : 0
+  };
+}
+
+function opponentStyleMoveScore(style, features, orderIndex) {
+  const stableTieBreak = Math.max(0, 120 - orderIndex) / 1000;
+  switch (style) {
+    case "attack":
+      return stableTieBreak +
+        (features.givesCheck ? 460 : 0) +
+        features.captureValue * 1.45 +
+        (features.advances ? 130 : 0) +
+        (features.crossedAfter ? 60 : 0) +
+        (features.pieceType === "p" && features.advances ? 60 : 0) -
+        (features.retreats ? 80 : 0) -
+        (features.reckless ? 170 : 0);
+    case "practical":
+      return stableTieBreak +
+        features.captureValue * 2.2 +
+        features.materialGain * 2.4 +
+        (features.target?.toLowerCase() === "p" ? 95 : 0) +
+        (features.safeCapture ? 120 : 0) +
+        (features.protectedAfter ? 35 : 0) -
+        (features.reckless ? 230 : 0);
+    case "passive": {
+      const canAttack = features.materialBefore >= 180 || features.safeCapture;
+      return stableTieBreak +
+        (features.homeAfter ? 130 : 0) +
+        (features.protectedAfter ? 105 : 0) +
+        (["a", "b", "k"].includes(features.pieceType) ? 70 : 0) +
+        (!features.advances ? 55 : 0) +
+        (canAttack ? features.captureValue * 0.7 : -features.captureValue * 1.7) -
+        (features.givesCheck && !canAttack ? 170 : 0) -
+        (features.advances ? 135 : 0) -
+        (features.reckless ? 330 : 0);
+    }
+    case "counter": {
+      const opponentWeakness = features.target && !features.targetWasProtected;
+      const lateEnough = features.plyCount >= 10;
+      return stableTieBreak +
+        (features.developedFromHome && features.protectedAfter ? 150 : 0) +
+        (features.homeAfter ? 50 : 0) +
+        (features.protectedAfter ? 70 : 0) +
+        (opponentWeakness ? features.captureValue * 1.9 : features.captureValue * 0.8) +
+        (features.safeCapture && (opponentWeakness || lateEnough) ? 150 : 0) +
+        (features.givesCheck && (opponentWeakness || lateEnough) ? 135 : -45) -
+        (features.advances && !lateEnough && !opponentWeakness ? 85 : 0) -
+        (features.reckless ? 280 : 0);
+    }
+    case "balanced":
+    default:
+      return stableTieBreak;
+  }
+}
+
+function styledCandidateMoves(room, board, side, style) {
+  const moves = ruleSafeMovesForRoom(room, board, side);
+  if (!moves.length) return [];
+  if (style === "balanced") return moves;
+  return moves
+    .map((move, index) => ({
+      move,
+      score: opponentStyleMoveScore(style, moveFeaturesForStyle(room, board, side, move), index)
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 8)
+    .map((entry) => entry.move);
+}
+
+async function engineBestMoveForRoom(room, depth, searchMoves = []) {
+  try {
+    const result = await engine.analyze({
+      fen: room.boardFen,
+      depth,
+      multipv: Math.min(5, Math.max(1, searchMoves.length || 1)),
+      movetime: 0,
+      searchMoves
+    });
+    return /^[a-i][0-9][a-i][0-9]$/.test(result?.bestMove || "") ? result.bestMove : "";
+  } catch (error) {
+    console.warn(`Bot engine failed in room ${room.key}: ${error.message}`);
+    return "";
+  }
+}
+
+function openingBookStartMatchesRoom(room, book) {
+  try {
+    return roomPositionKeyFromFen(room.startFen || XiangqiCore.START_FEN) === roomPositionKeyFromFen(book?.startFen || XiangqiCore.START_FEN);
+  } catch {
+    return false;
+  }
+}
+
+function openingBookNodeForRoom(room, book) {
+  if (!openingBookStartMatchesRoom(room, book)) return { outOfBook: true, node: null, side: "w" };
+  const parsed = XiangqiCore.parseFenState(book.startFen || XiangqiCore.START_FEN);
+  const board = parsed.board;
+  let side = parsed.side;
+  let node = book.tree || { children: [] };
+  for (const ply of room.moves || []) {
+    const move = String(ply?.move || "");
+    const child = (node.children || []).find((item) => item.move === move);
+    if (!child || !XiangqiCore.isLegalMove(board, move, side)) {
+      return { outOfBook: true, node: null, side };
+    }
+    XiangqiCore.applyMoveToBoard(board, move);
+    side = oppositeSide(side);
+    node = child;
+  }
+  return { outOfBook: false, node, side };
+}
+
+function openingBookMoveForOpponent(room, board, side) {
+  if (!isOpponentRoom(room) || !room.bot?.openingBook) return "";
+  const book = room.bot.openingBook;
+  if (book.outOfBook || book.finished) return "";
+  const match = openingBookNodeForRoom(room, book);
+  if (match.outOfBook) {
+    book.outOfBook = true;
+    return "";
+  }
+  if (match.side !== side) return "";
+  const candidates = (match.node?.children || [])
+    .map((child) => child.move)
+    .filter((move) => XiangqiCore.isLegalMove(board, move, side) && isRoomMoveAllowedByRules(room, side, move, board));
+  if (!candidates.length) {
+    book.finished = true;
+    return "";
+  }
+  return candidates[0] || "";
+}
+
+async function chooseBotMove(room, board, side, depth) {
+  if (isOpponentRoom(room)) {
+    const bookMove = openingBookMoveForOpponent(room, board, side);
+    if (bookMove) return bookMove;
+    const style = opponentStyleInfo(room.bot?.style).key;
+    const candidates = styledCandidateMoves(room, board, side, style);
+    let move = await engineBestMoveForRoom(room, depth, style === "balanced" ? [] : candidates);
+    if (move && XiangqiCore.isLegalMove(board, move, side) && isRoomMoveAllowedByRules(room, side, move, board)) return move;
+    move = candidates.find((candidate) => XiangqiCore.isLegalMove(board, candidate, side) && isRoomMoveAllowedByRules(room, side, candidate, board)) || "";
+    return move || firstRuleSafeMoveForRoom(room, board, side);
+  }
+
+  const move = await engineBestMoveForRoom(room, depth);
+  if (move && XiangqiCore.isLegalMove(board, move, side) && isRoomMoveAllowedByRules(room, side, move, board)) return move;
+  return firstRuleSafeMoveForRoom(room, board, side);
+}
+
 async function maybeRunBotTurn(room) {
-  if (!room || room.mode !== "bot") return;
+  if (!isBotRoomMode(room)) return;
   const key = room.key;
   if (botMoveJobs.has(key)) {
     await botMoveJobs.get(key);
@@ -3516,19 +3897,9 @@ async function runBotTurn(room) {
   }
 
   const bot = room.bot || {};
-  const depth = Math.max(1, Math.min(7, Number(bot.depth || bot.level || 1)));
-  let move = "";
-  try {
-    const result = await engine.analyze({
-      fen: room.boardFen,
-      depth,
-      multipv: 1,
-      movetime: 0
-    });
-    move = /^[a-i][0-9][a-i][0-9]$/.test(result?.bestMove || "") ? result.bestMove : "";
-  } catch (error) {
-    console.warn(`Bot engine failed in room ${room.key}: ${error.message}`);
-  }
+  const depthLimit = isOpponentRoom(room) ? 4 : 7;
+  const depth = Math.max(1, Math.min(depthLimit, Number(bot.depth || bot.level || 1)));
+  let move = await chooseBotMove(room, parsed.board, side, depth);
   if (!move || !XiangqiCore.isLegalMove(parsed.board, move, side) || !isRoomMoveAllowedByRules(room, side, move, parsed.board)) {
     move = firstRuleSafeMoveForRoom(room, parsed.board, side);
   }
@@ -3616,7 +3987,7 @@ function setRematchReady(room, side, ready) {
   if (room.mode === "ranked") throw new Error("RANKED_REMATCH_DISABLED");
   room.rematchReady[side] = Boolean(ready);
   room.updatedAt = Date.now();
-  if (room.mode === "bot") {
+  if (isBotRoomMode(room)) {
     if (ready) {
       const nextPlayers = { w: room.players.b, b: room.players.w };
       const nextProfiles = {
@@ -3629,7 +4000,7 @@ function setRematchReady(room, side, ready) {
       room.bot = {
         ...(room.bot || {}),
         side: nextBotSide,
-        userId: room.players[nextBotSide] || room.bot?.userId || botIdForLevel(room.bot?.level || 1)
+        userId: room.players[nextBotSide] || room.bot?.userId || (isOpponentRoom(room) ? `${OPPONENT_USER_PREFIX}${room.key.toLowerCase()}` : botIdForLevel(room.bot?.level || 1))
       };
       resetRoomForGame(room);
     }
@@ -5655,6 +6026,32 @@ const server = http.createServer(async (req, res) => {
       }
       const room = createBotRoom(user, { minutes, side, incrementSeconds, botLevel });
       touchUserActivity(user, { route: "room", roomKey: room.key, action: `Đánh với máy cấp ${botLevel}` });
+      json(res, 200, { ok: true, room: roomStateForUser(room, user) });
+      return;
+    }
+
+    if (url.pathname === "/api/rooms/create-opponent" && req.method === "POST") {
+      const user = requireUser(req);
+      removeRankedQueueUser(user.id);
+      const body = await readBody(req);
+      const minutes = clampRoomMinutes(body.minutes, 10);
+      const side = body.side === "b" ? "b" : "w";
+      const incrementSeconds = clampIncrementSeconds(body.incrementSeconds, 0);
+      const current = currentRoomForUser(user.id);
+      if (current && current.status !== "finished") {
+        json(res, 400, { ok: false, error: "Bạn đang ở trong một phòng khác." });
+        return;
+      }
+      const room = createOpponentRoom(user, {
+        minutes,
+        side,
+        incrementSeconds,
+        strength: body.strength,
+        style: body.style,
+        opponentName: body.opponentName,
+        openingBookId: body.openingBookId
+      });
+      touchUserActivity(user, { route: "room", roomKey: room.key, action: `Giả lập đối thủ ${room.bot?.name || ""}`.trim() });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });
       return;
     }

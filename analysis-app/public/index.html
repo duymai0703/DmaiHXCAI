@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-endgame-v3">
+    <link rel="stylesheet" href="/portal.css?v=20260728-opponent-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -202,7 +202,7 @@
                 <img src="/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v2" alt="" draggable="false">
                 <span>Luyện tàn cuộc</span>
               </button>
-              <button id="showOpponentSimRoom" class="match-mode-tile is-placeholder" type="button">
+              <button id="showOpponentSimRoom" class="match-mode-tile" type="button">
                 <img src="/assets/avtchibi/nhanban.png?v=20260728-match-modes-v2" alt="" draggable="false">
                 <span>Giả lập đối thủ</span>
               </button>
@@ -317,6 +317,82 @@
               </div>
 
               <button class="primary-button" type="submit">Bắt đầu đánh máy</button>
+            </form>
+
+            <form id="opponentSimForm" class="subpanel opponent-sim-form hidden">
+              <label>
+                <span>Tên của bạn</span>
+                <input id="opponentSimDisplayName" type="text" maxlength="15" placeholder="Ví dụ: Duy Mai" autocomplete="nickname" required>
+              </label>
+
+              <div class="opponent-sim-card">
+                <img src="/assets/avtchibi/nhanban.png?v=20260728-match-modes-v2" alt="" draggable="false">
+                <div>
+                  <strong>Giả lập đối thủ</strong>
+                  <small id="opponentSimMeta">Độ sâu 1, công thủ toàn diện.</small>
+                </div>
+              </div>
+
+              <label>
+                <span>Đặt tên đối thủ</span>
+                <input id="opponentSimName" type="text" maxlength="24" value="Đối thủ giả lập" autocomplete="off" required>
+              </label>
+
+              <div class="opponent-sim-grid">
+                <label>
+                  <span>Trình độ</span>
+                  <select id="opponentSimStrengthSelect">
+                    <option value="normal" selected>Bình thường - độ sâu 1</option>
+                    <option value="strong">Khá mạnh - độ sâu 2</option>
+                    <option value="veryStrong">Rất mạnh - độ sâu 4</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Lối đánh</span>
+                  <select id="opponentSimStyleSelect">
+                    <option value="balanced" selected>Công thủ toàn diện</option>
+                    <option value="counter">Phòng ngự phản công</option>
+                    <option value="passive">Phòng thủ thụ động</option>
+                    <option value="attack">Tấn công thuần túy</option>
+                    <option value="practical">Thực dụng</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Khai cuộc</span>
+                  <select id="opponentSimBookSelect">
+                    <option value="">Không dùng khai cuộc</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="range-field">
+                <span>Thời gian mỗi bên</span>
+                <input id="opponentSimTimeRange" type="range" min="1" max="20" value="10">
+                <strong id="opponentSimTimeRangeValue">10 phút</strong>
+              </label>
+
+              <label>
+                <span>Tích lũy sau mỗi nước</span>
+                <select id="opponentSimIncrementSelect">
+                  <option value="0">0 giây</option>
+                  <option value="1">1 giây</option>
+                  <option value="2">2 giây</option>
+                  <option value="3" selected>3 giây</option>
+                  <option value="5">5 giây</option>
+                </select>
+              </label>
+
+              <div class="side-pick">
+                <span>Chọn bên</span>
+                <div class="choice-row">
+                  <button id="opponentSimPickRed" class="secondary-button active" type="button">Đỏ</button>
+                  <button id="opponentSimPickBlack" class="secondary-button" type="button">Đen</button>
+                </div>
+              </div>
+
+              <button class="primary-button" type="submit">Bắt đầu giả lập</button>
             </form>
 
             <form id="rankRoomForm" class="subpanel rank-subpanel hidden">
@@ -806,7 +882,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260728-endgame-v3"></script>
+    <script src="/portal.js?v=20260728-opponent-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -814,7 +890,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v186";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v187";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

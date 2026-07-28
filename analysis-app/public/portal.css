@@ -1662,6 +1662,44 @@ a {
   border-style: dashed;
 }
 
+.opponent-sim-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 86%, var(--accent) 14%);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--paper-2) 90%, white 6%), color-mix(in srgb, var(--paper) 90%, black 8%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.opponent-sim-card img {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.24));
+}
+
+.opponent-sim-card strong,
+.opponent-sim-card small {
+  display: block;
+}
+
+.opponent-sim-card small {
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.opponent-sim-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .choice-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -3503,6 +3541,21 @@ a {
 
   body.mobile-room-entry.portal-mobile-mode[data-route="match"] .pending-mode-card strong {
     font-size: 18px;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] .opponent-sim-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] .opponent-sim-card img {
+    width: 58px;
+    height: 58px;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] .opponent-sim-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="match"] .endgame-training-heading {
@@ -6480,6 +6533,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   .launcher-card,
   .bot-level-card:not(:disabled),
   .bot-preview-card,
+  .opponent-sim-card,
   .notice-card,
   .viewer-item,
   .history-item,
@@ -6497,6 +6551,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   .launcher-card:hover,
   .bot-level-card:not(:disabled):hover,
   .bot-preview-card:hover,
+  .opponent-sim-card:hover,
   .notice-card:hover,
   .viewer-item:hover,
   .history-item:hover,

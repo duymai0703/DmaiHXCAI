@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-endgame-v3";
+  const ASSET_WARMUP_VERSION = "20260728-opponent-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -84,6 +84,18 @@
     matchModeAsset("theco.png"),
     matchModeAsset("tancuoc.png"),
     matchModeAsset("nhanban.png")
+  ];
+  const OPPONENT_SIM_STRENGTHS = [
+    { key: "normal", label: "Bình thường", depth: 1 },
+    { key: "strong", label: "Khá mạnh", depth: 2 },
+    { key: "veryStrong", label: "Rất mạnh", depth: 4 }
+  ];
+  const OPPONENT_SIM_STYLES = [
+    { key: "balanced", label: "Công thủ toàn diện" },
+    { key: "counter", label: "Phòng ngự phản công" },
+    { key: "passive", label: "Phòng thủ thụ động" },
+    { key: "attack", label: "Tấn công thuần túy" },
+    { key: "practical", label: "Thực dụng" }
   ];
   const DEVICE_AVATARS = [
     avtchibiAsset("play1.png"),
@@ -299,6 +311,7 @@
     endgamePageWindowStart: 1,
     createSide: "w",
     botSide: "w",
+    opponentSimSide: "w",
     room: null,
     roomKey: localStorage.getItem(STORAGE_ROOM) || "",
     roomBoard: XiangqiCore.parseFenState(START_FEN).board,
@@ -432,6 +445,7 @@
     joinRoomForm: byId("joinRoomForm"),
     createRoomForm: byId("createRoomForm"),
     botRoomForm: byId("botRoomForm"),
+    opponentSimForm: byId("opponentSimForm"),
     rankRoomForm: byId("rankRoomForm"),
     puzzleRoomForm: byId("puzzleRoomForm"),
     endgameTrainingPanel: byId("endgameTrainingPanel"),
@@ -446,6 +460,7 @@
     joinRoomKey: byId("joinRoomKey"),
     createDisplayName: byId("createDisplayName"),
     botDisplayName: byId("botDisplayName"),
+    opponentSimDisplayName: byId("opponentSimDisplayName"),
     yourTimeRange: byId("yourTimeRange"),
     yourTimeRangeValue: byId("yourTimeRangeValue"),
     opponentTimeRange: byId("opponentTimeRange"),
@@ -460,10 +475,20 @@
     botPreviewName: byId("botPreviewName"),
     botPreviewMeta: byId("botPreviewMeta"),
     botIncrementSelect: byId("botIncrementSelect"),
+    opponentSimName: byId("opponentSimName"),
+    opponentSimMeta: byId("opponentSimMeta"),
+    opponentSimStrengthSelect: byId("opponentSimStrengthSelect"),
+    opponentSimStyleSelect: byId("opponentSimStyleSelect"),
+    opponentSimBookSelect: byId("opponentSimBookSelect"),
+    opponentSimTimeRange: byId("opponentSimTimeRange"),
+    opponentSimTimeRangeValue: byId("opponentSimTimeRangeValue"),
+    opponentSimIncrementSelect: byId("opponentSimIncrementSelect"),
     pickRed: byId("pickRed"),
     pickBlack: byId("pickBlack"),
     botPickRed: byId("botPickRed"),
     botPickBlack: byId("botPickBlack"),
+    opponentSimPickRed: byId("opponentSimPickRed"),
+    opponentSimPickBlack: byId("opponentSimPickBlack"),
     rankCurrentLogo: byId("rankCurrentLogo"),
     rankCurrentName: byId("rankCurrentName"),
     rankCurrentRecord: byId("rankCurrentRecord"),
@@ -1374,12 +1399,16 @@
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
     dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
+    dom.opponentSimForm?.addEventListener("submit", onCreateOpponentSimRoom);
     dom.rankRoomForm?.addEventListener("submit", onJoinRankQueue);
     dom.puzzleRoomForm?.addEventListener("submit", onStartPuzzleFromPanel);
     dom.rankCancelBtn?.addEventListener("click", cancelRankQueue);
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
     dom.botTimeRange.addEventListener("input", updateTimeLabels);
+    dom.opponentSimTimeRange?.addEventListener("input", updateTimeLabels);
+    dom.opponentSimStrengthSelect?.addEventListener("change", renderOpponentSimPanel);
+    dom.opponentSimStyleSelect?.addEventListener("change", renderOpponentSimPanel);
     dom.botLevelSelect?.addEventListener("change", () => {
       renderBotLevelGrid();
       renderBotPreview();
@@ -1388,6 +1417,8 @@
     dom.pickBlack.addEventListener("click", () => setCreateSide("b"));
     dom.botPickRed.addEventListener("click", () => setBotSide("w"));
     dom.botPickBlack.addEventListener("click", () => setBotSide("b"));
+    dom.opponentSimPickRed?.addEventListener("click", () => setOpponentSimSide("w"));
+    dom.opponentSimPickBlack?.addEventListener("click", () => setOpponentSimSide("b"));
     dom.resumeRoomBtn.addEventListener("click", () => {
       if (state.room) goRoute("room");
       else void resumeStoredRoom();
@@ -1981,7 +2012,8 @@
     const isMenuMode = state.lobbyMode === LOBBY_MENU_MODE;
     const isFriendMode = ["join", "create"].includes(state.lobbyMode);
     const isEndgameMode = state.lobbyMode === "endgame";
-    const isPendingMode = state.lobbyMode === "opponent";
+    const isOpponentMode = state.lobbyMode === "opponent";
+    const isPendingMode = false;
     if (previousMode !== state.lobbyMode && state.lobbyMode !== "puzzle") {
       state.puzzleMapIntroKey = "";
     }
@@ -2000,6 +2032,7 @@
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
+    dom.opponentSimForm?.classList.toggle("hidden", !isOpponentMode);
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     dom.puzzleRoomForm?.classList.toggle("hidden", state.lobbyMode !== "puzzle");
     dom.endgameTrainingPanel?.classList.toggle("hidden", !isEndgameMode);
@@ -2008,6 +2041,10 @@
     setMessage(dom.matchHubMessage, "");
     if (isPendingMode) renderPendingMatchMode();
     if (state.lobbyMode === "bot") renderBotOptions();
+    if (isOpponentMode) {
+      renderOpponentSimPanel();
+      void refreshOpponentSimOpeningBooks();
+    }
     if (state.lobbyMode === "rank") {
       renderRankPanel();
       void refreshRankStatus();
@@ -2268,13 +2305,71 @@
     dom.botPickBlack.classList.toggle("active", state.botSide === "b");
   }
 
+  function setOpponentSimSide(side) {
+    state.opponentSimSide = side === "b" ? "b" : "w";
+    dom.opponentSimPickRed?.classList.toggle("active", state.opponentSimSide === "w");
+    dom.opponentSimPickBlack?.classList.toggle("active", state.opponentSimSide === "b");
+  }
+
+  function opponentSimStrengthInfo(key) {
+    return OPPONENT_SIM_STRENGTHS.find((item) => item.key === key) || OPPONENT_SIM_STRENGTHS[0];
+  }
+
+  function opponentSimStyleInfo(key) {
+    return OPPONENT_SIM_STYLES.find((item) => item.key === key) || OPPONENT_SIM_STYLES[0];
+  }
+
+  function renderOpponentSimPanel() {
+    if (!dom.opponentSimForm) return;
+    const strength = opponentSimStrengthInfo(dom.opponentSimStrengthSelect?.value || "normal");
+    const style = opponentSimStyleInfo(dom.opponentSimStyleSelect?.value || "balanced");
+    if (dom.opponentSimMeta) {
+      dom.opponentSimMeta.textContent = `Độ sâu ${strength.depth}, ${style.label.toLowerCase()}.`;
+    }
+    renderOpponentSimBookOptions();
+    setOpponentSimSide(state.opponentSimSide);
+  }
+
+  function renderOpponentSimBookOptions() {
+    if (!dom.opponentSimBookSelect) return;
+    const current = dom.opponentSimBookSelect.value || "";
+    const books = normalizeOpeningBookList(state.openingBooks);
+    dom.opponentSimBookSelect.innerHTML = "";
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "Không dùng khai cuộc";
+    dom.opponentSimBookSelect.appendChild(empty);
+    books.forEach((book) => {
+      const option = document.createElement("option");
+      option.value = book.id;
+      const side = normalizeOpeningBookSide(book.bookSide || book.side) === "b" ? "đi hậu" : "đi tiên";
+      const moveCount = Math.max(0, countOpeningBookNodes(book.tree) - 1);
+      option.textContent = `${book.name} - ${side} - ${moveCount} nước`;
+      dom.opponentSimBookSelect.appendChild(option);
+    });
+    dom.opponentSimBookSelect.value = books.some((book) => book.id === current) ? current : "";
+  }
+
+  async function refreshOpponentSimOpeningBooks() {
+    if (!state.token) return;
+    try {
+      const payload = await api("/api/opening-books", {}, { attempts: 3 });
+      state.openingBooks = normalizeOpeningBookList(payload.books);
+      renderOpponentSimBookOptions();
+    } catch {
+      renderOpponentSimBookOptions();
+    }
+  }
+
   function updateTimeLabels() {
     const yourMinutes = Number(dom.yourTimeRange.value || 10);
     const opponentMinutes = Number(dom.opponentTimeRange.value || 10);
     const botMinutes = Number(dom.botTimeRange.value || 10);
+    const opponentSimMinutes = Number(dom.opponentSimTimeRange?.value || 10);
     dom.yourTimeRangeValue.textContent = `${yourMinutes} phút`;
     dom.opponentTimeRangeValue.textContent = `${opponentMinutes} phút`;
     dom.botTimeRangeValue.textContent = `${botMinutes} phút`;
+    if (dom.opponentSimTimeRangeValue) dom.opponentSimTimeRangeValue.textContent = `${opponentSimMinutes} phút`;
   }
 
   function botInfoForLevel(level) {
@@ -3608,6 +3703,7 @@
     renderProfile();
     renderRankPanel();
     renderBotOptions();
+    renderOpponentSimPanel();
     renderPuzzlePanel();
   }
 
@@ -6143,6 +6239,31 @@
     }
   }
 
+  async function onCreateOpponentSimRoom(event) {
+    event.preventDefault();
+    setMessage(dom.matchHubMessage, "Đang tạo đối thủ giả lập...", "info");
+    try {
+      const payload = await api("/api/rooms/create-opponent", {
+        method: "POST",
+        body: {
+          minutes: Number(dom.opponentSimTimeRange?.value || 10),
+          incrementSeconds: Number(dom.opponentSimIncrementSelect?.value || 0),
+          side: state.opponentSimSide,
+          opponentName: dom.opponentSimName?.value || "",
+          strength: dom.opponentSimStrengthSelect?.value || "normal",
+          style: dom.opponentSimStyleSelect?.value || "balanced",
+          openingBookId: dom.opponentSimBookSelect?.value || ""
+        }
+      });
+      applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
+      goRoute("room");
+      setMessage(dom.matchHubMessage, "");
+      showToast("Đã tạo đối thủ giả lập.");
+    } catch (error) {
+      setMessage(dom.matchHubMessage, error.message || "Không thể tạo đối thủ giả lập.");
+    }
+  }
+
   async function onJoinRoom(event) {
     event.preventDefault();
     const rawKey = dom.joinRoomKey.value.trim();
@@ -6510,7 +6631,7 @@
   function disableLegacyNameInputs() {
     const matchHelp = document.querySelector("#matchHubView .panel-heading p");
     if (matchHelp) matchHelp.textContent = "Tài khoản đã kích hoạt bằng Key sẽ được dùng khi tạo phòng, vào phòng hoặc xem ván đấu.";
-    [dom.joinDisplayName, dom.createDisplayName, dom.botDisplayName].forEach((input) => {
+    [dom.joinDisplayName, dom.createDisplayName, dom.botDisplayName, dom.opponentSimDisplayName].forEach((input) => {
       if (!input) return;
       input.required = false;
       input.value = "";
@@ -6852,7 +6973,7 @@
     dom.topPlayerName.textContent = topPlayer ? topPlayer.displayName || topPlayer.username : "Đang chờ đối thủ";
     dom.bottomPlayerName.textContent = bottomPlayer ? bottomPlayer.displayName || bottomPlayer.username : "Đang chờ người chơi";
 
-    const isBotRoom = room.mode === "bot";
+    const isBotRoom = isBotMatchRoom(room);
     const isRankedRoom = room.mode === "ranked";
     const canAct = room.role === "player" && room.status === "active" && !state.roomActionBusy;
     dom.undoRequestBtn.disabled = isBotRoom || !canAct || Number(room.allowances?.undoRemaining || 0) <= 0 || Boolean(room.pendingRequest);
@@ -8641,6 +8762,14 @@
     return state.user?.role === "admin";
   }
 
+  function isOpponentSimRoom(room) {
+    return Boolean(room && (room.mode === "opponent" || room.bot?.kind === "opponent"));
+  }
+
+  function isBotMatchRoom(room) {
+    return Boolean(room && (room.mode === "bot" || isOpponentSimRoom(room)));
+  }
+
   function roomStatusText(room) {
     if (isPuzzleRoom(room)) {
       if (room.status === "finished") return room.result?.winnerSide === "w" ? "Đã giải xong" : "Giải sai";
@@ -8653,6 +8782,8 @@
     if (room.mode === "ranked" && room.status === "starting") return "Leo rank";
     if (room.mode === "ranked" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Trận rank";
     if (room.mode === "ranked" && room.status === "finished") return "Rank đã tính điểm";
+    if (isOpponentSimRoom(room) && room.status === "starting") return "Giả lập đối thủ";
+    if (isOpponentSimRoom(room) && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Đối thủ đang nghĩ";
     if (room.mode === "bot" && room.status === "starting") return "Đánh với máy";
     if (room.mode === "bot" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Bot đang nghĩ";
     if (room.status === "waiting") return "Đang chờ đối thủ";
@@ -8694,6 +8825,22 @@
     const incrementLabel = Number(room.incrementSeconds || 0) > 0
       ? `, tích lũy ${room.incrementSeconds} giây/nước`
       : "";
+    if (isOpponentSimRoom(room)) {
+      const botName = room.bot?.name || "Đối thủ giả lập";
+      const strength = room.bot?.strengthLabel || `Độ sâu ${room.bot?.depth || 1}`;
+      const style = room.bot?.styleLabel || "Công thủ toàn diện";
+      const bookText = room.bot?.openingBook?.name ? ` Khai cuộc: ${room.bot.openingBook.name}.` : "";
+      if (room.status === "starting") {
+        return `Bạn đang đấu với ${botName} (${strength}, ${style}). Ván sẽ bắt đầu sau bảng đếm.${bookText}`;
+      }
+      if (room.status === "finished") {
+        return "Ván giả lập đối thủ đã kết thúc. Bạn có thể out phòng để tạo ván mới.";
+      }
+      return room.yourTurn
+        ? `Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}, đấu ${botName}. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.${bookText}`
+        : `${botName} đang suy nghĩ theo lối ${style.toLowerCase()}. Thời gian mỗi bên ${formatClockSetup(yourClockMs)}${incrementLabel}.${bookText}`;
+    }
+
     if (room.mode === "bot") {
       const botName = room.bot?.name || "Bot";
       const botLevel = Number(room.bot?.level || 1);
