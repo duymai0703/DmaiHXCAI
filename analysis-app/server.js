@@ -85,25 +85,27 @@ const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCE
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
 const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
+const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
+const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
 const DEVICE_AVATAR_PATH_LIST = [
-  "/assets/device-avatars/tv1.png",
-  "/assets/device-avatars/tv2.png",
-  "/assets/device-avatars/tv3.png",
-  "/assets/device-avatars/tv4.png",
-  "/assets/device-avatars/tv5.png",
-  "/assets/device-avatars/tv6.png",
-  "/assets/device-avatars/tv7.png",
-  "/assets/device-avatars/tv8.png"
+  avtchibiAsset("play1.png"),
+  avtchibiAsset("play2.png"),
+  avtchibiAsset("play3.png"),
+  avtchibiAsset("play4.png"),
+  avtchibiAsset("play5.png"),
+  avtchibiAsset("play6.png"),
+  avtchibiAsset("play7.png"),
+  avtchibiAsset("play8.png")
 ];
 const DEVICE_AVATAR_PATHS = new Set(DEVICE_AVATAR_PATH_LIST);
 const BOT_PLAYERS = [
-  { level: 1, depth: 1, name: "Bạch Khởi", avatarUrl: "/assets/bots/bach-khoi.png" },
-  { level: 2, depth: 2, name: "Liêm Pha", avatarUrl: "/assets/bots/liem-pha.png" },
-  { level: 3, depth: 3, name: "Tôn Tẫn", avatarUrl: "/assets/bots/ton-tan.png" },
-  { level: 4, depth: 4, name: "Ngô Khởi", avatarUrl: "/assets/bots/ngo-khoi.png" },
-  { level: 5, depth: 5, name: "Nhạc Nghị", avatarUrl: "/assets/bots/nhac-nghi.png" },
-  { level: 6, depth: 6, name: "Điền Đan", avatarUrl: "/assets/bots/dien-dan.png" },
-  { level: 7, depth: 7, name: "Tín Lăng Quân", avatarUrl: "/assets/bots/tin-lang-quan.png" }
+  { level: 1, depth: 1, name: "Bạch Khởi", avatarUrl: avtchibiAsset("bot1.png") },
+  { level: 2, depth: 2, name: "Liêm Pha", avatarUrl: avtchibiAsset("bot2.png") },
+  { level: 3, depth: 3, name: "Tôn Tẫn", avatarUrl: avtchibiAsset("bot3.png") },
+  { level: 4, depth: 4, name: "Ngô Khởi", avatarUrl: avtchibiAsset("bot4.png") },
+  { level: 5, depth: 5, name: "Nhạc Nghị", avatarUrl: avtchibiAsset("bot5.png") },
+  { level: 6, depth: 6, name: "Điền Đan", avatarUrl: avtchibiAsset("bot6.png") },
+  { level: 7, depth: 7, name: "Tín Lăng Quân", avatarUrl: avtchibiAsset("bot7.png") }
 ];
 const BOT_USER_PREFIX = "bot-level-";
 const RANK_TIERS = [
@@ -1406,7 +1408,7 @@ function createLicenseUser(license, customerName = "") {
 }
 
 function defaultSystemAvatar() {
-  return "/assets/device-avatars/tv1.png";
+  return DEVICE_AVATAR_PATH_LIST[0] || "";
 }
 
 function ensureLicenseUser(license, customerName = "") {
@@ -5353,8 +5355,9 @@ const server = http.createServer(async (req, res) => {
         : user.role === "guest"
         ? requestedDisplayName || sanitizeOptionalDisplayName(user.displayName || "")
         : sanitizeDisplayName(requestedDisplayName || "", fallbackDisplayName);
-      if (user.role === "admin" || !user.accessKeyHash) {
-        user.avatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      const requestedAvatarUrl = sanitizeAvatarUrl(body.avatarUrl);
+      if (requestedAvatarUrl) {
+        user.avatarUrl = requestedAvatarUrl;
       } else if (!user.avatarUrl) {
         user.avatarUrl = defaultSystemAvatar();
       }

@@ -17,8 +17,9 @@
   const THEME_PREFERENCE_VERSION = "20260726-dark-default-v1";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
-  const DEVICE_AVATAR_VERSION = "20260715-tv-v1";
-  const ASSET_WARMUP_VERSION = "20260727-puzzle-v1";
+  const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
+  const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
+  const ASSET_WARMUP_VERSION = "20260728-chibi-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -52,15 +53,16 @@
     a: 220,
     p: 120
   };
+  const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
   const DEVICE_AVATARS = [
-    "/assets/device-avatars/tv1.png",
-    "/assets/device-avatars/tv2.png",
-    "/assets/device-avatars/tv3.png",
-    "/assets/device-avatars/tv4.png",
-    "/assets/device-avatars/tv5.png",
-    "/assets/device-avatars/tv6.png",
-    "/assets/device-avatars/tv7.png",
-    "/assets/device-avatars/tv8.png"
+    avtchibiAsset("play1.png"),
+    avtchibiAsset("play2.png"),
+    avtchibiAsset("play3.png"),
+    avtchibiAsset("play4.png"),
+    avtchibiAsset("play5.png"),
+    avtchibiAsset("play6.png"),
+    avtchibiAsset("play7.png"),
+    avtchibiAsset("play8.png")
   ];
   const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
   const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
@@ -132,13 +134,13 @@
     bad: { key: "bad", label: "Rất yếu", image: "/assets/review-badges/x.png" }
   };
   const BOT_PLAYERS = [
-    { level: 1, name: "Bạch Khởi", avatarUrl: "/assets/bots/bach-khoi.png" },
-    { level: 2, name: "Liêm Pha", avatarUrl: "/assets/bots/liem-pha.png" },
-    { level: 3, name: "Tôn Tẫn", avatarUrl: "/assets/bots/ton-tan.png" },
-    { level: 4, name: "Ngô Khởi", avatarUrl: "/assets/bots/ngo-khoi.png" },
-    { level: 5, name: "Nhạc Nghị", avatarUrl: "/assets/bots/nhac-nghi.png" },
-    { level: 6, name: "Điền Đan", avatarUrl: "/assets/bots/dien-dan.png" },
-    { level: 7, name: "Tín Lăng Quân", avatarUrl: "/assets/bots/tin-lang-quan.png" }
+    { level: 1, name: "Bạch Khởi", avatarUrl: avtchibiAsset("bot1.png") },
+    { level: 2, name: "Liêm Pha", avatarUrl: avtchibiAsset("bot2.png") },
+    { level: 3, name: "Tôn Tẫn", avatarUrl: avtchibiAsset("bot3.png") },
+    { level: 4, name: "Ngô Khởi", avatarUrl: avtchibiAsset("bot4.png") },
+    { level: 5, name: "Nhạc Nghị", avatarUrl: avtchibiAsset("bot5.png") },
+    { level: 6, name: "Điền Đan", avatarUrl: avtchibiAsset("bot6.png") },
+    { level: 7, name: "Tín Lăng Quân", avatarUrl: avtchibiAsset("bot7.png") }
   ];
   const BOT_ASSETS = BOT_PLAYERS.map((bot) => bot.avatarUrl);
   const RANK_TIERS = [
@@ -401,6 +403,7 @@
     botTimeRange: byId("botTimeRange"),
     botTimeRangeValue: byId("botTimeRangeValue"),
     botLevelSelect: byId("botLevelSelect"),
+    botLevelGrid: byId("botLevelGrid"),
     botPreviewCard: byId("botPreviewCard"),
     botPreviewAvatar: byId("botPreviewAvatar"),
     botPreviewName: byId("botPreviewName"),
@@ -1315,7 +1318,10 @@
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
     dom.botTimeRange.addEventListener("input", updateTimeLabels);
-    dom.botLevelSelect?.addEventListener("change", renderBotPreview);
+    dom.botLevelSelect?.addEventListener("change", () => {
+      renderBotLevelGrid();
+      renderBotPreview();
+    });
     dom.pickRed.addEventListener("click", () => setCreateSide("w"));
     dom.pickBlack.addEventListener("click", () => setCreateSide("b"));
     dom.botPickRed.addEventListener("click", () => setBotSide("w"));
@@ -2007,7 +2013,63 @@
     });
     const nextLevel = Math.min(currentLevel, progress.unlockedLevel);
     dom.botLevelSelect.value = String(Math.max(1, nextLevel));
+    renderBotLevelGrid();
     renderBotPreview();
+  }
+
+  function renderBotLevelGrid() {
+    if (!dom.botLevelGrid || !dom.botLevelSelect) return;
+    const progress = botProgress();
+    const currentLevel = Math.max(1, Math.min(BOT_PLAYERS.length, Math.round(Number(dom.botLevelSelect.value || 1))));
+    dom.botLevelGrid.innerHTML = "";
+    BOT_PLAYERS.forEach((bot) => {
+      const unlocked = bot.level <= progress.unlockedLevel;
+      const defeated = Boolean(progress.wins[bot.level]);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `bot-level-card${bot.level === currentLevel ? " active" : ""}${unlocked ? "" : " locked"}`;
+      button.disabled = !unlocked;
+      button.setAttribute("aria-label", unlocked ? `Chọn ${bot.name} cấp ${bot.level}` : `${bot.name} cấp ${bot.level} đang khóa`);
+
+      const avatarWrap = document.createElement("span");
+      avatarWrap.className = "bot-level-avatar-wrap";
+      const image = document.createElement("img");
+      image.src = bot.avatarUrl;
+      image.alt = "";
+      image.decoding = "async";
+      image.draggable = false;
+      avatarWrap.appendChild(image);
+
+      if (!unlocked) {
+        const lock = document.createElement("span");
+        lock.className = "bot-level-lock";
+        lock.setAttribute("aria-hidden", "true");
+        lock.textContent = "🔒";
+        avatarWrap.appendChild(lock);
+      }
+
+      const copy = document.createElement("span");
+      copy.className = "bot-level-copy";
+      const name = document.createElement("strong");
+      name.textContent = bot.name;
+      const meta = document.createElement("small");
+      meta.textContent = unlocked
+        ? defeated
+          ? `Cấp ${bot.level} đã thắng`
+          : `Cấp ${bot.level} đã mở`
+        : `Thắng cấp ${bot.level - 1} để mở`;
+      copy.append(name, meta);
+      button.append(avatarWrap, copy);
+
+      if (unlocked) {
+        button.addEventListener("click", () => {
+          dom.botLevelSelect.value = String(bot.level);
+          renderBotLevelGrid();
+          renderBotPreview();
+        });
+      }
+      dom.botLevelGrid.appendChild(button);
+    });
   }
 
   function renderBotPreview() {
@@ -2980,9 +3042,9 @@
 
   function renderAvatarChoices() {
     if (!dom.avatarChoices) return;
-    const canChoose = false;
-    dom.avatarChoices.classList.toggle("hidden", true);
-    if (dom.saveAvatarBtn) dom.saveAvatarBtn.classList.toggle("hidden", true);
+    const canChoose = Boolean(state.user && state.token);
+    dom.avatarChoices.classList.toggle("hidden", !canChoose);
+    if (dom.saveAvatarBtn) dom.saveAvatarBtn.classList.toggle("hidden", !canChoose);
     dom.avatarChoices.innerHTML = "";
     if (!canChoose) return;
 

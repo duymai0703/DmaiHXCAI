@@ -947,6 +947,97 @@ a {
   gap: 10px;
 }
 
+.bot-level-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bot-level-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 78px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--card-bg, rgba(255, 250, 242, 0.96));
+  text-align: left;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.bot-level-card.active {
+  border-color: color-mix(in srgb, var(--accent) 74%, white 8%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 12px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.bot-level-card.locked {
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.bot-level-avatar-wrap {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 0 0 2px var(--line),
+    0 8px 15px rgba(0, 0, 0, 0.18);
+}
+
+.bot-level-avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.bot-level-card.locked .bot-level-avatar-wrap img {
+  filter: brightness(0.38) saturate(0.62);
+}
+
+.bot-level-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 22px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+.bot-level-copy {
+  min-width: 0;
+}
+
+.bot-level-copy strong,
+.bot-level-copy small {
+  display: block;
+}
+
+.bot-level-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.bot-level-copy small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .bot-preview-card {
   display: flex;
   align-items: center;
@@ -5742,6 +5833,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 @media (hover: hover) and (pointer: fine) {
   .launcher-card,
+  .bot-level-card:not(:disabled),
   .bot-preview-card,
   .notice-card,
   .viewer-item,
@@ -5758,6 +5850,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   .launcher-card:hover,
+  .bot-level-card:not(:disabled):hover,
   .bot-preview-card:hover,
   .notice-card:hover,
   .viewer-item:hover,
