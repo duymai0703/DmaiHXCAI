@@ -6760,13 +6760,13 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
    canvas board and image pieces the weight of real table objects. */
 .endgame-title-logo {
   display: block;
-  width: min(420px, 68vw);
-  max-height: 88px;
+  width: min(560px, 74vw);
+  max-height: 118px;
   object-fit: contain;
   object-position: left center;
   filter:
-    drop-shadow(0 2px 0 rgba(255, 246, 213, 0.2))
-    drop-shadow(0 10px 18px rgba(0, 0, 0, 0.22));
+    drop-shadow(0 2px 0 rgba(255, 235, 164, 0.18))
+    drop-shadow(0 12px 24px rgba(0, 0, 0, 0.34));
 }
 
 :root,
@@ -6777,21 +6777,22 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 :root[data-board-skin="pink"],
 :root[data-board-skin="dark"] {
   --board-bg:
-    radial-gradient(circle at 18% 12%, rgba(255, 238, 188, 0.34), transparent 20%),
-    radial-gradient(circle at 78% 88%, rgba(76, 39, 12, 0.2), transparent 25%),
-    repeating-linear-gradient(96deg, rgba(255, 242, 203, 0.08) 0 7px, rgba(92, 48, 18, 0.08) 7px 15px),
-    linear-gradient(145deg, #dfb878 0%, #c9924d 46%, #9f642f 100%);
-  --board-border: #5b371c;
-  --board-line: rgba(61, 37, 18, 0.9);
-  --board-mark: rgba(61, 37, 18, 0.78);
-  --board-frame-line: rgba(70, 42, 18, 0.92);
-  --board-river-text: rgba(70, 42, 18, 0.48);
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 232, 0.22), transparent 19%),
+    radial-gradient(circle at 82% 86%, rgba(45, 66, 45, 0.22), transparent 26%),
+    repeating-linear-gradient(94deg, rgba(255, 255, 245, 0.055) 0 9px, rgba(49, 70, 53, 0.055) 9px 18px),
+    repeating-linear-gradient(4deg, rgba(255, 255, 255, 0.035) 0 22px, rgba(39, 55, 40, 0.035) 22px 45px),
+    linear-gradient(145deg, #c8cfbb 0%, #a9b19e 42%, #87927e 72%, #697763 100%);
+  --board-border: #51644a;
+  --board-line: rgba(62, 72, 57, 0.72);
+  --board-mark: rgba(69, 82, 63, 0.66);
+  --board-frame-line: rgba(75, 91, 66, 0.78);
+  --board-river-text: rgba(75, 88, 68, 0.42);
   --board-shadow:
-    0 3px 0 #3d2513,
-    0 8px 0 rgba(58, 35, 17, 0.72),
-    0 24px 42px rgba(14, 22, 25, 0.32),
-    inset 0 2px 0 rgba(255, 244, 215, 0.28),
-    inset 0 -14px 24px rgba(77, 42, 18, 0.18);
+    0 2px 0 #374432,
+    0 7px 0 rgba(39, 49, 35, 0.8),
+    0 26px 48px rgba(3, 20, 24, 0.36),
+    inset 0 2px 0 rgba(255, 255, 236, 0.3),
+    inset 0 -16px 24px rgba(54, 70, 48, 0.26);
 }
 
 .room-board,
@@ -6801,7 +6802,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   border-width: clamp(3px, 0.7vw, 6px) !important;
   border-style: solid !important;
   border-color: var(--board-border) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   background: var(--board-bg) !important;
   box-shadow: var(--board-shadow) !important;
 }
@@ -6809,23 +6810,42 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .endgame-preview-board {
   border-width: 3px !important;
   box-shadow:
-    0 2px 0 #3d2513,
-    0 8px 18px rgba(14, 22, 25, 0.26),
-    inset 0 2px 0 rgba(255, 244, 215, 0.24),
-    inset 0 -10px 18px rgba(77, 42, 18, 0.16) !important;
+    0 2px 0 #374432,
+    0 9px 18px rgba(3, 20, 24, 0.28),
+    inset 0 2px 0 rgba(255, 255, 236, 0.26),
+    inset 0 -10px 18px rgba(54, 70, 48, 0.18) !important;
 }
 
 .room-board::before,
 .review-board::before,
 .opening-book-board::before {
   inset: 0 !important;
-  border-radius: 5px !important;
+  border-radius: 3px !important;
   background: var(--board-bg) !important;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 245, 219, 0.18),
-    inset 0 0 0 2px rgba(63, 38, 17, 0.14),
-    inset 0 18px 28px rgba(255, 236, 190, 0.14),
-    inset 0 -20px 30px rgba(76, 40, 15, 0.12) !important;
+    inset 0 0 0 1px rgba(245, 255, 226, 0.2),
+    inset 0 0 0 2px rgba(55, 73, 49, 0.18),
+    inset 0 18px 28px rgba(255, 255, 231, 0.13),
+    inset 0 -22px 34px rgba(45, 58, 40, 0.18) !important;
+}
+
+.room-board::after,
+.review-board::after,
+.opening-book-board::after {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: clamp(7px, 1vw, 12px);
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 3px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 232, 0.16), transparent 24%),
+    linear-gradient(315deg, rgba(45, 60, 42, 0.18), transparent 28%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 238, 0.22),
+    inset 1px 0 0 rgba(255, 255, 238, 0.1),
+    inset -2px -2px 0 rgba(54, 67, 49, 0.16);
 }
 
 #roomBoardCanvas,
@@ -6840,14 +6860,15 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   overflow: visible;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 34% 25%, rgba(255, 255, 255, 0.32), transparent 26%),
-    radial-gradient(circle at 50% 58%, rgba(255, 238, 207, 0.08), transparent 58%),
-    linear-gradient(145deg, #202125, #08090b);
+    radial-gradient(circle at 35% 23%, rgba(255, 246, 211, 0.62), transparent 25%),
+    radial-gradient(circle at 50% 56%, rgba(255, 220, 151, 0.22), transparent 58%),
+    linear-gradient(145deg, #e8bf77 0%, #cf8f42 54%, #8f5525 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -7px 10px rgba(0, 0, 0, 0.34),
-    0 1px 0 rgba(255, 255, 255, 0.1),
-    0 8px 13px rgba(0, 0, 0, 0.34) !important;
+    inset 0 2px 0 rgba(255, 244, 205, 0.62),
+    inset 0 -8px 10px rgba(111, 56, 20, 0.34),
+    inset 0 0 0 2px rgba(106, 62, 26, 0.2),
+    0 1px 0 rgba(255, 255, 230, 0.2),
+    0 10px 14px rgba(0, 0, 0, 0.34) !important;
   filter: none !important;
 }
 
@@ -6866,9 +6887,9 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .motion-piece[data-piece="C"],
 .motion-piece[data-piece="P"] {
   background:
-    radial-gradient(circle at 34% 25%, rgba(255, 239, 224, 0.38), transparent 26%),
-    radial-gradient(circle at 50% 58%, rgba(255, 208, 185, 0.12), transparent 58%),
-    linear-gradient(145deg, #b91f28 0%, #89121b 58%, #4d070d 100%);
+    radial-gradient(circle at 35% 23%, rgba(255, 248, 221, 0.66), transparent 25%),
+    radial-gradient(circle at 52% 58%, rgba(255, 205, 164, 0.2), transparent 58%),
+    linear-gradient(145deg, #f0c783 0%, #d48d42 53%, #8e4a25 100%);
 }
 
 .piece.image-piece[data-piece="r"],
@@ -6886,9 +6907,9 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .motion-piece[data-piece="c"],
 .motion-piece[data-piece="p"] {
   background:
-    radial-gradient(circle at 34% 25%, rgba(255, 255, 255, 0.24), transparent 26%),
-    radial-gradient(circle at 50% 58%, rgba(190, 194, 199, 0.08), transparent 58%),
-    linear-gradient(145deg, #26282d 0%, #14161a 58%, #050608 100%);
+    radial-gradient(circle at 35% 23%, rgba(255, 246, 211, 0.58), transparent 25%),
+    radial-gradient(circle at 52% 58%, rgba(218, 179, 117, 0.18), transparent 58%),
+    linear-gradient(145deg, #dcb370 0%, #b97735 52%, #6f3d1f 100%);
 }
 
 .piece.image-piece::before,
@@ -6898,12 +6919,12 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   position: absolute;
   left: 6%;
   right: 6%;
-  bottom: -7%;
-  height: 28%;
+  bottom: -8%;
+  height: 30%;
   z-index: -1;
   border-radius: 999px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.34), transparent 68%);
-  filter: blur(1.5px);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.38), transparent 68%);
+  filter: blur(1.8px);
   pointer-events: none;
 }
 
@@ -6916,9 +6937,10 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   z-index: 3;
   border-radius: 50%;
   box-shadow:
-    inset 0 2px 1px rgba(255, 255, 255, 0.2),
-    inset 2px 0 2px rgba(255, 255, 255, 0.06),
-    inset -3px -7px 8px rgba(0, 0, 0, 0.24);
+    inset 0 2px 1px rgba(255, 248, 220, 0.46),
+    inset 2px 0 2px rgba(255, 255, 232, 0.16),
+    inset -4px -8px 9px rgba(83, 44, 19, 0.28),
+    inset 0 0 0 1px rgba(91, 52, 20, 0.18);
   pointer-events: none;
 }
 
@@ -6926,12 +6948,12 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .motion-piece .piece-skin {
   position: relative;
   z-index: 2;
-  transform: scale(0.94);
+  transform: scale(0.82);
   filter:
-    saturate(1.08)
-    contrast(1.06)
-    brightness(1.02)
-    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.16))
+    saturate(0.95)
+    contrast(1.08)
+    brightness(1.07)
+    drop-shadow(0 1px 0 rgba(255, 244, 206, 0.16))
     drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18));
 }
 
@@ -6959,17 +6981,17 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   border-radius: 50%;
   padding: 0.5%;
   background:
-    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.32), transparent 27%),
-    linear-gradient(145deg, rgba(178, 34, 42, 0.68), rgba(17, 18, 22, 0.7));
+    radial-gradient(circle at 35% 24%, rgba(255, 248, 221, 0.58), transparent 27%),
+    linear-gradient(145deg, #e5bd7a, #9a5a27);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -4px 7px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 246, 214, 0.46),
+    inset 0 -4px 7px rgba(81, 43, 18, 0.3),
     0 5px 8px rgba(0, 0, 0, 0.28);
   filter:
-    saturate(1.08)
-    contrast(1.06)
-    brightness(1.02)
-    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12)) !important;
+    saturate(0.98)
+    contrast(1.08)
+    brightness(1.06)
+    drop-shadow(0 1px 0 rgba(255, 244, 206, 0.12)) !important;
 }
 
 .skin-swatch-ice,
@@ -6983,8 +7005,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 @media (max-width: 760px) {
   .endgame-title-logo {
-    width: min(300px, 72vw);
-    max-height: 64px;
+    width: min(340px, 78vw);
+    max-height: 72px;
   }
 
   .room-board,

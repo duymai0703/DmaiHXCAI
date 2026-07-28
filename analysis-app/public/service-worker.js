@@ -1,12 +1,12 @@
-const CACHE_NAME = "ymegalodon-shell-v189";
+const CACHE_NAME = "ymegalodon-shell-v190";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260728-real-board-v1",
+  "/portal.css?v=20260728-real-board-v2",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260728-real-board-v1",
+  "/portal.js?v=20260728-real-board-v2",
   "/styles.css?v=20260727-rank-source-v2",
   "/app.js?v=20260727-rank-source-v2",
   "/config.js",
@@ -131,6 +131,7 @@ const STATIC_ASSETS = [
   "/assets/avtchibi/bot7.png?v=20260728-chibi-v1",
   "/assets/avtchibi/cothe.png?v=20260728-puzzle-map-v1",
   "/assets/avtchibi/bando.png?v=20260728-puzzle-map-v1",
+  "/assets/avtchibi/tctd.png?v=20260728-real-board-v2",
   "/assets/review-badges/book.png",
   "/assets/review-badges/sao.png",
   "/assets/review-badges/like.png",
