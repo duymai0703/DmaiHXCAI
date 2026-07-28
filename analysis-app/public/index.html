@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-opponent-bots-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260728-real-board-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -485,7 +485,7 @@
             <section id="endgameTrainingPanel" class="subpanel endgame-training-panel hidden">
               <div class="endgame-training-heading">
                 <div>
-                  <h3>tàn cuộc thực dụng</h3>
+                  <img class="endgame-title-logo" src="/assets/avtchibi/tctd.png?v=20260728-real-board-v1" alt="Tàn cuộc thực dụng" draggable="false" onerror="this.onerror=null;this.src='/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v2';">
                 </div>
                 <strong id="endgameTrainingCount">0 thế</strong>
               </div>
@@ -916,7 +916,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260728-opponent-bots-v1"></script>
+    <script src="/portal.js?v=20260728-real-board-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -924,7 +924,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v188";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v189";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

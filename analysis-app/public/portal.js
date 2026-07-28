@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-opponent-bots-v1";
+  const ASSET_WARMUP_VERSION = "20260728-real-board-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
