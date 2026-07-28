@@ -940,11 +940,11 @@ a {
 }
 
 .puzzle-map-road-segment.completed {
-  background: rgba(137, 82, 19, 0.56);
+  background: rgba(238, 236, 207, 0.56);
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 126, 0.18),
-    0 0 10px rgba(255, 190, 72, 0.14),
-    0 3px 8px rgba(25, 15, 8, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 12px rgba(255, 245, 190, 0.14),
+    0 3px 8px rgba(25, 15, 8, 0.22);
 }
 
 .puzzle-map-nodes {
@@ -956,10 +956,10 @@ a {
   position: absolute;
   display: grid;
   place-items: center;
-  width: 1.72%;
+  width: 1.56%;
   aspect-ratio: 1;
-  min-width: 15px;
-  min-height: 15px;
+  min-width: 14px;
+  min-height: 14px;
   padding: 0;
   translate: -50% -50%;
   border-radius: 50%;
@@ -1027,6 +1027,44 @@ a {
     0 0 0 2px rgba(255, 235, 154, 0.38),
     0 0 12px rgba(255, 200, 64, 0.34),
     0 5px 10px rgba(0, 0, 0, 0.36);
+}
+
+.puzzle-map-nodes > .puzzle-map-node,
+.puzzle-map-nodes > .puzzle-route-node {
+  border-color: rgba(92, 45, 8, 0.86) !important;
+  background:
+    radial-gradient(circle at 50% 34%, #fff0a6 0 36%, #f3bf43 37% 54%, transparent 55%),
+    linear-gradient(180deg, #d59622 0%, #9a5810 45%, #673007 46%, #2b1508 100%) !important;
+  color: #2a1203 !important;
+  text-shadow: 0 1px 0 rgba(255, 241, 190, 0.66) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 205, 0.72),
+    inset 0 -3px 0 rgba(82, 41, 9, 0.88),
+    0 2px 0 rgba(39, 21, 8, 0.96),
+    0 4px 8px rgba(0, 0, 0, 0.34) !important;
+}
+
+.puzzle-map-nodes > .puzzle-route-node.completed {
+  opacity: 1;
+}
+
+.puzzle-map-nodes > .puzzle-route-node.locked {
+  opacity: 0.86;
+  filter: saturate(0.96) brightness(0.92);
+}
+
+.puzzle-map-nodes > .puzzle-route-node.current {
+  border-color: #fff1a8 !important;
+  background:
+    radial-gradient(circle at 50% 34%, #fff5b5 0 36%, #ffd157 37% 54%, transparent 55%),
+    linear-gradient(180deg, #e1a128 0%, #ad610f 45%, #733406 46%, #301506 100%) !important;
+  opacity: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 252, 217, 0.82),
+    inset 0 -3px 0 rgba(102, 45, 8, 0.92),
+    0 0 0 2px rgba(255, 237, 156, 0.5),
+    0 0 12px rgba(255, 206, 78, 0.34),
+    0 5px 10px rgba(0, 0, 0, 0.38) !important;
 }
 
 .puzzle-map-avatar {

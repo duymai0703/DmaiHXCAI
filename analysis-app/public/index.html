@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-puzzle-map-v5">
+    <link rel="stylesheet" href="/portal.css?v=20260728-puzzle-map-v6">
   </head>
   <body>
     <header class="portal-header">
@@ -765,7 +765,7 @@
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
-    <script src="/portal.js?v=20260728-puzzle-map-v5"></script>
+    <script src="/portal.js?v=20260728-puzzle-map-v6"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -773,7 +773,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v180";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v181";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

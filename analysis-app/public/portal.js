@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v5";
+  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v6";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -2307,26 +2307,33 @@
   }
 
   const PUZZLE_MAP_ROUTE_ANCHORS = [
-    { x: 23, y: 84 },
-    { x: 33, y: 79 },
-    { x: 20, y: 72 },
-    { x: 32, y: 64 },
-    { x: 48, y: 67 },
-    { x: 62, y: 61 },
-    { x: 78, y: 57 },
-    { x: 69, y: 49 },
-    { x: 51, y: 51 },
-    { x: 34, y: 47 },
-    { x: 24, y: 39 },
-    { x: 38, y: 32 },
-    { x: 56, y: 34 },
-    { x: 74, y: 39 },
-    { x: 84, y: 32 },
-    { x: 70, y: 24 },
-    { x: 52, y: 20 },
+    { x: 18, y: 86 },
+    { x: 38, y: 82 },
+    { x: 63, y: 86 },
+    { x: 86, y: 80 },
+    { x: 91, y: 72 },
+    { x: 68, y: 67 },
+    { x: 42, y: 70 },
+    { x: 15, y: 65 },
+    { x: 10, y: 56 },
+    { x: 33, y: 51 },
+    { x: 60, y: 55 },
+    { x: 88, y: 50 },
+    { x: 91, y: 41 },
+    { x: 67, y: 36 },
+    { x: 39, y: 40 },
+    { x: 12, y: 35 },
+    { x: 9, y: 27 },
     { x: 34, y: 22 },
-    { x: 24, y: 18 }
+    { x: 62, y: 25 },
+    { x: 88, y: 20 },
+    { x: 91, y: 13 },
+    { x: 66, y: 10 },
+    { x: 39, y: 13 },
+    { x: 14, y: 9 }
   ];
+  const PUZZLE_MAP_ROUTE_SAMPLE_STEPS = 18;
+  let puzzleMapRouteSamples = null;
 
   function catmullRomPoint(p0, p1, p2, p3, t) {
     const t2 = t * t;
@@ -2337,20 +2344,63 @@
     };
   }
 
-  function puzzleMapRoutePoint(progress) {
+  function clampPuzzleMapPoint(point) {
+    return {
+      x: Math.max(7, Math.min(93, point.x)),
+      y: Math.max(8, Math.min(92, point.y))
+    };
+  }
+
+  function rawPuzzleMapRoutePoint(scaled) {
     const anchors = PUZZLE_MAP_ROUTE_ANCHORS;
     const maxSegment = anchors.length - 1;
-    const scaled = Math.max(0, Math.min(maxSegment, Number(progress || 0) * maxSegment));
-    const segment = Math.min(maxSegment - 1, Math.floor(scaled));
-    const localT = scaled - segment;
+    const safeScaled = Math.max(0, Math.min(maxSegment, Number(scaled || 0)));
+    const segment = Math.min(maxSegment - 1, Math.floor(safeScaled));
+    const localT = safeScaled - segment;
     const p0 = anchors[Math.max(0, segment - 1)];
     const p1 = anchors[segment];
     const p2 = anchors[Math.min(anchors.length - 1, segment + 1)];
     const p3 = anchors[Math.min(anchors.length - 1, segment + 2)];
-    const point = catmullRomPoint(p0, p1, p2, p3, localT);
+    return clampPuzzleMapPoint(catmullRomPoint(p0, p1, p2, p3, localT));
+  }
+
+  function puzzleMapRouteSampleTable() {
+    if (puzzleMapRouteSamples) return puzzleMapRouteSamples;
+    const anchors = PUZZLE_MAP_ROUTE_ANCHORS;
+    const maxSegment = anchors.length - 1;
+    const samples = [];
+    let previous = clampPuzzleMapPoint(anchors[0]);
+    let distance = 0;
+    samples.push({ ...previous, distance });
+
+    for (let segment = 0; segment < maxSegment; segment += 1) {
+      for (let step = 1; step <= PUZZLE_MAP_ROUTE_SAMPLE_STEPS; step += 1) {
+        const point = rawPuzzleMapRoutePoint(segment + step / PUZZLE_MAP_ROUTE_SAMPLE_STEPS);
+        distance += Math.hypot(point.x - previous.x, point.y - previous.y);
+        samples.push({ ...point, distance });
+        previous = point;
+      }
+    }
+
+    puzzleMapRouteSamples = samples;
+    return samples;
+  }
+
+  function puzzleMapRoutePoint(progress) {
+    const samples = puzzleMapRouteSampleTable();
+    if (!samples.length) return { x: 50, y: 50 };
+    const totalDistance = samples[samples.length - 1].distance || 0;
+    const targetDistance = Math.max(0, Math.min(totalDistance, Number(progress || 0) * totalDistance));
+    let upperIndex = samples.findIndex((sample) => sample.distance >= targetDistance);
+    if (upperIndex <= 0) return { x: samples[0].x, y: samples[0].y };
+    if (upperIndex < 0) upperIndex = samples.length - 1;
+    const lower = samples[upperIndex - 1];
+    const upper = samples[upperIndex];
+    const span = Math.max(0.0001, upper.distance - lower.distance);
+    const localT = (targetDistance - lower.distance) / span;
     return {
-      x: Math.max(7, Math.min(93, point.x)),
-      y: Math.max(8, Math.min(92, point.y))
+      x: lower.x + (upper.x - lower.x) * localT,
+      y: lower.y + (upper.y - lower.y) * localT
     };
   }
 
