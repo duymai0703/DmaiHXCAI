@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v2";
+  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v3";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -2437,8 +2437,26 @@
     });
   }
 
-  function puzzleMapPointString(points) {
-    return points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+  function puzzleMapPathD(points) {
+    if (!points.length) return "";
+    if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    const path = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const previous = points[Math.max(0, index - 1)];
+      const current = points[index];
+      const next = points[index + 1];
+      const after = points[Math.min(points.length - 1, index + 2)];
+      const control1 = {
+        x: current.x + (next.x - previous.x) / 6,
+        y: current.y + (next.y - previous.y) / 6
+      };
+      const control2 = {
+        x: next.x - (after.x - current.x) / 6,
+        y: next.y - (after.y - current.y) / 6
+      };
+      path.push(`C ${control1.x.toFixed(2)} ${control1.y.toFixed(2)}, ${control2.x.toFixed(2)} ${control2.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`);
+    }
+    return path.join(" ");
   }
 
   function renderPuzzleMap(progress) {
@@ -2447,10 +2465,10 @@
     const done = total > 0 && Number(progress.completedCount || 0) >= total;
     const currentLevel = total ? Math.max(1, Math.min(total, done ? total : Number(progress.currentLevel || 1))) : 0;
     const positions = puzzleMapPositions(total);
-    dom.puzzleMapPathLine.setAttribute("points", puzzleMapPointString(positions));
+    dom.puzzleMapPathLine.setAttribute("d", puzzleMapPathD(positions));
     if (dom.puzzleMapPathDone) {
       const doneLevel = Math.max(1, Math.min(total, currentLevel || Math.max(1, Number(progress.unlockedLevel || 1))));
-      dom.puzzleMapPathDone.setAttribute("points", puzzleMapPointString(positions.slice(0, doneLevel)));
+      dom.puzzleMapPathDone.setAttribute("d", puzzleMapPathD(positions.slice(0, doneLevel)));
     }
     dom.puzzleMapNodes.innerHTML = "";
 

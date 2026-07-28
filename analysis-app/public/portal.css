@@ -922,26 +922,26 @@ a {
   pointer-events: none;
 }
 
-.puzzle-map-path polyline {
+.puzzle-map-path path {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .puzzle-map-road-base {
-  stroke: rgba(235, 241, 218, 0.5);
-  stroke-width: 5.15;
+  stroke: rgba(236, 239, 214, 0.52);
+  stroke-width: 4.35;
   filter:
-    drop-shadow(0 0 1.2px rgba(255, 246, 208, 0.26))
-    drop-shadow(0 2px 1.2px rgba(39, 23, 10, 0.28));
+    drop-shadow(0 0 1.1px rgba(255, 246, 208, 0.24))
+    drop-shadow(0 2px 1px rgba(39, 23, 10, 0.3));
 }
 
 .puzzle-map-road-done {
-  stroke: rgba(178, 125, 52, 0.46);
-  stroke-width: 5.15;
+  stroke: rgba(147, 93, 25, 0.5);
+  stroke-width: 4.35;
   filter:
-    drop-shadow(0 0 1px rgba(255, 225, 141, 0.3))
-    drop-shadow(0 2px 1.1px rgba(32, 18, 8, 0.34));
+    drop-shadow(0 0 1px rgba(255, 212, 112, 0.26))
+    drop-shadow(0 2px 1px rgba(32, 18, 8, 0.36));
 }
 
 .puzzle-map-nodes {
@@ -952,18 +952,18 @@ a {
   position: absolute;
   display: grid;
   place-items: center;
-  width: 1.56%;
+  width: 1.72%;
   aspect-ratio: 1;
-  min-width: 14px;
-  min-height: 14px;
+  min-width: 15px;
+  min-height: 15px;
   padding: 0;
   translate: -50% -50%;
   border-radius: 50%;
-  border: 1px solid rgba(78, 46, 22, 0.6);
+  border: 1px solid rgba(94, 50, 14, 0.72);
   background:
-    radial-gradient(circle at 50% 37%, #fff7dc 0 42%, transparent 43%),
-    linear-gradient(180deg, #f3e2b9 0%, #d6c59c 46%, #6d4a32 47%, #2f2019 100%);
-  color: rgba(50, 25, 10, 0.82);
+    radial-gradient(circle at 50% 37%, #ffeaa4 0 42%, transparent 43%),
+    linear-gradient(180deg, #c78a24 0%, #8e5418 46%, #5f2c0b 47%, #27150d 100%);
+  color: rgba(49, 20, 4, 0.88);
   font-size: clamp(5px, 0.62vw, 8px);
   font-weight: 900;
   line-height: 1;
@@ -973,7 +973,7 @@ a {
     inset 0 -3px 0 rgba(74, 43, 27, 0.78),
     0 2px 0 rgba(41, 24, 14, 0.92),
     0 4px 7px rgba(0, 0, 0, 0.3);
-  opacity: 0.82;
+  opacity: 0.78;
 }
 
 .puzzle-map-node[aria-disabled="true"] {
@@ -982,11 +982,11 @@ a {
 
 .puzzle-map-node.completed {
   background:
-    radial-gradient(circle at 50% 37%, #fff0a0 0 42%, transparent 43%),
-    linear-gradient(180deg, #d59b2f 0%, #a26013 46%, #6b3007 47%, #2a1710 100%);
-  border-color: rgba(92, 45, 11, 0.86);
-  color: #2a1304;
-  opacity: 0.98;
+    radial-gradient(circle at 50% 37%, #ffe070 0 42%, transparent 43%),
+    linear-gradient(180deg, #b16b12 0%, #7a3808 46%, #542003 47%, #221107 100%);
+  border-color: rgba(83, 35, 7, 0.92);
+  color: #210d02;
+  opacity: 1;
   box-shadow:
     inset 0 1px 0 rgba(255, 244, 184, 0.68),
     inset 0 -3px 0 rgba(82, 35, 8, 0.88),
@@ -995,22 +995,22 @@ a {
 }
 
 .puzzle-map-node.locked {
-  border-color: rgba(99, 82, 58, 0.46);
+  border-color: rgba(116, 77, 28, 0.52);
   background:
-    radial-gradient(circle at 50% 37%, rgba(255, 251, 231, 0.88) 0 42%, transparent 43%),
-    linear-gradient(180deg, rgba(238, 231, 205, 0.86) 0%, rgba(194, 180, 149, 0.78) 46%, rgba(98, 76, 54, 0.54) 47%, rgba(48, 34, 25, 0.48) 100%);
-  color: rgba(73, 43, 21, 0.48);
-  opacity: 0.58;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.34);
+    radial-gradient(circle at 50% 37%, rgba(255, 228, 143, 0.9) 0 42%, transparent 43%),
+    linear-gradient(180deg, rgba(173, 111, 28, 0.8) 0%, rgba(118, 68, 18, 0.7) 46%, rgba(73, 38, 10, 0.56) 47%, rgba(31, 18, 10, 0.52) 100%);
+  color: rgba(45, 20, 5, 0.46);
+  opacity: 0.62;
+  text-shadow: 0 1px 0 rgba(255, 226, 143, 0.3);
 }
 
 .puzzle-map-node.current {
   z-index: 4;
-  border-color: #ffe9a7;
+  border-color: #ffe38b;
   background:
-    radial-gradient(circle at 50% 37%, #fff8c8 0 42%, transparent 43%),
-    linear-gradient(180deg, #ffd866 0%, #c27a11 46%, #8c3f08 47%, #3a1b0f 100%);
-  color: #2b1304;
+    radial-gradient(circle at 50% 37%, #ffe88c 0 42%, transparent 43%),
+    linear-gradient(180deg, #dc9218 0%, #a54e08 46%, #743004 47%, #2f1509 100%);
+  color: #241004;
   text-shadow: 0 1px 0 rgba(255, 239, 184, 0.64);
   opacity: 1;
   box-shadow:
