@@ -1,11 +1,11 @@
-const CACHE_NAME = "ymegalodon-shell-v178";
+const CACHE_NAME = "ymegalodon-shell-v179";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260728-puzzle-map-v3",
+  "/portal.css?v=20260728-puzzle-map-v4",
   "/puzzle-data.js?v=20260727-puzzle-v1",
-  "/portal.js?v=20260728-puzzle-map-v3",
+  "/portal.js?v=20260728-puzzle-map-v4",
   "/styles.css?v=20260727-rank-source-v2",
   "/app.js?v=20260727-rank-source-v2",
   "/config.js",
@@ -163,12 +163,29 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-    ))
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
+      await self.clients.claim();
+      await refreshPortalClients();
+    })()
   );
-  self.clients.claim();
 });
+
+async function refreshPortalClients() {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  await Promise.all(clients.map((client) => {
+    try {
+      const url = new URL(client.url);
+      const route = String(url.hash || "").replace(/^#/, "");
+      const isPortal = url.origin === self.location.origin && (url.pathname === "/" || url.pathname === "/index.html");
+      if (!isPortal || route === "room") return Promise.resolve();
+      return client.navigate(client.url);
+    } catch {
+      return Promise.resolve();
+    }
+  }));
+}
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;

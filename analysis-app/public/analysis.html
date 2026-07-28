@@ -292,8 +292,9 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            if (sessionStorage.getItem("dmaihxcai-sw-reloaded") === "1") return;
-            sessionStorage.setItem("dmaihxcai-sw-reloaded", "1");
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v179";
+            if (sessionStorage.getItem(reloadKey) === "1") return;
+            sessionStorage.setItem(reloadKey, "1");
             location.reload();
           });
         });
