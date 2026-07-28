@@ -1,11 +1,11 @@
-const CACHE_NAME = "ymegalodon-shell-v179";
+const CACHE_NAME = "ymegalodon-shell-v180";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260728-puzzle-map-v4",
+  "/portal.css?v=20260728-puzzle-map-v5",
   "/puzzle-data.js?v=20260727-puzzle-v1",
-  "/portal.js?v=20260728-puzzle-map-v4",
+  "/portal.js?v=20260728-puzzle-map-v5",
   "/styles.css?v=20260727-rank-source-v2",
   "/app.js?v=20260727-rank-source-v2",
   "/config.js",

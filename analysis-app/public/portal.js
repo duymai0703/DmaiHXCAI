@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v4";
+  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v5";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -433,9 +433,7 @@
     puzzleMapCard: byId("puzzleMapCard"),
     puzzleMapViewport: byId("puzzleMapViewport"),
     puzzleMapInner: byId("puzzleMapInner"),
-    puzzleMapPathSvg: byId("puzzleMapPathSvg"),
-    puzzleMapPathLine: byId("puzzleMapPathLine"),
-    puzzleMapPathDone: byId("puzzleMapPathDone"),
+    puzzleMapRoad: byId("puzzleMapRoad"),
     puzzleMapNodes: byId("puzzleMapNodes"),
     puzzleMapAvatar: byId("puzzleMapAvatar"),
     puzzleCurrentName: byId("puzzleCurrentName"),
@@ -2437,39 +2435,42 @@
     });
   }
 
-  function puzzleMapPathD(points) {
-    if (!points.length) return "";
-    if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
-    const path = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const previous = points[Math.max(0, index - 1)];
-      const current = points[index];
-      const next = points[index + 1];
-      const after = points[Math.min(points.length - 1, index + 2)];
-      const control1 = {
-        x: current.x + (next.x - previous.x) / 6,
-        y: current.y + (next.y - previous.y) / 6
-      };
-      const control2 = {
-        x: next.x - (after.x - current.x) / 6,
-        y: next.y - (after.y - current.y) / 6
-      };
-      path.push(`C ${control1.x.toFixed(2)} ${control1.y.toFixed(2)}, ${control2.x.toFixed(2)} ${control2.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`);
+  function renderPuzzleMapRoad(positions, currentLevel) {
+    if (!dom.puzzleMapRoad || !dom.puzzleMapInner) return;
+    dom.puzzleMapRoad.innerHTML = "";
+    const width = dom.puzzleMapInner.offsetWidth || 0;
+    const height = dom.puzzleMapInner.offsetHeight || 0;
+    if (!width || !height || positions.length < 2) return;
+
+    for (let index = 0; index < positions.length - 1; index += 1) {
+      const start = positions[index];
+      const end = positions[index + 1];
+      const x1 = (start.x / 100) * width;
+      const y1 = (start.y / 100) * height;
+      const x2 = (end.x / 100) * width;
+      const y2 = (end.y / 100) * height;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.max(0, Math.hypot(dx, dy));
+      if (length <= 0.1) continue;
+
+      const segment = document.createElement("span");
+      segment.className = `puzzle-map-road-segment${index < currentLevel - 1 ? " completed" : ""}`;
+      segment.style.left = `${x1.toFixed(1)}px`;
+      segment.style.top = `${y1.toFixed(1)}px`;
+      segment.style.width = `${length.toFixed(1)}px`;
+      segment.style.transform = `rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(3)}deg)`;
+      dom.puzzleMapRoad.appendChild(segment);
     }
-    return path.join(" ");
   }
 
   function renderPuzzleMap(progress) {
-    if (!dom.puzzleMapNodes || !dom.puzzleMapPathLine || !dom.puzzleMapAvatar) return;
+    if (!dom.puzzleMapNodes || !dom.puzzleMapRoad || !dom.puzzleMapAvatar) return;
     const total = Math.max(0, Number(progress.total || PUZZLE_TOTAL || 0));
     const done = total > 0 && Number(progress.completedCount || 0) >= total;
     const currentLevel = total ? Math.max(1, Math.min(total, done ? total : Number(progress.currentLevel || 1))) : 0;
     const positions = puzzleMapPositions(total);
-    dom.puzzleMapPathLine.setAttribute("d", puzzleMapPathD(positions));
-    if (dom.puzzleMapPathDone) {
-      const doneLevel = Math.max(1, Math.min(total, currentLevel || Math.max(1, Number(progress.unlockedLevel || 1))));
-      dom.puzzleMapPathDone.setAttribute("d", puzzleMapPathD(positions.slice(0, doneLevel)));
-    }
+    renderPuzzleMapRoad(positions, currentLevel || Math.max(1, Number(progress.unlockedLevel || 1)));
     dom.puzzleMapNodes.innerHTML = "";
 
     positions.forEach((position, index) => {
@@ -2479,7 +2480,7 @@
       const locked = level > Number(progress.unlockedLevel || 1);
       const node = document.createElement("button");
       node.type = "button";
-      node.className = `puzzle-map-node${completed ? " completed" : ""}${current ? " current" : ""}${locked ? " locked" : ""}`;
+      node.className = `puzzle-map-node puzzle-route-node${completed ? " completed" : ""}${current ? " current" : ""}${locked ? " locked" : ""}`;
       node.style.left = `${position.x}%`;
       node.style.top = `${position.y}%`;
       node.textContent = String(level);
@@ -8216,7 +8217,9 @@
 
   function onResize() {
     if (state.route === "match" && state.lobbyMode === "puzzle") {
-      queuePuzzleMapFocus(puzzleProgress().currentLevel || 1);
+      const progress = puzzleProgress();
+      renderPuzzleMap(progress);
+      queuePuzzleMapFocus(progress.currentLevel || 1);
     }
     const targetBoard = dom.roomView.classList.contains("hidden") ? null : dom.roomBoard;
     const rect = targetBoard ? targetBoard.getBoundingClientRect() : null;
