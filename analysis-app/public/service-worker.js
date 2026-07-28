@@ -1,11 +1,11 @@
-const CACHE_NAME = "ymegalodon-shell-v182";
+const CACHE_NAME = "ymegalodon-shell-v183";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260728-match-modes-v1",
+  "/portal.css?v=20260728-match-modes-v2",
   "/puzzle-data.js?v=20260727-puzzle-v1",
-  "/portal.js?v=20260728-match-modes-v1",
+  "/portal.js?v=20260728-match-modes-v2",
   "/styles.css?v=20260727-rank-source-v2",
   "/app.js?v=20260727-rank-source-v2",
   "/config.js",
@@ -149,12 +149,12 @@ const OPTIONAL_ASSETS = [
   "/assets/posters/vanca1.png",
   "/assets/posters/vanca2.png",
   "/assets/posters/vanca3.png",
-  "/assets/avtchibi/solo.png?v=20260728-match-modes-v1",
-  "/assets/avtchibi/danhbot.png?v=20260728-match-modes-v1",
-  "/assets/avtchibi/leorank.png?v=20260728-match-modes-v1",
-  "/assets/avtchibi/theco.png?v=20260728-match-modes-v1",
-  "/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v1",
-  "/assets/avtchibi/nhanban.png?v=20260728-match-modes-v1"
+  "/assets/avtchibi/solo.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/danhbot.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/leorank.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/theco.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/nhanban.png?v=20260728-match-modes-v2"
 ];
 
 self.addEventListener("install", (event) => {

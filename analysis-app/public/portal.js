@@ -20,7 +20,10 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-match-modes-v1";
+  const ASSET_WARMUP_VERSION = "20260728-match-modes-v2";
+  const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
+  const LOBBY_MENU_MODE = "menu";
+  const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -56,7 +59,7 @@
   };
   const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
   const puzzleMapAsset = (file) => `/assets/avtchibi/${file}?v=${PUZZLE_MAP_ASSET_VERSION}`;
-  const matchModeAsset = (file) => `/assets/avtchibi/${file}?v=20260728-match-modes-v1`;
+  const matchModeAsset = (file) => `/assets/avtchibi/${file}?v=${MATCH_MODE_ASSET_VERSION}`;
   const PUZZLE_MAP_IMAGE = puzzleMapAsset("bando.png");
   const PUZZLE_LOGO_IMAGE = puzzleMapAsset("cothe.png");
   const MATCH_MODE_ASSETS = [
@@ -265,7 +268,7 @@
     route: "home",
     booting: true,
     pendingAccessKey: "",
-    lobbyMode: "join",
+    lobbyMode: LOBBY_MENU_MODE,
     rankQueueActive: false,
     rankQueueTimer: 0,
     rankStatus: null,
@@ -396,6 +399,7 @@
     openMatchHub: byId("openMatchHub"),
     openAnalysisBtn: byId("openAnalysisBtn"),
     openLibraryBtn: byId("openLibraryBtn"),
+    matchModeBoard: byId("matchModeBoard"),
     showFriendRoom: byId("showFriendRoom"),
     showJoinRoom: byId("showJoinRoom"),
     showCreateRoom: byId("showCreateRoom"),
@@ -411,6 +415,10 @@
     botRoomForm: byId("botRoomForm"),
     rankRoomForm: byId("rankRoomForm"),
     puzzleRoomForm: byId("puzzleRoomForm"),
+    pendingModePanel: byId("pendingModePanel"),
+    pendingModeLogo: byId("pendingModeLogo"),
+    pendingModeTitle: byId("pendingModeTitle"),
+    pendingModeText: byId("pendingModeText"),
     joinDisplayName: byId("joinDisplayName"),
     joinRoomKey: byId("joinRoomKey"),
     createDisplayName: byId("createDisplayName"),
@@ -635,7 +643,7 @@
   setupRoomMobileDock();
   wakeBackend();
   startActivityHeartbeat();
-  setLobbyMode("join");
+  setLobbyMode(LOBBY_MENU_MODE);
   updateTimeLabels();
   renderBotOptions();
   renderHistory();
@@ -1292,7 +1300,7 @@
       });
     }
     dom.openMatchHub.addEventListener("click", () => {
-      setLobbyMode("join");
+      setLobbyMode(LOBBY_MENU_MODE);
       goRoute("match");
     });
     dom.openAnalysisBtn.addEventListener("click", () => {
@@ -1329,14 +1337,14 @@
     dom.openingBookPracticeExitBtn?.addEventListener("click", stopOpeningBookPractice);
     dom.openingBookPracticeYesBtn?.addEventListener("click", continueOpeningBookPracticeLine);
     dom.openingBookPracticeNoBtn?.addEventListener("click", handleOpeningBookPracticeSecondaryAction);
-    dom.showFriendRoom?.addEventListener("click", () => setLobbyMode(["join", "create"].includes(state.lobbyMode) ? state.lobbyMode : "join"));
-    dom.showJoinRoom.addEventListener("click", () => setLobbyMode("join"));
-    dom.showCreateRoom.addEventListener("click", () => setLobbyMode("create"));
-    dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
-    dom.showRankRoom?.addEventListener("click", () => setLobbyMode("rank"));
-    dom.showPuzzleRoom?.addEventListener("click", () => setLobbyMode("puzzle"));
-    dom.showEndgameRoom?.addEventListener("click", () => showPendingMatchMode("Luyện tàn cuộc"));
-    dom.showOpponentSimRoom?.addEventListener("click", () => showPendingMatchMode("Giả lập đối thủ"));
+    dom.showFriendRoom?.addEventListener("click", () => openMatchMode("join"));
+    dom.showJoinRoom.addEventListener("click", () => switchFriendMode("join"));
+    dom.showCreateRoom.addEventListener("click", () => switchFriendMode("create"));
+    dom.showBotRoom.addEventListener("click", () => openMatchMode("bot"));
+    dom.showRankRoom?.addEventListener("click", () => openMatchMode("rank"));
+    dom.showPuzzleRoom?.addEventListener("click", () => openMatchMode("puzzle"));
+    dom.showEndgameRoom?.addEventListener("click", () => openMatchMode("endgame"));
+    dom.showOpponentSimRoom?.addEventListener("click", () => openMatchMode("opponent"));
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
     dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
@@ -1943,27 +1951,34 @@
 
   function setLobbyMode(mode) {
     const previousMode = state.lobbyMode;
-    state.lobbyMode = ["create", "bot", "rank", "puzzle"].includes(mode) ? mode : "join";
+    state.lobbyMode = LOBBY_MODES.has(mode) ? mode : LOBBY_MENU_MODE;
+    const isMenuMode = state.lobbyMode === LOBBY_MENU_MODE;
     const isFriendMode = ["join", "create"].includes(state.lobbyMode);
+    const isPendingMode = ["endgame", "opponent"].includes(state.lobbyMode);
     if (previousMode !== state.lobbyMode && state.lobbyMode !== "puzzle") {
       state.puzzleMapIntroKey = "";
     }
-    dom.showFriendRoom?.classList.toggle("active", isFriendMode);
+    dom.matchModeBoard?.classList.toggle("hidden", !isMenuMode);
+    dom.matchHubView?.classList.toggle("match-mode-menu", isMenuMode);
+    dom.matchHubView?.classList.toggle("match-mode-selected", !isMenuMode);
+    dom.showFriendRoom?.classList.toggle("active", !isMenuMode && isFriendMode);
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
-    dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
-    dom.showRankRoom?.classList.toggle("active", state.lobbyMode === "rank");
-    dom.showPuzzleRoom?.classList.toggle("active", state.lobbyMode === "puzzle");
-    dom.showEndgameRoom?.classList.remove("active");
-    dom.showOpponentSimRoom?.classList.remove("active");
+    dom.showBotRoom.classList.toggle("active", !isMenuMode && state.lobbyMode === "bot");
+    dom.showRankRoom?.classList.toggle("active", !isMenuMode && state.lobbyMode === "rank");
+    dom.showPuzzleRoom?.classList.toggle("active", !isMenuMode && state.lobbyMode === "puzzle");
+    dom.showEndgameRoom?.classList.toggle("active", !isMenuMode && state.lobbyMode === "endgame");
+    dom.showOpponentSimRoom?.classList.toggle("active", !isMenuMode && state.lobbyMode === "opponent");
     dom.friendRoomChoices?.classList.toggle("hidden", !isFriendMode);
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     dom.puzzleRoomForm?.classList.toggle("hidden", state.lobbyMode !== "puzzle");
+    dom.pendingModePanel?.classList.toggle("hidden", !isPendingMode);
     dom.matchHubView?.classList.toggle("puzzle-map-mode", state.lobbyMode === "puzzle");
     setMessage(dom.matchHubMessage, "");
+    if (isPendingMode) renderPendingMatchMode();
     if (state.lobbyMode === "bot") renderBotOptions();
     if (state.lobbyMode === "rank") {
       renderRankPanel();
@@ -1975,10 +1990,38 @@
     }
   }
 
-  function showPendingMatchMode(name) {
-    dom.showEndgameRoom?.classList.remove("active");
-    dom.showOpponentSimRoom?.classList.remove("active");
-    setMessage(dom.matchHubMessage, `${name} sẽ được bổ sung sau.`, "info");
+  function openMatchMode(mode) {
+    if (!LOBBY_MODES.has(mode) || mode === LOBBY_MENU_MODE) return;
+    goMatchMode(mode);
+  }
+
+  function switchFriendMode(mode) {
+    if (!["join", "create"].includes(mode)) return;
+    setLobbyMode(mode);
+    goMatchMode(mode, true);
+  }
+
+  function pendingMatchModeMeta() {
+    if (state.lobbyMode === "opponent") {
+      return {
+        title: "Giả lập đối thủ",
+        text: "Chức năng giả lập đối thủ sẽ được bổ sung sau.",
+        logo: matchModeAsset("nhanban.png")
+      };
+    }
+    return {
+      title: "Luyện tàn cuộc",
+      text: "Chức năng luyện tàn cuộc sẽ được bổ sung sau.",
+      logo: matchModeAsset("tancuoc.png")
+    };
+  }
+
+  function renderPendingMatchMode() {
+    const meta = pendingMatchModeMeta();
+    if (dom.pendingModeLogo) dom.pendingModeLogo.src = meta.logo;
+    if (dom.pendingModeLogo) dom.pendingModeLogo.alt = meta.title;
+    if (dom.pendingModeTitle) dom.pendingModeTitle.textContent = meta.title;
+    if (dom.pendingModeText) dom.pendingModeText.textContent = meta.text;
   }
 
   function setCreateSide(side) {
@@ -2944,14 +2987,20 @@
     clearRoomMoveAnimation();
     localStorage.removeItem(STORAGE_ROOM);
     updateResumeButton();
-    goRoute("match", true);
+    goMatchMode("puzzle", true);
     renderPuzzlePanel();
   }
 
-  function normalizeRoute(hash) {
+  function parseRouteHash(hash) {
     const value = String(hash || location.hash || "").replace(/^#/, "").trim().toLowerCase();
-    if (["home", "match", "library", "admin", "room", "review"].includes(value)) return value;
-    return "home";
+    const [routeValue, modeValue] = value.split(/[/?]/);
+    const route = ["home", "match", "library", "admin", "room", "review"].includes(routeValue) ? routeValue : "home";
+    const lobbyMode = route === "match" && LOBBY_MODES.has(modeValue) ? modeValue : LOBBY_MENU_MODE;
+    return { route, lobbyMode };
+  }
+
+  function normalizeRoute(hash) {
+    return parseRouteHash(hash).route;
   }
 
   function goRoute(route, replace = false) {
@@ -2968,8 +3017,28 @@
     location.hash = target;
   }
 
+  function matchHashForMode(mode = LOBBY_MENU_MODE) {
+    const safeMode = LOBBY_MODES.has(mode) ? mode : LOBBY_MENU_MODE;
+    return safeMode === LOBBY_MENU_MODE ? "#match" : `#match/${safeMode}`;
+  }
+
+  function goMatchMode(mode = LOBBY_MENU_MODE, replace = false) {
+    const target = matchHashForMode(mode);
+    if (replace) {
+      history.replaceState(null, "", target);
+      syncRoute(false);
+      return;
+    }
+    if (location.hash === target) {
+      syncRoute(false);
+      return;
+    }
+    location.hash = target;
+  }
+
   function syncRoute(replaceIfNeeded) {
-    let route = normalizeRoute(location.hash);
+    const routeInfo = parseRouteHash(location.hash);
+    let route = routeInfo.route;
     const mobileAdminRoute = isMobileRoomEntry && route === "admin";
     if (isMobileRoomEntry && route === "home") route = state.room ? "room" : "match";
     if (state.booting && !mobileAdminRoute) route = isMobileRoomEntry ? "match" : "home";
@@ -2980,7 +3049,8 @@
     state.route = route;
     document.body.dataset.route = route;
     if (replaceIfNeeded || location.hash !== `#${route}`) {
-      history.replaceState(null, "", `#${route}`);
+      const normalizedHash = route === "match" ? matchHashForMode(routeInfo.lobbyMode) : `#${route}`;
+      history.replaceState(null, "", normalizedHash);
     }
 
     dom.authView.classList.add("hidden");
@@ -2991,6 +3061,10 @@
     dom.roomView.classList.toggle("hidden", route !== "room");
     dom.reviewView.classList.toggle("hidden", route !== "review");
     dom.headerProfile.classList.remove("hidden");
+
+    if (route === "match") {
+      setLobbyMode(routeInfo.lobbyMode || LOBBY_MENU_MODE);
+    }
 
     if (route === "room" && state.room) {
       startRoomPolling();
@@ -3033,6 +3107,11 @@
   function handleBack() {
     if (isMobileRoomEntry && state.route === "room") {
       void leaveRoomFromMobileBack();
+      return;
+    }
+    if (state.route === "match" && state.lobbyMode !== LOBBY_MENU_MODE) {
+      setLobbyMode(LOBBY_MENU_MODE);
+      goMatchMode(LOBBY_MENU_MODE, true);
       return;
     }
     if (isMobileRoomEntry && state.route === "match") {
