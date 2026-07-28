@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-endgame-v2";
+  const ASSET_WARMUP_VERSION = "20260728-endgame-v3";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -38,12 +38,15 @@
   const PUZZLES = Array.isArray(globalThis.YMEGALODON_PUZZLES)
     ? globalThis.YMEGALODON_PUZZLES.filter((item) => item && /^[1-9]\d*$/.test(String(item.level || "")) && item.fen)
     : [];
-  const ENDGAME_DATA_VERSION = "20260728-endgame-v2";
+  const ENDGAME_DATA_VERSION = "20260728-endgame-v3";
   const ENDGAME_DATA_ASSET = `/endgame-data.js?v=${ENDGAME_DATA_VERSION}`;
   const ENDGAME_LIBRARY = globalThis.YMEGALODON_ENDGAMES && Array.isArray(globalThis.YMEGALODON_ENDGAMES.sections)
     ? globalThis.YMEGALODON_ENDGAMES
     : { title: "tàn cuộc thực dụng", total: 0, sections: [] };
   const ENDGAME_PAGE_SIZE = 20;
+  const ENDGAME_PAGE_WINDOW_SIZE = 10;
+  const ENDGAME_PREVIEW_PAD_X = 6.2;
+  const ENDGAME_PREVIEW_PAD_Y = 6.1;
   const PUZZLE_TOTAL = PUZZLES.length;
   const PUZZLE_MAX_PLAYER_MOVES = 8;
   const PUZZLE_ENGINE_DELAY_MS = 260;
@@ -293,6 +296,7 @@
     puzzleMapPendingJump: null,
     endgameSession: null,
     endgamePage: 1,
+    endgamePageWindowStart: 1,
     createSide: "w",
     botSide: "w",
     room: null,
@@ -1180,6 +1184,7 @@
     });
     state.openingBookLastBoardFrame = "";
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+    if (state.route === "match" && state.lobbyMode === "endgame") scheduleEndgamePreviewDraw();
   }
 
   function applyPortalPieceSkin(skin, { persist = false } = {}) {
@@ -1200,6 +1205,7 @@
     if (dom.roomView && !dom.roomView.classList.contains("hidden")) drawRoomScene(true, true);
     if (dom.reviewView && !dom.reviewView.classList.contains("hidden")) drawReviewScene(true, true);
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+    if (state.route === "match" && state.lobbyMode === "endgame") renderEndgameTrainingPanel();
   }
 
   function togglePortalBoardSkinMenu() {
@@ -1236,6 +1242,7 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
+    if (state.route === "match" && state.lobbyMode === "endgame") scheduleEndgamePreviewDraw();
   }
 
   function updateBrandLogo(theme) {
@@ -2047,11 +2054,30 @@
     const positions = endgamePositions();
     const pageCount = Math.max(1, Math.ceil(positions.length / ENDGAME_PAGE_SIZE));
     state.endgamePage = Math.max(1, Math.min(pageCount, Number(state.endgamePage) || 1));
+    const maxWindowStart = Math.max(1, pageCount - ENDGAME_PAGE_WINDOW_SIZE + 1);
+    state.endgamePageWindowStart = Math.max(1, Math.min(maxWindowStart, Number(state.endgamePageWindowStart) || 1));
+    if (state.endgamePage < state.endgamePageWindowStart) {
+      state.endgamePageWindowStart = state.endgamePage;
+    }
+    if (state.endgamePage >= state.endgamePageWindowStart + ENDGAME_PAGE_WINDOW_SIZE) {
+      state.endgamePageWindowStart = Math.min(maxWindowStart, state.endgamePage - ENDGAME_PAGE_WINDOW_SIZE + 1);
+    }
     return { positions, pageCount };
   }
 
   function setEndgamePage(page) {
     state.endgamePage = Number(page) || 1;
+    renderEndgameTrainingPanel();
+  }
+
+  function shiftEndgamePageWindow(delta, pageCount) {
+    const maxWindowStart = Math.max(1, pageCount - ENDGAME_PAGE_WINDOW_SIZE + 1);
+    const nextStart = Math.max(1, Math.min(maxWindowStart, Number(state.endgamePageWindowStart || 1) + delta));
+    if (nextStart === state.endgamePageWindowStart) return;
+    state.endgamePageWindowStart = nextStart;
+    if (state.endgamePage < nextStart) state.endgamePage = nextStart;
+    const lastVisible = Math.min(pageCount, nextStart + ENDGAME_PAGE_WINDOW_SIZE - 1);
+    if (state.endgamePage > lastVisible) state.endgamePage = lastVisible;
     renderEndgameTrainingPanel();
   }
 
@@ -2068,7 +2094,17 @@
     if (!dom.endgamePageTabs) return;
     dom.endgamePageTabs.innerHTML = "";
     const fragment = document.createDocumentFragment();
-    for (let page = 1; page <= pageCount; page += 1) {
+    const startPage = Math.max(1, Number(state.endgamePageWindowStart) || 1);
+    const endPage = Math.min(pageCount, startPage + ENDGAME_PAGE_WINDOW_SIZE - 1);
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.className = "endgame-page-window-control";
+    prev.textContent = "‹";
+    prev.disabled = startPage <= 1;
+    prev.setAttribute("aria-label", "Mở trang trước");
+    prev.addEventListener("click", () => shiftEndgamePageWindow(-1, pageCount));
+    fragment.appendChild(prev);
+    for (let page = startPage; page <= endPage; page += 1) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = page === state.endgamePage ? "active" : "";
@@ -2077,6 +2113,14 @@
       button.addEventListener("click", () => setEndgamePage(page));
       fragment.appendChild(button);
     }
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "endgame-page-window-control";
+    next.textContent = "›";
+    next.disabled = endPage >= pageCount;
+    next.setAttribute("aria-label", "Mở trang sau");
+    next.addEventListener("click", () => shiftEndgamePageWindow(1, pageCount));
+    fragment.appendChild(next);
     dom.endgamePageTabs.appendChild(fragment);
   }
 
@@ -2097,6 +2141,7 @@
       fragment.appendChild(createEndgameCard(item, start + index + 1));
     });
     dom.endgameTrainingList.appendChild(fragment);
+    scheduleEndgamePreviewDraw();
   }
 
   function createEndgameCard(item, order) {
@@ -2104,6 +2149,8 @@
     card.type = "button";
     card.className = "endgame-card";
     card.addEventListener("click", () => startEndgamePosition(order));
+
+    const preview = createEndgamePreviewBoard(item);
 
     const header = document.createElement("header");
     const title = document.createElement("strong");
@@ -2117,9 +2164,73 @@
     detail.className = "endgame-card-detail";
     detail.textContent = "Đỏ đi, máy cầm Đen đáp trả.";
 
+    card.appendChild(preview);
     card.appendChild(header);
     card.appendChild(detail);
     return card;
+  }
+
+  function createEndgamePreviewBoard(item) {
+    const preview = document.createElement("div");
+    preview.className = "endgame-preview-board";
+    preview.setAttribute("aria-hidden", "true");
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "endgame-preview-canvas";
+    preview.appendChild(canvas);
+
+    const pieces = document.createElement("div");
+    pieces.className = "endgame-preview-pieces";
+    preview.appendChild(pieces);
+
+    let board = null;
+    try {
+      board = XiangqiCore.parseFenState(item?.fen || "").board;
+    } catch {
+      preview.classList.add("is-empty");
+      return preview;
+    }
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const piece = board[y]?.[x] || "";
+        if (!piece) continue;
+        const image = document.createElement("img");
+        image.className = "endgame-preview-piece";
+        image.src = roomPieceImageFor(piece);
+        image.alt = "";
+        image.decoding = "async";
+        image.loading = "lazy";
+        image.draggable = false;
+        image.style.left = `${endgamePreviewFilePercent(x)}%`;
+        image.style.top = `${endgamePreviewRankPercent(y)}%`;
+        pieces.appendChild(image);
+      }
+    }
+    return preview;
+  }
+
+  function endgamePreviewFilePercent(file) {
+    return ENDGAME_PREVIEW_PAD_X + file * ((100 - ENDGAME_PREVIEW_PAD_X * 2) / 8);
+  }
+
+  function endgamePreviewRankPercent(rank) {
+    return ENDGAME_PREVIEW_PAD_Y + (9 - rank) * ((100 - ENDGAME_PREVIEW_PAD_Y * 2) / 9);
+  }
+
+  function scheduleEndgamePreviewDraw() {
+    window.requestAnimationFrame(drawEndgamePreviewBoards);
+  }
+
+  function drawEndgamePreviewBoards() {
+    const boards = dom.endgameTrainingList?.querySelectorAll(".endgame-preview-board") || [];
+    boards.forEach((board) => {
+      const canvas = board.querySelector(".endgame-preview-canvas");
+      if (!canvas) return;
+      const metrics = boardMetrics(board);
+      if (!metrics.width || !metrics.height) return;
+      const ctx = resizeBoardCanvas(canvas, metrics);
+      if (ctx) drawXiangqiBoardGrid(ctx, metrics, boardGridGeometry(board, false), getComputedStyle(board));
+    });
   }
 
   function pendingMatchModeMeta() {
@@ -8764,6 +8875,7 @@
   }
 
   function onResize() {
+    if (state.route === "match" && state.lobbyMode === "endgame") scheduleEndgamePreviewDraw();
     if (state.route === "match" && state.lobbyMode === "puzzle") {
       const progress = puzzleProgress();
       renderPuzzleMap(progress);

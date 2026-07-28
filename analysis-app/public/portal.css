@@ -980,6 +980,7 @@ a {
 .endgame-page-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
@@ -1008,18 +1009,35 @@ a {
   transform: translateY(-1px);
 }
 
+.endgame-page-tabs button:disabled {
+  cursor: default;
+  opacity: 0.42;
+  transform: none;
+}
+
+.endgame-page-tabs button:disabled:hover {
+  color: var(--muted);
+  border-color: color-mix(in srgb, var(--line) 86%, var(--accent) 14%);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+}
+
+.endgame-page-window-control {
+  font-size: 20px;
+  line-height: 1;
+}
+
 .endgame-training-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
 }
 
 .endgame-card {
   appearance: none;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 13px;
   border: 1px solid color-mix(in srgb, var(--line) 82%, var(--accent) 18%);
   border-radius: 14px;
   background:
@@ -1044,6 +1062,13 @@ a {
   transform: translateY(-2px);
 }
 
+.endgame-card:hover .endgame-preview-board {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--board-frame-line) 56%, transparent),
+    0 14px 24px color-mix(in srgb, var(--accent) 16%, rgba(0, 0, 0, 0.22));
+  filter: brightness(1.04) saturate(1.06);
+}
+
 .endgame-card header {
   display: flex;
   align-items: center;
@@ -1061,6 +1086,58 @@ a {
   color: var(--muted);
   font-weight: 700;
   white-space: nowrap;
+}
+
+.endgame-preview-board {
+  --board-grid-pad-x: 6.2;
+  --board-grid-pad-y: 6.1;
+  position: relative;
+  width: min(100%, 238px);
+  aspect-ratio: 9 / 10;
+  justify-self: center;
+  border: 1px solid var(--board-border);
+  border-radius: 8px;
+  background: var(--board-bg);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--board-frame-line) 44%, transparent),
+    inset 0 12px 22px rgba(255, 255, 255, 0.12),
+    0 10px 18px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  transition: filter 0.18s ease, box-shadow 0.18s ease;
+}
+
+.endgame-preview-canvas,
+.endgame-preview-pieces {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.endgame-preview-canvas {
+  z-index: 1;
+}
+
+.endgame-preview-pieces {
+  z-index: 2;
+}
+
+.endgame-preview-piece {
+  position: absolute;
+  width: 12.3%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.16))
+    drop-shadow(0 3px 4px rgba(0, 0, 0, 0.26));
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+:root[data-piece-skin="default"] .endgame-preview-piece {
+  width: 12.8%;
 }
 
 .endgame-card-detail {
