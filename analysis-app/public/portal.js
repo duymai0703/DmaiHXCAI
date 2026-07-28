@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-endgame-v1";
+  const ASSET_WARMUP_VERSION = "20260728-endgame-v2";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -38,28 +38,12 @@
   const PUZZLES = Array.isArray(globalThis.YMEGALODON_PUZZLES)
     ? globalThis.YMEGALODON_PUZZLES.filter((item) => item && /^[1-9]\d*$/.test(String(item.level || "")) && item.fen)
     : [];
-  const ENDGAME_DATA_VERSION = "20260728-endgame-v1";
+  const ENDGAME_DATA_VERSION = "20260728-endgame-v2";
   const ENDGAME_DATA_ASSET = `/endgame-data.js?v=${ENDGAME_DATA_VERSION}`;
   const ENDGAME_LIBRARY = globalThis.YMEGALODON_ENDGAMES && Array.isArray(globalThis.YMEGALODON_ENDGAMES.sections)
     ? globalThis.YMEGALODON_ENDGAMES
     : { title: "tàn cuộc thực dụng", total: 0, sections: [] };
   const ENDGAME_PAGE_SIZE = 20;
-  const ENDGAME_PIECE_LABELS = {
-    K: "帥",
-    A: "仕",
-    B: "相",
-    N: "馬",
-    R: "車",
-    C: "炮",
-    P: "兵",
-    k: "將",
-    a: "士",
-    b: "象",
-    n: "馬",
-    r: "車",
-    c: "炮",
-    p: "卒"
-  };
   const PUZZLE_TOTAL = PUZZLES.length;
   const PUZZLE_MAX_PLAYER_MOVES = 8;
   const PUZZLE_ENGINE_DELAY_MS = 260;
@@ -68,6 +52,12 @@
     id: "puzzle-engine",
     username: "puzzle-engine",
     displayName: "Máy cờ thế",
+    avatarUrl: "/assets/icons/ymegalodon-192.png"
+  };
+  const ENDGAME_BOT_PLAYER = {
+    id: "endgame-engine",
+    username: "endgame-engine",
+    displayName: "Máy tàn cuộc",
     avatarUrl: "/assets/icons/ymegalodon-192.png"
   };
   const PUZZLE_PIECE_VALUES = {
@@ -301,7 +291,7 @@
     puzzleMapIntroKey: "",
     puzzleMapAvatarLevel: 0,
     puzzleMapPendingJump: null,
-    endgameSectionIndex: 0,
+    endgameSession: null,
     endgamePage: 1,
     createSide: "w",
     botSide: "w",
@@ -442,7 +432,6 @@
     puzzleRoomForm: byId("puzzleRoomForm"),
     endgameTrainingPanel: byId("endgameTrainingPanel"),
     endgameTrainingCount: byId("endgameTrainingCount"),
-    endgameSectionTabs: byId("endgameSectionTabs"),
     endgamePageTabs: byId("endgamePageTabs"),
     endgameTrainingList: byId("endgameTrainingList"),
     pendingModePanel: byId("pendingModePanel"),
@@ -2034,25 +2023,31 @@
     goMatchMode(mode, true);
   }
 
-  function endgameSections() {
-    return Array.isArray(ENDGAME_LIBRARY.sections)
-      ? ENDGAME_LIBRARY.sections.filter((section) => section && Array.isArray(section.puzzles))
-      : [];
+  function endgamePositions() {
+    const sections = Array.isArray(ENDGAME_LIBRARY.sections) ? ENDGAME_LIBRARY.sections : [];
+    const positions = [];
+    sections.forEach((section) => {
+      (section?.puzzles || []).forEach((item) => {
+        if (!item?.fen) return;
+        positions.push({
+          fen: item.fen,
+          index: positions.length + 1
+        });
+      });
+    });
+    return positions;
+  }
+
+  function endgameForIndex(index) {
+    const safeIndex = Math.max(1, Math.round(Number(index) || 1));
+    return endgamePositions()[safeIndex - 1] || null;
   }
 
   function clampEndgameState() {
-    const sections = endgameSections();
-    state.endgameSectionIndex = Math.max(0, Math.min(sections.length - 1, Number(state.endgameSectionIndex) || 0));
-    const section = sections[state.endgameSectionIndex];
-    const pageCount = Math.max(1, Math.ceil((section?.puzzles?.length || 0) / ENDGAME_PAGE_SIZE));
+    const positions = endgamePositions();
+    const pageCount = Math.max(1, Math.ceil(positions.length / ENDGAME_PAGE_SIZE));
     state.endgamePage = Math.max(1, Math.min(pageCount, Number(state.endgamePage) || 1));
-    return { sections, section, pageCount };
-  }
-
-  function setEndgameSection(index) {
-    state.endgameSectionIndex = Number(index) || 0;
-    state.endgamePage = 1;
-    renderEndgameTrainingPanel();
+    return { positions, pageCount };
   }
 
   function setEndgamePage(page) {
@@ -2062,30 +2057,11 @@
 
   function renderEndgameTrainingPanel() {
     if (!dom.endgameTrainingPanel) return;
-    const { sections, section, pageCount } = clampEndgameState();
-    const total = Number(ENDGAME_LIBRARY.total || sections.reduce((sum, item) => sum + (item.puzzles?.length || 0), 0));
+    const { positions, pageCount } = clampEndgameState();
+    const total = positions.length;
     if (dom.endgameTrainingCount) dom.endgameTrainingCount.textContent = `${total} thế`;
-    renderEndgameSectionTabs(sections);
     renderEndgamePageTabs(pageCount);
-    renderEndgameCards(section);
-  }
-
-  function renderEndgameSectionTabs(sections) {
-    if (!dom.endgameSectionTabs) return;
-    dom.endgameSectionTabs.innerHTML = "";
-    if (!sections.length) return;
-    const fragment = document.createDocumentFragment();
-    sections.forEach((section, index) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = index === state.endgameSectionIndex ? "active" : "";
-      button.setAttribute("role", "tab");
-      button.setAttribute("aria-selected", index === state.endgameSectionIndex ? "true" : "false");
-      button.textContent = `${section.title || `Tập ${index + 1}`} · ${section.puzzles.length}`;
-      button.addEventListener("click", () => setEndgameSection(index));
-      fragment.appendChild(button);
-    });
-    dom.endgameSectionTabs.appendChild(fragment);
+    renderEndgameCards(positions);
   }
 
   function renderEndgamePageTabs(pageCount) {
@@ -2104,11 +2080,10 @@
     dom.endgamePageTabs.appendChild(fragment);
   }
 
-  function renderEndgameCards(section) {
+  function renderEndgameCards(positions) {
     if (!dom.endgameTrainingList) return;
     dom.endgameTrainingList.innerHTML = "";
-    const puzzles = Array.isArray(section?.puzzles) ? section.puzzles : [];
-    if (!puzzles.length) {
+    if (!positions.length) {
       const empty = document.createElement("div");
       empty.className = "endgame-empty";
       empty.textContent = "Chưa có thế tàn nào trong dữ liệu nội bộ.";
@@ -2116,7 +2091,7 @@
       return;
     }
     const start = (state.endgamePage - 1) * ENDGAME_PAGE_SIZE;
-    const pageItems = puzzles.slice(start, start + ENDGAME_PAGE_SIZE);
+    const pageItems = positions.slice(start, start + ENDGAME_PAGE_SIZE);
     const fragment = document.createDocumentFragment();
     pageItems.forEach((item, index) => {
       fragment.appendChild(createEndgameCard(item, start + index + 1));
@@ -2125,70 +2100,26 @@
   }
 
   function createEndgameCard(item, order) {
-    const card = document.createElement("article");
+    const card = document.createElement("button");
+    card.type = "button";
     card.className = "endgame-card";
+    card.addEventListener("click", () => startEndgamePosition(order));
 
     const header = document.createElement("header");
     const title = document.createElement("strong");
-    title.textContent = item.label || `Thế tàn ${order}`;
+    title.textContent = `Thế tàn ${order}`;
     const meta = document.createElement("small");
-    meta.textContent = "Tới lượt Đỏ";
+    meta.textContent = "Vào luyện";
     header.appendChild(title);
     header.appendChild(meta);
 
+    const detail = document.createElement("span");
+    detail.className = "endgame-card-detail";
+    detail.textContent = "Đỏ đi, máy cầm Đen đáp trả.";
+
     card.appendChild(header);
-    card.appendChild(createEndgameMiniBoard(item.fen, title.textContent));
+    card.appendChild(detail);
     return card;
-  }
-
-  function createEndgameMiniBoard(fen, label) {
-    const boardEl = document.createElement("div");
-    boardEl.className = "endgame-mini-board";
-    boardEl.setAttribute("role", "img");
-    boardEl.setAttribute("aria-label", label || "Thế tàn cuộc");
-
-    let board = XiangqiCore.emptyBoard();
-    try {
-      board = XiangqiCore.parseFenState(fen).board;
-    } catch {
-      board = XiangqiCore.emptyBoard();
-    }
-
-    for (let displayRow = 0; displayRow < 10; displayRow += 1) {
-      for (let x = 0; x < 9; x += 1) {
-        const cell = document.createElement("span");
-        cell.className = "endgame-mini-cell";
-        cell.style.gridColumn = String(x + 1);
-        cell.style.gridRow = String(displayRow + 1);
-        boardEl.appendChild(cell);
-      }
-    }
-
-    const topPalace = document.createElement("span");
-    topPalace.className = "endgame-mini-palace top";
-    const bottomPalace = document.createElement("span");
-    bottomPalace.className = "endgame-mini-palace bottom";
-    const river = document.createElement("span");
-    river.className = "endgame-mini-river";
-    river.innerHTML = "<span>楚河</span><span>漢界</span>";
-    boardEl.appendChild(topPalace);
-    boardEl.appendChild(bottomPalace);
-    boardEl.appendChild(river);
-
-    for (let y = 0; y < 10; y += 1) {
-      for (let x = 0; x < 9; x += 1) {
-        const piece = board[y]?.[x];
-        if (!piece) continue;
-        const pieceEl = document.createElement("span");
-        pieceEl.className = `endgame-mini-piece ${XiangqiCore.pieceColor(piece) === "w" ? "red" : "black"}`;
-        pieceEl.style.gridColumn = String(x + 1);
-        pieceEl.style.gridRow = String(10 - y);
-        pieceEl.textContent = ENDGAME_PIECE_LABELS[piece] || piece;
-        boardEl.appendChild(pieceEl);
-      }
-    }
-
-    return boardEl;
   }
 
   function pendingMatchModeMeta() {
@@ -2864,6 +2795,14 @@
     return room?.mode === "puzzle";
   }
 
+  function isEndgameRoom(room = state.room) {
+    return room?.mode === "endgame";
+  }
+
+  function isLocalTrainingRoom(room = state.room) {
+    return isPuzzleRoom(room) || isEndgameRoom(room);
+  }
+
   function puzzlePlayerSnapshot() {
     const user = state.user || {};
     return {
@@ -2875,6 +2814,74 @@
     };
   }
 
+  function startEndgamePosition(index) {
+    const endgame = endgameForIndex(index);
+    if (!endgame) {
+      setMessage(dom.matchHubMessage, "Không tìm thấy thế tàn này.", "error");
+      return;
+    }
+    let parsed;
+    try {
+      parsed = XiangqiCore.parseFenState(endgame.fen);
+    } catch {
+      setMessage(dom.matchHubMessage, "FEN của thế tàn này chưa hợp lệ.", "error");
+      return;
+    }
+    const sideToMove = parsed.side === "b" ? "b" : "w";
+    clearPuzzleBotTimer();
+    state.puzzleSession = null;
+    state.endgameSession = {
+      index: Number(endgame.index || index),
+      endgame,
+      userMoves: 0,
+      status: "active",
+      startedAt: Date.now()
+    };
+    state.room = {
+      key: `TAN-${state.endgameSession.index}`,
+      mode: "endgame",
+      status: "active",
+      role: "player",
+      yourSide: "w",
+      viewSide: "w",
+      sideToMove,
+      yourTurn: sideToMove === "w",
+      bothPlayersJoined: true,
+      waitingForOpponent: false,
+      boardFen: XiangqiCore.boardToFen(parsed.board, sideToMove),
+      players: {
+        w: puzzlePlayerSnapshot(),
+        b: ENDGAME_BOT_PLAYER
+      },
+      spectators: [],
+      viewerCount: 0,
+      chat: [],
+      moves: [],
+      allowances: { undoRemaining: 0, drawRemaining: 0 },
+      startReady: { you: false, opponent: false },
+      rematchReady: { you: false, opponent: false },
+      pendingRequest: null,
+      result: null,
+      turnStartedAt: Date.now(),
+      turnLimitMs: 0,
+      clocks: { w: 0, b: 0 },
+      clockSetupMs: { w: 0, b: 0 },
+      incrementSeconds: 0,
+      endgame: endgameRoomMeta()
+    };
+    state.roomKey = "";
+    state.roomSyncedAt = Date.now();
+    state.roomBoard = parsed.board;
+    state.selectedSquare = null;
+    state.hints = [];
+    state.roomActionBusy = false;
+    localStorage.removeItem(STORAGE_ROOM);
+    updateResumeButton();
+    goRoute("room");
+    renderRoomState({ forceBoard: true, keepSelection: false });
+    if (sideToMove === "b") scheduleEndgameBotTurn();
+  }
+
   function startPuzzleLevel(level) {
     const puzzle = puzzleForLevel(level);
     if (!puzzle) {
@@ -2884,6 +2891,7 @@
     const parsed = XiangqiCore.parseFenState(puzzle.fen);
     const sideToMove = parsed.side === "b" ? "b" : "w";
     clearPuzzleBotTimer();
+    state.endgameSession = null;
     state.puzzleSession = {
       level: Number(puzzle.level || level),
       puzzle,
@@ -2947,9 +2955,24 @@
     };
   }
 
+  function endgameRoomMeta() {
+    const session = state.endgameSession || {};
+    return {
+      index: Number(session.index || 1),
+      userMoves: Number(session.userMoves || 0),
+      total: endgamePositions().length,
+      status: session.status || "active"
+    };
+  }
+
   function syncPuzzleRoomMeta() {
     if (!isPuzzleRoom()) return;
     state.room.puzzle = puzzleRoomMeta();
+  }
+
+  function syncEndgameRoomMeta() {
+    if (!isEndgameRoom()) return;
+    state.room.endgame = endgameRoomMeta();
   }
 
   function clearPuzzleBotTimer() {
@@ -3052,6 +3075,12 @@
     if (animation) startRoomMoveAnimation(animation, { prepared: true });
   }
 
+  function renderEndgameMove(animation) {
+    syncEndgameRoomMeta();
+    renderRoomAfterLocalMove();
+    if (animation) startRoomMoveAnimation(animation, { prepared: true });
+  }
+
   function setPuzzleFinished(outcome, reason) {
     if (!isPuzzleRoom() || !state.puzzleSession) return;
     const success = outcome === "success";
@@ -3068,6 +3097,24 @@
     state.selectedSquare = null;
     state.hints = [];
     syncPuzzleRoomMeta();
+  }
+
+  function setEndgameFinished(outcome, reason) {
+    if (!isEndgameRoom() || !state.endgameSession) return;
+    const success = outcome === "success";
+    state.endgameSession.status = success ? "success" : "failed";
+    state.room.status = "finished";
+    state.room.yourTurn = false;
+    state.room.result = {
+      winnerSide: success ? "w" : "b",
+      loserSide: success ? "b" : "w",
+      reason,
+      endedAt: new Date().toISOString()
+    };
+    state.roomActionBusy = false;
+    state.selectedSquare = null;
+    state.hints = [];
+    syncEndgameRoomMeta();
   }
 
   async function persistPuzzleSuccess(level) {
@@ -3128,9 +3175,41 @@
     schedulePuzzleBotTurn();
   }
 
+  async function playEndgameMove(move) {
+    if (!isEndgameRoom() || !state.endgameSession || state.roomActionBusy) return;
+    if (state.room.status !== "active" || state.room.sideToMove !== "w" || !state.room.yourTurn) return;
+    if (!XiangqiCore.isLegalMove(state.roomBoard, move, "w")) {
+      showToast("Nước đi không hợp lệ.");
+      return;
+    }
+    clearPuzzleBotTimer();
+    clearTurnFlash();
+    settleRoomAnimationNow();
+    state.roomActionBusy = true;
+    state.selectedSquare = null;
+    state.hints = [];
+    hideRoomHintsImmediately();
+
+    state.endgameSession.userMoves += 1;
+    const { animation, board } = applyPuzzleMoveToRoom("w", move, "b");
+    const redResult = XiangqiCore.determineGameState(board, "b");
+    if (redResult.finished && redResult.winnerSide === "w") {
+      setEndgameFinished("success", redResult.reason || "checkmate");
+      renderEndgameMove(animation);
+      return;
+    }
+    renderEndgameMove(animation);
+    scheduleEndgameBotTurn();
+  }
+
   function schedulePuzzleBotTurn() {
     clearPuzzleBotTimer();
     state.puzzleBotTimer = window.setTimeout(playPuzzleBotTurn, PUZZLE_ENGINE_DELAY_MS);
+  }
+
+  function scheduleEndgameBotTurn() {
+    clearPuzzleBotTimer();
+    state.puzzleBotTimer = window.setTimeout(playEndgameBotTurn, PUZZLE_ENGINE_DELAY_MS);
   }
 
   function playPuzzleBotTurn() {
@@ -3156,9 +3235,36 @@
     if (state.room.status === "active") triggerTurnFlash();
   }
 
+  function playEndgameBotTurn() {
+    state.puzzleBotTimer = 0;
+    if (!isEndgameRoom() || !state.endgameSession || state.room.status !== "active") return;
+    settleRoomAnimationNow();
+    const move = choosePuzzleBotMove(state.roomBoard);
+    if (!move) {
+      setEndgameFinished("success", "checkmate");
+      renderRoomState({ forceBoard: true, keepSelection: false });
+      return;
+    }
+    const { animation, board } = applyPuzzleMoveToRoom("b", move, "w");
+    const blackResult = XiangqiCore.determineGameState(board, "w");
+    if (blackResult.finished && blackResult.winnerSide === "b") {
+      setEndgameFinished("failed", blackResult.reason || "checkmate");
+    } else {
+      state.roomActionBusy = false;
+      state.room.yourTurn = true;
+    }
+    renderEndgameMove(animation);
+    if (state.room.status === "active") triggerTurnFlash();
+  }
+
   function retryCurrentPuzzle() {
     const level = state.puzzleSession?.level || puzzleProgress().currentLevel || 1;
     startPuzzleLevel(level);
+  }
+
+  function retryCurrentEndgame() {
+    const index = state.endgameSession?.index || state.room?.endgame?.index || 1;
+    startEndgamePosition(index);
   }
 
   function startNextPuzzleAfterSuccess() {
@@ -3179,6 +3285,22 @@
     updateResumeButton();
     goMatchMode("puzzle", true);
     renderPuzzlePanel();
+  }
+
+  function exitEndgameRoom() {
+    clearPuzzleBotTimer();
+    state.endgameSession = null;
+    state.room = null;
+    state.roomKey = "";
+    state.roomBoard = XiangqiCore.parseFenState(START_FEN).board;
+    state.selectedSquare = null;
+    state.hints = [];
+    state.roomActionBusy = false;
+    clearRoomMoveAnimation();
+    localStorage.removeItem(STORAGE_ROOM);
+    updateResumeButton();
+    goMatchMode("endgame", true);
+    renderEndgameTrainingPanel();
   }
 
   function parseRouteHash(hash) {
@@ -3275,6 +3397,8 @@
     } else if (route === "match" && state.lobbyMode === "puzzle") {
       renderPuzzlePanel();
       void refreshPuzzleProgress();
+    } else if (route === "match" && state.lobbyMode === "endgame") {
+      renderEndgameTrainingPanel();
     } else if (!state.rankQueueActive) {
       stopRankQueuePolling();
     }
@@ -3324,6 +3448,7 @@
   function activityLabelForRoute() {
     if (state.route === "room") {
       if (isPuzzleRoom()) return "Đang giải cờ thế";
+      if (isEndgameRoom()) return "Đang luyện tàn cuộc";
       return state.room?.key ? `Đang trong phòng ${state.room.key}` : "Đang trong phòng đấu";
     }
     return {
@@ -3338,7 +3463,7 @@
 
   function reportActivity(action = "") {
     if (!state.token || !state.user) return;
-    const roomKey = isPuzzleRoom() ? "" : state.room?.key || state.roomKey || "";
+    const roomKey = isLocalTrainingRoom() ? "" : state.room?.key || state.roomKey || "";
     api("/api/activity", {
       method: "POST",
       body: {
@@ -3414,6 +3539,7 @@
     state.rankStatus = null;
     state.puzzleProgress = null;
     state.puzzleSession = null;
+    state.endgameSession = null;
     clearPuzzleBotTimer();
     state.history = readStoredHistory();
     state.room = null;
@@ -6480,7 +6606,7 @@
   }
 
   function updateResumeButton() {
-    const key = isPuzzleRoom() ? "" : state.room?.key || state.roomKey || localStorage.getItem(STORAGE_ROOM) || "";
+    const key = isLocalTrainingRoom() ? "" : state.room?.key || state.roomKey || localStorage.getItem(STORAGE_ROOM) || "";
     const hiddenOnHome = state.route === "home";
     dom.resumeRoomBtn.classList.toggle("hidden", !key || !state.user || hiddenOnHome);
     if (key) dom.resumeRoomBtn.textContent = `Phòng ${key}`;
@@ -6559,10 +6685,11 @@
       return;
     }
 
-    if (isPuzzleRoom(room)) {
-      const topPlayer = room.players?.b || PUZZLE_BOT_PLAYER;
+    if (isLocalTrainingRoom(room)) {
+      const puzzleRoom = isPuzzleRoom(room);
+      const topPlayer = room.players?.b || (puzzleRoom ? PUZZLE_BOT_PLAYER : ENDGAME_BOT_PLAYER);
       const bottomPlayer = room.players?.w || state.user || puzzlePlayerSnapshot();
-      dom.roomKeyLabel.textContent = "Cờ thế";
+      dom.roomKeyLabel.textContent = puzzleRoom ? "Cờ thế" : "Tàn cuộc";
       dom.copyRoomKeyBtn.disabled = true;
       dom.roomStatusBadge.textContent = roomStatusText(room);
       updateRoomPeopleBadge(room);
@@ -6577,13 +6704,14 @@
       dom.bottomSideLabel.classList.add("side-red");
       paintAvatar(dom.topPlayerAvatar, topPlayer, "M");
       paintAvatar(dom.bottomPlayerAvatar, bottomPlayer, "Đ");
-      dom.topPlayerName.textContent = topPlayer.displayName || "Máy cờ thế";
+      dom.topPlayerName.textContent = topPlayer.displayName || (puzzleRoom ? "Máy cờ thế" : "Máy tàn cuộc");
       dom.bottomPlayerName.textContent = bottomPlayer.displayName || bottomPlayer.username || "Bạn";
       dom.undoRequestBtn.disabled = true;
       dom.drawRequestBtn.disabled = true;
       dom.resignBtn.disabled = true;
-      dom.roomReadyBtn.classList.add("hidden");
-      dom.roomReadyBtn.disabled = true;
+      dom.roomReadyBtn.classList.toggle("hidden", puzzleRoom);
+      dom.roomReadyBtn.textContent = "Đánh lại thế";
+      dom.roomReadyBtn.disabled = puzzleRoom || !!state.roomActionBusy;
       dom.leaveRoomBtn.disabled = !!state.roomActionBusy;
       renderRoomClocks();
       syncRoomMobileActionState();
@@ -6731,6 +6859,32 @@
       exit.type = "button";
       exit.textContent = "Thoát ra";
       exit.addEventListener("click", exitPuzzleRoom);
+
+      dom.roomOverlayActions.append(primary, exit);
+      dom.roomBoardOverlay.classList.remove("hidden");
+      return;
+    }
+
+    if (isEndgameRoom(room)) {
+      if (!room.result) return;
+      const success = room.result.winnerSide === "w";
+      const index = Number(room.endgame?.index || state.endgameSession?.index || 1);
+      dom.roomOverlayTitle.textContent = success ? "Chúc mừng" : "Thất bại";
+      dom.roomOverlayText.textContent = success
+        ? `Bạn đã thắng Thế tàn ${index}.`
+        : "Máy đã thắng. Bạn có thể đánh lại từ đầu thế này.";
+
+      const primary = document.createElement("button");
+      primary.className = success ? "secondary-button" : "primary-button";
+      primary.type = "button";
+      primary.textContent = "Đánh lại thế";
+      primary.addEventListener("click", retryCurrentEndgame);
+
+      const exit = document.createElement("button");
+      exit.className = "ghost-button";
+      exit.type = "button";
+      exit.textContent = "Thoát ra";
+      exit.addEventListener("click", exitEndgameRoom);
 
       dom.roomOverlayActions.append(primary, exit);
       dom.roomBoardOverlay.classList.remove("hidden");
@@ -7785,6 +7939,10 @@
       await playPuzzleMove(move);
       return;
     }
+    if (isEndgameRoom()) {
+      await playEndgameMove(move);
+      return;
+    }
     clearTurnFlash();
     settleRoomAnimationNow();
     const side = state.room.yourSide;
@@ -7929,6 +8087,10 @@
 
   function onRoomReadyClick() {
     if (!state.room || state.roomActionBusy) return;
+    if (isEndgameRoom()) {
+      retryCurrentEndgame();
+      return;
+    }
     if (state.room.status === "finished") {
       void toggleRematch();
       return;
@@ -7986,6 +8148,10 @@
       exitPuzzleRoom();
       return;
     }
+    if (isEndgameRoom()) {
+      exitEndgameRoom();
+      return;
+    }
     if (state.room.mode === "ranked" && state.room.role === "player" && ["ready", "starting", "active"].includes(state.room.status)) {
       openModal({
         title: "Rời trận leo rank?",
@@ -8011,6 +8177,10 @@
     if (!state.room || state.roomActionBusy) return;
     if (isPuzzleRoom()) {
       exitPuzzleRoom();
+      return;
+    }
+    if (isEndgameRoom()) {
+      exitEndgameRoom();
       return;
     }
     const room = state.room;
@@ -8046,6 +8216,10 @@
       exitPuzzleRoom();
       return;
     }
+    if (isEndgameRoom(room)) {
+      exitEndgameRoom();
+      return;
+    }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
       goRoute("match", true);
@@ -8078,9 +8252,9 @@
     event.preventDefault();
     const text = dom.chatInput.value.trim();
     if (!text || !state.room) return;
-    if (isPuzzleRoom()) {
+    if (isLocalTrainingRoom()) {
       dom.chatInput.value = "";
-      showToast("Cờ thế không dùng chat phòng.");
+      showToast(isPuzzleRoom() ? "Cờ thế không dùng chat phòng." : "Tàn cuộc không dùng chat phòng.");
       return;
     }
     try {
@@ -8112,7 +8286,7 @@
   }
 
   async function pollRoomState({ force = false } = {}) {
-    if (isPuzzleRoom()) return;
+    if (isLocalTrainingRoom()) return;
     if (!state.roomKey || !state.token || state.roomPollBusy || state.route !== "room") return;
     if (!force && (state.roomActionBusy || state.roomAnimation)) return;
     state.roomPollBusy = true;
@@ -8154,6 +8328,24 @@
       const used = Math.max(0, Number(state.puzzleSession?.userMoves || room.puzzle?.userMoves || 0));
       dom.topClock.textContent = room.sideToMove === "b" && room.status === "active" ? "Đang đi" : PUZZLE_CLOCK_LABEL;
       dom.bottomClock.textContent = `${used}/${PUZZLE_MAX_PLAYER_MOVES}`;
+      dom.topClock.dataset.clockLabel = dom.topClock.textContent;
+      dom.bottomClock.dataset.clockLabel = dom.bottomClock.textContent;
+      dom.topClock.dataset.clockActive = room.sideToMove === "b" && room.status === "active" ? "1" : "0";
+      dom.bottomClock.dataset.clockActive = room.yourTurn && room.status === "active" ? "1" : "0";
+      dom.topClock.dataset.clockLow = "0";
+      dom.bottomClock.dataset.clockLow = "0";
+      dom.topClock.classList.toggle("active", room.sideToMove === "b" && room.status === "active");
+      dom.bottomClock.classList.toggle("active", room.yourTurn && room.status === "active");
+      dom.topClock.classList.remove("low");
+      dom.bottomClock.classList.remove("low");
+      paintTurnProgress(dom.topPlayerAvatar, false);
+      paintTurnProgress(dom.bottomPlayerAvatar, false);
+      return;
+    }
+    if (isEndgameRoom(room)) {
+      const used = Math.max(0, Number(state.endgameSession?.userMoves || room.endgame?.userMoves || 0));
+      dom.topClock.textContent = room.sideToMove === "b" && room.status === "active" ? "Đang đi" : PUZZLE_CLOCK_LABEL;
+      dom.bottomClock.textContent = `${used} nước`;
       dom.topClock.dataset.clockLabel = dom.topClock.textContent;
       dom.bottomClock.dataset.clockLabel = dom.bottomClock.textContent;
       dom.topClock.dataset.clockActive = room.sideToMove === "b" && room.status === "active" ? "1" : "0";
@@ -8247,7 +8439,7 @@
   }
 
   function requestRoomTimeoutSync() {
-    if (isPuzzleRoom()) return;
+    if (isLocalTrainingRoom()) return;
     const now = Date.now();
     if (now - Number(state.roomTimeoutSyncAt || 0) < 450) return;
     state.roomTimeoutSyncAt = now;
@@ -8343,6 +8535,10 @@
       if (room.status === "finished") return room.result?.winnerSide === "w" ? "Đã giải xong" : "Giải sai";
       return room.yourTurn ? "Tới lượt bạn" : "Máy đang đi";
     }
+    if (isEndgameRoom(room)) {
+      if (room.status === "finished") return room.result?.winnerSide === "w" ? "Đã thắng" : "Chưa thắng";
+      return room.yourTurn ? "Tới lượt bạn" : "Máy đang đi";
+    }
     if (room.mode === "ranked" && room.status === "starting") return "Leo rank";
     if (room.mode === "ranked" && room.status === "active") return room.yourTurn ? "Tới lượt bạn" : "Trận rank";
     if (room.mode === "ranked" && room.status === "finished") return "Rank đã tính điểm";
@@ -8368,6 +8564,18 @@
       return room.yourTurn
         ? `Thế cờ ${level}. Bạn cầm Đỏ, giải trong tối đa ${PUZZLE_MAX_PLAYER_MOVES} nước. Đã đi ${used}/${PUZZLE_MAX_PLAYER_MOVES}.`
         : `Thế cờ ${level}. Máy đang đáp trả nước vừa đi của bạn.`;
+    }
+    if (isEndgameRoom(room)) {
+      const index = Number(room.endgame?.index || state.endgameSession?.index || 1);
+      const used = Number(room.endgame?.userMoves || state.endgameSession?.userMoves || 0);
+      if (room.status === "finished") {
+        return room.result?.winnerSide === "w"
+          ? `Thế tàn ${index} đã hoàn tất.`
+          : `Thế tàn ${index} chưa thắng. Bạn có thể đánh lại từ đầu thế này.`;
+      }
+      return room.yourTurn
+        ? `Thế tàn ${index}. Bạn cầm Đỏ, máy cầm Đen. Đã đi ${used} nước.`
+        : `Thế tàn ${index}. Máy đang đáp trả nước vừa đi của bạn.`;
     }
     const yourSide = room.role === "player" ? room.yourSide : "w";
     const yourClockMs = Number(room.clockSetupMs?.[yourSide] || 0);
