@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-opponent-v1";
+  const ASSET_WARMUP_VERSION = "20260728-opponent-bots-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -276,7 +276,16 @@
     kydaoGamesLoading: false,
     kydaoOpeningPath: "",
     openingBooks: [],
+    opponentBots: [],
     openingBookEditor: createOpeningBookEditorState(),
+    opponentBookEditor: createOpponentBookEditorState(),
+    opponentBookSelectedSquare: null,
+    opponentBookHints: [],
+    opponentBookSlots: null,
+    opponentBookHintSlots: null,
+    opponentBookSlotLayoutKey: "",
+    opponentBookLastBoardFrame: "",
+    opponentBookLastPieceFrame: "",
     openingBookPractice: createOpeningBookPracticeState(),
     openingBookSelectedSquare: null,
     openingBookHints: [],
@@ -312,6 +321,7 @@
     createSide: "w",
     botSide: "w",
     opponentSimSide: "w",
+    opponentSimBotId: "",
     room: null,
     roomKey: localStorage.getItem(STORAGE_ROOM) || "",
     roomBoard: XiangqiCore.parseFenState(START_FEN).board,
@@ -479,7 +489,20 @@
     opponentSimMeta: byId("opponentSimMeta"),
     opponentSimStrengthSelect: byId("opponentSimStrengthSelect"),
     opponentSimStyleSelect: byId("opponentSimStyleSelect"),
-    opponentSimBookSelect: byId("opponentSimBookSelect"),
+    opponentSimSavedBotSelect: byId("opponentSimSavedBotSelect"),
+    opponentSimSaveBotBtn: byId("opponentSimSaveBotBtn"),
+    opponentSimDeleteBotBtn: byId("opponentSimDeleteBotBtn"),
+    opponentBookSummary: byId("opponentBookSummary"),
+    opponentBookBoard: byId("opponentBookBoard"),
+    opponentBookBoardCanvas: byId("opponentBookBoardCanvas"),
+    opponentBookMarks: byId("opponentBookMarks"),
+    opponentBookPieces: byId("opponentBookPieces"),
+    opponentBookClearBtn: byId("opponentBookClearBtn"),
+    opponentBookRootBtn: byId("opponentBookRootBtn"),
+    opponentBookBackBtn: byId("opponentBookBackBtn"),
+    opponentBookDeleteBranchBtn: byId("opponentBookDeleteBranchBtn"),
+    opponentBookCurrentLine: byId("opponentBookCurrentLine"),
+    opponentBookBranchList: byId("opponentBookBranchList"),
     opponentSimTimeRange: byId("opponentSimTimeRange"),
     opponentSimTimeRangeValue: byId("opponentSimTimeRangeValue"),
     opponentSimIncrementSelect: byId("opponentSimIncrementSelect"),
@@ -1209,6 +1232,7 @@
     });
     state.openingBookLastBoardFrame = "";
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+    if (state.route === "match" && state.lobbyMode === "opponent") drawOpponentBookScene(true, true);
     if (state.route === "match" && state.lobbyMode === "endgame") scheduleEndgamePreviewDraw();
   }
 
@@ -1224,12 +1248,15 @@
     state.lastPieceFrame = "";
     state.reviewLastPieceFrame = "";
     state.openingBookLastPieceFrame = "";
+    state.opponentBookLastPieceFrame = "";
     state.roomSlotLayoutKey = "";
     state.reviewSlotLayoutKey = "";
     state.openingBookSlotLayoutKey = "";
+    state.opponentBookSlotLayoutKey = "";
     if (dom.roomView && !dom.roomView.classList.contains("hidden")) drawRoomScene(true, true);
     if (dom.reviewView && !dom.reviewView.classList.contains("hidden")) drawReviewScene(true, true);
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
+    if (state.route === "match" && state.lobbyMode === "opponent") drawOpponentBookScene(true, true);
     if (state.route === "match" && state.lobbyMode === "endgame") renderEndgameTrainingPanel();
   }
 
@@ -1409,6 +1436,14 @@
     dom.opponentSimTimeRange?.addEventListener("input", updateTimeLabels);
     dom.opponentSimStrengthSelect?.addEventListener("change", renderOpponentSimPanel);
     dom.opponentSimStyleSelect?.addEventListener("change", renderOpponentSimPanel);
+    dom.opponentSimSavedBotSelect?.addEventListener("change", onOpponentSavedBotChange);
+    dom.opponentSimSaveBotBtn?.addEventListener("click", saveOpponentSimBot);
+    dom.opponentSimDeleteBotBtn?.addEventListener("click", deleteOpponentSimBot);
+    dom.opponentBookBoard?.addEventListener("pointerdown", onOpponentBookPointerDown);
+    dom.opponentBookRootBtn?.addEventListener("click", resetOpponentBookPath);
+    dom.opponentBookBackBtn?.addEventListener("click", stepOpponentBookBack);
+    dom.opponentBookDeleteBranchBtn?.addEventListener("click", deleteOpponentBookBranch);
+    dom.opponentBookClearBtn?.addEventListener("click", clearOpponentBook);
     dom.botLevelSelect?.addEventListener("change", () => {
       renderBotLevelGrid();
       renderBotPreview();
@@ -2043,7 +2078,7 @@
     if (state.lobbyMode === "bot") renderBotOptions();
     if (isOpponentMode) {
       renderOpponentSimPanel();
-      void refreshOpponentSimOpeningBooks();
+      void refreshOpponentSimBots();
     }
     if (state.lobbyMode === "rank") {
       renderRankPanel();
@@ -2326,39 +2361,297 @@
     if (dom.opponentSimMeta) {
       dom.opponentSimMeta.textContent = `Độ sâu ${strength.depth}, ${style.label.toLowerCase()}.`;
     }
-    renderOpponentSimBookOptions();
+    renderOpponentSimSavedBots();
+    renderOpponentBookEditor();
     setOpponentSimSide(state.opponentSimSide);
   }
 
-  function renderOpponentSimBookOptions() {
-    if (!dom.opponentSimBookSelect) return;
-    const current = dom.opponentSimBookSelect.value || "";
-    const books = normalizeOpeningBookList(state.openingBooks);
-    dom.opponentSimBookSelect.innerHTML = "";
+  function renderOpponentSimSavedBots() {
+    if (!dom.opponentSimSavedBotSelect) return;
+    const current = state.opponentSimBotId || dom.opponentSimSavedBotSelect.value || "";
+    const bots = normalizeOpponentBotList(state.opponentBots);
+    dom.opponentSimSavedBotSelect.innerHTML = "";
     const empty = document.createElement("option");
     empty.value = "";
-    empty.textContent = "Không dùng khai cuộc";
-    dom.opponentSimBookSelect.appendChild(empty);
-    books.forEach((book) => {
+    empty.textContent = "Tạo bot mới";
+    dom.opponentSimSavedBotSelect.appendChild(empty);
+    bots.forEach((bot) => {
       const option = document.createElement("option");
-      option.value = book.id;
-      const side = normalizeOpeningBookSide(book.bookSide || book.side) === "b" ? "đi hậu" : "đi tiên";
-      const moveCount = Math.max(0, countOpeningBookNodes(book.tree) - 1);
-      option.textContent = `${book.name} - ${side} - ${moveCount} nước`;
-      dom.opponentSimBookSelect.appendChild(option);
+      option.value = bot.id;
+      const moveCount = Math.max(0, countOpeningBookNodes(bot.openingBook?.tree) - 1);
+      option.textContent = `${bot.name} - ${bot.strengthLabel} - ${moveCount} nước book`;
+      dom.opponentSimSavedBotSelect.appendChild(option);
     });
-    dom.opponentSimBookSelect.value = books.some((book) => book.id === current) ? current : "";
+    state.opponentSimBotId = bots.some((bot) => bot.id === current) ? current : "";
+    dom.opponentSimSavedBotSelect.value = state.opponentSimBotId;
+    dom.opponentSimDeleteBotBtn?.classList.toggle("hidden", !state.opponentSimBotId);
   }
 
-  async function refreshOpponentSimOpeningBooks() {
+  async function refreshOpponentSimBots() {
     if (!state.token) return;
     try {
-      const payload = await api("/api/opening-books", {}, { attempts: 3 });
-      state.openingBooks = normalizeOpeningBookList(payload.books);
-      renderOpponentSimBookOptions();
+      const payload = await api("/api/opponent-bots", {}, { attempts: 3 });
+      state.opponentBots = normalizeOpponentBotList(payload.bots);
+      renderOpponentSimSavedBots();
     } catch {
-      renderOpponentSimBookOptions();
+      renderOpponentSimSavedBots();
     }
+  }
+
+  function opponentBookPayload() {
+    const botName = String(dom.opponentSimName?.value || "Đối thủ giả lập").trim() || "Đối thủ giả lập";
+    return {
+      name: `${botName} book`,
+      startFen: state.opponentBookEditor?.startFen || START_FEN,
+      bookSide: "w",
+      side: "w",
+      tree: normalizeOpeningBookNode(state.opponentBookEditor?.root || {})
+    };
+  }
+
+  function currentOpponentBotDraft() {
+    const strength = opponentSimStrengthInfo(dom.opponentSimStrengthSelect?.value || "normal");
+    const style = opponentSimStyleInfo(dom.opponentSimStyleSelect?.value || "balanced");
+    return {
+      id: state.opponentSimBotId || "",
+      name: String(dom.opponentSimName?.value || "Đối thủ giả lập").trim() || "Đối thủ giả lập",
+      strength: strength.key,
+      style: style.key,
+      openingBook: opponentBookPayload()
+    };
+  }
+
+  function opponentBookCurrentNode() {
+    let node = state.opponentBookEditor.root;
+    for (const index of state.opponentBookEditor.path) {
+      node = node.children?.[index] || node;
+    }
+    return node;
+  }
+
+  function nodeAtOpponentBookPath(path) {
+    let node = state.opponentBookEditor.root;
+    for (const index of path || []) node = node.children?.[index] || node;
+    return node;
+  }
+
+  function rebuildOpponentBookBoard() {
+    const parsed = XiangqiCore.parseFenState(state.opponentBookEditor.startFen || START_FEN);
+    const board = parsed.board;
+    let side = parsed.side;
+    let node = state.opponentBookEditor.root;
+    for (const index of state.opponentBookEditor.path) {
+      const child = node.children?.[index];
+      if (!child || !XiangqiCore.isLegalMove(board, child.move, side)) break;
+      XiangqiCore.applyMoveToBoard(board, child.move);
+      side = oppositeSide(side);
+      node = child;
+    }
+    state.opponentBookEditor.board = board;
+    state.opponentBookEditor.side = side;
+  }
+
+  function opponentBookLineText() {
+    let node = state.opponentBookEditor.root;
+    const labels = [];
+    for (const index of state.opponentBookEditor.path) {
+      const child = node.children?.[index];
+      if (!child) break;
+      labels.push(child.notation || child.move);
+      node = child;
+    }
+    return labels.length ? labels.join("  ") : "Từ đầu";
+  }
+
+  function renderOpponentBookEditor() {
+    if (!dom.opponentBookBoard) return;
+    rebuildOpponentBookBoard();
+    const moveCount = Math.max(0, countOpeningBookNodes(state.opponentBookEditor.root) - 1);
+    if (dom.opponentBookSummary) {
+      dom.opponentBookSummary.textContent = moveCount ? `${moveCount} nước trong book riêng.` : "Chưa có nước khai cuộc.";
+    }
+    if (dom.opponentBookCurrentLine) dom.opponentBookCurrentLine.textContent = opponentBookLineText();
+    renderOpponentBookBranchList();
+    drawOpponentBookScene(true, true);
+  }
+
+  function renderOpponentBookBranchList() {
+    if (!dom.opponentBookBranchList) return;
+    dom.opponentBookBranchList.innerHTML = "";
+    const rows = [];
+    walkOpeningBookNodes(state.opponentBookEditor.root, [], (node, path) => {
+      if ((node.children?.length || 0) >= 1) rows.push({ node, path });
+    });
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Bấm quân trên bàn để thêm nước khai cuộc.";
+      dom.opponentBookBranchList.appendChild(empty);
+      return;
+    }
+    rows.slice(0, 18).forEach((item) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "opening-book-branch-row";
+      row.textContent = `${item.path.length ? `Nước ${item.path.length}` : "Từ đầu"}: ${item.node.children.map((child, index) => `${index + 1}. ${child.notation || child.move}`).join("  ")}`;
+      row.addEventListener("click", () => {
+        state.opponentBookEditor.path = item.path.slice();
+        state.opponentBookSelectedSquare = null;
+        state.opponentBookHints = [];
+        renderOpponentBookEditor();
+      });
+      dom.opponentBookBranchList.appendChild(row);
+    });
+  }
+
+  function onOpponentSavedBotChange() {
+    const id = dom.opponentSimSavedBotSelect?.value || "";
+    state.opponentSimBotId = id;
+    const bot = normalizeOpponentBotList(state.opponentBots).find((item) => item.id === id) || null;
+    if (bot) {
+      if (dom.opponentSimName) dom.opponentSimName.value = bot.name;
+      if (dom.opponentSimStrengthSelect) dom.opponentSimStrengthSelect.value = bot.strength;
+      if (dom.opponentSimStyleSelect) dom.opponentSimStyleSelect.value = bot.style;
+      state.opponentBookEditor = createOpponentBookEditorState(bot);
+      state.opponentBookSelectedSquare = null;
+      state.opponentBookHints = [];
+    } else {
+      if (dom.opponentSimName) dom.opponentSimName.value = "Đối thủ giả lập";
+      if (dom.opponentSimStrengthSelect) dom.opponentSimStrengthSelect.value = "normal";
+      if (dom.opponentSimStyleSelect) dom.opponentSimStyleSelect.value = "balanced";
+      state.opponentBookEditor = createOpponentBookEditorState();
+      state.opponentBookSelectedSquare = null;
+      state.opponentBookHints = [];
+    }
+    renderOpponentSimPanel();
+  }
+
+  async function saveOpponentSimBot() {
+    setMessage(dom.matchHubMessage, "Đang lưu bot giả lập...", "info");
+    try {
+      const payload = await api("/api/opponent-bots", {
+        method: "POST",
+        body: { bot: currentOpponentBotDraft() }
+      });
+      state.opponentBots = normalizeOpponentBotList(payload.bots);
+      if (payload.user) applySession(payload.user, state.token);
+      state.opponentSimBotId = payload.bot?.id || state.opponentSimBotId;
+      renderOpponentSimPanel();
+      setMessage(dom.matchHubMessage, "");
+      showToast("Đã lưu bot giả lập.");
+    } catch (error) {
+      setMessage(dom.matchHubMessage, error.message || "Không thể lưu bot giả lập.");
+    }
+  }
+
+  async function deleteOpponentSimBot() {
+    const id = state.opponentSimBotId || dom.opponentSimSavedBotSelect?.value || "";
+    if (!id || !window.confirm("Xóa bot này và book riêng đi kèm?")) return;
+    setMessage(dom.matchHubMessage, "Đang xóa bot giả lập...", "info");
+    try {
+      const payload = await api("/api/opponent-bots", {
+        method: "DELETE",
+        body: { id }
+      });
+      state.opponentBots = normalizeOpponentBotList(payload.bots);
+      if (payload.user) applySession(payload.user, state.token);
+      state.opponentSimBotId = "";
+      state.opponentBookEditor = createOpponentBookEditorState();
+      state.opponentBookSelectedSquare = null;
+      state.opponentBookHints = [];
+      renderOpponentSimPanel();
+      setMessage(dom.matchHubMessage, "");
+      showToast("Đã xóa bot giả lập.");
+    } catch (error) {
+      setMessage(dom.matchHubMessage, error.message || "Không thể xóa bot giả lập.");
+    }
+  }
+
+  function onOpponentBookPointerDown(event) {
+    if (state.route !== "match" || state.lobbyMode !== "opponent") return;
+    event.preventDefault();
+    const square = eventToOpponentBookSquare(event);
+    if (!square) return;
+    const board = state.opponentBookEditor.board;
+    const piece = board[square.y]?.[square.x] || "";
+    const side = state.opponentBookEditor.side;
+    if (state.opponentBookSelectedSquare && state.opponentBookSelectedSquare.x === square.x && state.opponentBookSelectedSquare.y === square.y) {
+      state.opponentBookSelectedSquare = null;
+      state.opponentBookHints = [];
+      renderOpponentBookEditor();
+      return;
+    }
+    if (state.opponentBookSelectedSquare) {
+      const valid = state.opponentBookHints.some((hint) => hint.x === square.x && hint.y === square.y);
+      if (valid) {
+        const move = XiangqiCore.squareToUci(state.opponentBookSelectedSquare) + XiangqiCore.squareToUci(square);
+        playOpponentBookMove(move);
+        return;
+      }
+    }
+    if (piece && XiangqiCore.pieceColor(piece) === side) {
+      state.opponentBookSelectedSquare = square;
+      state.opponentBookHints = XiangqiCore.getLegalMovesForSquare(board, side, square);
+    } else {
+      state.opponentBookSelectedSquare = null;
+      state.opponentBookHints = [];
+    }
+    renderOpponentBookEditor();
+  }
+
+  function playOpponentBookMove(move) {
+    const board = state.opponentBookEditor.board;
+    const side = state.opponentBookEditor.side;
+    if (!XiangqiCore.isLegalMove(board, move, side)) return;
+    const node = opponentBookCurrentNode();
+    node.children = Array.isArray(node.children) ? node.children : [];
+    let childIndex = node.children.findIndex((child) => child.move === move);
+    if (childIndex < 0) {
+      childIndex = node.children.length;
+      node.children.push({
+        move,
+        notation: XiangqiCore.formatMoveNotation(move, board, side),
+        children: []
+      });
+    }
+    state.opponentBookEditor.path.push(childIndex);
+    state.opponentBookSelectedSquare = null;
+    state.opponentBookHints = [];
+    renderOpponentBookEditor();
+  }
+
+  function resetOpponentBookPath() {
+    state.opponentBookEditor.path = [];
+    state.opponentBookSelectedSquare = null;
+    state.opponentBookHints = [];
+    renderOpponentBookEditor();
+  }
+
+  function stepOpponentBookBack() {
+    if (!state.opponentBookEditor.path.length) return;
+    state.opponentBookEditor.path.pop();
+    state.opponentBookSelectedSquare = null;
+    state.opponentBookHints = [];
+    renderOpponentBookEditor();
+  }
+
+  function deleteOpponentBookBranch() {
+    if (!state.opponentBookEditor.path.length) return;
+    const parentPath = state.opponentBookEditor.path.slice(0, -1);
+    const index = state.opponentBookEditor.path[state.opponentBookEditor.path.length - 1];
+    const parent = nodeAtOpponentBookPath(parentPath);
+    if (Array.isArray(parent?.children)) parent.children.splice(index, 1);
+    state.opponentBookEditor.path = parentPath;
+    state.opponentBookSelectedSquare = null;
+    state.opponentBookHints = [];
+    renderOpponentBookEditor();
+  }
+
+  function clearOpponentBook() {
+    state.opponentBookEditor = createOpponentBookEditorState();
+    state.opponentBookSelectedSquare = null;
+    state.opponentBookHints = [];
+    renderOpponentBookEditor();
   }
 
   function updateTimeLabels() {
@@ -3687,6 +3980,7 @@
     } : null;
     state.sessionSuspended = false;
     state.openingBooks = normalizeOpeningBookList(user?.openingBooks);
+    state.opponentBots = normalizeOpponentBotList(user?.opponentBots);
     state.puzzleProgress = normalizePuzzleProgressPayload(user?.puzzleProgress);
     if (accessKey) {
       state.savedAccessKey = String(accessKey || "").trim();
@@ -4065,6 +4359,47 @@
           tree: normalizeOpeningBookNode(book?.tree || {})
           };
         }).filter((book) => book.id)
+      : [];
+  }
+
+  function createOpponentBookEditorState(bot = null) {
+    const book = bot?.openingBook || {};
+    const parsed = XiangqiCore.parseFenState(book.startFen || START_FEN);
+    return {
+      startFen: book.startFen || START_FEN,
+      bookSide: normalizeOpeningBookSide(book.bookSide || book.side || "w"),
+      root: normalizeOpeningBookNode(book.tree || {}),
+      path: [],
+      board: parsed.board,
+      side: parsed.side
+    };
+  }
+
+  function normalizeOpponentBotList(bots) {
+    return Array.isArray(bots)
+      ? bots.map((bot) => {
+          const strength = opponentSimStrengthInfo(bot?.strength || "normal");
+          const style = opponentSimStyleInfo(bot?.style || "balanced");
+          return {
+            ...(bot || {}),
+            id: String(bot?.id || ""),
+            name: String(bot?.name || "Đối thủ giả lập").trim() || "Đối thủ giả lập",
+            strength: strength.key,
+            strengthLabel: strength.label,
+            style: style.key,
+            styleLabel: style.label,
+            depth: strength.depth,
+            avatarUrl: bot?.avatarUrl || matchModeAsset("nhanban.png"),
+            openingBook: {
+              id: String(bot?.openingBook?.id || ""),
+              name: String(bot?.openingBook?.name || "Book riêng"),
+              startFen: bot?.openingBook?.startFen || START_FEN,
+              bookSide: normalizeOpeningBookSide(bot?.openingBook?.bookSide || bot?.openingBook?.side || "w"),
+              side: normalizeOpeningBookSide(bot?.openingBook?.bookSide || bot?.openingBook?.side || "w"),
+              tree: normalizeOpeningBookNode(bot?.openingBook?.tree || {})
+            }
+          };
+        }).filter((bot) => bot.id)
       : [];
   }
 
@@ -6252,7 +6587,8 @@
           opponentName: dom.opponentSimName?.value || "",
           strength: dom.opponentSimStrengthSelect?.value || "normal",
           style: dom.opponentSimStyleSelect?.value || "balanced",
-          openingBookId: dom.opponentSimBookSelect?.value || ""
+          opponentBotId: state.opponentSimBotId || "",
+          openingBook: opponentBookPayload()
         }
       });
       applyRoomState(payload.room, { forceBoard: true, keepSelection: false });
@@ -7982,6 +8318,125 @@
     }
   }
 
+  function drawOpponentBookScene(forceBoard, immediate = false) {
+    if (immediate) {
+      state.opponentBookLastBoardFrame = "";
+      state.opponentBookLastPieceFrame = "";
+    }
+    drawOpponentBookBoard(forceBoard);
+    drawOpponentBookPieces(forceBoard);
+  }
+
+  function drawOpponentBookBoard(force) {
+    if (!dom.opponentBookBoard || state.route !== "match" || state.lobbyMode !== "opponent") return;
+    const metrics = boardMetrics(dom.opponentBookBoard);
+    if (!metrics.width || !metrics.height) return;
+    const signature = `${Math.round(metrics.width)}x${Math.round(metrics.height)}|${boardSkinSignature()}`;
+    if (!force && signature === state.opponentBookLastBoardFrame) return;
+    state.opponentBookLastBoardFrame = signature;
+    const ctx = resizeBoardCanvas(dom.opponentBookBoardCanvas, metrics);
+    if (ctx) drawXiangqiBoardGrid(ctx, metrics, opponentBookGeometry(), getComputedStyle(dom.opponentBookBoard));
+  }
+
+  function ensureOpponentBookSlots() {
+    if (!dom.opponentBookBoard || state.route !== "match" || state.lobbyMode !== "opponent") return { pieceSlots: [], hintSlots: [] };
+    const metrics = boardMetrics(dom.opponentBookBoard);
+    if (!metrics.width || !metrics.height) return { pieceSlots: [], hintSlots: [] };
+    const layoutKey = `${Math.round(metrics.width)}x${Math.round(metrics.height)}`;
+    if (state.opponentBookSlots && state.opponentBookHintSlots && state.opponentBookSlots.length === 90 && state.opponentBookHintSlots.length === 90) {
+      if (state.opponentBookSlotLayoutKey !== layoutKey) {
+        for (let y = 0; y < 10; y += 1) {
+          for (let x = 0; x < 9; x += 1) {
+            const index = y * 9 + x;
+            const pixel = opponentBookSquareToPixel({ x, y });
+            state.opponentBookSlots[index].style.left = `${pixel.x}px`;
+            state.opponentBookSlots[index].style.top = `${pixel.y}px`;
+            state.opponentBookHintSlots[index].style.left = `${pixel.x}px`;
+            state.opponentBookHintSlots[index].style.top = `${pixel.y}px`;
+          }
+        }
+        state.opponentBookSlotLayoutKey = layoutKey;
+      }
+      return { pieceSlots: state.opponentBookSlots, hintSlots: state.opponentBookHintSlots };
+    }
+    state.opponentBookSlotLayoutKey = layoutKey;
+    state.opponentBookSlots = [];
+    state.opponentBookHintSlots = [];
+    const pieceFragment = document.createDocumentFragment();
+    const hintFragment = document.createDocumentFragment();
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const pixel = opponentBookSquareToPixel({ x, y });
+        const hint = document.createElement("div");
+        hint.className = "hint";
+        hint.style.left = `${pixel.x}px`;
+        hint.style.top = `${pixel.y}px`;
+        hintFragment.appendChild(hint);
+        state.opponentBookHintSlots.push(hint);
+
+        const piece = document.createElement("div");
+        piece.className = "piece image-piece";
+        piece.style.left = `${pixel.x}px`;
+        piece.style.top = `${pixel.y}px`;
+        piece.setAttribute("aria-hidden", "true");
+        const image = document.createElement("img");
+        image.className = "piece-skin";
+        image.alt = "";
+        image.decoding = "sync";
+        image.loading = "eager";
+        image.draggable = false;
+        piece.appendChild(image);
+        pieceFragment.appendChild(piece);
+        state.opponentBookSlots.push(piece);
+      }
+    }
+    dom.opponentBookMarks?.replaceChildren(hintFragment);
+    dom.opponentBookPieces?.replaceChildren(pieceFragment);
+    return { pieceSlots: state.opponentBookSlots, hintSlots: state.opponentBookHintSlots };
+  }
+
+  function drawOpponentBookPieces(force) {
+    if (!dom.opponentBookBoard || state.route !== "match" || state.lobbyMode !== "opponent") return;
+    const board = state.opponentBookEditor.board;
+    const selectedKey = state.opponentBookSelectedSquare ? XiangqiCore.squareToUci(state.opponentBookSelectedSquare) : "";
+    const hintKey = state.opponentBookHints.map(XiangqiCore.squareToUci).join(",");
+    const signature = `${boardSignature(board)}|${currentPieceSkin()}|${selectedKey}|${hintKey}`;
+    if (!force && signature === state.opponentBookLastPieceFrame) return;
+    state.opponentBookLastPieceFrame = signature;
+    const { pieceSlots, hintSlots } = ensureOpponentBookSlots();
+    if (!pieceSlots.length) return;
+    const hintIndexes = new Set(state.opponentBookHints.map((square) => square.y * 9 + square.x));
+    const selectedPiece = state.opponentBookSelectedSquare ? board[state.opponentBookSelectedSquare.y]?.[state.opponentBookSelectedSquare.x] : "";
+    const selectedColor = selectedPiece ? XiangqiCore.pieceColor(selectedPiece) : "";
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const index = y * 9 + x;
+        const el = pieceSlots[index];
+        const piece = board[y]?.[x] || "";
+        if (!piece) {
+          el.classList.remove("is-visible", "selected", "in-check");
+          el.setAttribute("aria-hidden", "true");
+        } else {
+          const image = el.querySelector(".piece-skin");
+          if (el.dataset.piece !== piece || (image && image.getAttribute("src") !== roomPieceImageFor(piece))) {
+            setRoomPieceSlotImage(el, piece);
+          }
+          el.classList.add("is-visible");
+          el.classList.toggle("selected", Boolean(state.opponentBookSelectedSquare && state.opponentBookSelectedSquare.x === x && state.opponentBookSelectedSquare.y === y));
+          el.classList.remove("in-check");
+          el.setAttribute("aria-hidden", "false");
+        }
+        const mark = hintSlots[index];
+        const showHint = hintIndexes.has(index);
+        const targetPiece = board[y]?.[x] || "";
+        const showCaptureHint = Boolean(showHint && targetPiece && selectedColor && XiangqiCore.pieceColor(targetPiece) !== selectedColor);
+        mark.classList.toggle("is-visible", showHint);
+        mark.classList.toggle("capture-hint", showCaptureHint);
+        mark.setAttribute("aria-hidden", showHint ? "false" : "true");
+      }
+    }
+  }
+
   function drawOpeningBookArrows() {
     if (!dom.openingBookArrowCanvas) return;
     const metrics = boardMetrics(dom.openingBookBoard);
@@ -8754,6 +9209,7 @@
       role: user.role || "user",
       rank: user.rank || null,
       botProgress: user.botProgress || null,
+      opponentBots: normalizeOpponentBotList(user.opponentBots),
       puzzleProgress: user.puzzleProgress || null
     }));
   }
@@ -9023,6 +9479,12 @@
 
   function onResize() {
     if (state.route === "match" && state.lobbyMode === "endgame") scheduleEndgamePreviewDraw();
+    if (state.route === "match" && state.lobbyMode === "opponent") {
+      state.opponentBookLastBoardFrame = "";
+      state.opponentBookLastPieceFrame = "";
+      state.opponentBookSlotLayoutKey = "";
+      drawOpponentBookScene(true);
+    }
     if (state.route === "match" && state.lobbyMode === "puzzle") {
       const progress = puzzleProgress();
       renderPuzzleMap(progress);
@@ -9065,6 +9527,10 @@
 
   function openingBookGeometry() {
     return boardGridGeometry(dom.openingBookBoard, openingBookViewSide() === "b");
+  }
+
+  function opponentBookGeometry() {
+    return boardGridGeometry(dom.opponentBookBoard, false);
   }
 
   function boardGridGeometry(element, flipped) {
@@ -9119,6 +9585,11 @@
     return { x: g.x(square.x), y: g.y(square.y) };
   }
 
+  function opponentBookSquareToPixel(square) {
+    const g = opponentBookGeometry();
+    return { x: g.x(square.x), y: g.y(square.y) };
+  }
+
   function uciToSquare(uci) {
     const text = String(uci || "").trim().toLowerCase();
     if (!/^[a-i][0-9]$/.test(text)) return { x: 0, y: 0 };
@@ -9170,6 +9641,24 @@
       }
     }
     return bestDistance < boardMetrics(dom.openingBookBoard).width / 9.4 ? best : null;
+  }
+
+  function eventToOpponentBookSquare(event) {
+    const g = opponentBookGeometry();
+    let best = null;
+    let bestDistance = Infinity;
+    for (let y = 0; y < 10; y += 1) {
+      for (let x = 0; x < 9; x += 1) {
+        const px = g.x(x);
+        const py = g.y(y);
+        const distance = Math.hypot(event.clientX - g.rect.left - g.offsetX - px, event.clientY - g.rect.top - g.offsetY - py);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { x, y };
+        }
+      }
+    }
+    return bestDistance < boardMetrics(dom.opponentBookBoard).width / 9.4 ? best : null;
   }
 
   function line(ctx, x1, y1, x2, y2) {

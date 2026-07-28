@@ -46,6 +46,7 @@ const MAX_HISTORY_ITEMS = 20;
 const PUZZLE_COUNT = 110;
 const MAX_OPENING_BOOKS = 200;
 const MAX_OPENING_BOOK_NODES = Math.max(1000, Number(process.env.DMAIHXCAI_MAX_OPENING_BOOK_NODES) || 20000);
+const MAX_OPPONENT_BOTS = Math.max(5, Math.min(80, Number(process.env.DMAIHXCAI_MAX_OPPONENT_BOTS) || 40));
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
@@ -961,6 +962,109 @@ function deleteOpeningBookForUser(user, bookId) {
   return user.openingBooks.length !== before.length;
 }
 
+function normalizeOpponentOpeningBook(entry, options = {}) {
+  const source = entry && typeof entry === "object" ? entry : {};
+  const counter = { count: 0, truncated: false };
+  const tree = normalizeOpeningNode(source.tree || {}, counter);
+  if (counter.truncated && options.rejectTooLarge) throw new OpeningBookTooLargeError();
+  const name = sanitizeAccountName(source.name || "Book riêng", "Book riêng").slice(0, 60);
+  return {
+    id: String(source.id || randomId(10)).slice(0, 40),
+    name,
+    startFen: String(source.startFen || XiangqiCore.START_FEN).trim().slice(0, 160) || XiangqiCore.START_FEN,
+    bookSide: normalizeOpeningBookSide(source.bookSide || source.side),
+    side: normalizeOpeningBookSide(source.bookSide || source.side),
+    nodeCount: counter.count,
+    tree
+  };
+}
+
+function normalizeOpponentBotEntry(entry, options = {}) {
+  if (!entry || typeof entry !== "object") return null;
+  const strength = opponentStrengthInfo(entry.strength).key;
+  const strengthInfo = opponentStrengthInfo(strength);
+  const style = opponentStyleInfo(entry.style).key;
+  const styleInfo = opponentStyleInfo(style);
+  const name = sanitizeOpponentName(entry.name || "");
+  const openingSource = entry.openingBook || {
+    id: entry.openingBookId,
+    name: `${name} book`,
+    startFen: entry.startFen,
+    bookSide: entry.bookSide,
+    tree: entry.tree || entry.bookTree
+  };
+  const openingBook = normalizeOpponentOpeningBook({
+    ...openingSource,
+    name: openingSource?.name || `${name} book`
+  }, options);
+  return {
+    id: String(entry.id || randomId(10)).slice(0, 40),
+    name,
+    strength: strengthInfo.key,
+    strengthLabel: strengthInfo.label,
+    style: styleInfo.key,
+    styleLabel: styleInfo.label,
+    depth: strengthInfo.depth,
+    avatarUrl: OPPONENT_SIM_AVATAR,
+    openingBook,
+    createdAt: entry.createdAt && !Number.isNaN(Date.parse(entry.createdAt)) ? entry.createdAt : nowIso(),
+    updatedAt: entry.updatedAt && !Number.isNaN(Date.parse(entry.updatedAt)) ? entry.updatedAt : nowIso()
+  };
+}
+
+function normalizeOpponentBots(entries) {
+  if (!Array.isArray(entries)) return [];
+  const seen = new Set();
+  return entries
+    .map(normalizeOpponentBotEntry)
+    .filter(Boolean)
+    .filter((entry) => {
+      if (seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    })
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.updatedAt || left.createdAt || 0) || 0;
+      const rightTime = Date.parse(right.updatedAt || right.createdAt || 0) || 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, MAX_OPPONENT_BOTS);
+}
+
+function saveOpponentBotForUser(user, payload) {
+  if (!user) return null;
+  const now = nowIso();
+  const incoming = normalizeOpponentBotEntry({
+    ...payload,
+    id: payload?.id || randomId(10),
+    createdAt: payload?.createdAt || now,
+    updatedAt: now
+  }, { rejectTooLarge: true });
+  if (!incoming) return null;
+  const existing = normalizeOpponentBots(user.opponentBots);
+  const index = existing.findIndex((bot) => bot.id === incoming.id);
+  if (index >= 0) {
+    incoming.createdAt = existing[index].createdAt || incoming.createdAt;
+    existing.splice(index, 1);
+  }
+  user.opponentBots = normalizeOpponentBots([incoming, ...existing]);
+  return incoming;
+}
+
+function deleteOpponentBotForUser(user, botId) {
+  if (!user) return false;
+  const id = String(botId || "").trim();
+  const before = normalizeOpponentBots(user.opponentBots);
+  user.opponentBots = before.filter((bot) => bot.id !== id);
+  return user.opponentBots.length !== before.length;
+}
+
+function opponentBotForUser(user, botId) {
+  const id = String(botId || "").trim();
+  if (!id) return null;
+  return normalizeOpponentBots(user?.opponentBots).find((bot) => bot.id === id) || null;
+}
+
 function mergeUsers(primaryUsers, fallbackUsers) {
   const merged = [];
   const byId = new Map();
@@ -998,6 +1102,7 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       avatarUrl: sanitizeAvatarUrl(user.avatarUrl || ""),
       history: normalizeHistoryEntries(user.history),
       openingBooks: normalizeOpeningBooks(user.openingBooks),
+      opponentBots: normalizeOpponentBots(user.opponentBots),
       createdAt: user.createdAt || nowIso(),
       lastSeenAt: user.lastSeenAt || "",
       currentActivity: sanitizeUserActivity(user.currentActivity || {}),
@@ -1038,6 +1143,10 @@ function mergeUsers(primaryUsers, fallbackUsers) {
       openingBooks: normalizeOpeningBooks([
         ...(Array.isArray(user.openingBooks) ? user.openingBooks : []),
         ...(Array.isArray(existing.openingBooks) ? existing.openingBooks : [])
+      ]),
+      opponentBots: normalizeOpponentBots([
+        ...(Array.isArray(user.opponentBots) ? user.opponentBots : []),
+        ...(Array.isArray(existing.opponentBots) ? existing.opponentBots : [])
       ])
     };
     merged[knownIndex] = combined;
@@ -1425,6 +1534,7 @@ function createLicenseUser(license, customerName = "") {
     avatarUrl: defaultSystemAvatar(),
     history: [],
     openingBooks: [],
+    opponentBots: [],
     createdAt: now,
     lastSeenAt: now,
     currentActivity: { route: "home", roomKey: "", action: license.activatedAt ? "Da kich hoat license" : "Chua kich hoat", updatedAt: now },
@@ -1804,6 +1914,7 @@ function ensureAdminUser() {
     avatarUrl: defaultAccessKeyAvatar(ADMIN_ACCESS_KEY || ADMIN_USERNAME),
     history: [],
     openingBooks: [],
+    opponentBots: [],
     createdAt: now,
     lastSeenAt: "",
     currentActivity: { route: "admin", roomKey: "", action: "Quản trị", updatedAt: "" }
@@ -2423,7 +2534,8 @@ function publicUser(user) {
     puzzleProgress: publicPuzzleProgress(user.puzzleProgress),
     visionQuota: visionQuotaStatus(user),
     history: Array.isArray(user.history) ? user.history.slice(0, MAX_HISTORY_ITEMS) : [],
-    openingBooks: normalizeOpeningBooks(user.openingBooks)
+    openingBooks: normalizeOpeningBooks(user.openingBooks),
+    opponentBots: normalizeOpponentBots(user.opponentBots)
   };
 }
 
@@ -2633,6 +2745,7 @@ function createGuestUser(displayName = "", { deviceId = "", avatarUrl = "" } = {
     avatarUrl: sanitizeAvatarUrl(avatarUrl),
     history: [],
     openingBooks: [],
+    opponentBots: [],
     createdAt: now,
     lastSeenAt: now,
     currentActivity: { route: "match", roomKey: "", action: "Khách vừa truy cập", updatedAt: now }
@@ -3023,10 +3136,7 @@ function openingBookHasMoves(node) {
   return Array.isArray(node?.children) && node.children.some((child) => child?.move);
 }
 
-function opponentOpeningBookForUser(user, bookId) {
-  const id = String(bookId || "").trim();
-  if (!id) return null;
-  const book = normalizeOpeningBooks(user?.openingBooks).find((item) => item.id === id);
+function cloneOpponentOpeningBook(book) {
   if (!book || !openingBookHasMoves(book.tree)) return null;
   return {
     id: book.id,
@@ -3047,13 +3157,27 @@ function createOpponentRoom(user, {
   strength = "normal",
   style = "balanced",
   opponentName = "",
-  openingBookId = ""
+  opponentBotId = "",
+  openingBook = null
 } = {}) {
   const color = side === "b" ? "b" : "w";
   const botSide = oppositeSide(color);
   const safeMinutes = clampRoomMinutes(minutes, 10);
-  const strengthInfo = opponentStrengthInfo(strength);
-  const styleInfo = opponentStyleInfo(style);
+  const savedBot = opponentBotForUser(user, opponentBotId);
+  const draftBot = normalizeOpponentBotEntry({
+    id: savedBot?.id || "",
+    name: opponentName || savedBot?.name || "",
+    strength: strength || savedBot?.strength || "normal",
+    style: style || savedBot?.style || "balanced",
+    openingBook: openingBook || savedBot?.openingBook || {
+      name: `${sanitizeOpponentName(opponentName || savedBot?.name || "")} book`,
+      startFen: XiangqiCore.START_FEN,
+      bookSide: "w",
+      tree: {}
+    }
+  }, { rejectTooLarge: true });
+  const strengthInfo = opponentStrengthInfo(draftBot?.strength || strength);
+  const styleInfo = opponentStyleInfo(draftBot?.style || style);
   const room = createRoom(user, {
     yourMinutes: safeMinutes,
     opponentMinutes: safeMinutes,
@@ -3072,9 +3196,10 @@ function createOpponentRoom(user, {
     strengthLabel: strengthInfo.label,
     style: styleInfo.key,
     styleLabel: styleInfo.label,
-    name: sanitizeOpponentName(opponentName),
+    name: sanitizeOpponentName(draftBot?.name || opponentName),
     avatarUrl: OPPONENT_SIM_AVATAR,
-    openingBook: opponentOpeningBookForUser(user, openingBookId)
+    savedBotId: savedBot?.id || "",
+    openingBook: cloneOpponentOpeningBook(draftBot?.openingBook)
   };
   room.players[botSide] = botId;
   room.playerTimeMs = room.playerTimeMs && typeof room.playerTimeMs === "object" ? room.playerTimeMs : {};
@@ -3789,7 +3914,7 @@ function styledCandidateMoves(room, board, side, style) {
       score: opponentStyleMoveScore(style, moveFeaturesForStyle(room, board, side, move), index)
     }))
     .sort((left, right) => right.score - left.score)
-    .slice(0, 8)
+    .slice(0, 16)
     .map((entry) => entry.move);
 }
 
@@ -3798,7 +3923,7 @@ async function engineBestMoveForRoom(room, depth, searchMoves = []) {
     const result = await engine.analyze({
       fen: room.boardFen,
       depth,
-      multipv: Math.min(5, Math.max(1, searchMoves.length || 1)),
+      multipv: Math.min(12, Math.max(1, searchMoves.length || 1)),
       movetime: 0,
       searchMoves
     });
@@ -4239,7 +4364,7 @@ class UciEngine {
       const safeFen = sanitizeFen(fen);
       const safeDepth = Math.max(1, Math.min(30, Number(depth) || 12));
       const safeTime = Math.max(0, Math.min(60000, Number(movetime) || 0));
-      const safeMultiPv = Math.max(1, Math.min(5, Number(multipv) || 3));
+      const safeMultiPv = Math.max(1, Math.min(12, Number(multipv) || 3));
       this.write(`setoption name MultiPV value ${safeMultiPv}`);
       await this.command("isready", (line) => line === "readyok", 8000);
       this.write(safeFen ? `position fen ${safeFen}` : `position startpos${safeMoves.length ? ` moves ${safeMoves.join(" ")}` : ""}`);
@@ -5674,6 +5799,7 @@ const server = http.createServer(async (req, res) => {
         avatarUrl: "",
         history: [],
         openingBooks: [],
+        opponentBots: [],
         createdAt: now,
         lastSeenAt: now,
         currentActivity: { route: "home", roomKey: "", action: "Vừa đăng ký", updatedAt: now }
@@ -5813,6 +5939,38 @@ const server = http.createServer(async (req, res) => {
         touchUserActivity(user, { route: "library", roomKey: "", action: "Xoa book khai cuoc" });
         await flushUserPersistence();
         json(res, 200, { ok: true, books: normalizeOpeningBooks(user.openingBooks), user: publicUser(user) });
+        return;
+      }
+    }
+
+    if (url.pathname === "/api/opponent-bots") {
+      const user = requireUser(req);
+      if (req.method === "GET") {
+        json(res, 200, { ok: true, bots: normalizeOpponentBots(user.opponentBots) });
+        return;
+      }
+      if (req.method === "POST") {
+        const body = await readBody(req);
+        const bot = saveOpponentBotForUser(user, body.bot || body);
+        if (!bot) {
+          json(res, 400, { ok: false, error: "Ten bot hoac book rieng khong hop le." });
+          return;
+        }
+        touchUserActivity(user, { route: "match", roomKey: "", action: `Luu bot gia lap ${bot.name}` });
+        await flushUserPersistence();
+        json(res, 200, { ok: true, bot, bots: normalizeOpponentBots(user.opponentBots), user: publicUser(user) });
+        return;
+      }
+      if (req.method === "DELETE") {
+        const body = await readBody(req);
+        const deleted = deleteOpponentBotForUser(user, body.id || url.searchParams.get("id"));
+        if (!deleted) {
+          json(res, 404, { ok: false, error: "Khong tim thay bot gia lap." });
+          return;
+        }
+        touchUserActivity(user, { route: "match", roomKey: "", action: "Xoa bot gia lap" });
+        await flushUserPersistence();
+        json(res, 200, { ok: true, bots: normalizeOpponentBots(user.opponentBots), user: publicUser(user) });
         return;
       }
     }
@@ -6049,7 +6207,8 @@ const server = http.createServer(async (req, res) => {
         strength: body.strength,
         style: body.style,
         opponentName: body.opponentName,
-        openingBookId: body.openingBookId
+        opponentBotId: body.opponentBotId,
+        openingBook: body.openingBook
       });
       touchUserActivity(user, { route: "room", roomKey: room.key, action: `Giả lập đối thủ ${room.bot?.name || ""}`.trim() });
       json(res, 200, { ok: true, room: roomStateForUser(room, user) });

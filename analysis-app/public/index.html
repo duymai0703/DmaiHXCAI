@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-opponent-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260728-opponent-bots-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -360,12 +360,46 @@
                 </label>
 
                 <label>
-                  <span>Khai cuộc</span>
-                  <select id="opponentSimBookSelect">
-                    <option value="">Không dùng khai cuộc</option>
+                  <span>Bot đã lưu</span>
+                  <select id="opponentSimSavedBotSelect">
+                    <option value="">Tạo bot mới</option>
                   </select>
                 </label>
               </div>
+
+              <div class="opponent-sim-save-row">
+                <button id="opponentSimSaveBotBtn" class="secondary-button" type="button">Lưu bot</button>
+                <button id="opponentSimDeleteBotBtn" class="danger-button hidden" type="button">Xóa bot</button>
+              </div>
+
+              <section class="opponent-book-editor" aria-label="Soạn book riêng cho bot">
+                <div class="opponent-book-heading">
+                  <div>
+                    <strong>Book riêng của bot</strong>
+                    <small id="opponentBookSummary">Chưa có nước khai cuộc.</small>
+                  </div>
+                  <button id="opponentBookClearBtn" class="ghost-button" type="button">Xóa book</button>
+                </div>
+                <div class="opponent-book-layout">
+                  <div id="opponentBookBoard" class="room-board review-board opening-book-board opponent-book-board" aria-label="Bàn soạn book bot">
+                    <canvas id="opponentBookBoardCanvas"></canvas>
+                    <div id="opponentBookMarks"></div>
+                    <div id="opponentBookPieces"></div>
+                  </div>
+                  <div class="opponent-book-side">
+                    <div class="opponent-book-actions">
+                      <button id="opponentBookRootBtn" class="secondary-button" type="button">Về đầu</button>
+                      <button id="opponentBookBackBtn" class="secondary-button" type="button">Lùi 1 nước</button>
+                      <button id="opponentBookDeleteBranchBtn" class="secondary-button" type="button">Xóa nhánh</button>
+                    </div>
+                    <div class="opponent-book-current">
+                      <span>Đường hiện tại</span>
+                      <strong id="opponentBookCurrentLine">Từ đầu</strong>
+                    </div>
+                    <div id="opponentBookBranchList" class="opponent-book-branch-list"></div>
+                  </div>
+                </div>
+              </section>
 
               <label class="range-field">
                 <span>Thời gian mỗi bên</span>
@@ -882,7 +916,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260728-opponent-v1"></script>
+    <script src="/portal.js?v=20260728-opponent-bots-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -890,7 +924,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v187";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v188";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();
