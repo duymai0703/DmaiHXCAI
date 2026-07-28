@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v1";
+  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v2";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -435,6 +435,7 @@
     puzzleMapInner: byId("puzzleMapInner"),
     puzzleMapPathSvg: byId("puzzleMapPathSvg"),
     puzzleMapPathLine: byId("puzzleMapPathLine"),
+    puzzleMapPathDone: byId("puzzleMapPathDone"),
     puzzleMapNodes: byId("puzzleMapNodes"),
     puzzleMapAvatar: byId("puzzleMapAvatar"),
     puzzleCurrentName: byId("puzzleCurrentName"),
@@ -2307,26 +2308,59 @@
     return PUZZLES.find((item) => Number(item.level) === safeLevel) || PUZZLES[safeLevel - 1] || null;
   }
 
+  const PUZZLE_MAP_ROUTE_ANCHORS = [
+    { x: 23, y: 84 },
+    { x: 33, y: 79 },
+    { x: 20, y: 72 },
+    { x: 32, y: 64 },
+    { x: 48, y: 67 },
+    { x: 62, y: 61 },
+    { x: 78, y: 57 },
+    { x: 69, y: 49 },
+    { x: 51, y: 51 },
+    { x: 34, y: 47 },
+    { x: 24, y: 39 },
+    { x: 38, y: 32 },
+    { x: 56, y: 34 },
+    { x: 74, y: 39 },
+    { x: 84, y: 32 },
+    { x: 70, y: 24 },
+    { x: 52, y: 20 },
+    { x: 34, y: 22 },
+    { x: 24, y: 18 }
+  ];
+
+  function catmullRomPoint(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return {
+      x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+      y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+    };
+  }
+
+  function puzzleMapRoutePoint(progress) {
+    const anchors = PUZZLE_MAP_ROUTE_ANCHORS;
+    const maxSegment = anchors.length - 1;
+    const scaled = Math.max(0, Math.min(maxSegment, Number(progress || 0) * maxSegment));
+    const segment = Math.min(maxSegment - 1, Math.floor(scaled));
+    const localT = scaled - segment;
+    const p0 = anchors[Math.max(0, segment - 1)];
+    const p1 = anchors[segment];
+    const p2 = anchors[Math.min(anchors.length - 1, segment + 1)];
+    const p3 = anchors[Math.min(anchors.length - 1, segment + 2)];
+    const point = catmullRomPoint(p0, p1, p2, p3, localT);
+    return {
+      x: Math.max(7, Math.min(93, point.x)),
+      y: Math.max(8, Math.min(92, point.y))
+    };
+  }
+
   function puzzleMapPositionForLevel(level, total = PUZZLE_TOTAL) {
     const safeTotal = Math.max(1, Number(total || PUZZLE_TOTAL || 1));
     const safeLevel = Math.max(1, Math.min(safeTotal, Math.round(Number(level) || 1)));
-    const cols = 10;
-    const rows = Math.max(1, Math.ceil(safeTotal / cols));
-    const index = safeLevel - 1;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const serpentineCol = row % 2 === 0 ? col : cols - 1 - col;
-    const xMin = 13.5;
-    const xMax = 87.5;
-    const yBottom = 83.5;
-    const yTop = 17.5;
-    const xRatio = cols > 1 ? serpentineCol / (cols - 1) : 0;
-    const yRatio = rows > 1 ? row / (rows - 1) : 0;
-    const waveX = Math.sin((row + 1) * 0.85 + col * 0.72) * 1.55;
-    const waveY = Math.cos((serpentineCol + 1) * 0.75 + row * 0.58) * 1.18;
-    const x = Math.max(6, Math.min(94, xMin + (xMax - xMin) * xRatio + waveX));
-    const y = Math.max(8, Math.min(92, yBottom - (yBottom - yTop) * yRatio + waveY));
-    return { x, y };
+    const ratio = safeTotal > 1 ? (safeLevel - 1) / (safeTotal - 1) : 0;
+    return puzzleMapRoutePoint(ratio);
   }
 
   function puzzleMapPositions(total = PUZZLE_TOTAL) {
@@ -2403,13 +2437,21 @@
     });
   }
 
+  function puzzleMapPointString(points) {
+    return points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+  }
+
   function renderPuzzleMap(progress) {
     if (!dom.puzzleMapNodes || !dom.puzzleMapPathLine || !dom.puzzleMapAvatar) return;
     const total = Math.max(0, Number(progress.total || PUZZLE_TOTAL || 0));
     const done = total > 0 && Number(progress.completedCount || 0) >= total;
     const currentLevel = total ? Math.max(1, Math.min(total, done ? total : Number(progress.currentLevel || 1))) : 0;
     const positions = puzzleMapPositions(total);
-    dom.puzzleMapPathLine.setAttribute("points", positions.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" "));
+    dom.puzzleMapPathLine.setAttribute("points", puzzleMapPointString(positions));
+    if (dom.puzzleMapPathDone) {
+      const doneLevel = Math.max(1, Math.min(total, currentLevel || Math.max(1, Number(progress.unlockedLevel || 1))));
+      dom.puzzleMapPathDone.setAttribute("points", puzzleMapPointString(positions.slice(0, doneLevel)));
+    }
     dom.puzzleMapNodes.innerHTML = "";
 
     positions.forEach((position, index) => {

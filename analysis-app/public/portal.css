@@ -70,14 +70,14 @@ button {
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, color 0.18s ease;
 }
 
-button:hover,
+button:not(.puzzle-map-node):hover,
 .launcher-card:hover {
   background: #f6a23c;
   border-color: #ca7e1f;
   color: #24160b;
 }
 
-button:active,
+button:not(.puzzle-map-node):active,
 .launcher-card:active {
   transform: translateY(1px);
 }
@@ -924,11 +924,24 @@ a {
 
 .puzzle-map-path polyline {
   fill: none;
-  stroke: rgba(255, 222, 144, 0.82);
-  stroke-width: 0.42;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 0.42px rgba(0, 0, 0, 0.68));
+}
+
+.puzzle-map-road-base {
+  stroke: rgba(235, 241, 218, 0.5);
+  stroke-width: 5.15;
+  filter:
+    drop-shadow(0 0 1.2px rgba(255, 246, 208, 0.26))
+    drop-shadow(0 2px 1.2px rgba(39, 23, 10, 0.28));
+}
+
+.puzzle-map-road-done {
+  stroke: rgba(178, 125, 52, 0.46);
+  stroke-width: 5.15;
+  filter:
+    drop-shadow(0 0 1px rgba(255, 225, 141, 0.3))
+    drop-shadow(0 2px 1.1px rgba(32, 18, 8, 0.34));
 }
 
 .puzzle-map-nodes {
@@ -939,25 +952,28 @@ a {
   position: absolute;
   display: grid;
   place-items: center;
-  width: 2.18%;
+  width: 1.56%;
   aspect-ratio: 1;
-  min-width: 18px;
-  min-height: 18px;
+  min-width: 14px;
+  min-height: 14px;
   padding: 0;
   translate: -50% -50%;
   border-radius: 50%;
-  border: 1px solid rgba(71, 39, 12, 0.72);
+  border: 1px solid rgba(78, 46, 22, 0.6);
   background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.46), transparent 34%),
-    linear-gradient(145deg, #e7bd67, #7a4418);
-  color: #221105;
-  font-size: clamp(6px, 0.82vw, 10px);
+    radial-gradient(circle at 50% 37%, #fff7dc 0 42%, transparent 43%),
+    linear-gradient(180deg, #f3e2b9 0%, #d6c59c 46%, #6d4a32 47%, #2f2019 100%);
+  color: rgba(50, 25, 10, 0.82);
+  font-size: clamp(5px, 0.62vw, 8px);
   font-weight: 900;
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(255, 235, 181, 0.42);
+  text-shadow: 0 1px 0 rgba(255, 244, 218, 0.56);
   box-shadow:
-    0 0 0 1px rgba(255, 239, 179, 0.22),
-    0 3px 7px rgba(0, 0, 0, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.66),
+    inset 0 -3px 0 rgba(74, 43, 27, 0.78),
+    0 2px 0 rgba(41, 24, 14, 0.92),
+    0 4px 7px rgba(0, 0, 0, 0.3);
+  opacity: 0.82;
 }
 
 .puzzle-map-node[aria-disabled="true"] {
@@ -966,48 +982,59 @@ a {
 
 .puzzle-map-node.completed {
   background:
-    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.54), transparent 34%),
-    linear-gradient(145deg, #fff0a6, #d99b28 58%, #7b4215);
-  color: #281000;
+    radial-gradient(circle at 50% 37%, #fff0a0 0 42%, transparent 43%),
+    linear-gradient(180deg, #d59b2f 0%, #a26013 46%, #6b3007 47%, #2a1710 100%);
+  border-color: rgba(92, 45, 11, 0.86);
+  color: #2a1304;
+  opacity: 0.98;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 184, 0.68),
+    inset 0 -3px 0 rgba(82, 35, 8, 0.88),
+    0 2px 0 rgba(42, 22, 9, 0.98),
+    0 5px 8px rgba(0, 0, 0, 0.34);
 }
 
 .puzzle-map-node.locked {
-  border-color: rgba(20, 14, 9, 0.62);
+  border-color: rgba(99, 82, 58, 0.46);
   background:
-    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.12), transparent 30%),
-    linear-gradient(145deg, #5c5144, #201812);
-  color: rgba(255, 239, 194, 0.54);
-  text-shadow: none;
+    radial-gradient(circle at 50% 37%, rgba(255, 251, 231, 0.88) 0 42%, transparent 43%),
+    linear-gradient(180deg, rgba(238, 231, 205, 0.86) 0%, rgba(194, 180, 149, 0.78) 46%, rgba(98, 76, 54, 0.54) 47%, rgba(48, 34, 25, 0.48) 100%);
+  color: rgba(73, 43, 21, 0.48);
+  opacity: 0.58;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .puzzle-map-node.current {
   z-index: 4;
-  border-color: #fff0ac;
+  border-color: #ffe9a7;
   background:
-    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.62), transparent 34%),
-    linear-gradient(145deg, #72d9ff, #0c6f94 62%, #07314d);
-  color: #fffdf5;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    radial-gradient(circle at 50% 37%, #fff8c8 0 42%, transparent 43%),
+    linear-gradient(180deg, #ffd866 0%, #c27a11 46%, #8c3f08 47%, #3a1b0f 100%);
+  color: #2b1304;
+  text-shadow: 0 1px 0 rgba(255, 239, 184, 0.64);
+  opacity: 1;
   box-shadow:
-    0 0 0 2px rgba(255, 239, 176, 0.38),
-    0 0 16px rgba(114, 217, 255, 0.55),
-    0 7px 16px rgba(0, 0, 0, 0.38);
+    inset 0 1px 0 rgba(255, 252, 215, 0.74),
+    inset 0 -3px 0 rgba(112, 44, 8, 0.9),
+    0 0 0 2px rgba(255, 235, 154, 0.38),
+    0 0 12px rgba(255, 200, 64, 0.34),
+    0 5px 10px rgba(0, 0, 0, 0.36);
 }
 
 .puzzle-map-avatar {
   position: absolute;
   z-index: 6;
-  width: 4.8%;
+  width: 3%;
   height: auto;
   aspect-ratio: 1;
-  min-width: 34px;
-  min-height: 34px;
-  translate: -50% -126%;
+  min-width: 22px;
+  min-height: 22px;
+  translate: -50% -118%;
   border: 2px solid rgba(255, 245, 190, 0.92);
   box-shadow:
     0 0 0 2px rgba(54, 26, 10, 0.7),
-    0 10px 18px rgba(0, 0, 0, 0.38),
-    0 0 18px rgba(255, 219, 122, 0.34);
+    0 7px 13px rgba(0, 0, 0, 0.36),
+    0 0 12px rgba(255, 219, 122, 0.28);
   transition:
     left 1.02s cubic-bezier(0.16, 0.84, 0.22, 1),
     top 1.02s cubic-bezier(0.16, 0.84, 0.22, 1);
@@ -6022,7 +6049,7 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
       0 10px 22px color-mix(in srgb, var(--accent) 18%, transparent) !important;
   }
 
-  button:not(.nav-back):not(:disabled):hover {
+  button:not(.nav-back):not(.puzzle-map-node):not(:disabled):hover {
     transform: translateY(-1px) scale(1.01);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
