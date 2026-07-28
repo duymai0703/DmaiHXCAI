@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-chibi-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260728-puzzle-map-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -324,11 +324,23 @@
 
             <form id="puzzleRoomForm" class="subpanel puzzle-subpanel hidden">
               <div class="puzzle-status-card">
-                <div class="puzzle-level-mark" aria-hidden="true">棋</div>
+                <img class="puzzle-logo" src="/assets/avtchibi/cothe.png?v=20260728-puzzle-map-v1" alt="Giải cờ thế" draggable="false">
                 <div class="puzzle-current-copy">
                   <span>Giải cờ thế</span>
                   <strong id="puzzleCurrentName">Thế cờ 1</strong>
                   <small id="puzzleCurrentRecord">0/110 đã hoàn thành</small>
+                </div>
+              </div>
+              <div id="puzzleMapCard" class="puzzle-map-card">
+                <div id="puzzleMapViewport" class="puzzle-map-viewport" aria-label="Bản đồ giải cờ thế">
+                  <div id="puzzleMapInner" class="puzzle-map-inner">
+                    <img class="puzzle-map-image" src="/assets/avtchibi/bando.png?v=20260728-puzzle-map-v1" alt="" draggable="false">
+                    <svg id="puzzleMapPathSvg" class="puzzle-map-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      <polyline id="puzzleMapPathLine" points=""></polyline>
+                    </svg>
+                    <div id="puzzleMapNodes" class="puzzle-map-nodes"></div>
+                    <span id="puzzleMapAvatar" class="avatar puzzle-map-avatar">D</span>
+                  </div>
                 </div>
               </div>
               <div class="rank-progress-shell puzzle-progress-shell">
@@ -755,7 +767,7 @@
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
-    <script src="/portal.js?v=20260728-chibi-v1"></script>
+    <script src="/portal.js?v=20260728-puzzle-map-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

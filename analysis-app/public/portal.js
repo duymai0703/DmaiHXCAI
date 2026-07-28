@@ -19,7 +19,8 @@
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
-  const ASSET_WARMUP_VERSION = "20260728-chibi-v1";
+  const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
+  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -54,6 +55,9 @@
     p: 120
   };
   const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
+  const puzzleMapAsset = (file) => `/assets/avtchibi/${file}?v=${PUZZLE_MAP_ASSET_VERSION}`;
+  const PUZZLE_MAP_IMAGE = puzzleMapAsset("bando.png");
+  const PUZZLE_LOGO_IMAGE = puzzleMapAsset("cothe.png");
   const DEVICE_AVATARS = [
     avtchibiAsset("play1.png"),
     avtchibiAsset("play2.png"),
@@ -143,6 +147,7 @@
     { level: 7, name: "Tín Lăng Quân", avatarUrl: avtchibiAsset("bot7.png") }
   ];
   const BOT_ASSETS = BOT_PLAYERS.map((bot) => bot.avatarUrl);
+  const PUZZLE_MAP_ASSETS = [PUZZLE_MAP_IMAGE, PUZZLE_LOGO_IMAGE];
   const RANK_TIERS = [
     { tier: "dong", label: "Đồng", threshold: 30, icon: "/assets/ranks/source-dong.png?v=20260727-rank-source-v2" },
     { tier: "bac", label: "Bạc", threshold: 40, icon: "/assets/ranks/source-bac.png?v=20260727-rank-source-v2" },
@@ -181,6 +186,7 @@
     LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
+    ...PUZZLE_MAP_ASSETS,
     ...BOT_ASSETS,
     ...RANK_ASSETS,
     ...Object.values(PIECE_IMAGES),
@@ -201,7 +207,7 @@
     "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -257,6 +263,9 @@
     puzzleProgress: null,
     puzzleSession: null,
     puzzleBotTimer: 0,
+    puzzleMapIntroKey: "",
+    puzzleMapAvatarLevel: 0,
+    puzzleMapPendingJump: null,
     createSide: "w",
     botSide: "w",
     room: null,
@@ -421,6 +430,13 @@
     rankQueueBtn: byId("rankQueueBtn"),
     rankCancelBtn: byId("rankCancelBtn"),
     rankQueueStatus: byId("rankQueueStatus"),
+    puzzleMapCard: byId("puzzleMapCard"),
+    puzzleMapViewport: byId("puzzleMapViewport"),
+    puzzleMapInner: byId("puzzleMapInner"),
+    puzzleMapPathSvg: byId("puzzleMapPathSvg"),
+    puzzleMapPathLine: byId("puzzleMapPathLine"),
+    puzzleMapNodes: byId("puzzleMapNodes"),
+    puzzleMapAvatar: byId("puzzleMapAvatar"),
     puzzleCurrentName: byId("puzzleCurrentName"),
     puzzleCurrentRecord: byId("puzzleCurrentRecord"),
     puzzleCurrentProgressBar: byId("puzzleCurrentProgressBar"),
@@ -1914,8 +1930,12 @@
   }
 
   function setLobbyMode(mode) {
+    const previousMode = state.lobbyMode;
     state.lobbyMode = ["create", "bot", "rank", "puzzle"].includes(mode) ? mode : "join";
     const isFriendMode = ["join", "create"].includes(state.lobbyMode);
+    if (previousMode !== state.lobbyMode && state.lobbyMode !== "puzzle") {
+      state.puzzleMapIntroKey = "";
+    }
     dom.showFriendRoom?.classList.toggle("active", isFriendMode);
     dom.showJoinRoom.classList.toggle("active", state.lobbyMode === "join");
     dom.showCreateRoom.classList.toggle("active", state.lobbyMode === "create");
@@ -1928,6 +1948,7 @@
     dom.botRoomForm.classList.toggle("hidden", state.lobbyMode !== "bot");
     dom.rankRoomForm?.classList.toggle("hidden", state.lobbyMode !== "rank");
     dom.puzzleRoomForm?.classList.toggle("hidden", state.lobbyMode !== "puzzle");
+    dom.matchHubView?.classList.toggle("puzzle-map-mode", state.lobbyMode === "puzzle");
     setMessage(dom.matchHubMessage, "");
     if (state.lobbyMode === "bot") renderBotOptions();
     if (state.lobbyMode === "rank") {
@@ -2263,7 +2284,14 @@
 
   function patchLocalPuzzleProgress(progressPayload) {
     if (!progressPayload) return;
+    const previousProgress = state.puzzleProgress ? normalizePuzzleProgressPayload(state.puzzleProgress) : null;
     state.puzzleProgress = normalizePuzzleProgressPayload(progressPayload);
+    if (previousProgress && state.puzzleProgress.currentLevel > previousProgress.currentLevel) {
+      state.puzzleMapPendingJump = {
+        from: previousProgress.currentLevel,
+        to: state.puzzleProgress.currentLevel
+      };
+    }
     if (state.user) {
       state.user = {
         ...state.user,
@@ -2277,6 +2305,143 @@
   function puzzleForLevel(level) {
     const safeLevel = Math.max(1, Math.min(PUZZLE_TOTAL, Math.round(Number(level) || 1)));
     return PUZZLES.find((item) => Number(item.level) === safeLevel) || PUZZLES[safeLevel - 1] || null;
+  }
+
+  function puzzleMapPositionForLevel(level, total = PUZZLE_TOTAL) {
+    const safeTotal = Math.max(1, Number(total || PUZZLE_TOTAL || 1));
+    const safeLevel = Math.max(1, Math.min(safeTotal, Math.round(Number(level) || 1)));
+    const cols = 10;
+    const rows = Math.max(1, Math.ceil(safeTotal / cols));
+    const index = safeLevel - 1;
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const serpentineCol = row % 2 === 0 ? col : cols - 1 - col;
+    const xMin = 13.5;
+    const xMax = 87.5;
+    const yBottom = 83.5;
+    const yTop = 17.5;
+    const xRatio = cols > 1 ? serpentineCol / (cols - 1) : 0;
+    const yRatio = rows > 1 ? row / (rows - 1) : 0;
+    const waveX = Math.sin((row + 1) * 0.85 + col * 0.72) * 1.55;
+    const waveY = Math.cos((serpentineCol + 1) * 0.75 + row * 0.58) * 1.18;
+    const x = Math.max(6, Math.min(94, xMin + (xMax - xMin) * xRatio + waveX));
+    const y = Math.max(8, Math.min(92, yBottom - (yBottom - yTop) * yRatio + waveY));
+    return { x, y };
+  }
+
+  function puzzleMapPositions(total = PUZZLE_TOTAL) {
+    return Array.from({ length: Math.max(0, Number(total || 0)) }, (_, index) => puzzleMapPositionForLevel(index + 1, total));
+  }
+
+  function setPuzzleMapAvatarPosition(level, total = PUZZLE_TOTAL) {
+    if (!dom.puzzleMapAvatar) return;
+    const position = puzzleMapPositionForLevel(level, total);
+    dom.puzzleMapAvatar.style.left = `${position.x}%`;
+    dom.puzzleMapAvatar.style.top = `${position.y}%`;
+    state.puzzleMapAvatarLevel = Math.max(1, Math.round(Number(level) || 1));
+  }
+
+  function puzzleMapFocusScale() {
+    const width = Math.round(window.innerWidth || 0);
+    if (width <= 520) return 3.25;
+    if (width <= 820) return 2.72;
+    return 2.24;
+  }
+
+  function applyPuzzleMapFocus(level, { scale = puzzleMapFocusScale() } = {}) {
+    if (!dom.puzzleMapViewport || !dom.puzzleMapInner) return;
+    const viewportRect = dom.puzzleMapViewport.getBoundingClientRect();
+    const mapWidth = dom.puzzleMapInner.offsetWidth || viewportRect.width;
+    const mapHeight = dom.puzzleMapInner.offsetHeight || viewportRect.height;
+    if (!viewportRect.width || !viewportRect.height || !mapWidth || !mapHeight) return;
+    const position = puzzleMapPositionForLevel(level, PUZZLE_TOTAL);
+    const targetX = (position.x / 100) * mapWidth;
+    const targetY = (position.y / 100) * mapHeight;
+    const scaledWidth = mapWidth * scale;
+    const scaledHeight = mapHeight * scale;
+    let x = viewportRect.width / 2 - targetX * scale;
+    let y = viewportRect.height / 2 - targetY * scale;
+    x = scaledWidth <= viewportRect.width ? (viewportRect.width - scaledWidth) / 2 : Math.min(0, Math.max(viewportRect.width - scaledWidth, x));
+    y = scaledHeight <= viewportRect.height ? (viewportRect.height - scaledHeight) / 2 : Math.min(0, Math.max(viewportRect.height - scaledHeight, y));
+    dom.puzzleMapInner.style.setProperty("--puzzle-map-x", `${x.toFixed(1)}px`);
+    dom.puzzleMapInner.style.setProperty("--puzzle-map-y", `${y.toFixed(1)}px`);
+    dom.puzzleMapInner.style.setProperty("--puzzle-map-scale", String(scale));
+  }
+
+  function queuePuzzleMapFocus(level, options = {}) {
+    if (!dom.puzzleMapInner) return;
+    const visible = state.route === "match" && state.lobbyMode === "puzzle" && !dom.matchHubView.classList.contains("hidden");
+    if (!visible) return;
+    const introKey = `${level}:${puzzleProgress().completedCount}`;
+    const shouldIntro = options.intro && state.puzzleMapIntroKey !== introKey && !state.puzzleMapPendingJump;
+    if (shouldIntro) {
+      state.puzzleMapIntroKey = introKey;
+      dom.puzzleMapInner.classList.add("is-entering");
+      dom.puzzleMapInner.style.setProperty("--puzzle-map-x", "0px");
+      dom.puzzleMapInner.style.setProperty("--puzzle-map-y", "0px");
+      dom.puzzleMapInner.style.setProperty("--puzzle-map-scale", "1");
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => applyPuzzleMapFocus(level));
+      });
+      window.setTimeout(() => dom.puzzleMapInner?.classList.remove("is-entering"), 1280);
+      return;
+    }
+    window.requestAnimationFrame(() => applyPuzzleMapFocus(level));
+  }
+
+  function animatePuzzleMapJump(fromLevel, toLevel, total) {
+    if (!dom.puzzleMapAvatar || !dom.puzzleMapInner || fromLevel === toLevel) return;
+    setPuzzleMapAvatarPosition(fromLevel, total);
+    applyPuzzleMapFocus(fromLevel);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        dom.puzzleMapAvatar.classList.add("is-jumping");
+        setPuzzleMapAvatarPosition(toLevel, total);
+        applyPuzzleMapFocus(toLevel);
+        window.setTimeout(() => dom.puzzleMapAvatar?.classList.remove("is-jumping"), 1180);
+      }, 180);
+    });
+  }
+
+  function renderPuzzleMap(progress) {
+    if (!dom.puzzleMapNodes || !dom.puzzleMapPathLine || !dom.puzzleMapAvatar) return;
+    const total = Math.max(0, Number(progress.total || PUZZLE_TOTAL || 0));
+    const done = total > 0 && Number(progress.completedCount || 0) >= total;
+    const currentLevel = total ? Math.max(1, Math.min(total, done ? total : Number(progress.currentLevel || 1))) : 0;
+    const positions = puzzleMapPositions(total);
+    dom.puzzleMapPathLine.setAttribute("points", positions.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" "));
+    dom.puzzleMapNodes.innerHTML = "";
+
+    positions.forEach((position, index) => {
+      const level = index + 1;
+      const completed = Boolean(progress.completed?.[level]);
+      const current = level === currentLevel;
+      const locked = level > Number(progress.unlockedLevel || 1);
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = `puzzle-map-node${completed ? " completed" : ""}${current ? " current" : ""}${locked ? " locked" : ""}`;
+      node.style.left = `${position.x}%`;
+      node.style.top = `${position.y}%`;
+      node.textContent = String(level);
+      node.setAttribute("aria-label", locked ? `Thế cờ ${level} đang khóa` : `Thế cờ ${level}`);
+      if (current && !locked && total) {
+        node.addEventListener("click", () => startPuzzleLevel(currentLevel));
+      } else {
+        node.setAttribute("aria-disabled", "true");
+      }
+      dom.puzzleMapNodes.appendChild(node);
+    });
+
+    paintAvatar(dom.puzzleMapAvatar, state.user || { avatarUrl: state.deviceAvatarUrl }, "D");
+    const visible = state.route === "match" && state.lobbyMode === "puzzle" && !dom.matchHubView.classList.contains("hidden");
+    const pendingJump = state.puzzleMapPendingJump;
+    if (visible && pendingJump && pendingJump.to === currentLevel && pendingJump.from !== pendingJump.to) {
+      animatePuzzleMapJump(pendingJump.from, pendingJump.to, total);
+      state.puzzleMapPendingJump = null;
+      return;
+    }
+    if (currentLevel) setPuzzleMapAvatarPosition(currentLevel, total);
+    queuePuzzleMapFocus(currentLevel || 1, { intro: true });
   }
 
   function renderPuzzlePanel() {
@@ -2293,13 +2458,14 @@
     if (dom.puzzleCurrentProgressText) dom.puzzleCurrentProgressText.textContent = `${completedCount}/${total || 0}`;
     if (dom.puzzleStartBtn) {
       dom.puzzleStartBtn.disabled = !total;
-      dom.puzzleStartBtn.textContent = done ? "Chơi lại thế cuối" : "Vào thế cờ";
+      dom.puzzleStartBtn.textContent = done ? "Chơi lại thế cuối" : "Giải thế này";
     }
     if (dom.puzzleStatusText) {
       dom.puzzleStatusText.textContent = total
         ? "Chỉ mở khóa thế tiếp theo sau khi giải xong thế hiện tại."
         : "Dữ liệu cờ thế chưa tải xong. Hãy tải lại trang.";
     }
+    renderPuzzleMap(progress);
   }
 
   async function refreshPuzzleProgress() {
@@ -2541,11 +2707,21 @@
 
   async function persistPuzzleSuccess(level) {
     if (!state.token || !state.user) return;
+    const beforeProgress = puzzleProgress();
     try {
       const payload = await api("/api/puzzles/complete", {
         method: "POST",
         body: { level }
       });
+      if (payload.progress) {
+        const nextProgress = normalizePuzzleProgressPayload(payload.progress);
+        if (nextProgress.currentLevel > beforeProgress.currentLevel) {
+          state.puzzleMapPendingJump = {
+            from: beforeProgress.currentLevel,
+            to: nextProgress.currentLevel
+          };
+        }
+      }
       if (payload.user) applySession(payload.user, payload.token || state.token);
       if (payload.progress) patchLocalPuzzleProgress(payload.progress);
     } catch (error) {
@@ -2621,9 +2797,7 @@
   }
 
   function startNextPuzzleAfterSuccess() {
-    const progress = puzzleProgress();
-    const level = progress.currentLevel || state.puzzleSession?.level || 1;
-    startPuzzleLevel(level);
+    exitPuzzleRoom();
   }
 
   function exitPuzzleRoom() {
@@ -6148,7 +6322,7 @@
       const primary = document.createElement("button");
       primary.className = "primary-button";
       primary.type = "button";
-      primary.textContent = success ? "Thế tiếp theo" : "Giải lại";
+      primary.textContent = success ? "Về bản đồ" : "Giải lại";
       primary.addEventListener("click", success ? startNextPuzzleAfterSuccess : retryCurrentPuzzle);
 
       const exit = document.createElement("button");
@@ -7981,6 +8155,9 @@
   }
 
   function onResize() {
+    if (state.route === "match" && state.lobbyMode === "puzzle") {
+      queuePuzzleMapFocus(puzzleProgress().currentLevel || 1);
+    }
     const targetBoard = dom.roomView.classList.contains("hidden") ? null : dom.roomBoard;
     const rect = targetBoard ? targetBoard.getBoundingClientRect() : null;
     const boardSizeKey = rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : "";
