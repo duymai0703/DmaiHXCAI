@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-puzzle-map-v6";
+  const ASSET_WARMUP_VERSION = "20260728-match-modes-v1";
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const PORTAL_ASSET_BLOCK_MS = 1800;
@@ -56,8 +56,17 @@
   };
   const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
   const puzzleMapAsset = (file) => `/assets/avtchibi/${file}?v=${PUZZLE_MAP_ASSET_VERSION}`;
+  const matchModeAsset = (file) => `/assets/avtchibi/${file}?v=20260728-match-modes-v1`;
   const PUZZLE_MAP_IMAGE = puzzleMapAsset("bando.png");
   const PUZZLE_LOGO_IMAGE = puzzleMapAsset("cothe.png");
+  const MATCH_MODE_ASSETS = [
+    matchModeAsset("solo.png"),
+    matchModeAsset("danhbot.png"),
+    matchModeAsset("leorank.png"),
+    matchModeAsset("theco.png"),
+    matchModeAsset("tancuoc.png"),
+    matchModeAsset("nhanban.png")
+  ];
   const DEVICE_AVATARS = [
     avtchibiAsset("play1.png"),
     avtchibiAsset("play2.png"),
@@ -207,7 +216,7 @@
     "/assets/posters/vanca3.png"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -393,6 +402,8 @@
     showBotRoom: byId("showBotRoom"),
     showRankRoom: byId("showRankRoom"),
     showPuzzleRoom: byId("showPuzzleRoom"),
+    showEndgameRoom: byId("showEndgameRoom"),
+    showOpponentSimRoom: byId("showOpponentSimRoom"),
     showMobileLibrary: byId("showMobileLibrary"),
     friendRoomChoices: byId("friendRoomChoices"),
     joinRoomForm: byId("joinRoomForm"),
@@ -1324,6 +1335,8 @@
     dom.showBotRoom.addEventListener("click", () => setLobbyMode("bot"));
     dom.showRankRoom?.addEventListener("click", () => setLobbyMode("rank"));
     dom.showPuzzleRoom?.addEventListener("click", () => setLobbyMode("puzzle"));
+    dom.showEndgameRoom?.addEventListener("click", () => showPendingMatchMode("Luyện tàn cuộc"));
+    dom.showOpponentSimRoom?.addEventListener("click", () => showPendingMatchMode("Giả lập đối thủ"));
     dom.joinRoomForm.addEventListener("submit", onJoinRoom);
     dom.createRoomForm.addEventListener("submit", onCreateRoom);
     dom.botRoomForm.addEventListener("submit", onCreateBotRoom);
@@ -1941,6 +1954,8 @@
     dom.showBotRoom.classList.toggle("active", state.lobbyMode === "bot");
     dom.showRankRoom?.classList.toggle("active", state.lobbyMode === "rank");
     dom.showPuzzleRoom?.classList.toggle("active", state.lobbyMode === "puzzle");
+    dom.showEndgameRoom?.classList.remove("active");
+    dom.showOpponentSimRoom?.classList.remove("active");
     dom.friendRoomChoices?.classList.toggle("hidden", !isFriendMode);
     dom.joinRoomForm.classList.toggle("hidden", state.lobbyMode !== "join");
     dom.createRoomForm.classList.toggle("hidden", state.lobbyMode !== "create");
@@ -1958,6 +1973,12 @@
       renderPuzzlePanel();
       void refreshPuzzleProgress();
     }
+  }
+
+  function showPendingMatchMode(name) {
+    dom.showEndgameRoom?.classList.remove("active");
+    dom.showOpponentSimRoom?.classList.remove("active");
+    setMessage(dom.matchHubMessage, `${name} sẽ được bổ sung sau.`, "info");
   }
 
   function setCreateSide(side) {

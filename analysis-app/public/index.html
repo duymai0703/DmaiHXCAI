@@ -46,7 +46,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260728-puzzle-map-v6">
+    <link rel="stylesheet" href="/portal.css?v=20260728-match-modes-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -181,12 +181,31 @@
               </div>
             </div>
 
-            <div class="dual-actions">
-              <button id="showFriendRoom" class="secondary-button active" type="button">Chơi với bạn bè</button>
-              <button id="showBotRoom" class="secondary-button" type="button">Đánh với máy</button>
-              <button id="showRankRoom" class="secondary-button" type="button">Leo rank</button>
-              <button id="showPuzzleRoom" class="secondary-button" type="button">Giải cờ thế</button>
-              <button id="showMobileLibrary" class="secondary-button mobile-library-shortcut" type="button">Thư viện cá nhân</button>
+            <div class="match-mode-board" role="tablist" aria-label="Chọn chế độ phòng đấu">
+              <button id="showFriendRoom" class="match-mode-tile active" type="button">
+                <img src="/assets/avtchibi/solo.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Chơi với bạn</span>
+              </button>
+              <button id="showBotRoom" class="match-mode-tile" type="button">
+                <img src="/assets/avtchibi/danhbot.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Đánh với máy</span>
+              </button>
+              <button id="showRankRoom" class="match-mode-tile" type="button">
+                <img src="/assets/avtchibi/leorank.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Leo rank</span>
+              </button>
+              <button id="showPuzzleRoom" class="match-mode-tile" type="button">
+                <img src="/assets/avtchibi/theco.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Giải cờ thế</span>
+              </button>
+              <button id="showEndgameRoom" class="match-mode-tile is-placeholder" type="button">
+                <img src="/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Luyện tàn cuộc</span>
+              </button>
+              <button id="showOpponentSimRoom" class="match-mode-tile is-placeholder" type="button">
+                <img src="/assets/avtchibi/nhanban.png?v=20260728-match-modes-v1" alt="" draggable="false">
+                <span>Giả lập đối thủ</span>
+              </button>
             </div>
             <div id="friendRoomChoices" class="friend-actions">
               <button id="showJoinRoom" class="secondary-button active" type="button">Vào phòng đấu</button>
@@ -765,7 +784,7 @@
     <script src="/config.js"></script>
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
-    <script src="/portal.js?v=20260728-puzzle-map-v6"></script>
+    <script src="/portal.js?v=20260728-match-modes-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -773,7 +792,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v181";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v182";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();
