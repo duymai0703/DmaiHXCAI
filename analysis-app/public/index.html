@@ -12,13 +12,10 @@
     <script>
       try {
         const themeVersionKey = "dmaihxcai-theme-preference-version";
-        const themeVersion = "20260726-dark-default-v1";
-        const hasCurrentThemePreference = localStorage.getItem(themeVersionKey) === themeVersion;
-        const theme = hasCurrentThemePreference && localStorage.getItem("dmaihxcai-theme") === "light" ? "light" : "dark";
-        if (!hasCurrentThemePreference) {
-          localStorage.setItem("dmaihxcai-theme", "dark");
-          localStorage.setItem(themeVersionKey, themeVersion);
-        }
+        const themeVersion = "20260729-dark-only-v1";
+        const theme = "dark";
+        localStorage.setItem("dmaihxcai-theme", theme);
+        localStorage.setItem(themeVersionKey, themeVersion);
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
@@ -26,7 +23,7 @@
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
         document.documentElement.dataset.pieceSkin = pieceSkin;
-        document.querySelector('meta[name="theme-color"]').setAttribute("content", theme === "light" ? "#eaf6ff" : "#050914");
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", "#050914");
       } catch {}
     </script>
     <script>
@@ -46,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260729-bancomoi-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260729-dark-only-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -60,10 +57,8 @@
       </div>
 
       <div id="headerProfile" class="header-profile">
-        <div class="theme-toggle" role="group" aria-label="Chọn giao diện">
+        <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ và bộ quân">
           <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false">Bàn cờ</button>
-          <button type="button" data-theme-choice="light" aria-pressed="false">Ánh sáng</button>
-          <button type="button" data-theme-choice="dark" aria-pressed="false">Bóng đêm</button>
         </div>
         <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
           <div class="skin-menu-title">Màu bàn</div>
@@ -916,7 +911,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260729-bancomoi-v1"></script>
+    <script src="/portal.js?v=20260729-dark-only-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -924,7 +919,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v191";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v192";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

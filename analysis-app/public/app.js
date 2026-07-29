@@ -75,7 +75,7 @@ const MOVE_SOUND_SOURCES = {
 };
 const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const THEME_PREFERENCE_VERSION_KEY = "dmaihxcai-theme-preference-version";
-const THEME_PREFERENCE_VERSION = "20260726-dark-default-v1";
+const THEME_PREFERENCE_VERSION = "20260729-dark-only-v1";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
@@ -85,9 +85,8 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-bancomoi-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-dark-only-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
 const BOARD_SKIN_ASSETS = [
@@ -127,15 +126,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/icons/backgr.png",
   BRAND_LOGO,
-  LIGHT_BRAND_LOGO,
   "/assets/icons/ymegalodon-192.png",
-  "/assets/icons/mb1-light.png",
-  "/assets/icons/mb2-light.png",
-  "/assets/icons/mb3-light.png",
-  "/assets/icons/mb4-light.png",
-  "/assets/icons/mb5-light.png",
-  "/assets/icons/cole-light.png",
-  "/assets/icons/guom-light.png",
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
   "/assets/icons/mb3-dark.png",
@@ -143,7 +134,6 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb5-dark.png",
   "/assets/icons/cole-dark.png",
   "/assets/icons/guom-dark.png",
-  "/assets/icons/sosach-light.png",
   "/assets/icons/sosach-dark.png",
   ...BOARD_SKIN_ASSETS,
   "/assets/effects/sat-cutout.png"
@@ -780,26 +770,21 @@ function playMoveSound(kind = "move", durationMs = 0) {
 }
 
 function setupThemeControls() {
-  applyTheme(readTheme());
+  applyTheme("dark", { persist: true });
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
-    button.addEventListener("click", () => {
-      applyTheme(button.dataset.themeChoice, { persist: true });
-    });
+    button.hidden = true;
   });
   mobileThemeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      applyTheme(currentTheme() === "light" ? "dark" : "light", { persist: true });
-    });
+    button.hidden = true;
   });
 }
 
 function readTheme() {
-  if (readStorage(THEME_PREFERENCE_VERSION_KEY) !== THEME_PREFERENCE_VERSION) return "dark";
-  return normalizeTheme(readStorage(THEME_STORAGE_KEY) || document.documentElement.dataset.theme || "dark");
+  return "dark";
 }
 
 function normalizeTheme(theme) {
-  return theme === "light" ? "light" : "dark";
+  return "dark";
 }
 
 function setupBoardSkinControls() {
@@ -880,9 +865,9 @@ function applyPieceSkin(skin, { persist = false } = {}) {
 }
 
 function applyTheme(theme, { persist = false } = {}) {
-  const normalized = normalizeTheme(theme);
+  const normalized = "dark";
   document.documentElement.dataset.theme = normalized;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#050914");
   updateBrandLogo(normalized);
   if (persist) {
     writeStorage(THEME_STORAGE_KEY, normalized);
@@ -898,21 +883,21 @@ function applyTheme(theme, { persist = false } = {}) {
 }
 
 function updateBrandLogo(theme) {
-  const logo = theme === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
+  const logo = BRAND_LOGO;
   document.querySelectorAll(".brand-mark").forEach((image) => {
     if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
       image.src = logo;
     }
   });
-  const mobileLogo = logo;
   mobileThemeButtons.forEach((button) => {
+    button.hidden = true;
     const image = button.querySelector("img");
-    if (image instanceof HTMLImageElement && !image.src.endsWith(mobileLogo)) {
-      image.src = mobileLogo;
+    if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
+      image.src = logo;
     }
-    button.setAttribute("aria-label", theme === "light" ? "Đổi sang giao diện bóng đêm" : "Đổi sang giao diện ánh sáng");
+    button.setAttribute("aria-label", "Giao diện bóng đêm");
   });
-  updateMobileActionIcons(theme);
+  updateMobileActionIcons("dark");
 }
 
 function updateMobileActionIcons(theme) {
@@ -927,7 +912,7 @@ function updateMobileActionIcons(theme) {
 }
 
 function currentTheme() {
-  return normalizeTheme(document.documentElement.dataset.theme || "dark");
+  return "dark";
 }
 
 function preventDoubleTapZoom() {

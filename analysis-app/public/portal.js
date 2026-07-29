@@ -14,18 +14,17 @@
   const STORAGE_ASSET_WARMUP_VERSION = "dmaihxcai-portal-assets-version";
   const STORAGE_THEME = "dmaihxcai-theme";
   const STORAGE_THEME_PREFERENCE_VERSION = "dmaihxcai-theme-preference-version";
-  const THEME_PREFERENCE_VERSION = "20260726-dark-default-v1";
+  const THEME_PREFERENCE_VERSION = "20260729-dark-only-v1";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-bancomoi-v1";
+  const ASSET_WARMUP_VERSION = "20260729-dark-only-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
-  const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
   const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
   const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
   const BOARD_SKIN_ASSETS = [
@@ -208,22 +207,14 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260729-bancomoi-v1",
-    "/app.js?v=20260729-bancomoi-v1",
+    "/styles.css?v=20260729-dark-only-v1",
+    "/app.js?v=20260729-dark-only-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
     MOVE_SOUND_SOURCES.checkmate,
-    "/assets/icons/mb1-light.png",
-    "/assets/icons/mb2-light.png",
-    "/assets/icons/mb3-light.png",
-    "/assets/icons/mb4-light.png",
-    "/assets/icons/mb5-light.png",
-    "/assets/icons/cole-light.png",
-    "/assets/icons/guom-light.png",
-    "/assets/icons/sosach-light.png",
     "/assets/icons/mb1-dark.png",
     "/assets/icons/mb2-dark.png",
     "/assets/icons/mb3-dark.png",
@@ -233,7 +224,6 @@
     "/assets/icons/guom-dark.png",
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
-    LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
     ...BOARD_SKIN_ASSETS,
@@ -245,17 +235,13 @@
     ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
   ];
   const THEME_LOGO_ASSETS = [
-    BRAND_LOGO,
-    LIGHT_BRAND_LOGO
+    BRAND_LOGO
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/shark2.png",
-    "/assets/posters/shark3.png",
-    "/assets/posters/shark1.png",
-    "/assets/posters/vanca1.png",
-    "/assets/posters/vanca2.png",
-    "/assets/posters/vanca3.png"
+    "/assets/posters/kybinh.png?v=20260729-dark-only-v1",
+    "/assets/posters/camap.png?v=20260729-dark-only-v1",
+    "/assets/posters/phapsu.png?v=20260729-dark-only-v1"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
@@ -1170,17 +1156,14 @@
   }
 
   function initThemeControls() {
-    applyTheme(readTheme());
+    applyTheme("dark", { persist: true });
     document.querySelectorAll("[data-theme-choice]").forEach((button) => {
-      button.addEventListener("click", () => {
-        applyTheme(button.dataset.themeChoice, { persist: true });
-      });
+      button.hidden = true;
     });
   }
 
   function readTheme() {
-    if (readPersistentValue(STORAGE_THEME_PREFERENCE_VERSION) !== THEME_PREFERENCE_VERSION) return "dark";
-    return normalizeTheme(readPersistentValue(STORAGE_THEME) || document.documentElement.dataset.theme || "dark");
+    return "dark";
   }
 
   function readPortalBoardSkin() {
@@ -1284,17 +1267,17 @@
   }
 
   function normalizeTheme(theme) {
-    return theme === "light" ? "light" : "dark";
+    return "dark";
   }
 
   function currentTheme() {
-    return normalizeTheme(document.documentElement.dataset.theme || readTheme());
+    return "dark";
   }
 
   function applyTheme(theme, { persist = false } = {}) {
-    const normalized = normalizeTheme(theme);
+    const normalized = "dark";
     document.documentElement.dataset.theme = normalized;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", normalized === "light" ? "#eaf6ff" : "#050914");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#050914");
     updateBrandLogo(normalized);
     if (persist) {
       writePersistentValue(STORAGE_THEME, normalized);
@@ -1309,7 +1292,7 @@
   }
 
   function updateBrandLogo(theme) {
-    const logo = theme === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
+    const logo = BRAND_LOGO;
     document.querySelectorAll(".brand-mark").forEach((image) => {
       if (image.id === "portalBrandMark" && shouldUseAvatarBrandMark()) return;
       if (image instanceof HTMLImageElement && !image.src.endsWith(logo)) {
@@ -1328,7 +1311,7 @@
     const image = dom.portalBrandMark;
     if (!(image instanceof HTMLImageElement)) return;
     if (!shouldUseAvatarBrandMark()) {
-      const logo = currentTheme() === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
+      const logo = BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");
@@ -1340,7 +1323,7 @@
     const user = state.user || {};
     const avatarUrl = user.avatarUrl || state.deviceAvatarUrl || "";
     if (!avatarUrl) {
-      const logo = currentTheme() === "light" ? LIGHT_BRAND_LOGO : BRAND_LOGO;
+      const logo = BRAND_LOGO;
       if (!image.src.endsWith(logo)) image.src = logo;
       image.classList.remove("brand-mark-avatar");
       image.removeAttribute("role");
@@ -3933,13 +3916,22 @@
       void leaveRoomFromMobileBack();
       return;
     }
-    if (state.route === "match" && state.lobbyMode !== LOBBY_MENU_MODE) {
-      setLobbyMode(LOBBY_MENU_MODE);
-      goMatchMode(LOBBY_MENU_MODE, true);
+    if (isMobileRoomEntry && state.route === "match") {
+      if (state.lobbyMode !== LOBBY_MENU_MODE) {
+        setLobbyMode(LOBBY_MENU_MODE);
+        goMatchMode(LOBBY_MENU_MODE, true);
+        return;
+      }
+      window.location.href = "/analysis";
       return;
     }
-    if (isMobileRoomEntry && state.route === "match") {
-      window.location.href = "/analysis";
+    if (state.route === "match") {
+      if (state.lobbyMode !== LOBBY_MENU_MODE) {
+        setLobbyMode(LOBBY_MENU_MODE);
+        goMatchMode(LOBBY_MENU_MODE, true);
+        return;
+      }
+      goRoute("home", true);
       return;
     }
     if (window.history.length > 1) {

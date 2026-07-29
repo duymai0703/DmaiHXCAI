@@ -4416,3 +4416,16 @@ select,
 .skin-swatch-dark {
   background: url("/assets/board/bancomoi-dark.png?v=20260729-bancomoi-v1") center / cover no-repeat !important;
 }
+
+/* Dark-only analysis pass. */
+[data-theme-choice],
+[data-theme-toggle],
+.mobile-theme-btn {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .mobile-top-toolbar {
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  }
+}
