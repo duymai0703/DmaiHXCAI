@@ -85,9 +85,19 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260727-rank-source-v2";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-bancomoi-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
+const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
+const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
+const BOARD_SKIN_ASSETS = [
+  boardSkinAsset("bancomoi.png"),
+  boardSkinAsset("bancomoi-gold.png"),
+  boardSkinAsset("bancomoi-emerald.png"),
+  boardSkinAsset("bancomoi-stone.png"),
+  boardSkinAsset("bancomoi-pink.png"),
+  boardSkinAsset("bancomoi-dark.png")
+];
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
@@ -135,6 +145,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-light.png",
   "/assets/icons/sosach-dark.png",
+  ...BOARD_SKIN_ASSETS,
   "/assets/effects/sat-cutout.png"
 ];
 let wakePromise = null;

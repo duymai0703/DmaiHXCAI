@@ -20,12 +20,22 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260728-real-board-v2";
+  const ASSET_WARMUP_VERSION = "20260729-bancomoi-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
   const LIGHT_BRAND_LOGO = "/assets/icons/sharklight.png?v=20260727-rank-source-v2";
+  const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
+  const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
+  const BOARD_SKIN_ASSETS = [
+    boardSkinAsset("bancomoi.png"),
+    boardSkinAsset("bancomoi-gold.png"),
+    boardSkinAsset("bancomoi-emerald.png"),
+    boardSkinAsset("bancomoi-stone.png"),
+    boardSkinAsset("bancomoi-pink.png"),
+    boardSkinAsset("bancomoi-dark.png")
+  ];
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -45,8 +55,8 @@
     : { title: "tàn cuộc thực dụng", total: 0, sections: [] };
   const ENDGAME_PAGE_SIZE = 20;
   const ENDGAME_PAGE_WINDOW_SIZE = 10;
-  const ENDGAME_PREVIEW_PAD_X = 6.2;
-  const ENDGAME_PREVIEW_PAD_Y = 6.1;
+  const ENDGAME_PREVIEW_PAD_X = 5.8;
+  const ENDGAME_PREVIEW_PAD_Y = 5.15;
   const PUZZLE_TOTAL = PUZZLES.length;
   const PUZZLE_MAX_PLAYER_MOVES = 8;
   const PUZZLE_ENGINE_DELAY_MS = 260;
@@ -198,8 +208,8 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260727-rank-source-v2",
-    "/app.js?v=20260727-rank-source-v2",
+    "/styles.css?v=20260729-bancomoi-v1",
+    "/app.js?v=20260729-bancomoi-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -226,6 +236,7 @@
     LIGHT_BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
     "/assets/effects/sat-cutout.png",
+    ...BOARD_SKIN_ASSETS,
     ...PUZZLE_MAP_ASSETS,
     ...BOT_ASSETS,
     ...RANK_ASSETS,
