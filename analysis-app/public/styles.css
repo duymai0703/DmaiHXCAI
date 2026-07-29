@@ -5123,19 +5123,21 @@ button.action-logo-button {
 
 /* Board setting button matches the player-avatar scale while keeping an oval hit target. */
 .theme-toggle .desktop-board-skin-btn {
-  width: 76px !important;
-  min-width: 76px !important;
-  height: 58px !important;
-  min-height: 58px !important;
+  width: 72px !important;
+  min-width: 72px !important;
+  height: 50px !important;
+  min-height: 50px !important;
   border-radius: 999px !important;
-  padding: 7px 16px !important;
+  padding: 5px 14px !important;
 }
 
 .theme-toggle .desktop-board-skin-btn .board-setting-icon,
 .mobile-top-toolbar .mobile-action-btn > .board-setting-icon,
 .mobile-action-strip .mobile-action-btn > .board-setting-icon {
-  width: 40px !important;
-  height: 40px !important;
-  max-width: 40px !important;
-  max-height: 40px !important;
+  width: 38px !important;
+  height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  object-fit: contain !important;
+  transform: rotate(90deg) !important;
 }
