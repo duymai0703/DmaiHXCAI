@@ -10,13 +10,13 @@
   "theme_color": "#052034",
   "icons": [
     {
-      "src": "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1",
+      "src": "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1",
+      "src": "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1",
       "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"

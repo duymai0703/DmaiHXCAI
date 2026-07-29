@@ -4766,11 +4766,11 @@ button.action-logo-button {
 .nav-back:active,
 .nav-back:focus,
 .nav-back:focus-visible {
-  width: 78px !important;
-  min-width: 78px !important;
-  height: 78px !important;
-  min-height: 78px !important;
-  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-big-buttons-v1") center / 100% 100% no-repeat !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-logoblue-controls-v1") center / 100% 100% no-repeat !important;
 }
 
 .brand .brand-mark:not(.brand-mark-avatar),
@@ -4809,16 +4809,16 @@ button.action-logo-button {
   }
 
   .analyze-button.action-logo-button img {
-    width: 136% !important;
-    height: 136% !important;
-    margin-top: -14px;
-    transform: scale(1.1);
+    width: 104% !important;
+    height: 104% !important;
+    margin-top: -2px;
+    transform: scale(1);
     transform-origin: center;
   }
 
   .analyze-button.action-logo-button [data-action-label] {
-    font-size: 12px !important;
-    line-height: 1 !important;
+    font-size: 13.5px !important;
+    line-height: 1.04 !important;
   }
 
   .move-controls {
@@ -4838,8 +4838,8 @@ button.action-logo-button {
   .board-tools .action-logo-button img {
     width: 132% !important;
     height: 132% !important;
-    margin-top: -10px;
-    transform: scale(1.12);
+    margin-top: 0;
+    transform: translateY(7px) scale(1.08);
     transform-origin: center;
   }
 
@@ -4917,10 +4917,10 @@ button.action-logo-button {
   .nav-back:active,
   .nav-back:focus,
   .nav-back:focus-visible {
-    width: 68px !important;
-    min-width: 68px !important;
-    height: 68px !important;
-    min-height: 68px !important;
+    width: 54px !important;
+    min-width: 54px !important;
+    height: 54px !important;
+    min-height: 54px !important;
   }
 
   .brand .brand-mark:not(.brand-mark-avatar),

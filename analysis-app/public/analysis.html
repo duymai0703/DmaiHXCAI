@@ -27,19 +27,19 @@
       } catch {}
     </script>
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1">
-    <link rel="icon" type="image/png" sizes="192x192" href="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1">
+    <link rel="apple-touch-icon" href="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1">
     <link rel="preload" href="/assets/sounds/diquan.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-big-buttons-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-logoblue-controls-v1">
   </head>
   <body>
     <header class="app-header">
       <button id="backButton" class="nav-back" type="button" aria-label="Quay lại"></button>
       <div class="brand">
-        <img class="brand-mark" src="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1" alt="D-Xiangqi">
+        <img class="brand-mark" src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="D-Xiangqi">
         <div>
           <strong>D-Xiangqi</strong>
           <small>Phân tích cờ tướng</small>
@@ -289,7 +289,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260729-dxiangqi-brand-v1"></script>
+    <script src="/app.js?v=20260730-logoblue-controls-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
@@ -310,7 +310,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v200";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v201";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

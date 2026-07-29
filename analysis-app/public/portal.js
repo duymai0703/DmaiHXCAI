@@ -20,12 +20,12 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-big-buttons-v1";
+  const ASSET_WARMUP_VERSION = "20260730-logoblue-controls-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
-  const BRAND_LOGO = "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1";
+  const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
   const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
   const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
   const BOARD_SKIN_ASSETS = [
@@ -73,13 +73,13 @@
     id: "puzzle-engine",
     username: "puzzle-engine",
     displayName: "Máy cờ thế",
-    avatarUrl: "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1"
+    avatarUrl: "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1"
   };
   const ENDGAME_BOT_PLAYER = {
     id: "endgame-engine",
     username: "endgame-engine",
     displayName: "Máy tàn cuộc",
-    avatarUrl: "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1"
+    avatarUrl: "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1"
   };
   const PUZZLE_PIECE_VALUES = {
     k: 10000,
@@ -230,8 +230,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-big-buttons-v1",
-    "/app.js?v=20260729-dxiangqi-brand-v1",
+    "/styles.css?v=20260730-logoblue-controls-v1",
+    "/app.js?v=20260730-logoblue-controls-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
