@@ -1,13 +1,13 @@
-const CACHE_NAME = "dxiangqi-shell-v199";
+const CACHE_NAME = "dxiangqi-shell-v200";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260729-dxiangqi-brand-v1",
+  "/portal.css?v=20260730-big-buttons-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260729-dxiangqi-brand-v1",
-  "/styles.css?v=20260729-dxiangqi-brand-v1",
+  "/portal.js?v=20260730-big-buttons-v1",
+  "/styles.css?v=20260730-big-buttons-v1",
   "/app.js?v=20260729-dxiangqi-brand-v1",
   "/config.js",
   "/xiangqi-core.js",
@@ -102,7 +102,7 @@ const STATIC_ASSETS = [
   "/assets/pieces/sets/boquan4/black-king.png",
   "/assets/pieces/sets/boquan4/black-cannon.png",
   "/assets/pieces/sets/boquan4/black-pawn.png",
-  "/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1",
+  "/assets/avtchibi/backbl.png?v=20260730-big-buttons-v1",
   "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1",
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
