@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-dark-only-v1";
+  const ASSET_WARMUP_VERSION = "20260729-piece-smooth-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -117,6 +117,7 @@
     avtchibiAsset("play8.png")
   ];
   const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
+  const CUSTOM_PIECE_ASSET_VERSION = "20260729-boquan2-smooth-v1";
   const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
   const PIECE_IMAGES = {
     R: defaultPieceAsset("red-rook.png"),
@@ -166,7 +167,7 @@
       Object.fromEntries(
         Object.entries(CUSTOM_PIECE_FILE_NAMES).map(([piece, file]) => [
           piece,
-          `assets/pieces/sets/${set}/${file}`
+          `assets/pieces/sets/${set}/${file}${set === "boquan2" ? `?v=${CUSTOM_PIECE_ASSET_VERSION}` : ""}`
         ])
       )
     ])
@@ -207,8 +208,8 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260729-dark-only-v1",
-    "/app.js?v=20260729-dark-only-v1",
+    "/styles.css?v=20260729-piece-smooth-v1",
+    "/app.js?v=20260729-piece-smooth-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -6887,7 +6888,7 @@
     if (selectedSet !== "default") {
       return CUSTOM_PIECE_IMAGES_BY_SET[selectedSet]?.[piece] || PIECE_IMAGES[piece] || "";
     }
-    return PIECE_IMAGES[piece] || "";
+    return CUSTOM_PIECE_IMAGES_BY_SET.boquan2?.[piece] || PIECE_IMAGES[piece] || "";
   }
 
   function paintRoomMotionPiece(element, piece) {

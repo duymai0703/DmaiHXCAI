@@ -1351,11 +1351,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-default::before {
-  background-image: url("/assets/pieces/red-king.png?v=20260726-mobile-pieces-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-default::after {
-  background-image: url("/assets/pieces/black-king.png?v=20260726-mobile-pieces-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan1::before {
@@ -1367,11 +1367,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-boquan2::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan2::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan3::before {
@@ -4422,6 +4422,13 @@ select,
 [data-theme-toggle],
 .mobile-theme-btn {
   display: none !important;
+}
+
+.piece.image-piece .piece-skin,
+.motion-piece .piece-skin {
+  filter:
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.26))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18)) !important;
 }
 
 @media (max-width: 760px) {

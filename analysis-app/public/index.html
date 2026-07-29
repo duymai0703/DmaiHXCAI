@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260729-dark-only-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260729-piece-smooth-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -64,7 +64,7 @@
           <div class="skin-menu-title">Màu bàn</div>
           <button type="button" data-portal-board-skin="ice" role="menuitem">
             <span class="skin-swatch skin-swatch-ice" aria-hidden="true"></span>
-            Xanh băng
+            Xám xi măng
           </button>
           <button type="button" data-portal-board-skin="gold" role="menuitem">
             <span class="skin-swatch skin-swatch-gold" aria-hidden="true"></span>
@@ -76,11 +76,11 @@
           </button>
           <button type="button" data-portal-board-skin="stone" role="menuitem">
             <span class="skin-swatch skin-swatch-stone" aria-hidden="true"></span>
-            Xám xi măng
+            Trắng đá
           </button>
           <button type="button" data-portal-board-skin="pink" role="menuitem">
             <span class="skin-swatch skin-swatch-pink" aria-hidden="true"></span>
-            Đỏ rượu vang
+            Hồng hạc
           </button>
           <button type="button" data-portal-board-skin="dark" role="menuitem">
             <span class="skin-swatch skin-swatch-dark" aria-hidden="true"></span>
@@ -911,7 +911,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260729-dark-only-v1"></script>
+    <script src="/portal.js?v=20260729-piece-smooth-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -919,7 +919,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v192";
+            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v193";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

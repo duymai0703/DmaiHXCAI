@@ -5,6 +5,7 @@ const PIECE_NAMES = {
   r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
 };
 const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
+const CUSTOM_PIECE_ASSET_VERSION = "20260729-boquan2-smooth-v1";
 const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
 const PIECE_IMAGES = {
   R: defaultPieceAsset("red-rook.png"),
@@ -54,7 +55,7 @@ const CUSTOM_PIECE_IMAGES_BY_SET = Object.fromEntries(
     Object.fromEntries(
       Object.entries(CUSTOM_PIECE_FILE_NAMES).map(([piece, file]) => [
         piece,
-        `assets/pieces/sets/${set}/${file}`
+        `assets/pieces/sets/${set}/${file}${set === "boquan2" ? `?v=${CUSTOM_PIECE_ASSET_VERSION}` : ""}`
       ])
     )
   ])
@@ -85,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-dark-only-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-piece-smooth-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -1383,7 +1384,7 @@ function pieceImageFor(piece) {
   if (selectedSet !== "default") {
     return CUSTOM_PIECE_IMAGES_BY_SET[selectedSet]?.[piece] || PIECE_IMAGES[piece];
   }
-  return PIECE_IMAGES[piece];
+  return CUSTOM_PIECE_IMAGES_BY_SET.boquan2?.[piece] || PIECE_IMAGES[piece];
 }
 
 function setupMobileActionStrip() {

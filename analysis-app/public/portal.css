@@ -5432,11 +5432,11 @@ body {
 }
 
 .piece-skin-swatch-default::before {
-  background-image: url("/assets/pieces/red-king.png?v=20260726-mobile-pieces-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-default::after {
-  background-image: url("/assets/pieces/black-king.png?v=20260726-mobile-pieces-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan1::before {
@@ -5448,11 +5448,11 @@ body {
 }
 
 .piece-skin-swatch-boquan2::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan2::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
 }
 
 .piece-skin-swatch-boquan3::before {
@@ -6760,8 +6760,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
    canvas board and image pieces the weight of real table objects. */
 .endgame-title-logo {
   display: block;
-  width: min(560px, 74vw);
-  max-height: 118px;
+  width: min(820px, 86vw);
+  max-height: 176px;
   object-fit: contain;
   object-position: left center;
   filter:
@@ -7005,8 +7005,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 @media (max-width: 760px) {
   .endgame-title-logo {
-    width: min(340px, 78vw);
-    max-height: 72px;
+    width: min(520px, 88vw);
+    max-height: 112px;
   }
 
   .room-board,
@@ -7194,7 +7194,9 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 .motion-piece .piece-skin,
 .endgame-preview-piece {
   transform: none !important;
-  filter: none !important;
+  filter:
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.26))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18)) !important;
   object-fit: contain !important;
 }
 
