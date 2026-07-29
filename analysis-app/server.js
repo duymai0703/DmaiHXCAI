@@ -134,10 +134,12 @@ const RANK_TIERS = [
 ];
 const RANK_TIER_INDEX = new Map(RANK_TIERS.map((tier, index) => [tier.key, index]));
 const RANKED_MATCH_MAX_TIER_GAP = 1;
-const RANKED_MATCH_MINUTES = Math.max(1, Math.min(20, Number(process.env.DMAIHXCAI_RANKED_MINUTES) || 10));
-const RANKED_MATCH_INCREMENT_SECONDS = ALLOWED_INCREMENT_SECONDS.has(Number(process.env.DMAIHXCAI_RANKED_INCREMENT_SECONDS))
-  ? Number(process.env.DMAIHXCAI_RANKED_INCREMENT_SECONDS)
-  : 3;
+const RANKED_TIME_CONTROLS = [
+  { key: "bullet3", label: "3+0", name: "Si\u00eau ch\u1edbp", minutes: 3, incrementSeconds: 0 },
+  { key: "blitz5", label: "5+0", name: "Ch\u1edbp", minutes: 5, incrementSeconds: 0 },
+  { key: "rapid10", label: "10+3", name: "Nhanh", minutes: 10, incrementSeconds: 3 }
+];
+const DEFAULT_RANKED_TIME_CONTROL_KEY = "rapid10";
 const RANKED_QUEUE_TTL_MS = Math.max(30000, Number(process.env.DMAIHXCAI_RANKED_QUEUE_TTL_MS) || 1000 * 60 * 8);
 const botMoveJobs = new Map();
 const rankedQueue = new Map();
@@ -2328,6 +2330,27 @@ function rankTierByKey(tierKey) {
   return RANK_TIERS[rankTierIndex(tierKey)] || RANK_TIERS[0];
 }
 
+function rankedTimeControlByKey(key) {
+  return RANKED_TIME_CONTROLS.find((control) => control.key === String(key || "")) ||
+    RANKED_TIME_CONTROLS.find((control) => control.key === DEFAULT_RANKED_TIME_CONTROL_KEY) ||
+    RANKED_TIME_CONTROLS[0];
+}
+
+function normalizeRankTimeControlKey(key) {
+  return rankedTimeControlByKey(key).key;
+}
+
+function publicRankTimeControl(key) {
+  const control = rankedTimeControlByKey(key);
+  return {
+    key: control.key,
+    label: control.label,
+    name: control.name,
+    minutes: control.minutes,
+    incrementSeconds: control.incrementSeconds
+  };
+}
+
 function settleRankProgress(progress) {
   let tierIndex = rankTierIndex(progress?.tier);
   let points = Math.round(Number(progress?.points || 0));
@@ -2387,10 +2410,36 @@ function publicRank(rawRank = {}) {
   };
 }
 
-function ensureUserRank(user) {
-  if (!user) return normalizeRankProgress();
-  user.rank = normalizeRankProgress(user.rank);
-  return user.rank;
+function normalizeUserRanks(user) {
+  const legacyRank = normalizeRankProgress(user?.rank);
+  const rawRanks = user?.ranks && typeof user.ranks === "object" ? user.ranks : {};
+  const ranks = {};
+  RANKED_TIME_CONTROLS.forEach((control) => {
+    ranks[control.key] = normalizeRankProgress(rawRanks[control.key] || legacyRank);
+  });
+  return ranks;
+}
+
+function ensureUserRanks(user) {
+  if (!user) return normalizeUserRanks(null);
+  user.ranks = normalizeUserRanks(user);
+  user.rank = normalizeRankProgress(user.ranks[DEFAULT_RANKED_TIME_CONTROL_KEY] || user.rank);
+  return user.ranks;
+}
+
+function ensureUserRank(user, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  const safeKey = normalizeRankTimeControlKey(timeControlKey);
+  const ranks = ensureUserRanks(user);
+  return ranks[safeKey] || normalizeRankProgress();
+}
+
+function publicRankForUser(user, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  return publicRank(ensureUserRank(user, timeControlKey));
+}
+
+function publicRanksForUser(user) {
+  const ranks = ensureUserRanks(user);
+  return Object.fromEntries(RANKED_TIME_CONTROLS.map((control) => [control.key, publicRank(ranks[control.key])]));
 }
 
 function rankedDeltaForOutcome(ownBefore, opponentBefore, outcome) {
@@ -2407,10 +2456,11 @@ function rankedDeltaForOutcome(ownBefore, opponentBefore, outcome) {
   return -10;
 }
 
-function applyRankOutcome(user, ownBefore, opponentBefore, outcome) {
+function applyRankOutcome(user, ownBefore, opponentBefore, outcome, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  const safeKey = normalizeRankTimeControlKey(timeControlKey);
   const delta = rankedDeltaForOutcome(ownBefore, opponentBefore, outcome);
   const next = normalizeRankProgress({
-    ...ensureUserRank(user),
+    ...ensureUserRank(user, safeKey),
     tier: ownBefore.tier,
     points: Number(ownBefore.points || 0) + delta
   });
@@ -2418,12 +2468,16 @@ function applyRankOutcome(user, ownBefore, opponentBefore, outcome) {
   if (outcome === "win") next.wins = Number(next.wins || 0) + 1;
   else if (outcome === "loss") next.losses = Number(next.losses || 0) + 1;
   else next.draws = Number(next.draws || 0) + 1;
-  user.rank = settleRankProgress(next);
+  user.ranks = ensureUserRanks(user);
+  user.ranks[safeKey] = settleRankProgress(next);
+  user.rank = normalizeRankProgress(user.ranks[DEFAULT_RANKED_TIME_CONTROL_KEY] || user.rank);
   return {
     outcome,
     delta,
+    timeControlKey: safeKey,
+    timeControl: publicRankTimeControl(safeKey),
     before: cloneJsonValue(ownBefore),
-    after: publicRank(user.rank)
+    after: publicRank(user.ranks[safeKey])
   };
 }
 
@@ -2529,7 +2583,9 @@ function publicUser(user) {
     license: license ? publicLicense(license) : null,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
-    rank: publicRank(user.rank),
+    rank: publicRankForUser(user, DEFAULT_RANKED_TIME_CONTROL_KEY),
+    ranks: publicRanksForUser(user),
+    rankTimeControls: RANKED_TIME_CONTROLS.map((control) => publicRankTimeControl(control.key)),
     botProgress: publicBotProgress(user.botProgress),
     puzzleProgress: publicPuzzleProgress(user.puzzleProgress),
     visionQuota: visionQuotaStatus(user),
@@ -2571,7 +2627,8 @@ function adminUserSummary(user) {
     activated: Boolean(license ? license.status === "activated" : user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
-    rank: publicRank(user.rank),
+    rank: publicRankForUser(user, DEFAULT_RANKED_TIME_CONTROL_KEY),
+    ranks: publicRanksForUser(user),
     botProgress: publicBotProgress(user.botProgress),
     puzzleProgress: publicPuzzleProgress(user.puzzleProgress),
     createdAt: user.createdAt || nowIso(),
@@ -2662,18 +2719,23 @@ function botSnapshot(levelOrId) {
   };
 }
 
-function roomPlayerSnapshot(userId) {
+function roomRankTimeControlKey(room) {
+  return normalizeRankTimeControlKey(room?.rankTimeControl?.key || room?.rankTimeControlKey || DEFAULT_RANKED_TIME_CONTROL_KEY);
+}
+
+function roomPlayerSnapshot(userId, room = null) {
   if (isBotUserId(userId)) return botSnapshot(userId);
   if (isOpponentBotUserId(userId)) return opponentBotSnapshot({ userId });
   const user = users.find((item) => item.id === userId);
   if (!user) return null;
+  const rankControlKey = room?.mode === "ranked" ? roomRankTimeControlKey(room) : DEFAULT_RANKED_TIME_CONTROL_KEY;
   return {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
-    rank: publicRank(user.rank)
+    rank: publicRankForUser(user, rankControlKey)
   };
 }
 
@@ -2686,13 +2748,14 @@ function syncRoomPlayerProfile(room, side, userOrId = room?.players?.[side]) {
     room.playerProfiles[side] = null;
     return null;
   }
-  const snapshot = typeof userOrId === "string" ? roomPlayerSnapshot(userOrId) : {
+  const rankControlKey = room.mode === "ranked" ? roomRankTimeControlKey(room) : DEFAULT_RANKED_TIME_CONTROL_KEY;
+  const snapshot = typeof userOrId === "string" ? roomPlayerSnapshot(userOrId, room) : {
     id: userOrId.id,
     username: userOrId.username,
     displayName: userOrId.displayName,
     avatarSeed: userOrId.avatarSeed,
     avatarUrl: userOrId.avatarUrl || "",
-    ...(userOrId.role === "bot" ? {} : { rank: publicRank(userOrId.rank) })
+    ...(userOrId.role === "bot" ? {} : { rank: publicRankForUser(userOrId, rankControlKey) })
   };
   room.playerProfiles[side] = snapshot || null;
   return room.playerProfiles[side];
@@ -3219,26 +3282,32 @@ function createOpponentRoom(user, {
   return room;
 }
 
-function createRankedRoom(userA, userB) {
-  ensureUserRank(userA);
-  ensureUserRank(userB);
+function createRankedRoom(userA, userB, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  const safeKey = normalizeRankTimeControlKey(timeControlKey);
+  const timeControl = rankedTimeControlByKey(safeKey);
+  ensureUserRank(userA, safeKey);
+  ensureUserRank(userB, safeKey);
   const userAIsRed = Math.random() >= 0.5;
   const redUser = userAIsRed ? userA : userB;
   const blackUser = userAIsRed ? userB : userA;
   const room = createRoom(redUser, {
-    yourMinutes: RANKED_MATCH_MINUTES,
-    opponentMinutes: RANKED_MATCH_MINUTES,
+    yourMinutes: timeControl.minutes,
+    opponentMinutes: timeControl.minutes,
     side: "w",
-    incrementSeconds: RANKED_MATCH_INCREMENT_SECONDS
+    incrementSeconds: timeControl.incrementSeconds
   });
   room.mode = "ranked";
   room.ranked = true;
+  room.rankTimeControl = publicRankTimeControl(safeKey);
+  room.rankTimeControlKey = safeKey;
   room.rankProcessed = false;
   room.rankResults = {};
   room.rankedMatchedAt = nowIso();
   joinRoom(blackUser, room.key);
   room.mode = "ranked";
   room.ranked = true;
+  room.rankTimeControl = publicRankTimeControl(safeKey);
+  room.rankTimeControlKey = safeKey;
   room.rankProcessed = false;
   room.rankResults = {};
   room.rankedMatchedAt = room.rankedMatchedAt || nowIso();
@@ -3252,72 +3321,99 @@ function createRankedRoom(userA, userB) {
   return room;
 }
 
-function removeRankedQueueUser(userId) {
-  return rankedQueue.delete(String(userId || ""));
+function rankedQueueKey(userId, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  return `${normalizeRankTimeControlKey(timeControlKey)}:${String(userId || "")}`;
+}
+
+function removeRankedQueueUser(userId, timeControlKey = "") {
+  const safeUserId = String(userId || "");
+  if (!safeUserId) return false;
+  if (timeControlKey) return rankedQueue.delete(rankedQueueKey(safeUserId, timeControlKey));
+  let removed = false;
+  for (const [queueKey, entry] of rankedQueue.entries()) {
+    if (queueKey === safeUserId || entry?.userId === safeUserId || queueKey.endsWith(`:${safeUserId}`)) {
+      rankedQueue.delete(queueKey);
+      removed = true;
+    }
+  }
+  return removed;
 }
 
 function pruneRankedQueue() {
   const now = Date.now();
-  for (const [userId, entry] of rankedQueue.entries()) {
+  for (const [queueKey, entry] of rankedQueue.entries()) {
+    const userId = String(entry?.userId || queueKey).replace(/^[^:]+:/, "");
     const queuedUser = users.find((item) => item.id === userId);
     if (!queuedUser || now - Number(entry.queuedAt || 0) > RANKED_QUEUE_TTL_MS || currentRoomForUser(userId)) {
-      rankedQueue.delete(userId);
+      rankedQueue.delete(queueKey);
     }
   }
 }
 
-function rankedQueueStatusForUser(user) {
+function rankedQueueStatusForUser(user, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  const safeKey = normalizeRankTimeControlKey(timeControlKey);
   pruneRankedQueue();
   const current = currentRoomForUser(user.id);
   if (current && current.mode === "ranked" && current.status !== "finished") {
-    return { status: "matched", rank: publicRank(user.rank), room: current };
+    const roomKey = roomRankTimeControlKey(current);
+    return { status: "matched", rank: publicRankForUser(user, roomKey), timeControl: publicRankTimeControl(roomKey), room: current };
   }
-  const entry = rankedQueue.get(user.id);
+  const entry = rankedQueue.get(rankedQueueKey(user.id, safeKey));
   if (entry) {
     return {
       status: "queued",
-      rank: publicRank(user.rank),
+      rank: publicRankForUser(user, safeKey),
+      timeControl: publicRankTimeControl(safeKey),
       queuedAt: Number(entry.queuedAt || Date.now()),
       maxTierGap: RANKED_MATCH_MAX_TIER_GAP
     };
   }
-  return { status: "idle", rank: publicRank(user.rank), maxTierGap: RANKED_MATCH_MAX_TIER_GAP };
+  return { status: "idle", rank: publicRankForUser(user, safeKey), timeControl: publicRankTimeControl(safeKey), maxTierGap: RANKED_MATCH_MAX_TIER_GAP };
 }
 
-function joinRankedQueue(user) {
+function joinRankedQueue(user, timeControlKey = DEFAULT_RANKED_TIME_CONTROL_KEY) {
+  const safeKey = normalizeRankTimeControlKey(timeControlKey);
   pruneRankedQueue();
-  ensureUserRank(user);
+  ensureUserRank(user, safeKey);
   const current = currentRoomForUser(user.id);
   if (current && current.status !== "finished") {
-    if (current.mode === "ranked") return { status: "matched", rank: publicRank(user.rank), room: current };
+    if (current.mode === "ranked") {
+      const roomKey = roomRankTimeControlKey(current);
+      return { status: "matched", rank: publicRankForUser(user, roomKey), timeControl: publicRankTimeControl(roomKey), room: current };
+    }
     throw new Error("ROOM_ALREADY_ACTIVE");
   }
 
-  const userRank = publicRank(user.rank);
+  const userRank = publicRankForUser(user, safeKey);
   removeRankedQueueUser(user.id);
 
-  for (const [queuedUserId] of rankedQueue.entries()) {
+  for (const [queueKey, entry] of rankedQueue.entries()) {
+    const queuedUserId = String(entry?.userId || "").trim();
+    const queuedControlKey = normalizeRankTimeControlKey(entry?.timeControlKey || "");
+    if (queuedControlKey !== safeKey) continue;
     const opponent = users.find((item) => item.id === queuedUserId);
     if (!opponent || currentRoomForUser(queuedUserId)) {
-      rankedQueue.delete(queuedUserId);
+      rankedQueue.delete(queueKey);
       continue;
     }
-    const opponentRank = publicRank(opponent.rank);
+    const opponentRank = publicRankForUser(opponent, safeKey);
     if (Math.abs(opponentRank.tierIndex - userRank.tierIndex) > RANKED_MATCH_MAX_TIER_GAP) continue;
-    rankedQueue.delete(queuedUserId);
-    const room = createRankedRoom(user, opponent);
-    return { status: "matched", rank: publicRank(user.rank), room };
+    rankedQueue.delete(queueKey);
+    const room = createRankedRoom(user, opponent, safeKey);
+    return { status: "matched", rank: publicRankForUser(user, safeKey), timeControl: publicRankTimeControl(safeKey), room };
   }
 
-  rankedQueue.set(user.id, {
+  rankedQueue.set(rankedQueueKey(user.id, safeKey), {
     userId: user.id,
     queuedAt: Date.now(),
+    timeControlKey: safeKey,
     tier: userRank.tier,
     tierIndex: userRank.tierIndex
   });
   return {
     status: "queued",
     rank: userRank,
+    timeControl: publicRankTimeControl(safeKey),
     queuedAt: Date.now(),
     maxTierGap: RANKED_MATCH_MAX_TIER_GAP
   };
@@ -3471,10 +3567,11 @@ function processRankedRoomResult(room) {
   room.rankResults = room.rankResults && typeof room.rankResults === "object" ? room.rankResults : {};
   if (!red || !black) return;
 
-  const redBefore = publicRank(red.rank);
-  const blackBefore = publicRank(black.rank);
-  const redResult = applyRankOutcome(red, redBefore, blackBefore, rankedOutcomeForSide(room, "w"));
-  const blackResult = applyRankOutcome(black, blackBefore, redBefore, rankedOutcomeForSide(room, "b"));
+  const timeControlKey = roomRankTimeControlKey(room);
+  const redBefore = publicRankForUser(red, timeControlKey);
+  const blackBefore = publicRankForUser(black, timeControlKey);
+  const redResult = applyRankOutcome(red, redBefore, blackBefore, rankedOutcomeForSide(room, "w"), timeControlKey);
+  const blackResult = applyRankOutcome(black, blackBefore, redBefore, rankedOutcomeForSide(room, "b"), timeControlKey);
   room.rankResults[red.id] = redResult;
   room.rankResults[black.id] = blackResult;
   syncRoomPlayerProfile(room, "w", red);
@@ -3626,11 +3723,12 @@ function roomStateForUser(room, user) {
         toYou: access.role === "player" && room.pendingRequest.fromSide !== yourSide
       }
     : null;
-  const spectators = activeSpectatorIds(room).map(roomPlayerSnapshot).filter(Boolean);
+  const spectators = activeSpectatorIds(room).map((userId) => roomPlayerSnapshot(userId, room)).filter(Boolean);
   return {
     key: room.key,
     mode: isOpponentRoom(room) ? "opponent" : room.mode === "bot" ? "bot" : room.mode === "ranked" ? "ranked" : "human",
     ranked: room.mode === "ranked",
+    rankTimeControl: room.mode === "ranked" ? publicRankTimeControl(roomRankTimeControlKey(room)) : null,
     bot: isBotRoomMode(room) ? {
       kind: isOpponentRoom(room) ? "opponent" : "bot",
       side: botSideInRoom(room),
@@ -3689,7 +3787,8 @@ function roomStateForUser(room, user) {
       opponent: access.role === "player" ? Boolean(room.rematchReady?.[oppositeSide(yourSide)]) : false
     },
     result: room.result,
-    rank: publicRank(user.rank),
+    rank: room.mode === "ranked" ? publicRankForUser(user, roomRankTimeControlKey(room)) : publicRankForUser(user, DEFAULT_RANKED_TIME_CONTROL_KEY),
+    ranks: publicRanksForUser(user),
     botProgress: publicBotProgress(user.botProgress),
     rankResult: room.mode === "ranked" && access.role === "player"
       ? cloneJsonValue(room.rankResults?.[user.id] || null)
@@ -6202,36 +6301,41 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/rank/status") {
       const user = requireUser(req);
-      ensureUserRank(user);
-      const status = rankedQueueStatusForUser(user);
+      const timeControlKey = normalizeRankTimeControlKey(url.searchParams.get("timeControl"));
+      ensureUserRank(user, timeControlKey);
+      const status = rankedQueueStatusForUser(user, timeControlKey);
       if (status.room) {
         touchUserActivity(user, { route: "room", roomKey: status.room.key, action: `Leo rank phòng ${status.room.key}` });
-        json(res, 200, { ok: true, status: status.status, rank: publicRank(user.rank), room: roomStateForUser(status.room, user) });
+        json(res, 200, { ok: true, status: status.status, rank: status.rank, ranks: publicRanksForUser(user), timeControl: status.timeControl, room: roomStateForUser(status.room, user) });
         return;
       }
-      json(res, 200, { ok: true, status: status.status, rank: publicRank(user.rank), queuedAt: status.queuedAt || 0, maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      json(res, 200, { ok: true, status: status.status, rank: status.rank, ranks: publicRanksForUser(user), timeControl: status.timeControl, queuedAt: status.queuedAt || 0, maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
       return;
     }
 
     if (url.pathname === "/api/rank/join" && req.method === "POST") {
       const user = requireUser(req);
-      ensureUserRank(user);
-      const status = joinRankedQueue(user);
+      const body = await readBody(req);
+      const timeControlKey = normalizeRankTimeControlKey(body.timeControl || body.timeControlKey);
+      ensureUserRank(user, timeControlKey);
+      const status = joinRankedQueue(user, timeControlKey);
       if (status.room) {
         touchUserActivity(user, { route: "room", roomKey: status.room.key, action: `Vào trận leo rank ${status.room.key}` });
-        json(res, 200, { ok: true, status: "matched", rank: publicRank(user.rank), room: roomStateForUser(status.room, user) });
+        json(res, 200, { ok: true, status: "matched", rank: status.rank, ranks: publicRanksForUser(user), timeControl: status.timeControl, room: roomStateForUser(status.room, user) });
         return;
       }
       touchUserActivity(user, { route: "match", roomKey: "", action: "Đang tìm trận leo rank" });
-      json(res, 200, { ok: true, status: "queued", rank: publicRank(user.rank), queuedAt: status.queuedAt || Date.now(), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      json(res, 200, { ok: true, status: "queued", rank: status.rank, ranks: publicRanksForUser(user), timeControl: status.timeControl, queuedAt: status.queuedAt || Date.now(), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
       return;
     }
 
     if (url.pathname === "/api/rank/cancel" && req.method === "POST") {
       const user = requireUser(req);
-      removeRankedQueueUser(user.id);
+      const body = await readBody(req);
+      const timeControlKey = normalizeRankTimeControlKey(body.timeControl || body.timeControlKey);
+      removeRankedQueueUser(user.id, timeControlKey);
       touchUserActivity(user, { route: "match", roomKey: "", action: "Hủy tìm trận leo rank" });
-      json(res, 200, { ok: true, status: "idle", rank: publicRank(user.rank), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
+      json(res, 200, { ok: true, status: "idle", rank: publicRankForUser(user, timeControlKey), ranks: publicRanksForUser(user), timeControl: publicRankTimeControl(timeControlKey), maxTierGap: RANKED_MATCH_MAX_TIER_GAP });
       return;
     }
 

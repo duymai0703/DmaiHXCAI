@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260729-move-effects-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260729-rank-library-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -425,11 +425,27 @@
             </form>
 
             <form id="rankRoomForm" class="subpanel rank-subpanel hidden">
+              <div id="rankTimeControlTabs" class="rank-time-controls" aria-label="Chọn thể thức leo rank">
+                <button class="rank-time-control active" type="button" data-rank-time-control="bullet3">
+                  <strong>3+0</strong>
+                  <span>Siêu chớp</span>
+                </button>
+                <button class="rank-time-control" type="button" data-rank-time-control="blitz5">
+                  <strong>5+0</strong>
+                  <span>Chớp</span>
+                </button>
+                <button class="rank-time-control" type="button" data-rank-time-control="rapid10">
+                  <strong>10+3</strong>
+                  <span>Nhanh</span>
+                </button>
+              </div>
+              <div id="rankLadder" class="rank-ladder" aria-label="Bảng rank từ thấp đến cao"></div>
               <div class="rank-status-card">
                 <img id="rankCurrentLogo" class="rank-current-logo" src="/assets/ranks/source-dong.png?v=20260727-rank-source-v2" alt="Rank hiện tại" draggable="false">
                 <div class="rank-current-copy">
                   <span>Rank hiện tại</span>
                   <strong id="rankCurrentName">Đồng</strong>
+                  <small id="rankCurrentFormat">10+3 - nhanh</small>
                   <small id="rankCurrentRecord">0 ván</small>
                 </div>
               </div>
@@ -512,11 +528,23 @@
                 <p>Lịch sử ván đấu, tạo book khai cuộc và thư viện khai cuộc của bạn.</p>
               </div>
             </div>
-            <div class="library-tabs" role="tablist" aria-label="Thư viện cá nhân">
-              <button id="libraryHistoryTab" class="secondary-button active" type="button" data-library-tab="history">Lịch sử ván đấu</button>
-              <button id="libraryBookCreateTab" class="secondary-button" type="button" data-library-tab="book-create">Tạo book khai cuộc</button>
-              <button id="libraryBookSavedTab" class="secondary-button" type="button" data-library-tab="book-saved">Khai cuộc đã lưu</button>
-              <button id="libraryKydaoTab" class="secondary-button" type="button" data-library-tab="kydao">Ván đấu danh thủ</button>
+            <div id="libraryModeBoard" class="match-mode-board library-mode-board" role="tablist" aria-label="Thư viện cá nhân">
+              <button id="libraryHistoryTab" class="match-mode-tile library-mode-tile" type="button" data-library-tab="history">
+                <img src="/assets/avtchibi/lichsu.png?v=20260729-library-modes-v1" alt="" draggable="false">
+                <span>Lịch sử ván đấu</span>
+              </button>
+              <button id="libraryBookCreateTab" class="match-mode-tile library-mode-tile" type="button" data-library-tab="book-create">
+                <img src="/assets/avtchibi/taobook.png?v=20260729-library-modes-v1" alt="" draggable="false">
+                <span>Tạo book khai cuộc</span>
+              </button>
+              <button id="libraryBookSavedTab" class="match-mode-tile library-mode-tile" type="button" data-library-tab="book-saved">
+                <img src="/assets/avtchibi/luubook.png?v=20260729-library-modes-v1" alt="" draggable="false">
+                <span>Khai cuộc đã lưu</span>
+              </button>
+              <button id="libraryKydaoTab" class="match-mode-tile library-mode-tile" type="button" data-library-tab="kydao">
+                <img src="/assets/avtchibi/danhthu.png?v=20260729-library-modes-v1" alt="" draggable="false">
+                <span>Ván đấu danh thủ</span>
+              </button>
             </div>
 
             <div id="libraryHistoryPanel" class="library-panel" data-library-panel="history">
@@ -911,7 +939,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260729-move-effects-v1"></script>
+    <script src="/portal.js?v=20260729-rank-library-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

@@ -20,8 +20,9 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-move-effects-v1";
+  const ASSET_WARMUP_VERSION = "20260729-rank-library-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
+  const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
   const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
@@ -92,6 +93,7 @@
   const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
   const puzzleMapAsset = (file) => `/assets/avtchibi/${file}?v=${PUZZLE_MAP_ASSET_VERSION}`;
   const matchModeAsset = (file) => `/assets/avtchibi/${file}?v=${MATCH_MODE_ASSET_VERSION}`;
+  const libraryModeAsset = (file) => `/assets/avtchibi/${file}?v=${LIBRARY_MODE_ASSET_VERSION}`;
   const PUZZLE_MAP_IMAGE = puzzleMapAsset("bando.png");
   const PUZZLE_LOGO_IMAGE = puzzleMapAsset("cothe.png");
   const MATCH_MODE_ASSETS = [
@@ -101,6 +103,12 @@
     matchModeAsset("theco.png"),
     matchModeAsset("tancuoc.png"),
     matchModeAsset("nhanban.png")
+  ];
+  const LIBRARY_MODE_ASSETS = [
+    libraryModeAsset("lichsu.png"),
+    libraryModeAsset("taobook.png"),
+    libraryModeAsset("luubook.png"),
+    libraryModeAsset("danhthu.png")
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -214,6 +222,12 @@
     { tier: "vodich", label: "Vô địch", threshold: null, icon: "/assets/ranks/source-vodich.png?v=20260727-rank-source-v2" }
   ];
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
+  const RANK_TIME_CONTROLS = [
+    { key: "bullet3", label: "3+0", name: "Siêu chớp", minutes: 3, incrementSeconds: 0 },
+    { key: "blitz5", label: "5+0", name: "Chớp", minutes: 5, incrementSeconds: 0 },
+    { key: "rapid10", label: "10+3", name: "Nhanh", minutes: 10, incrementSeconds: 3 }
+  ];
+  const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
     "/styles.css?v=20260729-move-effects-v1",
@@ -253,7 +267,7 @@
     "/assets/posters/phapsu.png?v=20260729-dark-only-v1"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...LIBRARY_MODE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -277,7 +291,7 @@
     deviceId: initialDeviceId,
     deviceAvatarUrl: initialDeviceAvatar,
     history: readStoredHistory(),
-    libraryTab: "history",
+    libraryTab: "menu",
     kydaoMasters: [],
     kydaoSelectedMasterPath: "",
     kydaoGames: [],
@@ -320,6 +334,7 @@
     rankQueueActive: false,
     rankQueueTimer: 0,
     rankStatus: null,
+    rankTimeControl: DEFAULT_RANK_TIME_CONTROL,
     puzzleProgress: null,
     puzzleSession: null,
     puzzleBotTimer: 0,
@@ -526,12 +541,14 @@
     opponentSimPickBlack: byId("opponentSimPickBlack"),
     rankCurrentLogo: byId("rankCurrentLogo"),
     rankCurrentName: byId("rankCurrentName"),
+    rankCurrentFormat: byId("rankCurrentFormat"),
     rankCurrentRecord: byId("rankCurrentRecord"),
     rankCurrentProgressBar: byId("rankCurrentProgressBar"),
     rankCurrentProgressText: byId("rankCurrentProgressText"),
     rankQueueBtn: byId("rankQueueBtn"),
     rankCancelBtn: byId("rankCancelBtn"),
     rankQueueStatus: byId("rankQueueStatus"),
+    rankLadder: byId("rankLadder"),
     puzzleMapCard: byId("puzzleMapCard"),
     puzzleMapViewport: byId("puzzleMapViewport"),
     puzzleMapInner: byId("puzzleMapInner"),
@@ -623,6 +640,7 @@
     openAdminBtn: byId("openAdminBtn"),
     logoutBtn: byId("logoutBtn"),
     libraryHistoryList: byId("libraryHistoryList"),
+    libraryModeBoard: byId("libraryModeBoard"),
     libraryHistoryTab: byId("libraryHistoryTab"),
     libraryBookCreateTab: byId("libraryBookCreateTab"),
     libraryBookSavedTab: byId("libraryBookSavedTab"),
@@ -696,6 +714,7 @@
   const portalBoardSkinMenu = byId("portalBoardSkinMenu");
   const portalBoardSkinChoices = [...document.querySelectorAll("[data-portal-board-skin]")];
   const portalPieceSkinChoices = [...document.querySelectorAll("[data-portal-piece-skin]")];
+  const rankTimeControlButtons = [...document.querySelectorAll("[data-rank-time-control]")];
   window.setInterval(() => {
     if (!dom.profileModal?.classList.contains("hidden")) renderLicenseInfo();
   }, 60000);
@@ -1393,9 +1412,12 @@
     dom.openAnalysisBtn.addEventListener("click", () => {
       window.location.href = "/analysis.html";
     });
-    dom.openLibraryBtn.addEventListener("click", () => goRoute("library"));
+    dom.openLibraryBtn.addEventListener("click", () => {
+      setLibraryTab("menu");
+      goRoute("library");
+    });
     dom.showMobileLibrary?.addEventListener("click", () => {
-      setLibraryTab("history");
+      setLibraryTab("menu");
       goRoute("library");
     });
     dom.libraryHistoryTab?.addEventListener("click", () => setLibraryTab("history"));
@@ -1439,6 +1461,9 @@
     dom.rankRoomForm?.addEventListener("submit", onJoinRankQueue);
     dom.puzzleRoomForm?.addEventListener("submit", onStartPuzzleFromPanel);
     dom.rankCancelBtn?.addEventListener("click", cancelRankQueue);
+    rankTimeControlButtons.forEach((button) => {
+      button.addEventListener("click", () => setRankTimeControl(button.dataset.rankTimeControl));
+    });
     dom.yourTimeRange.addEventListener("input", updateTimeLabels);
     dom.opponentTimeRange.addEventListener("input", updateTimeLabels);
     dom.botTimeRange.addEventListener("input", updateTimeLabels);
@@ -2806,6 +2831,25 @@
     return RANK_TIERS.find((rank) => rank.tier === tier) || RANK_TIERS[0];
   }
 
+  function rankTimeControlByKey(key) {
+    return RANK_TIME_CONTROLS.find((control) => control.key === key) || RANK_TIME_CONTROLS.find((control) => control.key === DEFAULT_RANK_TIME_CONTROL) || RANK_TIME_CONTROLS[0];
+  }
+
+  function normalizeRankTimeControlKey(key) {
+    return rankTimeControlByKey(key).key;
+  }
+
+  function rankTimeControlLabel(key) {
+    const control = rankTimeControlByKey(key);
+    return `${control.label} - ${control.name.toLowerCase()}`;
+  }
+
+  function rankForTimeControl(source, key = state.rankTimeControl) {
+    const safeKey = normalizeRankTimeControlKey(key);
+    const ranks = source?.ranks && typeof source.ranks === "object" ? source.ranks : {};
+    return ranks[safeKey] || (safeKey === DEFAULT_RANK_TIME_CONTROL ? source?.rank : null) || source?.rank || null;
+  }
+
   function normalizeRankPayload(payload) {
     const raw = payload && typeof payload === "object" ? payload : {};
     const info = rankInfoForTier(raw.tier || raw.key || "");
@@ -2839,19 +2883,68 @@
 
   function renderRankPanel(rankPayload = null) {
     if (!dom.rankRoomForm) return;
-    const rank = normalizeRankPayload(rankPayload || state.rankStatus?.rank || state.user?.rank);
+    const controlKey = normalizeRankTimeControlKey(state.rankTimeControl);
+    const control = rankTimeControlByKey(controlKey);
+    const rank = normalizeRankPayload(rankPayload || state.rankStatus?.rank || rankForTimeControl(state.user, controlKey));
     const queued = state.rankQueueActive || state.rankStatus?.status === "queued";
+    renderRankTimeControls(controlKey);
+    renderRankLadder(rank);
     dom.rankCurrentLogo.src = rank.icon;
     dom.rankCurrentName.textContent = rank.label;
+    if (dom.rankCurrentFormat) dom.rankCurrentFormat.textContent = rankTimeControlLabel(controlKey);
     dom.rankCurrentRecord.textContent = `${rank.games} ván`;
     dom.rankCurrentProgressBar.style.width = `${rank.progress}%`;
     dom.rankCurrentProgressText.textContent = rankProgressText(rank);
     dom.rankQueueBtn.disabled = queued;
-    dom.rankQueueBtn.textContent = queued ? "Đang tìm trận" : "Tìm trận leo rank";
+    dom.rankQueueBtn.textContent = queued ? "Đang tìm trận" : `Tìm trận ${control.label}`;
     dom.rankCancelBtn.classList.toggle("hidden", !queued);
     dom.rankQueueStatus.textContent = queued
-      ? "Đang tìm đối thủ cùng bậc hoặc lệch tối đa 1 bậc."
-      : "Sẵn sàng ghép trận leo rank.";
+      ? `Đang tìm đối thủ ${control.label}, cùng bậc hoặc lệch tối đa 1 bậc.`
+      : `Sẵn sàng ghép trận ${control.label} (${control.minutes} phút, tích lũy ${control.incrementSeconds} giây).`;
+  }
+
+  function renderRankTimeControls(controlKey = state.rankTimeControl) {
+    rankTimeControlButtons.forEach((button) => {
+      const active = button.dataset.rankTimeControl === controlKey;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function renderRankLadder(currentRank) {
+    if (!dom.rankLadder) return;
+    const activeIndex = Number(normalizeRankPayload(currentRank).tierIndex || 0);
+    dom.rankLadder.innerHTML = "";
+    RANK_TIERS.forEach((tier, index) => {
+      const item = document.createElement("div");
+      item.className = "rank-ladder-item";
+      item.classList.toggle("current", index === activeIndex);
+      item.classList.toggle("passed", index < activeIndex);
+
+      const icon = document.createElement("img");
+      icon.src = tier.icon;
+      icon.alt = tier.label;
+      icon.draggable = false;
+
+      const name = document.createElement("strong");
+      name.textContent = tier.label;
+
+      const threshold = document.createElement("span");
+      threshold.textContent = tier.threshold === null ? "Không giới hạn" : `${tier.threshold} điểm`;
+
+      item.append(icon, name, threshold);
+      dom.rankLadder.appendChild(item);
+    });
+  }
+
+  function setRankTimeControl(key) {
+    const nextKey = normalizeRankTimeControlKey(key);
+    if (state.rankQueueActive || state.rankStatus?.status === "queued") return;
+    if (state.rankTimeControl === nextKey) return;
+    state.rankTimeControl = nextKey;
+    state.rankStatus = null;
+    renderRankPanel();
+    void refreshRankStatus();
   }
 
   function startRankQueuePolling() {
@@ -2867,11 +2960,17 @@
     state.rankQueueTimer = 0;
   }
 
-  function patchLocalRank(rankPayload) {
+  function patchLocalRank(rankPayload, timeControlKey = state.rankTimeControl) {
     if (!rankPayload || !state.user) return;
+    const safeKey = normalizeRankTimeControlKey(rankPayload.timeControlKey || timeControlKey);
+    const ranks = {
+      ...(state.user.ranks && typeof state.user.ranks === "object" ? state.user.ranks : {})
+    };
+    ranks[safeKey] = normalizeRankPayload(rankPayload);
     state.user = {
       ...state.user,
-      rank: normalizeRankPayload(rankPayload)
+      rank: safeKey === DEFAULT_RANK_TIME_CONTROL ? ranks[safeKey] : normalizeRankPayload(state.user.rank || ranks[DEFAULT_RANK_TIME_CONTROL] || ranks[safeKey]),
+      ranks
     };
     persistStoredUser(state.user);
     patchLocalUserIntoRoom();
@@ -2879,11 +2978,27 @@
 
   function handleRankQueuePayload(payload, { toast = false } = {}) {
     const status = String(payload?.status || "idle");
-    if (payload?.rank) patchLocalRank(payload.rank);
+    const payloadControlKey = normalizeRankTimeControlKey(payload?.timeControl?.key || payload?.timeControlKey || state.rankTimeControl);
+    state.rankTimeControl = payloadControlKey;
+    if (payload?.ranks && state.user) {
+      const ranks = {
+        ...(state.user.ranks && typeof state.user.ranks === "object" ? state.user.ranks : {})
+      };
+      RANK_TIME_CONTROLS.forEach((control) => {
+        if (payload.ranks[control.key]) ranks[control.key] = normalizeRankPayload(payload.ranks[control.key]);
+      });
+      state.user = {
+        ...state.user,
+        ranks,
+        rank: ranks[DEFAULT_RANK_TIME_CONTROL] || state.user.rank
+      };
+      persistStoredUser(state.user);
+    }
+    if (payload?.rank) patchLocalRank(payload.rank, payloadControlKey);
     state.rankStatus = {
       ...payload,
       status,
-      rank: payload?.rank || state.user?.rank || null
+      rank: payload?.rank || rankForTimeControl(state.user, payloadControlKey) || null
     };
     state.rankQueueActive = status === "queued";
 
@@ -2907,7 +3022,7 @@
       return;
     }
     try {
-      const payload = await api("/api/rank/status", {}, { attempts: 2 });
+      const payload = await api(`/api/rank/status?timeControl=${encodeURIComponent(state.rankTimeControl)}`, {}, { attempts: 2 });
       handleRankQueuePayload(payload);
     } catch (error) {
       if (state.lobbyMode === "rank") {
@@ -2921,7 +3036,10 @@
     setMessage(dom.matchHubMessage, "Đang tìm trận leo rank...", "info");
     dom.rankQueueBtn.disabled = true;
     try {
-      const payload = await api("/api/rank/join", { method: "POST" });
+      const payload = await api("/api/rank/join", {
+        method: "POST",
+        body: { timeControl: state.rankTimeControl }
+      });
       handleRankQueuePayload(payload, { toast: true });
       setMessage(dom.matchHubMessage, "");
     } catch (error) {
@@ -2935,7 +3053,10 @@
     if (!state.token || !state.user) return;
     dom.rankCancelBtn.disabled = true;
     try {
-      const payload = await api("/api/rank/cancel", { method: "POST" }, { attempts: 2 });
+      const payload = await api("/api/rank/cancel", {
+        method: "POST",
+        body: { timeControl: state.rankTimeControl }
+      }, { attempts: 2 });
       state.rankQueueActive = false;
       handleRankQueuePayload(payload);
       setMessage(dom.matchHubMessage, "Đã hủy tìm trận.", "info");
@@ -3979,6 +4100,14 @@
       goRoute("home", true);
       return;
     }
+    if (state.route === "library") {
+      if (state.libraryTab !== "menu") {
+        setLibraryTab("menu");
+        return;
+      }
+      goRoute("home", true);
+      return;
+    }
     if (window.history.length > 1) {
       window.history.back();
       return;
@@ -4051,6 +4180,9 @@
 
   function patchLocalUserIntoRoom() {
     if (!state.room || !state.user) return;
+    const roomRank = state.room.mode === "ranked"
+      ? rankForTimeControl(state.user, state.room.rankTimeControl?.key || state.rankTimeControl)
+      : state.user.rank;
     ["w", "b"].forEach((side) => {
       if (state.room.players?.[side]?.id === state.user.id) {
         state.room.players[side] = {
@@ -4059,7 +4191,7 @@
           username: state.user.username,
           avatarSeed: state.user.avatarSeed,
           avatarUrl: state.user.avatarUrl || "",
-          rank: normalizeRankPayload(state.user.rank)
+          rank: normalizeRankPayload(roomRank)
         };
       }
     });
@@ -4071,7 +4203,7 @@
             username: state.user.username,
             avatarSeed: state.user.avatarSeed,
             avatarUrl: state.user.avatarUrl || "",
-            rank: normalizeRankPayload(state.user.rank)
+            rank: normalizeRankPayload(roomRank)
           }
         : item
     ));
@@ -4452,7 +4584,7 @@
   }
 
   function setLibraryTab(tab) {
-    state.libraryTab = ["history", "book-create", "book-saved", "kydao"].includes(tab) ? tab : "history";
+    state.libraryTab = ["menu", "history", "book-create", "book-saved", "kydao"].includes(tab) ? tab : "menu";
     renderLibrary();
     renderRoomMobilePanels();
     if (state.libraryTab === "book-create") drawOpeningBookScene(true, true);
@@ -4466,7 +4598,7 @@
     state.openingBookSelectedSquare = null;
     state.openingBookHints = [];
     clearOpeningBookMoveAnimation();
-    setLibraryTab("history");
+    setLibraryTab("menu");
   }
 
   function renderLibrary() {
@@ -4478,7 +4610,11 @@
   }
 
   function renderOpeningBookTabs() {
-    const active = state.libraryTab || "history";
+    const active = state.libraryTab || "menu";
+    const isMenu = active === "menu";
+    dom.libraryModeBoard?.classList.toggle("hidden", !isMenu);
+    dom.libraryView?.classList.toggle("library-mode-menu", isMenu);
+    dom.libraryView?.classList.toggle("library-mode-selected", !isMenu);
     [
       [dom.libraryHistoryTab, dom.libraryHistoryPanel, "history"],
       [dom.libraryBookCreateTab, dom.libraryBookCreatePanel, "book-create"],
@@ -6748,7 +6884,7 @@
     state.roomKey = room.key;
     state.roomSyncedAt = Date.now();
     localStorage.setItem(STORAGE_ROOM, room.key);
-    if (room.rank) patchLocalRank(room.rank);
+    if (room.rank) patchLocalRank(room.rank, room.rankTimeControl?.key || room.rankTimeControlKey || state.rankTimeControl);
     if (room.botProgress) patchLocalBotProgress(room.botProgress);
     state.roomBoard = XiangqiCore.parseFenState(room.boardFen || START_FEN).board;
 
@@ -9277,6 +9413,8 @@
       avatarUrl: user.avatarUrl || "",
       role: user.role || "user",
       rank: user.rank || null,
+      ranks: user.ranks || null,
+      rankTimeControls: user.rankTimeControls || null,
       botProgress: user.botProgress || null,
       opponentBots: normalizeOpponentBotList(user.opponentBots),
       puzzleProgress: user.puzzleProgress || null
@@ -9381,11 +9519,14 @@
     }
 
     if (room.mode === "ranked") {
-      if (room.status === "starting") return "Trận leo rank đã ghép xong. Ván sẽ bắt đầu sau bảng đếm.";
-      if (room.status === "finished") return "Ván leo rank đã kết thúc. Điểm rank đã được cập nhật.";
+      const controlLabel = room.rankTimeControl?.label
+        ? `${room.rankTimeControl.label} (${String(room.rankTimeControl.name || "").toLowerCase()})`
+        : rankTimeControlLabel(state.rankTimeControl);
+      if (room.status === "starting") return `Trận leo rank ${controlLabel} đã ghép xong. Ván sẽ bắt đầu sau bảng đếm.`;
+      if (room.status === "finished") return `Ván leo rank ${controlLabel} đã kết thúc. Điểm rank đã được cập nhật.`;
       return room.yourTurn
-        ? `Trận leo rank. Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}.`
-        : "Trận leo rank đang diễn ra.";
+        ? `Trận leo rank ${controlLabel}. Bạn đang cầm bên ${room.yourSide === "w" ? "Đỏ" : "Đen"}.`
+        : `Trận leo rank ${controlLabel} đang diễn ra.`;
     }
 
     if (room.status === "waiting") {

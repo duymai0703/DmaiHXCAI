@@ -1,12 +1,12 @@
-const CACHE_NAME = "ymegalodon-shell-v195";
+const CACHE_NAME = "ymegalodon-shell-v196";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260729-move-effects-v1",
+  "/portal.css?v=20260729-rank-library-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260729-move-effects-v1",
+  "/portal.js?v=20260729-rank-library-v1",
   "/styles.css?v=20260729-move-effects-v1",
   "/app.js?v=20260729-move-effects-v1",
   "/config.js",
@@ -152,7 +152,11 @@ const OPTIONAL_ASSETS = [
   "/assets/avtchibi/leorank.png?v=20260728-match-modes-v2",
   "/assets/avtchibi/theco.png?v=20260728-match-modes-v2",
   "/assets/avtchibi/tancuoc.png?v=20260728-match-modes-v2",
-  "/assets/avtchibi/nhanban.png?v=20260728-match-modes-v2"
+  "/assets/avtchibi/nhanban.png?v=20260728-match-modes-v2",
+  "/assets/avtchibi/lichsu.png?v=20260729-library-modes-v1",
+  "/assets/avtchibi/taobook.png?v=20260729-library-modes-v1",
+  "/assets/avtchibi/luubook.png?v=20260729-library-modes-v1",
+  "/assets/avtchibi/danhthu.png?v=20260729-library-modes-v1"
 ];
 
 self.addEventListener("install", (event) => {
