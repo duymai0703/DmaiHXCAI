@@ -896,8 +896,8 @@ a {
 }
 
 .library-mode-tile img {
-  width: 150px;
-  height: 150px;
+  width: 190px;
+  height: 190px;
 }
 
 .friend-actions {
@@ -7345,14 +7345,15 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 }
 
 #libraryView.library-mode-menu .library-mode-tile {
-  min-height: clamp(260px, 24vw, 340px);
-  padding: clamp(30px, 3vw, 44px) 20px clamp(26px, 2.5vw, 38px);
+  min-height: clamp(330px, 29vw, 430px);
+  padding: clamp(18px, 2vw, 28px) 18px clamp(24px, 2.4vw, 34px);
   border-radius: 20px;
 }
 
 #libraryView.library-mode-menu .library-mode-tile img {
-  width: clamp(196px, 17vw, 268px);
-  height: clamp(196px, 17vw, 268px);
+  width: clamp(300px, 22vw, 350px);
+  height: clamp(300px, 22vw, 350px);
+  margin-bottom: clamp(-18px, -1.4vw, -8px);
 }
 
 #libraryView.library-mode-menu .library-mode-tile span {
@@ -7455,14 +7456,15 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
   }
 
   #libraryView.library-mode-menu .library-mode-tile {
-    min-height: clamp(150px, 32vw, 210px);
-    padding: clamp(14px, 3.2vw, 22px) 8px clamp(12px, 2.8vw, 18px);
+    min-height: clamp(220px, 45vw, 300px);
+    padding: clamp(10px, 2.6vw, 18px) 8px clamp(14px, 3vw, 20px);
     border-radius: 14px;
   }
 
   #libraryView.library-mode-menu .library-mode-tile img {
-    width: clamp(128px, 28vw, 178px);
-    height: clamp(128px, 28vw, 178px);
+    width: clamp(180px, 38vw, 230px);
+    height: clamp(180px, 38vw, 230px);
+    margin-bottom: -8px;
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="match"] .match-mode-tile img {

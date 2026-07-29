@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-move-effects-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-analysis-icons-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -109,6 +109,20 @@ const BOARD_EFFECT_ASSETS = {
   check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
   capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
 };
+const ANALYSIS_TOOL_ICON_ASSET_VERSION = "20260729-analysis-icons-v1";
+const analysisToolIconAsset = (file) => `/assets/avtchibi/${file}?v=${ANALYSIS_TOOL_ICON_ASSET_VERSION}`;
+const ANALYSIS_TOOL_ICON_ASSETS = [
+  analysisToolIconAsset("phantich.png"),
+  analysisToolIconAsset("hoantac.png"),
+  analysisToolIconAsset("tieptheo.png"),
+  analysisToolIconAsset("datlai.png"),
+  analysisToolIconAsset("xoayban.png"),
+  analysisToolIconAsset("suaban.png"),
+  analysisToolIconAsset("xoaban.png"),
+  analysisToolIconAsset("nhandienanh.png"),
+  analysisToolIconAsset("databook.png"),
+  analysisToolIconAsset("lsu.png")
+];
 const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
 const BOARD_EFFECT_BASE_MS = {
   checkmate: CHECKMATE_EFFECT_MS,
@@ -149,7 +163,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-dark.png",
   ...BOARD_SKIN_ASSETS,
-  ...Object.values(BOARD_EFFECT_ASSETS)
+  ...Object.values(BOARD_EFFECT_ASSETS),
+  ...ANALYSIS_TOOL_ICON_ASSETS
 ];
 let wakePromise = null;
 
@@ -300,6 +315,18 @@ function ensureVisionQuotaBadge(button, id) {
   badge.textContent = "10";
   button.appendChild(badge);
   return badge;
+}
+
+function setActionButtonLabel(button, label) {
+  if (!button) return;
+  const labelEl = button.querySelector("[data-action-label]");
+  if (labelEl) {
+    labelEl.textContent = label;
+  } else {
+    button.textContent = label;
+  }
+  button.setAttribute("aria-label", label);
+  button.title = label;
 }
 
 setupThemeControls();
@@ -2650,7 +2677,7 @@ function updateEditorUi() {
   if (mobileSetupPanelEl) mobileSetupPanelEl.classList.toggle("hidden", !state.mobileSetupMode);
   if (editBoardBtn) {
     editBoardBtn.classList.toggle("active", state.editMode);
-    editBoardBtn.textContent = state.editMode ? "Đang sửa bàn" : "Sửa bàn cờ";
+    setActionButtonLabel(editBoardBtn, state.editMode ? "Đang sửa bàn" : "Sửa bàn cờ");
   }
   if (sideToMoveEl) sideToMoveEl.value = state.side;
   if (mobileSetupSideEl) mobileSetupSideEl.value = state.side;
