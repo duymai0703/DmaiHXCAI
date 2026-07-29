@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#050914">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Y-Megalodon">
+    <meta name="apple-mobile-web-app-title" content="D-Xiangqi">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>Y-Megalodon</title>
+    <title>D-Xiangqi</title>
     <script>
       try {
         const themeVersionKey = "dmaihxcai-theme-preference-version";
@@ -37,22 +37,22 @@
       }
     </script>
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/assets/icons/ymegalodon-192.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/ymegalodon-192.png">
+    <link rel="apple-touch-icon" href="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1">
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1">
     <link rel="preload" href="/assets/sounds/diquan.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260729-analysis-icons-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260729-dxiangqi-brand-v1">
   </head>
   <body>
     <header class="portal-header">
       <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại"></button>
 
       <div class="brand">
-        <img id="portalBrandMark" class="brand-mark" src="/assets/icons/ymegalodon-512.png" alt="Y-Megalodon">
+        <img id="portalBrandMark" class="brand-mark" src="/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1" alt="D-Xiangqi">
         <div class="brand-copy">
-          <strong>Y-Megalodon</strong>
+          <strong>D-Xiangqi</strong>
         </div>
       </div>
 
@@ -118,7 +118,7 @@
     <div id="accessGate" class="access-gate hidden" role="dialog" aria-modal="true" aria-labelledby="accessGateTitle">
       <form id="accessKeyForm" class="access-gate-card">
         <strong id="accessGateTitle">Nhập Key kích hoạt</strong>
-        <p>Nhập Key được cấp để sử dụng Y-Megalodon trên trình duyệt này.</p>
+        <p>Nhập Key được cấp để sử dụng D-Xiangqi trên trình duyệt này.</p>
         <input id="accessKeyInput" type="text" autocomplete="one-time-code" placeholder="Nhập Key kích hoạt" required>
         <input id="accessNameInput" class="hidden" type="text" autocomplete="name" maxlength="24" placeholder="Nhập tên khách hàng">
         <button class="primary-button" type="submit">Kích hoạt</button>
@@ -155,7 +155,7 @@
           <button id="openAnalysisBtn" class="launcher-card has-poster" type="button">
             <span class="card-eyebrow">Khu 2</span>
             <strong>Phần mềm phân tích</strong>
-            <small>Mở bàn phân tích hiện tại với Y-Megalodon và cơ sở dữ liệu đám mây.</small>
+            <small>Mở bàn phân tích hiện tại với D-Xiangqi và cơ sở dữ liệu đám mây.</small>
           </button>
 
           <button id="openLibraryBtn" class="launcher-card has-poster" type="button">
@@ -878,7 +878,7 @@
               <div class="panel-heading">
                 <div>
                   <h3>Biên bản và độ chính xác</h3>
-                  <p id="reviewMoveMeta">Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.</p>
+                  <p id="reviewMoveMeta">Mỗi nước sẽ được gắn nhãn sau khi D-Xiangqi quét toàn ván.</p>
                 </div>
               </div>
               <ol id="reviewMoveList" class="room-move-list review-move-list"></ol>
@@ -939,7 +939,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260729-analysis-icons-v1"></script>
+    <script src="/portal.js?v=20260729-dxiangqi-brand-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -947,7 +947,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-ymegalodon-shell-v198";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v199";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

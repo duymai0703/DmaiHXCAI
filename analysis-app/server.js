@@ -4420,7 +4420,7 @@ class UciEngine {
 
   async ensureStarted() {
     if (!this.enginePath || !fs.existsSync(this.enginePath)) {
-      throw new Error("Chưa tìm thấy Y-Megalodon. Hãy cấu hình đường dẫn engine trước khi phân tích.");
+      throw new Error("Chưa tìm thấy D-Xiangqi. Hãy cấu hình đường dẫn engine trước khi phân tích.");
     }
     if (this.proc && !this.proc.killed && this.ready) return;
     if (this.bootPromise) return this.bootPromise;
@@ -4964,7 +4964,7 @@ async function fetchKydaoText(pathOrUrl) {
     const response = await fetch(target, {
       signal: controller.signal,
       headers: {
-        "User-Agent": "Y-Megalodon/1.0 (+https://dmaihxcai.onrender.com)",
+        "User-Agent": "D-Xiangqi/1.0 (+https://dmaihxcai.onrender.com)",
         "Accept": "text/html,application/xhtml+xml"
       }
     });
@@ -6669,9 +6669,9 @@ async function startServer() {
     };
     const onListening = () => {
       server.off("error", onError);
-      console.log(`Y-Megalodon analysis app: http://localhost:${PORT}`);
+      console.log(`D-Xiangqi analysis app: http://localhost:${PORT}`);
       if (!configuredEnginePath) {
-        console.log("No Y-Megalodon engine binary found. Configure the engine path before deep analysis.");
+        console.log("No D-Xiangqi engine binary found. Configure the engine path before deep analysis.");
       }
       resolve();
     };

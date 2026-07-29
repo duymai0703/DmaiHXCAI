@@ -1,7 +1,7 @@
 {
-  "name": "Y-Megalodon",
-  "short_name": "Y-Megalodon",
-  "description": "Sảnh đấu và phần mềm phân tích cờ tướng với Y-Megalodon.",
+  "name": "D-Xiangqi",
+  "short_name": "D-Xiangqi",
+  "description": "Sảnh đấu và phần mềm phân tích cờ tướng với D-Xiangqi.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,14 +10,14 @@
   "theme_color": "#052034",
   "icons": [
     {
-      "src": "/assets/icons/ymegalodon-192.png",
-      "sizes": "192x192",
+      "src": "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1",
+      "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/assets/icons/ymegalodon-512.png",
-      "sizes": "512x512",
+      "src": "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1",
+      "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"
     }

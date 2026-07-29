@@ -1706,7 +1706,7 @@ body {
   min-height: 56px;
   border: 0;
   border-radius: 0;
-  background: transparent url("/assets/icons/backgr.png") center / contain no-repeat;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1") center / contain no-repeat;
   box-shadow: none;
   font-size: 0;
   color: transparent;
@@ -1720,7 +1720,7 @@ body {
 .nav-back:focus,
 .nav-back:focus-visible {
   background-color: transparent;
-  background-image: url("/assets/icons/backgr.png");
+  background-image: url("/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1");
   border: 0;
   color: transparent;
   box-shadow: none;
@@ -3010,7 +3010,7 @@ select,
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  background: transparent url("/assets/icons/backgr.png") center / contain no-repeat !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1") center / contain no-repeat !important;
   box-shadow: none !important;
   color: transparent !important;
   font-size: 0 !important;
@@ -4627,5 +4627,135 @@ button.action-logo-button {
   .action-logo-button img {
     width: 58px;
     height: 58px;
+  }
+}
+
+/* Balanced analysis layout and D-Xiangqi back button. */
+.primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  min-height: 132px !important;
+}
+
+.score-slot {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.score-banner {
+  min-height: 100% !important;
+}
+
+.analyze-button.action-logo-button,
+.move-controls .action-logo-button,
+.board-tools .action-logo-button {
+  aspect-ratio: 1 / 1;
+  min-height: 0 !important;
+  border-radius: 8px;
+}
+
+.analyze-button.action-logo-button {
+  grid-template-rows: minmax(0, 1fr) minmax(22px, auto);
+  padding: 10px 8px 9px;
+}
+
+.analyze-button.action-logo-button img {
+  width: min(78%, 88px);
+  height: min(78%, 88px);
+}
+
+.move-controls {
+  gap: 10px !important;
+}
+
+.move-controls .action-logo-button,
+.board-tools .action-logo-button {
+  grid-template-rows: minmax(0, 1fr) minmax(24px, auto);
+  gap: 4px;
+  padding: 8px 6px 7px;
+}
+
+.move-controls .action-logo-button img,
+.board-tools .action-logo-button img {
+  width: min(76%, 76px);
+  height: min(76%, 76px);
+}
+
+.move-controls .action-logo-button [data-action-label],
+.board-tools .action-logo-button [data-action-label] {
+  font-size: 11.5px;
+  line-height: 1.05;
+  font-weight: 850;
+}
+
+.board-tools .analysis-tool-grid {
+  gap: 10px !important;
+}
+
+.analysis-section-icon,
+.history-heading .analysis-section-icon {
+  width: 72px;
+  height: 72px;
+}
+
+.cloud-group h2.cloud-heading {
+  min-height: 76px;
+  padding-left: 78px;
+}
+
+.history-heading {
+  min-height: 86px;
+  justify-content: center;
+  gap: 14px;
+}
+
+.nav-back,
+.nav-back:hover,
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible {
+  width: 56px !important;
+  min-width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1") center / 100% 100% no-repeat !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.brand-mark:not(.brand-mark-avatar) {
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+@media (max-width: 760px) {
+  .primary-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    min-height: 104px !important;
+  }
+
+  .move-controls .action-logo-button,
+  .board-tools .action-logo-button,
+  .analyze-button.action-logo-button {
+    min-height: 0 !important;
+  }
+
+  .move-controls .action-logo-button img,
+  .board-tools .action-logo-button img {
+    width: min(74%, 64px);
+    height: min(74%, 64px);
+  }
+
+  .cloud-group h2.cloud-heading {
+    min-height: 0 !important;
+    padding-left: 0 !important;
   }
 }

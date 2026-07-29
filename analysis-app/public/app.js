@@ -86,8 +86,8 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-analysis-icons-v1";
-const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-dxiangqi-brand-v1";
+const BRAND_LOGO = "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
 const BOARD_SKIN_ASSETS = [
@@ -109,7 +109,7 @@ const BOARD_EFFECT_ASSETS = {
   check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
   capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
 };
-const ANALYSIS_TOOL_ICON_ASSET_VERSION = "20260729-analysis-icons-v1";
+const ANALYSIS_TOOL_ICON_ASSET_VERSION = "20260729-dxiangqi-brand-v1";
 const analysisToolIconAsset = (file) => `/assets/avtchibi/${file}?v=${ANALYSIS_TOOL_ICON_ASSET_VERSION}`;
 const ANALYSIS_TOOL_ICON_ASSETS = [
   analysisToolIconAsset("phantich.png"),
@@ -151,9 +151,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.capture,
   MOVE_SOUND_SOURCES.check,
   MOVE_SOUND_SOURCES.checkmate,
-  "/assets/icons/backgr.png",
+  "/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1",
   BRAND_LOGO,
-  "/assets/icons/ymegalodon-192.png",
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
   "/assets/icons/mb3-dark.png",
@@ -1568,7 +1567,7 @@ function renderMobilePanelState() {
 async function refreshStatus() {
   const status = await api("/api/status");
   if (enginePathEl) enginePathEl.value = status.enginePath || "";
-  if (engineStatusEl) engineStatusEl.textContent = status.exists ? `Y-Megalodon đã kết nối: ${status.enginePath}` : "Chưa tìm thấy Y-Megalodon. Hãy cấu hình đường dẫn engine.";
+  if (engineStatusEl) engineStatusEl.textContent = status.exists ? `D-Xiangqi đã kết nối: ${status.enginePath}` : "Chưa tìm thấy D-Xiangqi. Hãy cấu hình đường dẫn engine.";
   if (networkStatusEl) networkStatusEl.textContent = status.networkExists ? `NNUE: ${status.networkPath}` : "NNUE: chưa sẵn sàng. Cần mạng đánh giá trước khi phân tích sâu.";
 }
 
@@ -1581,7 +1580,7 @@ async function buildEngine() {
   const button = document.getElementById("buildEngineBtn");
   button.disabled = true;
   button.textContent = "Building...";
-  engineStatusEl.textContent = "Đang dựng Y-Megalodon bằng trình biên dịch cục bộ. Việc này có thể mất vài phút.";
+  engineStatusEl.textContent = "Đang dựng D-Xiangqi bằng trình biên dịch cục bộ. Việc này có thể mất vài phút.";
   try {
     const result = await api("/api/build-engine", {});
     enginePathEl.value = result.enginePath || "";
@@ -1599,7 +1598,7 @@ async function downloadNetwork() {
   const button = document.getElementById("downloadNetBtn");
   button.disabled = true;
   button.textContent = "Downloading...";
-  networkStatusEl.textContent = "Đang tải mạng đánh giá cho Y-Megalodon...";
+  networkStatusEl.textContent = "Đang tải mạng đánh giá cho D-Xiangqi...";
   try {
     const result = await api("/api/download-network", {});
     networkStatusEl.textContent = result.exists ? `NNUE: ${result.networkPath}` : "NNUE download failed.";
@@ -1613,7 +1612,7 @@ async function downloadNetwork() {
 }
 
 async function startManualAnalysis() {
-  reportAnalysisActivity("Bấm phân tích bằng Y-Megalodon");
+  reportAnalysisActivity("Bấm phân tích bằng D-Xiangqi");
   stopAutoPlay(true);
   cancelScheduledAnalysisRefresh();
   state.analysisMode = true;

@@ -20,12 +20,12 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-rank-library-v1";
+  const ASSET_WARMUP_VERSION = "20260729-dxiangqi-brand-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
-  const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
+  const BRAND_LOGO = "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1";
   const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
   const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
   const BOARD_SKIN_ASSETS = [
@@ -73,13 +73,13 @@
     id: "puzzle-engine",
     username: "puzzle-engine",
     displayName: "Máy cờ thế",
-    avatarUrl: "/assets/icons/ymegalodon-192.png"
+    avatarUrl: "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1"
   };
   const ENDGAME_BOT_PLAYER = {
     id: "endgame-engine",
     username: "endgame-engine",
     displayName: "Máy tàn cuộc",
-    avatarUrl: "/assets/icons/ymegalodon-192.png"
+    avatarUrl: "/assets/avtchibi/logodxiangqi.png?v=20260729-dxiangqi-brand-v1"
   };
   const PUZZLE_PIECE_VALUES = {
     k: 10000,
@@ -230,8 +230,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260729-analysis-icons-v1",
-    "/app.js?v=20260729-analysis-icons-v1",
+    "/styles.css?v=20260729-dxiangqi-brand-v1",
+    "/app.js?v=20260729-dxiangqi-brand-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -247,19 +247,18 @@
     "/assets/icons/guom-dark.png",
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
-    "/assets/icons/ymegalodon-192.png",
     ...Object.values(BOARD_EFFECT_ASSETS),
     ...BOARD_SKIN_ASSETS,
-    "/assets/avtchibi/phantich.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/hoantac.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/tieptheo.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/datlai.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/xoayban.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/suaban.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/xoaban.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/nhandienanh.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/databook.png?v=20260729-analysis-icons-v1",
-    "/assets/avtchibi/lsu.png?v=20260729-analysis-icons-v1",
+    "/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/tieptheo.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/xoayban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/suaban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/xoaban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/nhandienanh.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/databook.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/lsu.png?v=20260729-dxiangqi-brand-v1",
     ...PUZZLE_MAP_ASSETS,
     ...BOT_ASSETS,
     ...RANK_ASSETS,
@@ -1361,7 +1360,7 @@
       image.removeAttribute("role");
       image.removeAttribute("tabindex");
       image.removeAttribute("title");
-      image.alt = "Y-Megalodon";
+      image.alt = "D-Xiangqi";
       return;
     }
     const user = state.user || {};
@@ -1373,7 +1372,7 @@
       image.removeAttribute("role");
       image.removeAttribute("tabindex");
       image.removeAttribute("title");
-      image.alt = "Y-Megalodon";
+      image.alt = "D-Xiangqi";
       return;
     }
     if (!image.src.endsWith(avatarUrl)) image.src = avatarUrl;
@@ -5792,7 +5791,7 @@
     if (dom.kydaoSelectedTitle) dom.kydaoSelectedTitle.textContent = master ? master.name : "Chọn danh thủ";
     if (dom.kydaoPageInfo) {
       dom.kydaoPageInfo.textContent = master
-        ? `Trang ${state.kydaoPage}/${state.kydaoTotalPages}. Mỗi ván mở ra có thể phân tích Y-Megalodon.`
+        ? `Trang ${state.kydaoPage}/${state.kydaoTotalPages}. Mỗi ván mở ra có thể phân tích D-Xiangqi.`
         : "Mở ván nào sẽ chuyển thành bàn cờ xem lại.";
     }
     if (dom.kydaoPrevPageBtn) dom.kydaoPrevPageBtn.disabled = !master || state.kydaoGamesLoading || state.kydaoPage <= 1;
@@ -6545,7 +6544,7 @@
       });
       state.reviewAnalysis = Array.isArray(payload.items) ? payload.items : [];
       renderReviewState(true);
-      showToast("Y-Megalodon đã phân tích xong ván cờ.");
+      showToast("D-Xiangqi đã phân tích xong ván cờ.");
     } catch (error) {
       showToast(error.message || "Không thể phân tích ván cờ này.");
     } finally {
@@ -6566,7 +6565,7 @@
       dom.reviewTitle.textContent = "Xem lại ván đấu";
       dom.reviewMeta.textContent = "Chọn một ván trong lịch sử để tua lại.";
       dom.reviewResultBadge.textContent = "Lịch sử";
-      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.";
+      dom.reviewMoveMeta.textContent = "Mỗi nước sẽ được gắn nhãn sau khi D-Xiangqi quét toàn ván.";
       dom.reviewInsight.textContent = "Tua lại từng nước để xem diễn biến của ván cờ.";
       renderReviewEvalBar(null);
       dom.reviewPrevBtn.disabled = true;
@@ -6580,8 +6579,8 @@
     dom.reviewMeta.textContent = `Bắt đầu: ${formatDate(game.startedAt || game.endedAt)} • Kết thúc: ${formatDate(game.endedAt)}`;
     dom.reviewResultBadge.textContent = game.result || "Lịch sử";
     dom.reviewMoveMeta.textContent = state.reviewAnalysis.length
-      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của Y-Megalodon."
-      : "Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.";
+      ? "Bấm vào từng nước để xem nhãn chất lượng và gợi ý tốt hơn của D-Xiangqi."
+      : "Mỗi nước sẽ được gắn nhãn sau khi D-Xiangqi quét toàn ván.";
     dom.reviewPrevBtn.disabled = state.reviewCursor <= 0 || state.reviewAnalyzing;
     dom.reviewNextBtn.disabled = state.reviewCursor >= game.plies.length || state.reviewAnalyzing;
     dom.reviewAnalyzeBtn.disabled = state.reviewAnalyzing;
@@ -6609,10 +6608,10 @@
 
     renderReviewEvalBar(analysis);
     const recommendText = analysis.grade === "book"
-      ? "Nước này nằm trong book mở đầu: trùng gợi ý Y-Megalodon hoặc nhóm nước đầu của data book."
+      ? "Nước này nằm trong book mở đầu: trùng gợi ý D-Xiangqi hoặc nhóm nước đầu của data book."
       : analysis.grade === "brilliant"
-      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của Y-Megalodon."
-      : `Y-Megalodon đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
+      ? "Nước đi này gần như trùng khớp với phương án mạnh nhất của D-Xiangqi."
+      : `D-Xiangqi đề xuất: ${analysis.bestNotation || analysis.bestMove || "không rõ"}.`;
     const badge = reviewBadgeForGrade(analysis.grade);
     dom.reviewInsight.innerHTML = `<strong>Nước ${currentIndex + 1}: ${moveTitle} - ${analysis.gradeLabel || badge.label || "Đã phân tích"}</strong><div>${recommendText}</div>`;
   }
