@@ -896,8 +896,8 @@ a {
 }
 
 .library-mode-tile img {
-  width: 118px;
-  height: 118px;
+  width: 150px;
+  height: 150px;
 }
 
 .friend-actions {
@@ -7351,8 +7351,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 }
 
 #libraryView.library-mode-menu .library-mode-tile img {
-  width: clamp(154px, 14vw, 204px);
-  height: clamp(154px, 14vw, 204px);
+  width: clamp(196px, 17vw, 268px);
+  height: clamp(196px, 17vw, 268px);
 }
 
 #libraryView.library-mode-menu .library-mode-tile span {
@@ -7458,6 +7458,11 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
     min-height: clamp(150px, 32vw, 210px);
     padding: clamp(14px, 3.2vw, 22px) 8px clamp(12px, 2.8vw, 18px);
     border-radius: 14px;
+  }
+
+  #libraryView.library-mode-menu .library-mode-tile img {
+    width: clamp(128px, 28vw, 178px);
+    height: clamp(128px, 28vw, 178px);
   }
 
   body.mobile-room-entry.portal-mobile-mode[data-route="match"] .match-mode-tile img {
