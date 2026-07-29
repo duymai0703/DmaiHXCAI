@@ -580,16 +580,36 @@ h2 {
   left: 50%;
   top: 50%;
   z-index: 7;
-  width: 68%;
-  max-width: 520px;
-  aspect-ratio: 1100 / 800;
+  width: var(--burst-width, 68%);
+  max-width: var(--burst-max-width, 520px);
+  aspect-ratio: 1 / 1;
   transform: translate(-50%, -50%) scale(0.88);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   filter:
     drop-shadow(0 8px 14px rgba(0, 0, 0, 0.38))
-    drop-shadow(0 0 18px rgba(255, 34, 34, 0.22));
+    drop-shadow(0 0 18px var(--burst-glow, rgba(255, 34, 34, 0.22)));
+}
+
+.checkmate-burst.effect-checkmate {
+  --burst-width: 68%;
+  --burst-max-width: 520px;
+  --burst-glow: rgba(255, 34, 34, 0.22);
+}
+
+.checkmate-burst.effect-check,
+.checkmate-burst.effect-capture {
+  --burst-width: 34%;
+  --burst-max-width: 260px;
+}
+
+.checkmate-burst.effect-check {
+  --burst-glow: rgba(104, 223, 255, 0.26);
+}
+
+.checkmate-burst.effect-capture {
+  --burst-glow: rgba(255, 188, 74, 0.24);
 }
 
 .checkmate-burst img {
@@ -603,11 +623,11 @@ h2 {
 
 .checkmate-burst.show {
   visibility: visible;
-  animation: satBurstFade 3000ms cubic-bezier(0.18, 0.84, 0.22, 1) forwards;
+  animation: satBurstFade var(--burst-duration, 3000ms) cubic-bezier(0.18, 0.84, 0.22, 1) forwards;
 }
 
 .checkmate-burst.show img {
-  animation: satBurstFloat 3000ms cubic-bezier(0.16, 0.86, 0.18, 1) forwards;
+  animation: satBurstFloat var(--burst-duration, 3000ms) cubic-bezier(0.16, 0.86, 0.18, 1) forwards;
 }
 
 @keyframes satBurstFade {

@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-piece-smooth-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260729-move-effects-v1";
 const BRAND_LOGO = "/assets/icons/ymegalodon-512.png";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -103,6 +103,18 @@ const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
+const MOVE_EFFECT_ASSET_VERSION = "20260729-move-effects-v1";
+const BOARD_EFFECT_ASSETS = {
+  checkmate: `/assets/effects/satpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
+  check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
+  capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
+};
+const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
+const BOARD_EFFECT_BASE_MS = {
+  checkmate: CHECKMATE_EFFECT_MS,
+  check: 720,
+  capture: 360
+};
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
 const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
 const ANALYSIS_DISPLAY_DEPTH_BOOST = 10;
@@ -137,7 +149,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-dark.png",
   ...BOARD_SKIN_ASSETS,
-  "/assets/effects/sat-cutout.png"
+  ...Object.values(BOARD_EFFECT_ASSETS)
 ];
 let wakePromise = null;
 
@@ -2211,20 +2223,58 @@ function hideMoveAnimationElements({
   }
 }
 
-function hideCheckmateEffect() {
+function normalizeBoardEffectKind(kind) {
+  return BOARD_EFFECT_ASSETS[kind] ? kind : "checkmate";
+}
+
+function hideCheckmateEffect({ onlyCheckmate = false } = {}) {
+  if (!checkmateBurstEl) return;
+  if (onlyCheckmate && checkmateBurstEl.dataset.effectKind && checkmateBurstEl.dataset.effectKind !== "checkmate") return;
   if (state.checkmateEffectTimer) {
     clearTimeout(state.checkmateEffectTimer);
     state.checkmateEffectTimer = 0;
   }
-  if (checkmateBurstEl) {
-    checkmateBurstEl.classList.remove("show");
-    checkmateBurstEl.setAttribute("aria-hidden", "true");
-  }
+  checkmateBurstEl.classList.remove("show", ...BOARD_EFFECT_CLASSES);
+  checkmateBurstEl.style.removeProperty("--burst-duration");
+  checkmateBurstEl.setAttribute("aria-hidden", "true");
+  delete checkmateBurstEl.dataset.effectKind;
 }
 
 function clearCheckmateEffectKey() {
   state.lastCheckmateEffectKey = "";
-  hideCheckmateEffect();
+  hideCheckmateEffect({ onlyCheckmate: true });
+}
+
+function showBoardEffect(kind = "checkmate", { durationMs = 0, playSound = true } = {}) {
+  if (!checkmateBurstEl) return 0;
+  const effectKind = normalizeBoardEffectKind(kind);
+  if (state.checkmateEffectTimer) {
+    clearTimeout(state.checkmateEffectTimer);
+    state.checkmateEffectTimer = 0;
+  }
+  const img = checkmateBurstEl.querySelector("img");
+  const source = BOARD_EFFECT_ASSETS[effectKind];
+  if (img && img.getAttribute("src") !== source) img.src = source;
+  const soundMs = playSound ? (playMoveSound(effectKind, durationMs) || 0) : mediaSoundWindowMs(effectKind, durationMs);
+  const effectMs = Math.max(BOARD_EFFECT_BASE_MS[effectKind] || 0, soundMs || 0);
+  checkmateBurstEl.classList.remove("show", ...BOARD_EFFECT_CLASSES);
+  checkmateBurstEl.style.setProperty("--burst-duration", `${Math.round(effectMs)}ms`);
+  checkmateBurstEl.dataset.effectKind = effectKind;
+  void checkmateBurstEl.offsetWidth;
+  checkmateBurstEl.setAttribute("aria-hidden", "false");
+  checkmateBurstEl.classList.add(`effect-${effectKind}`, "show");
+  state.checkmateEffectTimer = window.setTimeout(() => {
+    hideCheckmateEffect();
+  }, effectMs + 50);
+  return effectMs;
+}
+
+function playOrShowMoveSoundWithEffect(kind, durationMs) {
+  const effectKind = normalizeBoardEffectKind(kind);
+  if (checkmateBurstEl && (effectKind === "capture" || effectKind === "check")) {
+    return showBoardEffect(effectKind, { durationMs });
+  }
+  return playMoveSound(kind, durationMs);
 }
 
 function maybeShowCheckmateEffect({ force = false } = {}) {
@@ -2232,22 +2282,12 @@ function maybeShowCheckmateEffect({ force = false } = {}) {
   const key = `${state.cursor}:${state.checkmatedSide}:${boardSignature(state.board)}`;
   if (!force && state.lastCheckmateEffectKey === key) return;
   state.lastCheckmateEffectKey = key;
-  if (state.checkmateEffectTimer) clearTimeout(state.checkmateEffectTimer);
-  checkmateBurstEl.classList.remove("show");
-  void checkmateBurstEl.offsetWidth;
-  checkmateBurstEl.setAttribute("aria-hidden", "false");
-  checkmateBurstEl.classList.add("show");
-  const effectMs = playMoveSound("checkmate") || CHECKMATE_EFFECT_MS;
-  state.checkmateEffectTimer = window.setTimeout(() => {
-    checkmateBurstEl.classList.remove("show");
-    checkmateBurstEl.setAttribute("aria-hidden", "true");
-    state.checkmateEffectTimer = 0;
-  }, effectMs + 50);
+  showBoardEffect("checkmate");
 }
 
 function playPostMoveCheckSound() {
   if (!state.gameOver && findKing(state.board, state.side) && isKingInCheck(state.board, state.side)) {
-    playMoveSound("check");
+    showBoardEffect("check");
   }
 }
 
@@ -2395,7 +2435,7 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   }
   const duration = analysisMoveDurationMs();
   if (!animation.suppressMoveSound) {
-    playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), duration);
+    playOrShowMoveSoundWithEffect(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), duration);
   }
   movingSlotEl.style.transition = `transform ${duration}ms ${ANALYSIS_MOVE_EASING}`;
   movingSlotEl.style.transform = moveAnimationTravelTransform(animation);
@@ -2471,7 +2511,7 @@ function makeMove(move, { manual = true, settledVisual = false } = {}) {
     primeMoveAnimation(moveAnimation);
     draw(true);
     if (!startMoveAnimation(moveAnimation, { prepared: true })) {
-      if (!statusOnlySound) playMoveSound(moveAnimation.soundKind, analysisMoveDurationMs());
+      if (!statusOnlySound) playOrShowMoveSoundWithEffect(moveAnimation.soundKind, analysisMoveDurationMs());
       finishMoveEffects();
     }
   } else {

@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260729-endgame-fix-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260729-move-effects-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -671,7 +671,7 @@
                   <div id="roomCapturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                   <div id="roomMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                 </div>
-                <div id="roomCheckmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
+                <div id="roomCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
                 <div id="roomBoardOverlay" class="room-board-overlay hidden">
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
@@ -825,7 +825,7 @@
                     <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
                       <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
-                    <div id="reviewCheckmateBurst" class="checkmate-burst" aria-hidden="true"><img src="/assets/effects/sat-cutout.png" alt="" draggable="false"></div>
+                    <div id="reviewCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
                   </div>
                 </div>
 
@@ -911,7 +911,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260729-endgame-fix-v1"></script>
+    <script src="/portal.js?v=20260729-move-effects-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

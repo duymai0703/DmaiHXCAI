@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-endgame-fix-v1";
+  const ASSET_WARMUP_VERSION = "20260729-move-effects-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -35,6 +35,13 @@
     boardSkinAsset("bancomoi-pink.png"),
     boardSkinAsset("bancomoi-dark.png")
   ];
+  const MOVE_EFFECT_ASSET_VERSION = "20260729-move-effects-v1";
+  const BOARD_EFFECT_ASSETS = {
+    checkmate: `/assets/effects/satpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
+    check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
+    capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
+  };
+  const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
   const PORTAL_PRELOAD_TEXT = {
@@ -209,8 +216,8 @@
   const RANK_ASSETS = RANK_TIERS.map((rank) => rank.icon);
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260729-piece-smooth-v1",
-    "/app.js?v=20260729-piece-smooth-v1",
+    "/styles.css?v=20260729-move-effects-v1",
+    "/app.js?v=20260729-move-effects-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -227,7 +234,7 @@
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
     "/assets/icons/ymegalodon-192.png",
-    "/assets/effects/sat-cutout.png",
+    ...Object.values(BOARD_EFFECT_ASSETS),
     ...BOARD_SKIN_ASSETS,
     ...PUZZLE_MAP_ASSETS,
     ...BOT_ASSETS,
@@ -251,6 +258,11 @@
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
   const CHECKMATE_EFFECT_MS = 3000;
+  const BOARD_EFFECT_BASE_MS = {
+    checkmate: CHECKMATE_EFFECT_MS,
+    check: 720,
+    capture: 360
+  };
   const REVIEW_EVAL_BAR_LIMIT = 2000;
   let wakePromise = null;
 
@@ -6334,7 +6346,7 @@
     void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
     if (!animation.suppressMoveSound) {
-      playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+      playOrShowMoveSoundWithEffect(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer", animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
     }
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, reviewSquareToPixel);
@@ -7098,7 +7110,7 @@
       return;
     }
     if (!animation.suppressMoveSound) {
-      playMoveSound(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+      playOrShowMoveSoundWithEffect(dom.roomCheckmateBurst, "roomCheckmateEffectTimer", animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
     }
     movingSlotEl.style.transition = `transform ${ROOM_MOVE_ANIMATION_MS}ms ${ROOM_MOVE_EASING}`;
     movingSlotEl.style.transform = directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform());
@@ -7109,32 +7121,53 @@
     }, ROOM_MOVE_ANIMATION_MS + 8);
   }
 
-  function hideBoardBurst(el, timerKey) {
-    if (state[timerKey]) {
-      clearTimeout(state[timerKey]);
-      state[timerKey] = 0;
-    }
-    if (!el) return;
-    el.classList.remove("show");
-    el.setAttribute("aria-hidden", "true");
+  function normalizeBoardEffectKind(kind) {
+    return BOARD_EFFECT_ASSETS[kind] ? kind : "checkmate";
   }
 
-  function showBoardBurst(el, timerKey) {
+  function hideBoardBurst(el, timerKey, { onlyCheckmate = false } = {}) {
     if (!el) return;
+    if (onlyCheckmate && el.dataset.effectKind && el.dataset.effectKind !== "checkmate") return;
     if (state[timerKey]) {
       clearTimeout(state[timerKey]);
       state[timerKey] = 0;
     }
-    el.classList.remove("show");
+    el.classList.remove("show", ...BOARD_EFFECT_CLASSES);
+    el.style.removeProperty("--burst-duration");
+    el.setAttribute("aria-hidden", "true");
+    delete el.dataset.effectKind;
+  }
+
+  function showBoardBurst(el, timerKey, kind = "checkmate", { durationMs = 0, playSound = true } = {}) {
+    if (!el) return 0;
+    const effectKind = normalizeBoardEffectKind(kind);
+    if (state[timerKey]) {
+      clearTimeout(state[timerKey]);
+      state[timerKey] = 0;
+    }
+    const img = el.querySelector("img");
+    const source = BOARD_EFFECT_ASSETS[effectKind];
+    if (img && img.getAttribute("src") !== source) img.src = source;
+    const soundMs = playSound ? (playMoveSound(effectKind, durationMs) || 0) : mediaSoundWindowMs(effectKind, durationMs);
+    const effectMs = Math.max(BOARD_EFFECT_BASE_MS[effectKind] || 0, soundMs || 0);
+    el.classList.remove("show", ...BOARD_EFFECT_CLASSES);
+    el.style.setProperty("--burst-duration", `${Math.round(effectMs)}ms`);
+    el.dataset.effectKind = effectKind;
     void el.offsetWidth;
     el.setAttribute("aria-hidden", "false");
-    el.classList.add("show");
-    const effectMs = playMoveSound("checkmate") || CHECKMATE_EFFECT_MS;
+    el.classList.add(`effect-${effectKind}`, "show");
     state[timerKey] = window.setTimeout(() => {
-      el.classList.remove("show");
-      el.setAttribute("aria-hidden", "true");
-      state[timerKey] = 0;
+      hideBoardBurst(el, timerKey);
     }, effectMs + 50);
+    return effectMs;
+  }
+
+  function playOrShowMoveSoundWithEffect(el, timerKey, kind, durationMs) {
+    const effectKind = normalizeBoardEffectKind(kind);
+    if (el && (effectKind === "capture" || effectKind === "check")) {
+      return showBoardBurst(el, timerKey, effectKind, { durationMs });
+    }
+    return playMoveSound(kind, durationMs);
   }
 
   function playRoomPostMoveStatusSound() {
@@ -7148,7 +7181,7 @@
       const key = `${state.room?.key || ""}:${state.room?.moves?.length || 0}:${state.room?.boardFen || ""}:${side}`;
       if (state.roomCheckSoundKey !== key) {
         state.roomCheckSoundKey = key;
-        playMoveSound("check");
+        showBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer", "check");
       }
     } else {
       state.roomCheckSoundKey = "";
@@ -7167,7 +7200,7 @@
       const key = `${state.reviewGame?.id || state.reviewGame?.endedAt || ""}:${state.reviewCursor}:${boardSignature(state.reviewBoard)}:${side}`;
       if (state.reviewCheckSoundKey !== key) {
         state.reviewCheckSoundKey = key;
-        playMoveSound("check");
+        showBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer", "check");
       }
     } else {
       state.reviewCheckSoundKey = "";
@@ -7176,7 +7209,7 @@
 
   function clearRoomCheckmateEffectKey() {
     state.roomCheckmateEffectKey = "";
-    hideBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer");
+    hideBoardBurst(dom.roomCheckmateBurst, "roomCheckmateEffectTimer", { onlyCheckmate: true });
   }
 
   function maybeShowRoomCheckmateEffect() {
@@ -7190,7 +7223,7 @@
 
   function clearReviewCheckmateEffectKey() {
     state.reviewCheckmateEffectKey = "";
-    hideBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer");
+    hideBoardBurst(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer", { onlyCheckmate: true });
   }
 
   function maybeShowReviewCheckmateEffect() {
