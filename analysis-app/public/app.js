@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-logoblue-controls-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-opening-icons-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -151,7 +151,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.capture,
   MOVE_SOUND_SOURCES.check,
   MOVE_SOUND_SOURCES.checkmate,
-  "/assets/avtchibi/backbl.png?v=20260730-logoblue-controls-v1",
+  "/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1",
+  "/assets/avtchibi/setting.png?v=20260730-opening-icons-v1",
   BRAND_LOGO,
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
@@ -879,7 +880,7 @@ function readPieceSkin() {
 }
 
 function normalizePieceSkin(skin) {
-  return CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
+  return skin !== "boquan2" && CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
 }
 
 function currentPieceSkin() {

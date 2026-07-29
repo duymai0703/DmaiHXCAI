@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-icononly-controls-v1";
+  const ASSET_WARMUP_VERSION = "20260730-opening-icons-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -109,6 +109,13 @@
     libraryModeAsset("taobook.png"),
     libraryModeAsset("luubook.png"),
     libraryModeAsset("danhthu.png")
+  ];
+  const OPENING_BOOK_CONTROL_ASSETS = [
+    "/assets/avtchibi/red.png?v=20260730-opening-icons-v1",
+    "/assets/avtchibi/black.png?v=20260730-opening-icons-v1",
+    "/assets/avtchibi/saved.png?v=20260730-opening-icons-v1",
+    "/assets/avtchibi/robo.png?v=20260730-opening-icons-v1",
+    "/assets/avtchibi/setting.png?v=20260730-opening-icons-v1"
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -230,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-icononly-controls-v1",
-    "/app.js?v=20260730-logoblue-controls-v1",
+    "/styles.css?v=20260730-opening-icons-v1",
+    "/app.js?v=20260730-opening-icons-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -262,6 +269,7 @@
     ...PUZZLE_MAP_ASSETS,
     ...BOT_ASSETS,
     ...RANK_ASSETS,
+    ...OPENING_BOOK_CONTROL_ASSETS,
     ...Object.values(PIECE_IMAGES),
     ...Object.values(MOBILE_RED_PIECE_IMAGES),
     ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
@@ -276,7 +284,7 @@
     "/assets/posters/phapsu.png?v=20260729-dark-only-v1"
   ];
   const PORTAL_BLOCKING_ASSETS = [];
-  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...LIBRARY_MODE_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
+  const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...LIBRARY_MODE_ASSETS, ...OPENING_BOOK_CONTROL_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -1222,7 +1230,7 @@
   }
 
   function normalizePieceSkin(skin) {
-    return CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
+    return skin !== "boquan2" && CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
   }
 
   function currentPieceSkin() {

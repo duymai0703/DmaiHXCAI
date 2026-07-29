@@ -19,7 +19,7 @@
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
-        const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
+        const pieceSkin = ["boquan1", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
         document.documentElement.dataset.pieceSkin = pieceSkin;
@@ -33,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-icononly-controls-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-opening-icons-v1">
   </head>
   <body>
     <header class="app-header">
@@ -46,9 +46,8 @@
         </div>
       </div>
       <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ">
-        <button class="desktop-board-skin-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ">
-          <img src="/assets/icons/cole-dark.png" alt="" draggable="false">
-          Bàn cờ
+        <button class="desktop-board-skin-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" aria-label="Chọn bàn cờ">
+          <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-opening-icons-v1" alt="" draggable="false">
         </button>
       </div>
     </header>
@@ -62,7 +61,7 @@
           <button class="mobile-action-btn" type="button" data-mobile-action="flip" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/avtchibi/xoayban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="reset" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="setup" title="Xếp hình cờ" aria-label="Xếp hình cờ"><img src="/assets/avtchibi/suaban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img src="/assets/icons/cole-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-opening-icons-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="guom" data-mobile-icon="guom" title="Gươm" aria-label="Gươm"><img src="/assets/icons/guom-dark.png" alt="" draggable="false"></button>
         </div>
         <div id="boardSkinMenu" class="board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
@@ -99,10 +98,6 @@
           <button type="button" data-piece-skin-choice="boquan1" role="menuitem">
             <span class="piece-skin-swatch piece-skin-swatch-boquan1" aria-hidden="true"></span>
             Bộ 1
-          </button>
-          <button type="button" data-piece-skin-choice="boquan2" role="menuitem">
-            <span class="piece-skin-swatch piece-skin-swatch-boquan2" aria-hidden="true"></span>
-            Bộ 2
           </button>
           <button type="button" data-piece-skin-choice="boquan3" role="menuitem">
             <span class="piece-skin-swatch piece-skin-swatch-boquan3" aria-hidden="true"></span>
@@ -289,7 +284,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260730-logoblue-controls-v1"></script>
+    <script src="/app.js?v=20260730-opening-icons-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
@@ -310,7 +305,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v202";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v203";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

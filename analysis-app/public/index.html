@@ -19,7 +19,7 @@
         const savedBoardSkin = localStorage.getItem("dmaihxcai-board-skin");
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
-        const pieceSkin = ["boquan1", "boquan2", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
+        const pieceSkin = ["boquan1", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
         document.documentElement.dataset.pieceSkin = pieceSkin;
@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260730-icononly-controls-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260730-opening-icons-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -58,7 +58,9 @@
 
       <div id="headerProfile" class="header-profile">
         <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ và bộ quân">
-          <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false">Bàn cờ</button>
+          <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Chọn bàn cờ">
+            <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+          </button>
         </div>
         <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
           <div class="skin-menu-title">Màu bàn</div>
@@ -94,10 +96,6 @@
           <button type="button" data-portal-piece-skin="boquan1" role="menuitem">
             <span class="piece-skin-swatch piece-skin-swatch-boquan1" aria-hidden="true"></span>
             Bộ 1
-          </button>
-          <button type="button" data-portal-piece-skin="boquan2" role="menuitem">
-            <span class="piece-skin-swatch piece-skin-swatch-boquan2" aria-hidden="true"></span>
-            Bộ 2
           </button>
           <button type="button" data-portal-piece-skin="boquan3" role="menuitem">
             <span class="piece-skin-swatch piece-skin-swatch-boquan3" aria-hidden="true"></span>
@@ -579,16 +577,37 @@
                 <aside class="opening-book-side">
                   <div id="openingBookSideChoice" class="opening-book-side-choice" role="group" aria-label="Chọn bên soạn book">
                     <span>Soạn book cho</span>
-                    <button id="openingBookRedSideBtn" class="secondary-button active" type="button" data-opening-book-side="w">Đỏ đi tiên</button>
-                    <button id="openingBookBlackSideBtn" class="secondary-button" type="button" data-opening-book-side="b">Đen đi hậu</button>
+                    <button id="openingBookRedSideBtn" class="secondary-button opening-book-icon-button active" type="button" data-opening-book-side="w" aria-label="Đỏ đi tiên" data-tooltip="Đỏ đi tiên">
+                      <img src="/assets/avtchibi/red.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <span data-action-label>Đỏ đi tiên</span>
+                    </button>
+                    <button id="openingBookBlackSideBtn" class="secondary-button opening-book-icon-button" type="button" data-opening-book-side="b" aria-label="Đen đi hậu" data-tooltip="Đen đi hậu">
+                      <img src="/assets/avtchibi/black.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <span data-action-label>Đen đi hậu</span>
+                    </button>
                   </div>
                   <div class="review-controls opening-book-controls">
                     <button id="openingBookBackBtn" class="secondary-button opening-book-mobile-back" type="button" aria-label="Quay lại">Quay lại</button>
-                    <button id="openingBookPrevBtn" class="secondary-button" type="button" data-mobile-icon="mb2" aria-label="Hoàn tác">Hoàn tác</button>
-                    <button id="openingBookNextBtn" class="secondary-button" type="button" data-mobile-icon="mb3" aria-label="Tiếp theo">Tiếp theo</button>
-                    <button id="openingBookResetBtn" class="secondary-button" type="button" data-mobile-icon="mb1" aria-label="Đặt lại">Đặt lại</button>
-                    <button id="openingBookSaveBtn" class="primary-button" type="button">Lưu book</button>
-                    <button id="openingBookPracticeBtn" class="secondary-button" type="button">Luyện khai cuộc với máy</button>
+                    <button id="openingBookPrevBtn" class="secondary-button opening-book-icon-button" type="button" data-mobile-icon="mb2" aria-label="Hoàn tác" data-tooltip="Hoàn tác">
+                      <img src="/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
+                      <span data-action-label>Hoàn tác</span>
+                    </button>
+                    <button id="openingBookNextBtn" class="secondary-button opening-book-icon-button" type="button" data-mobile-icon="mb3" aria-label="Tiếp theo" data-tooltip="Tiếp theo">
+                      <img src="/assets/avtchibi/tieptheo.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
+                      <span data-action-label>Tiếp theo</span>
+                    </button>
+                    <button id="openingBookResetBtn" class="secondary-button opening-book-icon-button" type="button" data-mobile-icon="mb1" aria-label="Đặt lại" data-tooltip="Đặt lại">
+                      <img src="/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
+                      <span data-action-label>Đặt lại</span>
+                    </button>
+                    <button id="openingBookSaveBtn" class="primary-button opening-book-icon-button" type="button" aria-label="Lưu book" data-tooltip="Lưu book">
+                      <img src="/assets/avtchibi/saved.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <span data-action-label>Lưu book</span>
+                    </button>
+                    <button id="openingBookPracticeBtn" class="secondary-button opening-book-icon-button" type="button" aria-label="Luyện khai cuộc với máy" data-tooltip="Luyện khai cuộc với máy">
+                      <img src="/assets/avtchibi/robo.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <span data-action-label>Luyện khai cuộc với máy</span>
+                    </button>
                     <button id="openingBookPracticeHintBtn" class="secondary-button hidden" type="button">Gợi ý</button>
                     <button id="openingBookPracticeExitBtn" class="ghost-button hidden" type="button">Thoát luyện</button>
                   </div>
@@ -939,7 +958,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260730-icononly-controls-v1"></script>
+    <script src="/portal.js?v=20260730-opening-icons-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -947,7 +966,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v202";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v203";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

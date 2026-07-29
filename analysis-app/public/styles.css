@@ -4949,7 +4949,7 @@ button.action-logo-button {
   min-width: 64px !important;
   height: 64px !important;
   min-height: 64px !important;
-  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-icononly-controls-v1") center / 156% 156% no-repeat !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1") center / 156% 156% no-repeat !important;
 }
 
 .action-logo-button {
@@ -5059,4 +5059,64 @@ button.action-logo-button {
     place-items: center !important;
     padding: 6px !important;
   }
+}
+
+/* Tooltip-below controls, clean back artwork, and setting icon button. */
+.app-header,
+.primary-actions,
+.move-controls,
+.board-tools,
+.board-tools .analysis-tool-grid {
+  overflow: visible !important;
+}
+
+.action-logo-button[data-tooltip]::after {
+  top: calc(100% + 10px);
+  bottom: auto !important;
+  transform: translate(-50%, -6px);
+}
+
+.action-logo-button[data-tooltip]:hover::after,
+.action-logo-button[data-tooltip]:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.nav-back,
+.nav-back:hover,
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible {
+  position: relative !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.nav-back::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1") center / 100% 100% no-repeat;
+  transform: scale(1.56);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.theme-toggle .desktop-board-skin-btn {
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+}
+
+.board-setting-icon {
+  width: 88% !important;
+  height: 88% !important;
+  object-fit: contain !important;
+  transform: rotate(90deg);
+  transform-origin: center;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.24));
 }

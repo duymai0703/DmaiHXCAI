@@ -7592,11 +7592,11 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   min-width: 64px !important;
   height: 64px !important;
   min-height: 64px !important;
-  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-icononly-controls-v1") center / 156% 156% no-repeat !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1") center / 156% 156% no-repeat !important;
 }
 
 body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before {
-  background-image: url("/assets/avtchibi/backbl.png?v=20260730-icononly-controls-v1") !important;
+  background-image: url("/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1") !important;
   background-size: 156% 156% !important;
 }
 
@@ -7617,4 +7617,148 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     min-height: 54px !important;
     background-size: 156% 156% !important;
   }
+}
+
+/* Opening-book icon controls and cleaner global back artwork. */
+.portal-header,
+.opening-book-side,
+.opening-book-side-choice,
+.opening-book-controls {
+  overflow: visible !important;
+}
+
+.nav-back,
+.nav-back:hover,
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible,
+.room-mobile-back,
+.room-mobile-back:hover,
+.room-mobile-back:active,
+.room-mobile-back:focus,
+.room-mobile-back:focus-visible {
+  position: relative !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.nav-back::before,
+.room-mobile-back::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1") center / 100% 100% no-repeat;
+  transform: scale(1.56);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.portal-board-skin-btn {
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+.board-setting-icon {
+  width: 88% !important;
+  height: 88% !important;
+  object-fit: contain !important;
+  transform: rotate(90deg);
+  transform-origin: center;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.24));
+}
+
+.opening-book-side-choice {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.opening-book-side-choice > span,
+.opening-book-icon-button [data-action-label] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.opening-book-side-choice .opening-book-icon-button,
+.opening-book-controls .opening-book-icon-button {
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: 96px !important;
+  aspect-ratio: 1 / 1;
+  display: grid !important;
+  place-items: center !important;
+  padding: 4px !important;
+  border-radius: 14px !important;
+  overflow: visible !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+.opening-book-icon-button img {
+  width: 138% !important;
+  height: 138% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.28));
+}
+
+.opening-book-icon-button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  z-index: 140;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 7px 10px;
+  border: 1px solid rgba(120, 224, 255, 0.42);
+  border-radius: 8px;
+  background: rgba(1, 20, 32, 0.96);
+  color: #f4fdff;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.opening-book-icon-button[data-tooltip]:hover::after,
+.opening-book-icon-button[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.opening-book-controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.opening-book-controls #openingBookPracticeBtn,
+.opening-book-controls #openingBookPracticeHintBtn,
+.opening-book-controls #openingBookPracticeExitBtn {
+  grid-column: auto !important;
+}
+
+.opening-book-branch-summary,
+#openingBookBranchChooser {
+  display: none !important;
 }
