@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260729-piece-smooth-v1";
+  const ASSET_WARMUP_VERSION = "20260729-endgame-fix-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LOBBY_MENU_MODE = "menu";
   const LOBBY_MODES = new Set([LOBBY_MENU_MODE, "join", "create", "bot", "rank", "puzzle", "endgame", "opponent"]);
@@ -56,6 +56,7 @@
   const ENDGAME_PAGE_WINDOW_SIZE = 10;
   const ENDGAME_PREVIEW_PAD_X = 5.8;
   const ENDGAME_PREVIEW_PAD_Y = 5.15;
+  const ENDGAME_ENGINE_DEPTH = 14;
   const PUZZLE_TOTAL = PUZZLES.length;
   const PUZZLE_MAX_PLAYER_MOVES = 8;
   const PUZZLE_ENGINE_DELAY_MS = 260;
@@ -314,6 +315,7 @@
     puzzleMapAvatarLevel: 0,
     puzzleMapPendingJump: null,
     endgameSession: null,
+    endgameBotThinkingKey: "",
     endgamePage: 1,
     endgamePageWindowStart: 1,
     createSide: "w",
@@ -3324,6 +3326,7 @@
     const sideToMove = parsed.side === "b" ? "b" : "w";
     clearPuzzleBotTimer();
     state.puzzleSession = null;
+    state.endgameBotThinkingKey = "";
     state.endgameSession = {
       index: Number(endgame.index || index),
       endgame,
@@ -3386,6 +3389,7 @@
     const sideToMove = parsed.side === "b" ? "b" : "w";
     clearPuzzleBotTimer();
     state.endgameSession = null;
+    state.endgameBotThinkingKey = "";
     state.puzzleSession = {
       level: Number(puzzle.level || level),
       puzzle,
@@ -3729,11 +3733,39 @@
     if (state.room.status === "active") triggerTurnFlash();
   }
 
-  function playEndgameBotTurn() {
+  async function requestEndgameBotMove() {
+    const payload = await api("/api/endgame/bestmove", {
+      method: "POST",
+      body: {
+        fen: state.room?.boardFen || "",
+        startFen: state.endgameSession?.endgame?.fen || "",
+        moves: Array.isArray(state.room?.moves) ? state.room.moves : [],
+        depth: ENDGAME_ENGINE_DEPTH
+      }
+    }, { attempts: 5 });
+    const move = String(payload?.move || "").trim().toLowerCase();
+    return {
+      move: /^[a-i][0-9][a-i][0-9]$/.test(move) && XiangqiCore.isLegalMove(state.roomBoard, move, "b") ? move : ""
+    };
+  }
+
+  async function playEndgameBotTurn() {
     state.puzzleBotTimer = 0;
     if (!isEndgameRoom() || !state.endgameSession || state.room.status !== "active") return;
     settleRoomAnimationNow();
-    const move = choosePuzzleBotMove(state.roomBoard);
+    const thinkingKey = `${state.room.key}:${state.room.moves?.length || 0}:${state.room.boardFen || ""}`;
+    state.endgameBotThinkingKey = thinkingKey;
+    let move = "";
+    let engineAnswered = false;
+    try {
+      const response = await requestEndgameBotMove();
+      move = response.move;
+      engineAnswered = true;
+    } catch (error) {
+      console.warn("Endgame engine move failed, using local fallback:", error?.message || error);
+    }
+    if (state.endgameBotThinkingKey !== thinkingKey || !isEndgameRoom() || !state.endgameSession || state.room.status !== "active") return;
+    if (!move && !engineAnswered) move = choosePuzzleBotMove(state.roomBoard);
     if (!move) {
       setEndgameFinished("success", "checkmate");
       renderRoomState({ forceBoard: true, keepSelection: false });

@@ -3998,6 +3998,77 @@ async function chooseBotMove(room, board, side, depth) {
   return firstRuleSafeMoveForRoom(room, board, side);
 }
 
+function normalizeEndgameTrainingMoveEntry(entry) {
+  if (typeof entry === "string") {
+    return { move: entry.trim().toLowerCase(), side: "" };
+  }
+  return {
+    move: String(entry?.move || "").trim().toLowerCase(),
+    side: entry?.side === "b" ? "b" : entry?.side === "w" ? "w" : ""
+  };
+}
+
+function buildEndgameTrainingRoom(body = {}) {
+  const startFen = String(body.startFen || body.fen || XiangqiCore.START_FEN);
+  const start = XiangqiCore.parseFenState(startFen);
+  const room = {
+    key: "ENDGAME-TRAINING",
+    mode: "bot",
+    status: "active",
+    startFen: XiangqiCore.boardToFen(start.board, start.side),
+    boardFen: XiangqiCore.boardToFen(start.board, start.side),
+    sideToMove: start.side,
+    activeSide: start.side,
+    bot: { side: "b", depth: 14, level: 7 },
+    moves: [],
+    ruleState: initialRoomRuleState(XiangqiCore.boardToFen(start.board, start.side)),
+    ruleNotice: null,
+    result: null
+  };
+
+  const entries = Array.isArray(body.moves) ? body.moves.map(normalizeEndgameTrainingMoveEntry) : [];
+  for (const entry of entries) {
+    if (!/^[a-i][0-9][a-i][0-9]$/.test(entry.move)) continue;
+    const parsed = XiangqiCore.parseFenState(room.boardFen);
+    const side = entry.side || parsed.side;
+    if (side !== parsed.side || !XiangqiCore.isLegalMove(parsed.board, entry.move, side)) break;
+    const nextBoard = XiangqiCore.cloneBoard(parsed.board);
+    XiangqiCore.applyMoveToBoard(nextBoard, entry.move);
+    try {
+      const ruleCheck = assertRoomMoveAllowedByRules(room, side, entry.move, parsed.board, nextBoard);
+      room.ruleState = ruleCheck.nextRuleState;
+    } catch {
+      room.ruleState = normalizeRoomRuleState(room);
+    }
+    room.moves.push({
+      side,
+      move: entry.move,
+      notation: XiangqiCore.formatMoveNotation(entry.move, parsed.board, side)
+    });
+    room.boardFen = XiangqiCore.boardToFen(nextBoard, oppositeSide(side));
+    room.sideToMove = oppositeSide(side);
+    room.activeSide = room.sideToMove;
+  }
+
+  if (body.fen) {
+    const current = XiangqiCore.parseFenState(body.fen);
+    room.boardFen = XiangqiCore.boardToFen(current.board, current.side);
+    room.sideToMove = current.side;
+    room.activeSide = current.side;
+  }
+  return room;
+}
+
+async function chooseEndgameTrainingMove(room, board, side, depth) {
+  const candidates = ruleSafeMovesForRoom(room, board, side);
+  if (!candidates.length) return "";
+  let move = await engineBestMoveForRoom(room, depth, candidates);
+  if (move && XiangqiCore.isLegalMove(board, move, side) && isRoomMoveAllowedByRules(room, side, move, board)) return move;
+  move = await chooseBotMove(room, board, side, depth);
+  if (move && XiangqiCore.isLegalMove(board, move, side) && isRoomMoveAllowedByRules(room, side, move, board)) return move;
+  return candidates[0] || "";
+}
+
 async function maybeRunBotTurn(room) {
   if (!isBotRoomMode(room)) return;
   const key = room.key;
@@ -5637,6 +5708,28 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const result = await engine.analyze(body);
       json(res, 200, result);
+      return;
+    }
+
+    if (url.pathname === "/api/endgame/bestmove" && req.method === "POST") {
+      requireUser(req);
+      syncEngineInstance();
+      const body = await readBody(req);
+      const room = buildEndgameTrainingRoom(body);
+      const parsed = XiangqiCore.parseFenState(room.boardFen);
+      const side = parsed.side === "b" ? "b" : "w";
+      if (side !== "b") {
+        json(res, 200, { ok: true, move: "", depth: 0 });
+        return;
+      }
+      const gameState = XiangqiCore.determineGameState(parsed.board, side);
+      if (gameState.finished) {
+        json(res, 200, { ok: true, move: "", depth: 0, finished: true });
+        return;
+      }
+      const depth = Math.max(10, Math.min(18, Number(body.depth) || 14));
+      const move = await chooseEndgameTrainingMove(room, parsed.board, side, depth);
+      json(res, 200, { ok: true, move, depth, ruleSafe: Boolean(move && isRoomMoveAllowedByRules(room, side, move, parsed.board)) });
       return;
     }
 

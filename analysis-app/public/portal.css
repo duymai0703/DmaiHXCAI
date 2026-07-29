@@ -1089,8 +1089,8 @@ a {
 }
 
 .endgame-preview-board {
-  --board-grid-pad-x: 6.2;
-  --board-grid-pad-y: 6.1;
+  --board-grid-pad-x: 5.8;
+  --board-grid-pad-y: 5.15;
   position: relative;
   width: min(100%, 238px);
   aspect-ratio: 9 / 10;
@@ -1102,7 +1102,7 @@ a {
     inset 0 0 0 1px color-mix(in srgb, var(--board-frame-line) 44%, transparent),
     inset 0 12px 22px rgba(255, 255, 255, 0.12),
     0 10px 18px rgba(0, 0, 0, 0.16);
-  overflow: hidden;
+  overflow: visible;
   transition: filter 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -1124,7 +1124,7 @@ a {
 
 .endgame-preview-piece {
   position: absolute;
-  width: 12.3%;
+  width: 11.85%;
   aspect-ratio: 1;
   object-fit: contain;
   transform: translate(-50%, -50%);
@@ -1137,7 +1137,7 @@ a {
 }
 
 :root[data-piece-skin="default"] .endgame-preview-piece {
-  width: 12.8%;
+  width: 11.85%;
 }
 
 .endgame-card-detail {
@@ -6760,8 +6760,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
    canvas board and image pieces the weight of real table objects. */
 .endgame-title-logo {
   display: block;
-  width: min(820px, 86vw);
-  max-height: 176px;
+  width: min(980px, 90vw);
+  max-height: 330px;
   object-fit: contain;
   object-position: left center;
   filter:
@@ -7005,8 +7005,8 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 
 @media (max-width: 760px) {
   .endgame-title-logo {
-    width: min(520px, 88vw);
-    max-height: 112px;
+    width: min(640px, 92vw);
+    max-height: 210px;
   }
 
   .room-board,
@@ -7191,9 +7191,16 @@ body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.
 }
 
 .piece.image-piece .piece-skin,
-.motion-piece .piece-skin,
-.endgame-preview-piece {
+.motion-piece .piece-skin {
   transform: none !important;
+  filter:
+    drop-shadow(0 4px 5px rgba(0, 0, 0, 0.26))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18)) !important;
+  object-fit: contain !important;
+}
+
+.endgame-preview-piece {
+  transform: translate(-50%, -50%) !important;
   filter:
     drop-shadow(0 4px 5px rgba(0, 0, 0, 0.26))
     drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18)) !important;
