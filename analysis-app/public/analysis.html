@@ -33,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-logoblue-controls-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-icononly-controls-v1">
   </head>
   <body>
     <header class="app-header">
@@ -150,7 +150,7 @@
         <div class="panel-shell">
           <div class="panel-main-col">
             <div class="group primary-actions" data-mobile-panel="analysis">
-              <button id="analyzeBtn" class="analyze-button action-logo-button" type="button">
+              <button id="analyzeBtn" class="analyze-button action-logo-button" type="button" aria-label="Phân tích" data-tooltip="Phân tích">
                 <img src="/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                 <span data-action-label>Phân tích</span>
               </button>
@@ -160,19 +160,19 @@
             </div>
 
             <div class="group move-controls">
-              <button id="undoBtn" class="action-logo-button" type="button">
+              <button id="undoBtn" class="action-logo-button" type="button" aria-label="Hoàn tác" data-tooltip="Hoàn tác">
                 <img src="/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                 <span data-action-label>Hoàn tác</span>
               </button>
-              <button id="redoBtn" class="action-logo-button" type="button">
+              <button id="redoBtn" class="action-logo-button" type="button" aria-label="Tiếp theo" data-tooltip="Tiếp theo">
                 <img src="/assets/avtchibi/tieptheo.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                 <span data-action-label>Tiếp theo</span>
               </button>
-              <button id="resetBtn" class="action-logo-button" type="button">
+              <button id="resetBtn" class="action-logo-button" type="button" aria-label="Đặt lại" data-tooltip="Đặt lại">
                 <img src="/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                 <span data-action-label>Đặt lại</span>
               </button>
-              <button id="flipBtn" class="action-logo-button" type="button">
+              <button id="flipBtn" class="action-logo-button" type="button" aria-label="Xoay bàn cờ" data-tooltip="Xoay bàn cờ">
                 <img src="/assets/avtchibi/xoayban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                 <span data-action-label>Xoay bàn cờ</span>
               </button>
@@ -180,15 +180,15 @@
 
             <div class="group board-tools" data-mobile-panel="tools">
               <div class="tool-row analysis-tool-grid">
-                <button id="editBoardBtn" class="action-logo-button" type="button" aria-label="Sửa bàn cờ" title="Sửa bàn cờ">
+                <button id="editBoardBtn" class="action-logo-button" type="button" aria-label="Sửa bàn cờ" data-tooltip="Sửa bàn cờ">
                   <img src="/assets/avtchibi/suaban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                   <span data-action-label>Sửa bàn cờ</span>
                 </button>
-                <button id="clearBoardBtn" class="action-logo-button" type="button" aria-label="Xóa bàn cờ" title="Xóa bàn cờ">
+                <button id="clearBoardBtn" class="action-logo-button" type="button" aria-label="Xóa bàn cờ" data-tooltip="Xóa bàn cờ">
                   <img src="/assets/avtchibi/xoaban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                   <span data-action-label>Xóa bàn cờ</span>
                 </button>
-                <button id="recognizeImageBtn" class="action-logo-button" type="button" aria-label="Nhận diện bàn cờ từ ảnh" title="Nhận diện bàn cờ từ ảnh">
+                <button id="recognizeImageBtn" class="action-logo-button" type="button" aria-label="Nhận diện bàn cờ từ ảnh" data-tooltip="Nhận diện ảnh">
                   <img src="/assets/avtchibi/nhandienanh.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                   <span data-action-label>Nhận diện ảnh</span>
                 </button>
@@ -310,7 +310,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v201";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v202";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

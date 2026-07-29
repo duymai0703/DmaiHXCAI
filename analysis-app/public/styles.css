@@ -4938,3 +4938,125 @@ button.action-logo-button {
     max-height: none !important;
   }
 }
+
+/* Icon-only analysis controls with hover labels. */
+.nav-back,
+.nav-back:hover,
+.nav-back:active,
+.nav-back:focus,
+.nav-back:focus-visible {
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  background: transparent url("/assets/avtchibi/backbl.png?v=20260730-icononly-controls-v1") center / 156% 156% no-repeat !important;
+}
+
+.action-logo-button {
+  position: relative !important;
+  overflow: visible !important;
+  isolation: isolate;
+}
+
+.action-logo-button [data-action-label] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.action-logo-button[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 120;
+  max-width: min(220px, calc(100vw - 24px));
+  padding: 7px 10px;
+  border: 1px solid rgba(120, 224, 255, 0.42);
+  border-radius: 8px;
+  background: rgba(1, 20, 32, 0.96);
+  color: #f4fdff;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.action-logo-button[data-tooltip]:hover::after,
+.action-logo-button[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.action-logo-button:hover,
+.action-logo-button:focus-visible {
+  z-index: 20;
+}
+
+@media (min-width: 761px) {
+  .analyze-button.action-logo-button,
+  .move-controls .action-logo-button,
+  .board-tools .action-logo-button {
+    grid-template-rows: minmax(0, 1fr) !important;
+    place-items: center !important;
+    padding: 6px !important;
+  }
+
+  .analyze-button.action-logo-button img {
+    width: 86% !important;
+    height: 86% !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .move-controls {
+    width: calc(100% + 22px) !important;
+    margin-right: -22px !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  .move-controls .action-logo-button img,
+  .board-tools .action-logo-button img {
+    width: 130% !important;
+    height: 130% !important;
+    margin: 0 !important;
+    transform: translateY(8px) scale(1.02) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .nav-back,
+  .nav-back:hover,
+  .nav-back:active,
+  .nav-back:focus,
+  .nav-back:focus-visible {
+    width: 54px !important;
+    min-width: 54px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    background-size: 156% 156% !important;
+  }
+
+  .move-controls .action-logo-button,
+  .board-tools .action-logo-button,
+  .analyze-button.action-logo-button {
+    grid-template-rows: minmax(0, 1fr) !important;
+    place-items: center !important;
+    padding: 6px !important;
+  }
+}
