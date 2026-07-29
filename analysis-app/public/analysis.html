@@ -33,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-board-branch-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-mobile-library-score-v1">
   </head>
   <body>
     <header class="app-header">
@@ -47,7 +47,7 @@
       </div>
       <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ">
         <button class="desktop-board-skin-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" aria-label="Chọn bàn cờ">
-          <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-board-branch-v1" alt="" draggable="false">
+          <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
         </button>
       </div>
     </header>
@@ -61,7 +61,7 @@
           <button class="mobile-action-btn" type="button" data-mobile-action="flip" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/avtchibi/xoayban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="reset" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="setup" title="Xếp hình cờ" aria-label="Xếp hình cờ"><img src="/assets/avtchibi/suaban.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false"></button>
-          <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-board-branch-v1" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-mobile-library-score-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="guom" data-mobile-icon="guom" title="Gươm" aria-label="Gươm"><img src="/assets/icons/guom-dark.png" alt="" draggable="false"></button>
         </div>
         <div id="boardSkinMenu" class="board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
@@ -150,7 +150,7 @@
                 <span data-action-label>Phân tích</span>
               </button>
               <div id="analysis" class="analysis score-slot">
-                <div class="score-banner equal"><span>Đánh giá</span><strong>0</strong><small>Cân bằng</small></div>
+                <div class="score-banner equal"><strong>0</strong></div>
               </div>
             </div>
 
@@ -284,7 +284,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260730-board-branch-v1"></script>
+    <script src="/app.js?v=20260730-mobile-library-score-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       if (backButton) {
@@ -305,7 +305,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v205";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v206";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

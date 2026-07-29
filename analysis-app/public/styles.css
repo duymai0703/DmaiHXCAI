@@ -1459,7 +1459,7 @@ input:not([type]) {
 
 .mobile-room-confirm-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -1473,6 +1473,12 @@ input:not([type]) {
   background: var(--control-active) !important;
   border-color: rgba(255, 177, 77, 0.62) !important;
   color: #211306 !important;
+}
+
+.mobile-room-confirm-library {
+  background: linear-gradient(180deg, rgba(50, 172, 210, 0.96), rgba(14, 95, 136, 0.98)) !important;
+  border-color: rgba(139, 230, 255, 0.62) !important;
+  color: #f4fdff !important;
 }
 
 .mobile-room-confirm-cancel {
@@ -5140,4 +5146,32 @@ button.action-logo-button {
   max-height: 38px !important;
   object-fit: contain !important;
   transform: rotate(90deg) !important;
+}
+
+/* Evaluation card now shows only the score. */
+.score-slot .score-banner {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  gap: 0 !important;
+  padding: 8px !important;
+  text-align: center !important;
+}
+
+.score-slot .score-banner span,
+.score-slot .score-banner small {
+  display: none !important;
+}
+
+.score-slot .score-banner strong {
+  grid-row: auto !important;
+  font-size: 44px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .score-slot .score-banner strong {
+    font-size: 34px !important;
+  }
 }

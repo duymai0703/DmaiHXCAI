@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-board-branch-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-library-score-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -111,11 +111,11 @@
     libraryModeAsset("danhthu.png")
   ];
   const OPENING_BOOK_CONTROL_ASSETS = [
-    "/assets/avtchibi/red.png?v=20260730-board-branch-v1",
-    "/assets/avtchibi/black.png?v=20260730-board-branch-v1",
-    "/assets/avtchibi/saved.png?v=20260730-board-branch-v1",
-    "/assets/avtchibi/robo.png?v=20260730-board-branch-v1",
-    "/assets/avtchibi/setting.png?v=20260730-board-branch-v1"
+    "/assets/avtchibi/red.png?v=20260730-mobile-library-score-v1",
+    "/assets/avtchibi/black.png?v=20260730-mobile-library-score-v1",
+    "/assets/avtchibi/saved.png?v=20260730-mobile-library-score-v1",
+    "/assets/avtchibi/robo.png?v=20260730-mobile-library-score-v1",
+    "/assets/avtchibi/setting.png?v=20260730-mobile-library-score-v1"
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-board-branch-v1",
-    "/app.js?v=20260730-board-branch-v1",
+    "/styles.css?v=20260730-mobile-library-score-v1",
+    "/app.js?v=20260730-mobile-library-score-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -4028,9 +4028,9 @@
   function syncRoute(replaceIfNeeded) {
     const routeInfo = parseRouteHash(location.hash);
     let route = routeInfo.route;
-    const mobileAdminRoute = isMobileRoomEntry && route === "admin";
+    const keepBootRoute = route === "library" || route === "review" || (isMobileRoomEntry && route === "admin");
     if (isMobileRoomEntry && route === "home") route = state.room ? "room" : "match";
-    if (state.booting && !mobileAdminRoute) route = isMobileRoomEntry ? "match" : "home";
+    if (state.booting && !keepBootRoute) route = isMobileRoomEntry ? "match" : "home";
     else if (route === "room" && !state.room) route = "match";
     else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "library";

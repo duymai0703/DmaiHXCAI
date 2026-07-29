@@ -32,7 +32,9 @@
       const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua) || isIpadDesktop;
       const params = new URLSearchParams(window.location.search || "");
       const wantsMobileRoom = params.has("mobileRoom");
-      if (isMobileDevice && !wantsMobileRoom) {
+      const initialMobileRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase().split(/[/?]/)[0];
+      const keepPortalOnMobile = ["library", "review", "admin"].includes(initialMobileRoute);
+      if (isMobileDevice && !wantsMobileRoom && !keepPortalOnMobile) {
         window.location.replace("/analysis");
       }
     </script>
@@ -43,7 +45,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260730-board-branch-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-library-score-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -59,7 +61,7 @@
       <div id="headerProfile" class="header-profile">
         <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ và bộ quân">
           <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Chọn bàn cờ">
-            <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-board-branch-v1" alt="" draggable="false">
+            <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
           </button>
         </div>
         <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
@@ -579,11 +581,11 @@
                   <div id="openingBookSideChoice" class="opening-book-side-choice" role="group" aria-label="Chọn bên soạn book">
                     <span>Soạn book cho</span>
                     <button id="openingBookRedSideBtn" class="secondary-button opening-book-icon-button active" type="button" data-opening-book-side="w" aria-label="Đỏ đi tiên" data-tooltip="Đỏ đi tiên">
-                      <img src="/assets/avtchibi/red.png?v=20260730-board-branch-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/red.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
                       <span data-action-label>Đỏ đi tiên</span>
                     </button>
                     <button id="openingBookBlackSideBtn" class="secondary-button opening-book-icon-button" type="button" data-opening-book-side="b" aria-label="Đen đi hậu" data-tooltip="Đen đi hậu">
-                      <img src="/assets/avtchibi/black.png?v=20260730-board-branch-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/black.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
                       <span data-action-label>Đen đi hậu</span>
                     </button>
                   </div>
@@ -602,11 +604,11 @@
                       <span data-action-label>Đặt lại</span>
                     </button>
                     <button id="openingBookSaveBtn" class="primary-button opening-book-icon-button" type="button" aria-label="Lưu book" data-tooltip="Lưu book">
-                      <img src="/assets/avtchibi/saved.png?v=20260730-board-branch-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/saved.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
                       <span data-action-label>Lưu book</span>
                     </button>
                     <button id="openingBookPracticeBtn" class="secondary-button opening-book-icon-button" type="button" aria-label="Luyện khai cuộc với máy" data-tooltip="Luyện khai cuộc với máy">
-                      <img src="/assets/avtchibi/robo.png?v=20260730-board-branch-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/robo.png?v=20260730-mobile-library-score-v1" alt="" draggable="false">
                       <span data-action-label>Luyện khai cuộc với máy</span>
                     </button>
                     <button id="openingBookPracticeHintBtn" class="secondary-button hidden" type="button">Gợi ý</button>
@@ -959,7 +961,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260730-board-branch-v1"></script>
+    <script src="/portal.js?v=20260730-mobile-library-score-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -967,7 +969,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v205";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v206";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-board-branch-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-library-score-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -135,6 +135,7 @@ const ANALYSIS_DISPLAY_DEPTH_BOOST = 10;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
+const MOBILE_LIBRARY_ENTRY_URL = "/?mobileRoom=1#library";
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -152,7 +153,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   MOVE_SOUND_SOURCES.check,
   MOVE_SOUND_SOURCES.checkmate,
   "/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1",
-  "/assets/avtchibi/setting.png?v=20260730-board-branch-v1",
+  "/assets/avtchibi/setting.png?v=20260730-mobile-library-score-v1",
   BRAND_LOGO,
   "/assets/icons/mb1-dark.png",
   "/assets/icons/mb2-dark.png",
@@ -1494,7 +1495,7 @@ function setupMobileRoomConfirm() {
 
   const title = document.createElement("strong");
   title.id = "mobileRoomConfirmTitle";
-  title.textContent = "xác nhận chuyển qua chế độ phòng đấu?";
+  title.textContent = "Chọn khu muốn mở";
 
   const actions = document.createElement("div");
   actions.className = "mobile-room-confirm-actions";
@@ -1508,13 +1509,22 @@ function setupMobileRoomConfirm() {
   const accept = document.createElement("button");
   accept.type = "button";
   accept.className = "mobile-room-confirm-accept";
-  accept.textContent = "Đồng ý";
+  accept.textContent = "Phòng đấu";
   accept.addEventListener("click", () => {
     hideMobileRoomConfirm();
     window.location.href = MOBILE_ROOM_ENTRY_URL;
   });
 
-  actions.append(cancel, accept);
+  const library = document.createElement("button");
+  library.type = "button";
+  library.className = "mobile-room-confirm-library";
+  library.textContent = "Thư viện cá nhân";
+  library.addEventListener("click", () => {
+    hideMobileRoomConfirm();
+    window.location.href = MOBILE_LIBRARY_ENTRY_URL;
+  });
+
+  actions.append(cancel, library, accept);
   card.append(title, actions);
   overlay.appendChild(card);
   overlay.addEventListener("click", (event) => {
@@ -1832,12 +1842,10 @@ function renderAnalysis(result, startBoard, startSide, { animateScore = false } 
 function renderScore(score, source = "", { animate = false } = {}) {
   if (!analysisEl) return;
   stopScoreAnimation();
-  const sourceText = source ? ` · ${source}` : "";
-  const signText = score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng";
   analysisEl.innerHTML = "";
   const banner = document.createElement("div");
   banner.className = `score-banner ${scoreClass(score)}`;
-  banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}</small>`;
+  banner.innerHTML = `<strong>${formatEval(score)}</strong>`;
   analysisEl.appendChild(banner);
   if (animate) animateScoreBanner(banner, score);
 }
@@ -1899,7 +1907,7 @@ function renderPendingAnalysis() {
   state.mobileAnalysisScore = null;
   const banner = document.createElement("div");
   banner.className = "score-banner equal";
-  banner.innerHTML = `<span>Đánh giá</span><strong>...</strong><small>Engine đang phân tích · Góc nhìn ${viewerName()}</small>`;
+  banner.innerHTML = `<strong>...</strong>`;
   analysisEl.appendChild(banner);
   renderMobileScoreStrip(null, "Engine đang phân tích");
 }
@@ -1935,12 +1943,10 @@ function renderScore(score, source = "", { pending = false } = {}) {
   stopScoreAnimation();
   state.mobileAnalysisScore = Number.isFinite(score) ? score : null;
   const previousScore = Number.isFinite(state.shownScore) ? state.shownScore : null;
-  const sourceText = source ? ` · ${source}` : "";
-  const signText = score > 0 ? "Ưu thế" : score < 0 ? "Bất lợi" : "Cân bằng";
   analysisEl.innerHTML = "";
   const banner = document.createElement("div");
   banner.className = `score-banner ${scoreClass(score)}`;
-  banner.innerHTML = `<span>Đánh giá</span><strong>${formatEval(previousScore ?? score)}</strong><small>${signText}${sourceText} · Góc nhìn ${viewerName()}${pending ? " · đang đào sâu" : ""}</small>`;
+  banner.innerHTML = `<strong>${formatEval(previousScore ?? score)}</strong>`;
   analysisEl.appendChild(banner);
   renderMobileScoreStrip(previousScore ?? score);
   if (previousScore === null || previousScore === score) {
