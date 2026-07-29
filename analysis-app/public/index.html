@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260730-opening-icons-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260730-opening-controls-v2">
   </head>
   <body>
     <header class="portal-header">
@@ -59,7 +59,7 @@
       <div id="headerProfile" class="header-profile">
         <div class="theme-toggle" role="group" aria-label="Chọn bàn cờ và bộ quân">
           <button id="portalBoardSkinBtn" class="portal-board-skin-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Chọn bàn cờ">
-            <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+            <img class="board-setting-icon" src="/assets/avtchibi/setting.png?v=20260730-opening-controls-v2" alt="" draggable="false">
           </button>
         </div>
         <div id="portalBoardSkinMenu" class="portal-board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
@@ -561,6 +561,7 @@
                     <div id="openingBookMotionLayer" class="motion-layer opening-book-motion-layer" aria-hidden="true">
                       <div id="openingBookMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
+                    <div id="openingBookCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
                   </div>
                   <div id="openingBookPracticeModal" class="opening-book-practice-modal hidden" aria-live="polite">
                     <div class="opening-book-practice-card">
@@ -578,11 +579,11 @@
                   <div id="openingBookSideChoice" class="opening-book-side-choice" role="group" aria-label="Chọn bên soạn book">
                     <span>Soạn book cho</span>
                     <button id="openingBookRedSideBtn" class="secondary-button opening-book-icon-button active" type="button" data-opening-book-side="w" aria-label="Đỏ đi tiên" data-tooltip="Đỏ đi tiên">
-                      <img src="/assets/avtchibi/red.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/red.png?v=20260730-opening-controls-v2" alt="" draggable="false">
                       <span data-action-label>Đỏ đi tiên</span>
                     </button>
                     <button id="openingBookBlackSideBtn" class="secondary-button opening-book-icon-button" type="button" data-opening-book-side="b" aria-label="Đen đi hậu" data-tooltip="Đen đi hậu">
-                      <img src="/assets/avtchibi/black.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/black.png?v=20260730-opening-controls-v2" alt="" draggable="false">
                       <span data-action-label>Đen đi hậu</span>
                     </button>
                   </div>
@@ -601,11 +602,11 @@
                       <span data-action-label>Đặt lại</span>
                     </button>
                     <button id="openingBookSaveBtn" class="primary-button opening-book-icon-button" type="button" aria-label="Lưu book" data-tooltip="Lưu book">
-                      <img src="/assets/avtchibi/saved.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/saved.png?v=20260730-opening-controls-v2" alt="" draggable="false">
                       <span data-action-label>Lưu book</span>
                     </button>
                     <button id="openingBookPracticeBtn" class="secondary-button opening-book-icon-button" type="button" aria-label="Luyện khai cuộc với máy" data-tooltip="Luyện khai cuộc với máy">
-                      <img src="/assets/avtchibi/robo.png?v=20260730-opening-icons-v1" alt="" draggable="false">
+                      <img src="/assets/avtchibi/robo.png?v=20260730-opening-controls-v2" alt="" draggable="false">
                       <span data-action-label>Luyện khai cuộc với máy</span>
                     </button>
                     <button id="openingBookPracticeHintBtn" class="secondary-button hidden" type="button">Gợi ý</button>
@@ -958,7 +959,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260730-opening-icons-v1"></script>
+    <script src="/portal.js?v=20260730-opening-controls-v2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -966,7 +967,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v203";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v204";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();
