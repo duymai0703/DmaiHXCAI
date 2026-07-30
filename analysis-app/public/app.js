@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-dark-fantasy-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-branch-back-fix-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -2288,7 +2288,10 @@ function showBoardEffect(kind = "checkmate", { durationMs = 0, playSound = true 
   }
   const img = checkmateBurstEl.querySelector("img");
   const source = BOARD_EFFECT_ASSETS[effectKind];
-  if (img && img.getAttribute("src") !== source) img.src = source;
+  if (img) {
+    img.src = source;
+    img.dataset.effectKind = effectKind;
+  }
   const soundMs = playSound ? (playMoveSound(effectKind, durationMs) || 0) : mediaSoundWindowMs(effectKind, durationMs);
   const effectMs = Math.max(BOARD_EFFECT_BASE_MS[effectKind] || 0, soundMs || 0);
   checkmateBurstEl.classList.remove("show", ...BOARD_EFFECT_CLASSES);

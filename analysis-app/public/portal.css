@@ -8167,4 +8167,56 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     background:
       linear-gradient(180deg, rgba(133, 82, 24, 0.98), rgba(67, 34, 12, 0.99)) !important;
   }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser:not(.hidden) {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    z-index: 18 !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 4 !important;
+    width: min(100%, 390px) !important;
+    max-height: min(32vh, 286px) !important;
+    margin: 0 auto !important;
+    overflow: auto !important;
+    transform: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+    text-align: center !important;
+    color: #f5fdff !important;
+    border: 1px solid rgba(91, 207, 241, 0.62) !important;
+    outline: 1px solid rgba(211, 162, 74, 0.46) !important;
+    outline-offset: 2px !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(88, 36, 149, 0.2), transparent 42%),
+      linear-gradient(180deg, rgba(8, 28, 45, 0.98), rgba(3, 11, 23, 0.99)) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 214, 126, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -18px 28px rgba(0, 0, 0, 0.26),
+      0 0 18px rgba(77, 202, 240, 0.14),
+      0 0 14px rgba(139, 67, 219, 0.14),
+      0 12px 24px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser strong {
+    grid-column: 1 / -1 !important;
+    font-size: 17px !important;
+    line-height: 1.22 !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser button {
+    min-height: 42px !important;
+    padding: 0 8px !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser .ghost-button {
+    min-height: 40px !important;
+  }
 }

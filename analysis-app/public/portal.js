@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-dark-fantasy-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-branch-back-fix-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-dark-fantasy-v1",
-    "/app.js?v=20260730-mobile-dark-fantasy-v1",
+    "/styles.css?v=20260730-mobile-branch-back-fix-v1",
+    "/app.js?v=20260730-mobile-branch-back-fix-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -4096,17 +4096,18 @@
   }
 
   function handleBack() {
+    const currentHashRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase().split(/[/?]/)[0];
+    const currentBodyRoute = String(document.body?.dataset?.route || "").trim().toLowerCase();
+    const matchViewVisible = dom.matchHubView && !dom.matchHubView.classList.contains("hidden");
     if (isMobileRoomEntry && state.route === "room") {
       void leaveRoomFromMobileBack();
       return;
     }
-    if (isMobileRoomEntry && state.route === "match") {
-      if (state.lobbyMode !== LOBBY_MENU_MODE) {
-        setLobbyMode(LOBBY_MENU_MODE);
-        goMatchMode(LOBBY_MENU_MODE, true);
-        return;
-      }
-      window.location.href = "/analysis";
+    if (
+      isMobileRoomEntry
+      && (state.route === "match" || currentHashRoute === "match" || currentBodyRoute === "match" || matchViewVisible)
+    ) {
+      window.location.replace("/analysis");
       return;
     }
     if (state.route === "match") {
@@ -7307,7 +7308,10 @@
     }
     const img = el.querySelector("img");
     const source = BOARD_EFFECT_ASSETS[effectKind];
-    if (img && img.getAttribute("src") !== source) img.src = source;
+    if (img) {
+      img.src = source;
+      img.dataset.effectKind = effectKind;
+    }
     const soundMs = playSound ? (playMoveSound(effectKind, durationMs) || 0) : mediaSoundWindowMs(effectKind, durationMs);
     const effectMs = Math.max(BOARD_EFFECT_BASE_MS[effectKind] || 0, soundMs || 0);
     el.classList.remove("show", ...BOARD_EFFECT_CLASSES);
@@ -8695,7 +8699,7 @@
     const tip = to;
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
     ctx.lineWidth = Math.max(3.2, metrics.width / 175);
-    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(79, 188, 82, 0.88)"));
+    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(83, 18, 143, 0.9)"));
     if (!number) return;
     const labelX = base.x - normal.x * (halfWidth + 12);
     const labelY = base.y - normal.y * (halfWidth + 12);
