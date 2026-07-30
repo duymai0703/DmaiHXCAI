@@ -34,9 +34,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260730-mobile-fast-sw-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260730-mobile-fast-sw-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-fast-sw-v1">
+    <link rel="prefetch" href="/styles.css?v=20260730-smooth-nav-v1" as="style">
+    <link rel="prefetch" href="/app.js?v=20260730-smooth-nav-v1" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260730-smooth-nav-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -45,7 +45,7 @@
       <div class="brand">
         <img id="portalBrandMark" class="brand-mark" src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="D-Xiangqi">
         <div class="brand-copy">
-          <strong>D-Xiangqi</strong>
+          <img class="brand-wordmark" src="/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v1" alt="D-Xiangqi" onerror="this.hidden=true">
         </div>
       </div>
 
@@ -146,7 +146,7 @@
           <a id="openAnalysisBtn" class="launcher-card has-poster" href="/analysis.html?mobile=1" role="button">
             <span class="card-eyebrow">Khu 2</span>
             <strong>Phần mềm phân tích</strong>
-            <small>Mở bàn phân tích hiện tại với D-Xiangqi và cơ sở dữ liệu đám mây.</small>
+            <small>Mở bàn phân tích hiện tại với Y-Megalodon và cơ sở dữ liệu đám mây.</small>
           </a>
 
           <button id="openLibraryBtn" class="launcher-card has-poster" type="button">
@@ -891,7 +891,7 @@
               <div class="panel-heading">
                 <div>
                   <h3>Biên bản và độ chính xác</h3>
-                  <p id="reviewMoveMeta">Mỗi nước sẽ được gắn nhãn sau khi D-Xiangqi quét toàn ván.</p>
+                  <p id="reviewMoveMeta">Mỗi nước sẽ được gắn nhãn sau khi Y-Megalodon quét toàn ván.</p>
                 </div>
               </div>
               <ol id="reviewMoveList" class="room-move-list review-move-list"></ol>
@@ -967,14 +967,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260730-mobile-fast-sw-v1"></script>
+    <script src="/portal.js?v=20260730-smooth-nav-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v221";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v222";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

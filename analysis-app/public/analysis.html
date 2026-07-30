@@ -33,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-mobile-fast-sw-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-smooth-nav-v1">
   </head>
   <body>
     <header class="app-header">
@@ -55,8 +55,7 @@
     <main class="shell">
       <section class="board-zone">
         <div class="mobile-top-toolbar" aria-label="Điều khiển phân tích nhanh">
-          <button id="mobileBackButton" class="mobile-action-btn mobile-toolbar-back" type="button" title="Quay lại" aria-label="Quay lại"><img class="mobile-back-art" src="/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1" alt="" draggable="false"></button>
-          <div class="mobile-toolbar-brand" aria-hidden="true"><img src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="" draggable="false"></div>
+          <button id="mobileBrandBackButton" class="mobile-toolbar-brand" type="button" title="Quay lại" aria-label="Quay lại"><img src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="undo" data-mobile-icon="mb2" title="Hoàn tác" aria-label="Hoàn tác"><img src="/assets/icons/mb2-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="redo" data-mobile-icon="mb3" title="Tiếp theo" aria-label="Tiếp theo"><img src="/assets/icons/mb3-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="analysis" data-mobile-icon="mb4" title="Phân tích" aria-label="Phân tích"><img src="/assets/icons/mb4-dark.png" alt="" draggable="false"></button>
@@ -243,7 +242,7 @@
     <div id="accessGate" class="access-gate hidden" role="dialog" aria-modal="true" aria-labelledby="analysisAccessTitle">
       <form id="accessKeyForm" class="access-gate-card">
         <strong id="analysisAccessTitle">Nhập Key kích hoạt</strong>
-        <p>Nhập Key được cấp để mở phần mềm phân tích D-Xiangqi.</p>
+        <p>Nhập Key được cấp để mở phần mềm phân tích Y-Megalodon.</p>
         <input id="accessKeyInput" type="text" autocomplete="one-time-code" placeholder="Nhập Key kích hoạt" required>
         <input id="accessNameInput" class="hidden" type="text" autocomplete="name" maxlength="24" placeholder="Nhập tên khách hàng">
         <button type="submit">Kích hoạt</button>
@@ -285,13 +284,18 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260730-mobile-fast-sw-v1"></script>
+    <script src="/app.js?v=20260730-smooth-nav-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
-      const mobileBackButton = document.getElementById("mobileBackButton");
+      const mobileBrandBackButton = document.getElementById("mobileBrandBackButton");
       const bindAnalysisBack = (button) => {
         if (!button) return;
         button.addEventListener("click", () => {
+          const mobileEntry = window.matchMedia("(max-width: 760px)").matches || new URLSearchParams(location.search).get("mobile") === "1";
+          if (mobileEntry) {
+            location.assign("/#home");
+            return;
+          }
           try {
             const referrer = document.referrer ? new URL(document.referrer) : null;
             if (referrer && referrer.origin === location.origin) {
@@ -303,13 +307,13 @@
         });
       };
       bindAnalysisBack(backButton);
-      bindAnalysisBack(mobileBackButton);
+      bindAnalysisBack(mobileBrandBackButton);
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v221";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v222";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

@@ -5408,3 +5408,36 @@ button.action-logo-button {
     z-index: 1200 !important;
   }
 }
+
+/* Analysis header cleanup and mobile toolbar back handoff to the brand mark. */
+.app-header .brand {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .mobile-top-toolbar {
+    grid-template-columns: 44px repeat(7, minmax(0, 1fr)) !important;
+  }
+
+  .mobile-toolbar-brand {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    padding: 0 !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-toolbar-brand:active,
+  .mobile-toolbar-brand:focus-visible {
+    transform: translateY(1px) !important;
+    border-color: rgba(229, 171, 74, 0.74) !important;
+  }
+
+  .mobile-toolbar-brand img {
+    pointer-events: none !important;
+  }
+}

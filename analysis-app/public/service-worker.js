@@ -1,17 +1,18 @@
-const CACHE_NAME = "dxiangqi-shell-v221";
+const CACHE_NAME = "dxiangqi-shell-v222";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260730-mobile-fast-sw-v1",
+  "/portal.css?v=20260730-smooth-nav-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260730-mobile-fast-sw-v1",
-  "/styles.css?v=20260730-mobile-fast-sw-v1",
-  "/app.js?v=20260730-mobile-fast-sw-v1",
+  "/portal.js?v=20260730-smooth-nav-v1",
+  "/styles.css?v=20260730-smooth-nav-v1",
+  "/app.js?v=20260730-smooth-nav-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
+  "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v1",
   "/assets/board/bancomoi.png?v=20260729-bancomoi-v1",
   "/assets/board/bancomoi-gold.png?v=20260729-bancomoi-v1",
   "/assets/board/bancomoi-emerald.png?v=20260729-bancomoi-v1",
@@ -164,10 +165,10 @@ const CRITICAL_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260730-mobile-fast-sw-v1",
-  "/portal.js?v=20260730-mobile-fast-sw-v1",
-  "/styles.css?v=20260730-mobile-fast-sw-v1",
-  "/app.js?v=20260730-mobile-fast-sw-v1",
+  "/portal.css?v=20260730-smooth-nav-v1",
+  "/portal.js?v=20260730-smooth-nav-v1",
+  "/styles.css?v=20260730-smooth-nav-v1",
+  "/app.js?v=20260730-smooth-nav-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest"
@@ -220,6 +221,10 @@ self.addEventListener("fetch", (event) => {
 
   const isHtml = event.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/";
   if (isHtml) {
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      event.respondWith(cacheFirstNavigation(event.request, "/index.html"));
+      return;
+    }
     if (url.pathname === "/analysis.html" && url.searchParams.get("mobile") === "1") {
       event.respondWith(cacheFirstNavigation(event.request, "/analysis.html"));
       return;
