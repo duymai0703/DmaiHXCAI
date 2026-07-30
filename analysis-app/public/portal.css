@@ -8715,8 +8715,9 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
 /* Smooth shell header pass: home uses brand art, inner zones keep the back control clean. */
 .brand-wordmark {
   display: block;
-  width: clamp(130px, 15vw, 220px);
-  height: 44px;
+  width: auto;
+  height: 50px;
+  max-width: clamp(174px, 18vw, 260px);
   object-fit: contain;
   object-position: left center;
   image-rendering: auto;
@@ -8727,6 +8728,21 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
 
 body[data-route="home"] .brand {
   margin-left: clamp(16px, 4vw, 64px);
+}
+
+body .portal-header #globalBackBtn {
+  grid-column: 1;
+}
+
+body .portal-header .brand {
+  grid-column: 2;
+  justify-self: start;
+}
+
+body .portal-header .header-profile {
+  grid-column: 3;
+  justify-self: end;
+  margin-left: auto;
 }
 
 body[data-route="home"] .brand-copy {
@@ -8749,17 +8765,45 @@ body[data-route="admin"] .portal-header .brand {
   }
 
   body[data-route="home"] .portal-header {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 }
 
 @media (max-width: 760px) {
+  body.portal-mobile-mode:not(.mobile-room-entry) .portal-header {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .header-profile {
+    grid-column: 3 !important;
+    display: flex !important;
+    justify-self: end !important;
+    margin-left: auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: auto !important;
+  }
+
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .brand {
     margin-left: 2px;
+    gap: 7px;
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .brand-wordmark {
-    width: min(34vw, 160px);
-    height: 42px;
+    width: auto;
+    height: 38px;
+    max-width: min(30vw, 128px);
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .theme-toggle {
+    display: flex !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) #portalBoardSkinBtn {
+    display: grid !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) #portalBoardSkinMenu.hidden {
+    display: none !important;
   }
 }

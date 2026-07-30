@@ -255,7 +255,7 @@
     "/assets/icons/cole-dark.png",
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
-    "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v1",
+    "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2",
     ...Object.values(BOARD_EFFECT_ASSETS),
     ...BOARD_SKIN_ASSETS,
     "/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1",
