@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-back-img-v1",
-    "/app.js?v=20260730-mobile-back-img-v1",
+    "/styles.css?v=20260730-mobile-toolbar-metal-v1",
+    "/app.js?v=20260730-mobile-toolbar-metal-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -251,7 +251,6 @@
     "/assets/icons/mb4-dark.png",
     "/assets/icons/mb5-dark.png",
     "/assets/icons/cole-dark.png",
-    "/assets/icons/guom-dark.png",
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
     ...Object.values(BOARD_EFFECT_ASSETS),

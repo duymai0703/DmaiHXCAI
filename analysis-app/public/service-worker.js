@@ -1,4 +1,4 @@
-const CACHE_NAME = "dxiangqi-shell-v214";
+const CACHE_NAME = "dxiangqi-shell-v215";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -6,9 +6,9 @@ const STATIC_ASSETS = [
   "/portal.css?v=20260730-mobile-back-img-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260730-mobile-back-img-v1",
-  "/styles.css?v=20260730-mobile-back-img-v1",
-  "/app.js?v=20260730-mobile-back-img-v1",
+  "/portal.js?v=20260730-mobile-toolbar-metal-v1",
+  "/styles.css?v=20260730-mobile-toolbar-metal-v1",
+  "/app.js?v=20260730-mobile-toolbar-metal-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -115,7 +115,6 @@ const STATIC_ASSETS = [
   "/assets/icons/mb4-dark.png",
   "/assets/icons/mb5-dark.png",
   "/assets/icons/cole-dark.png",
-  "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-dark.png",
   "/assets/avtchibi/play1.png?v=20260728-chibi-v1",
   "/assets/avtchibi/play2.png?v=20260728-chibi-v1",

@@ -1420,72 +1420,6 @@ input:not([type]) {
   padding: 0;
 }
 
-.mobile-room-confirm {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(3, 8, 16, 0.56);
-  backdrop-filter: blur(8px);
-}
-
-.mobile-room-confirm-card {
-  width: min(100%, 360px);
-  display: grid;
-  gap: 18px;
-  padding: 22px;
-  border-radius: 22px;
-  text-align: center;
-  color: #fff4ce;
-  background:
-    linear-gradient(145deg, rgba(96, 55, 27, 0.98), rgba(43, 23, 15, 0.98)),
-    #4a2b18;
-  border: 2px solid #c99045;
-  outline: 1px solid rgba(255, 229, 154, 0.48);
-  outline-offset: 4px;
-  box-shadow:
-    0 0 0 1px rgba(66, 34, 17, 0.9),
-    0 0 28px rgba(255, 184, 77, 0.26),
-    inset 0 1px 0 rgba(255, 240, 185, 0.2),
-    0 26px 58px rgba(0, 0, 0, 0.56);
-}
-
-.mobile-room-confirm-card strong {
-  font-size: 18px;
-  line-height: 1.4;
-}
-
-.mobile-room-confirm-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.mobile-room-confirm-actions button {
-  min-height: 48px;
-  border-radius: 14px;
-  font-weight: 800;
-}
-
-.mobile-room-confirm-accept {
-  background: var(--control-active) !important;
-  border-color: rgba(255, 177, 77, 0.62) !important;
-  color: #211306 !important;
-}
-
-.mobile-room-confirm-library {
-  background: linear-gradient(180deg, rgba(50, 172, 210, 0.96), rgba(14, 95, 136, 0.98)) !important;
-  border-color: rgba(139, 230, 255, 0.62) !important;
-  color: #f4fdff !important;
-}
-
-.mobile-room-confirm-cancel {
-  background: var(--control-bg) !important;
-  border-color: var(--line) !important;
-}
-
 @media (min-width: 921px) {
   .board {
     width: min(100%, 742px, calc((100vh - 92px) * 0.9));
@@ -2272,8 +2206,7 @@ select {
 
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,
   .mobile-top-toolbar [data-mobile-icon="sosach"] img,
-  .mobile-top-toolbar [data-mobile-icon="cole"] img,
-  .mobile-top-toolbar [data-mobile-icon="guom"] img {
+  .mobile-top-toolbar [data-mobile-icon="cole"] img {
     width: 82%;
     height: 82%;
   }
@@ -3376,8 +3309,7 @@ select,
 
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,
   .mobile-top-toolbar [data-mobile-icon="sosach"] img,
-  .mobile-top-toolbar [data-mobile-icon="cole"] img,
-  .mobile-top-toolbar [data-mobile-icon="guom"] img {
+  .mobile-top-toolbar [data-mobile-icon="cole"] img {
     width: 82% !important;
     height: 82% !important;
   }
@@ -4176,8 +4108,7 @@ select,
   .mobile-theme-btn img,
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,
   .mobile-top-toolbar [data-mobile-icon="sosach"] img,
-  .mobile-top-toolbar [data-mobile-icon="cole"] img,
-  .mobile-top-toolbar [data-mobile-icon="guom"] img {
+  .mobile-top-toolbar [data-mobile-icon="cole"] img {
     width: 84% !important;
     height: 84% !important;
   }
@@ -5263,110 +5194,130 @@ button.action-logo-button {
   }
 
   .mobile-top-toolbar [data-mobile-icon="cole"] img,
-  .mobile-top-toolbar [data-mobile-icon="guom"] img,
   .mobile-top-toolbar [data-mobile-icon="sosach"] img,
   .mobile-top-toolbar [data-mobile-icon="mb1"] img {
     width: 82% !important;
     height: 82% !important;
   }
 
-  .mobile-room-confirm {
-    z-index: 360;
-    padding: 24px;
-    background:
-      radial-gradient(circle at 50% 34%, rgba(21, 104, 140, 0.18), transparent 48%),
-      rgba(1, 7, 14, 0.72) !important;
-    backdrop-filter: blur(9px) saturate(1.08);
+}
+
+@media (max-width: 760px) {
+  .board-zone {
+    grid-template-rows: calc(52px + var(--mobile-safe-top)) 24px auto !important;
   }
 
-  .mobile-room-confirm-card {
-    width: min(100%, 370px);
-    gap: 16px;
-    padding: 22px;
-    border-radius: 22px;
-    color: #f5fdff;
+  .mobile-top-toolbar {
+    grid-template-columns: 42px repeat(7, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: calc(4px + var(--mobile-safe-top)) 5px 4px !important;
+    min-height: calc(52px + var(--mobile-safe-top)) !important;
+    border-bottom: 1px solid rgba(99, 214, 246, 0.48) !important;
     background:
-      radial-gradient(circle at 50% 0%, rgba(71, 196, 229, 0.16), transparent 42%),
-      linear-gradient(180deg, rgba(8, 27, 43, 0.98), rgba(3, 11, 23, 0.99)) !important;
-    border: 1px solid rgba(85, 205, 238, 0.58) !important;
-    outline: 1px solid rgba(211, 162, 74, 0.52);
-    outline-offset: 4px;
+      linear-gradient(180deg, rgba(8, 31, 49, 0.98), rgba(2, 10, 20, 0.99)),
+      radial-gradient(circle at 50% 0%, rgba(80, 206, 255, 0.18), transparent 58%) !important;
     box-shadow:
-      0 0 0 1px rgba(5, 13, 24, 0.95),
-      0 0 30px rgba(66, 200, 239, 0.18),
-      0 0 22px rgba(197, 143, 53, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.11),
-      inset 0 -26px 38px rgba(0, 0, 0, 0.28),
-      0 28px 64px rgba(0, 0, 0, 0.62) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(213, 161, 70, 0.26),
+      0 8px 20px rgba(0, 0, 0, 0.46) !important;
   }
 
-  .mobile-room-confirm-card strong {
-    color: #f8fcff;
-    font-size: 20px;
-    text-shadow:
-      0 0 10px rgba(91, 213, 255, 0.22),
-      0 2px 5px rgba(0, 0, 0, 0.45);
-  }
-
-  .mobile-room-confirm-actions button {
-    min-height: 52px;
-    border-radius: 14px;
-    border: 1px solid rgba(78, 190, 226, 0.5) !important;
-    color: #f4fdff !important;
+  .mobile-top-toolbar .mobile-toolbar-brand,
+  .mobile-top-toolbar .mobile-action-btn,
+  .mobile-top-toolbar .mobile-theme-btn {
+    position: relative !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border: 1px solid rgba(88, 202, 238, 0.42) !important;
+    border-radius: 11px !important;
+    overflow: hidden !important;
     background:
-      linear-gradient(180deg, rgba(13, 50, 72, 0.98), rgba(2, 16, 31, 0.99)) !important;
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.18), transparent 28%),
+      linear-gradient(180deg, rgba(23, 69, 91, 0.98), rgba(5, 20, 34, 0.99) 54%, rgba(2, 9, 18, 1)) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 10px 20px rgba(0, 0, 0, 0.25) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 -12px 18px rgba(0, 0, 0, 0.32),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 1px 0 rgba(255, 255, 255, 0.07),
+      0 6px 12px rgba(0, 0, 0, 0.44) !important;
   }
 
-  .mobile-room-confirm-library {
-    border-color: rgba(87, 215, 255, 0.68) !important;
-    background:
-      linear-gradient(180deg, rgba(19, 102, 134, 0.98), rgba(5, 45, 72, 0.99)) !important;
-  }
-
-  .mobile-room-confirm-accept {
-    border-color: rgba(228, 171, 75, 0.72) !important;
-    color: #fff5d0 !important;
-    background:
-      linear-gradient(180deg, rgba(133, 82, 24, 0.98), rgba(67, 34, 12, 0.99)) !important;
-  }
-
-  .mobile-top-toolbar [data-mobile-icon="guom"] {
-    position: relative;
-    border-color: rgba(196, 142, 62, 0.78) !important;
-    background:
-      radial-gradient(circle at 50% 18%, rgba(116, 50, 155, 0.2), transparent 46%),
-      linear-gradient(180deg, rgba(21, 42, 62, 0.98), rgba(6, 12, 25, 0.99)) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 210, 126, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.13),
-      0 0 14px rgba(180, 108, 255, 0.16),
-      0 0 10px rgba(224, 166, 76, 0.16),
-      0 6px 13px rgba(0, 0, 0, 0.38) !important;
-  }
-
-  .mobile-top-toolbar [data-mobile-icon="guom"]::before {
+  .mobile-top-toolbar .mobile-toolbar-brand::before,
+  .mobile-top-toolbar .mobile-action-btn::before,
+  .mobile-top-toolbar .mobile-theme-btn::before {
     content: "";
     position: absolute;
-    inset: 2px;
-    border-radius: 8px;
-    border: 1px solid rgba(84, 203, 239, 0.22);
+    inset: 2px 3px auto;
+    height: 38%;
+    border-radius: 9px 9px 5px 5px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02));
     pointer-events: none;
   }
 
-  .mobile-top-toolbar [data-mobile-icon="guom"] img {
+  .mobile-top-toolbar .mobile-toolbar-brand::after,
+  .mobile-top-toolbar .mobile-action-btn::after,
+  .mobile-top-toolbar .mobile-theme-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 20%, transparent 80%, rgba(0, 0, 0, 0.22)),
+      radial-gradient(circle at 50% 88%, rgba(221, 161, 64, 0.18), transparent 58%);
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0.72;
+  }
+
+  .mobile-top-toolbar .mobile-action-btn:active,
+  .mobile-top-toolbar .mobile-action-btn.active,
+  .mobile-top-toolbar .mobile-theme-btn:active {
+    transform: translateY(1px) !important;
+    border-color: rgba(229, 171, 74, 0.74) !important;
+    background:
+      radial-gradient(circle at 50% 5%, rgba(255, 223, 132, 0.22), transparent 34%),
+      linear-gradient(180deg, rgba(35, 76, 92, 1), rgba(9, 24, 38, 1) 56%, rgba(2, 8, 18, 1)) !important;
+    box-shadow:
+      inset 0 2px 8px rgba(0, 0, 0, 0.44),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 2px 7px rgba(0, 0, 0, 0.42) !important;
+  }
+
+  .mobile-top-toolbar .mobile-toolbar-brand img {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    z-index: 1 !important;
     filter:
-      brightness(0)
-      saturate(100%)
-      invert(78%)
-      sepia(47%)
-      saturate(890%)
-      hue-rotate(342deg)
-      brightness(95%)
-      contrast(96%)
-      drop-shadow(0 0 7px rgba(188, 103, 255, 0.22))
-      drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)) !important;
+      saturate(1.12)
+      contrast(1.08)
+      drop-shadow(0 0 8px rgba(83, 211, 255, 0.38))
+      drop-shadow(0 4px 7px rgba(0, 0, 0, 0.52)) !important;
+  }
+
+  .mobile-top-toolbar .mobile-action-btn > img,
+  .mobile-top-toolbar .mobile-theme-btn > img {
+    position: relative !important;
+    z-index: 1 !important;
+    width: 78% !important;
+    height: 78% !important;
+    object-fit: contain !important;
+    image-rendering: auto !important;
+    opacity: 0.98 !important;
+    filter:
+      saturate(1.18)
+      contrast(1.12)
+      brightness(1.06)
+      drop-shadow(0 1px 0 rgba(255, 232, 162, 0.22))
+      drop-shadow(0 0 7px rgba(88, 210, 246, 0.22))
+      drop-shadow(0 5px 6px rgba(0, 0, 0, 0.56)) !important;
+  }
+
+  .mobile-top-toolbar [data-mobile-icon="mb1"] img,
+  .mobile-top-toolbar [data-mobile-icon="sosach"] img,
+  .mobile-top-toolbar [data-mobile-icon="cole"] img {
+    width: 84% !important;
+    height: 84% !important;
   }
 }

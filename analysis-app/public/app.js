@@ -134,8 +134,6 @@ const ANALYSIS_MANUAL_MOVE_ANALYSIS_DELAY_MS = ANALYSIS_MOVE_ANIMATION_MS + 180;
 const ANALYSIS_DISPLAY_DEPTH_BOOST = 10;
 const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
-const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
-const MOBILE_LIBRARY_ENTRY_URL = "/?mobileRoom=1#library";
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -161,7 +159,6 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb4-dark.png",
   "/assets/icons/mb5-dark.png",
   "/assets/icons/cole-dark.png",
-  "/assets/icons/guom-dark.png",
   "/assets/icons/sosach-dark.png",
   ...BOARD_SKIN_ASSETS,
   ...Object.values(BOARD_EFFECT_ASSETS),
@@ -1432,7 +1429,6 @@ function setupMobileActionStrip() {
   mobileActionButtons.forEach((button) => {
     button.addEventListener("click", () => handleMobileAction(button.dataset.mobileAction || ""));
   });
-  setupMobileRoomConfirm();
 }
 
 function handleMobileAction(action) {
@@ -1473,78 +1469,9 @@ function handleMobileAction(action) {
     case "cole":
       toggleBoardSkinMenu();
       break;
-    case "guom":
-      showMobileRoomConfirm();
-      break;
     default:
       break;
   }
-}
-
-function setupMobileRoomConfirm() {
-  if (document.getElementById("mobileRoomConfirm")) return;
-  const overlay = document.createElement("div");
-  overlay.id = "mobileRoomConfirm";
-  overlay.className = "mobile-room-confirm hidden";
-  overlay.setAttribute("role", "dialog");
-  overlay.setAttribute("aria-modal", "true");
-  overlay.setAttribute("aria-labelledby", "mobileRoomConfirmTitle");
-
-  const card = document.createElement("div");
-  card.className = "mobile-room-confirm-card";
-
-  const title = document.createElement("strong");
-  title.id = "mobileRoomConfirmTitle";
-  title.textContent = "Chọn khu muốn mở";
-
-  const actions = document.createElement("div");
-  actions.className = "mobile-room-confirm-actions";
-
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "mobile-room-confirm-cancel";
-  cancel.textContent = "Không";
-  cancel.addEventListener("click", hideMobileRoomConfirm);
-
-  const accept = document.createElement("button");
-  accept.type = "button";
-  accept.className = "mobile-room-confirm-accept";
-  accept.textContent = "Phòng đấu";
-  accept.addEventListener("click", () => {
-    hideMobileRoomConfirm();
-    window.location.href = MOBILE_ROOM_ENTRY_URL;
-  });
-
-  const library = document.createElement("button");
-  library.type = "button";
-  library.className = "mobile-room-confirm-library";
-  library.textContent = "Thư viện cá nhân";
-  library.addEventListener("click", () => {
-    hideMobileRoomConfirm();
-    window.location.href = MOBILE_LIBRARY_ENTRY_URL;
-  });
-
-  actions.append(cancel, library, accept);
-  card.append(title, actions);
-  overlay.appendChild(card);
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) hideMobileRoomConfirm();
-  });
-  document.body.appendChild(overlay);
-}
-
-function showMobileRoomConfirm() {
-  const overlay = document.getElementById("mobileRoomConfirm");
-  if (!overlay) return;
-  overlay.classList.remove("hidden");
-  document.body.classList.add("mobile-room-confirm-open");
-}
-
-function hideMobileRoomConfirm() {
-  const overlay = document.getElementById("mobileRoomConfirm");
-  if (!overlay) return;
-  overlay.classList.add("hidden");
-  document.body.classList.remove("mobile-room-confirm-open");
 }
 
 function toggleFlipBoard() {
