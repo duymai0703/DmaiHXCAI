@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-home-fast-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-khu2-fast-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -213,6 +213,8 @@ const state = {
   queuedCursorTarget: null,
   queuedCursorFrame: 0,
   analysisRefreshTimer: 0,
+  analysisStarted: false,
+  analysisRemoteStarted: false,
   assetWarmupPending: false,
   assetWarmupProgress: 0,
   assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
@@ -1216,12 +1218,36 @@ async function init() {
   wakeBackend();
   void assetWarmupPromise.catch(() => {});
   draw();
+  const fastEntry = shouldUseFastAnalysisEntry();
+  if (fastEntry) {
+    startAnalysisAfterAccess({ remote: false });
+    void ensureAnalysisAccess().then((allowed) => {
+      if (allowed) startAnalysisAfterAccess({ remote: true });
+    }).catch(() => {});
+    return;
+  }
   const allowed = await ensureAnalysisAccess();
   if (!allowed) return;
-  startAnalysisAfterAccess();
+  startAnalysisAfterAccess({ remote: true });
 }
-function startAnalysisAfterAccess() {
+
+function shouldUseFastAnalysisEntry() {
+  if (!isCompactMobile()) return false;
+  return Boolean(
+    readStorage(AUTH_TOKEN_STORAGE_KEY) ||
+    readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY) ||
+    readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)
+  );
+}
+
+function startAnalysisAfterAccess({ remote = true } = {}) {
   hideAccessGate();
+  if (!state.analysisStarted) {
+    state.analysisStarted = true;
+    reportAnalysisActivity("Dang dung phan mem phan tich");
+  }
+  if (!remote || state.analysisRemoteStarted) return;
+  state.analysisRemoteStarted = true;
   reportAnalysisActivity("Đang dùng phần mềm phân tích");
   refreshCloudBook();
   void refreshStatus().catch(() => {});

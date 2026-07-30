@@ -8546,6 +8546,7 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card.has-poster::before {
+    background-position: center 44% !important;
     filter: blur(1.6px) brightness(0.86) saturate(1.08) contrast(1.04) !important;
     transform: scale(1.045) !important;
   }
