@@ -8286,3 +8286,92 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     background-size: 100% 100% !important;
   }
 }
+
+@media (max-width: 760px) {
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:hover,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:active,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:focus,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:focus-visible {
+    position: relative !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    flex: 0 0 116px !important;
+    width: 116px !important;
+    min-width: 116px !important;
+    max-width: 116px !important;
+    height: 116px !important;
+    min-height: 116px !important;
+    max-height: 116px !important;
+    margin: -30px -14px -30px -20px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: visible !important;
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 116px !important;
+    height: 116px !important;
+    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-hitbox-v1") center / 100% 100% no-repeat !important;
+    transform: none !important;
+    pointer-events: none !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:hover,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:active,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus-visible,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:hover,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:active,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:focus,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:focus-visible {
+    position: relative !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    flex: 0 0 96px !important;
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 96px !important;
+    height: 96px !important;
+    min-height: 96px !important;
+    max-height: 96px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: visible !important;
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back::before,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 96px !important;
+    height: 96px !important;
+    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-hitbox-v1") center / 100% 100% no-repeat !important;
+    transform: none !important;
+    pointer-events: none !important;
+  }
+}
