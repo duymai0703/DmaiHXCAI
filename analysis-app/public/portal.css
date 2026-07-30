@@ -507,6 +507,8 @@ a {
   background: var(--panel-strong);
   border: 1px solid rgba(205, 163, 90, 0.32);
   box-shadow: var(--shadow);
+  color: inherit;
+  text-decoration: none;
   text-align: left;
   min-height: 260px;
   overflow: hidden;
@@ -8225,6 +8227,80 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 }
 
+#openingBookBranchChooser.opening-book-branch-chooser:not(.hidden) {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: 18 !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  width: min(100%, 430px) !important;
+  max-height: min(32vh, 320px) !important;
+  margin: 0 auto !important;
+  overflow: auto !important;
+  transform: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  padding: 12px !important;
+  border-radius: 18px !important;
+  text-align: center !important;
+  color: #f5fdff !important;
+  border: 1px solid rgba(91, 207, 241, 0.62) !important;
+  outline: 1px solid rgba(211, 162, 74, 0.46) !important;
+  outline-offset: 2px !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 123, 217, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(8, 28, 45, 0.98), rgba(3, 11, 23, 0.99)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 214, 126, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.26),
+    0 0 18px rgba(77, 202, 240, 0.14),
+    0 0 14px rgba(37, 123, 217, 0.18),
+    0 12px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+#openingBookBranchChooser.opening-book-branch-chooser strong {
+  grid-column: 1 / -1 !important;
+  color: #f8fcff !important;
+  font-size: 17px !important;
+  line-height: 1.22 !important;
+  text-align: center !important;
+  text-shadow:
+    0 0 10px rgba(91, 213, 255, 0.22),
+    0 2px 5px rgba(0, 0, 0, 0.45);
+}
+
+#openingBookBranchChooser.opening-book-branch-chooser button {
+  min-height: 42px !important;
+  justify-content: center !important;
+  padding: 0 8px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(78, 190, 226, 0.5) !important;
+  color: #f4fdff !important;
+  font-size: 15px !important;
+  line-height: 1.12 !important;
+  background:
+    linear-gradient(180deg, rgba(13, 50, 72, 0.98), rgba(2, 16, 31, 0.99)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+#openingBookBranchChooser.opening-book-branch-chooser .secondary-button {
+  border-color: rgba(87, 215, 255, 0.66) !important;
+  background:
+    linear-gradient(180deg, rgba(19, 102, 134, 0.98), rgba(5, 45, 72, 0.99)) !important;
+}
+
+#openingBookBranchChooser.opening-book-branch-chooser .ghost-button:last-child {
+  border-color: rgba(228, 171, 75, 0.72) !important;
+  color: #fff5d0 !important;
+  background:
+    linear-gradient(180deg, rgba(133, 82, 24, 0.98), rgba(67, 34, 12, 0.99)) !important;
+}
+
 @media (max-width: 760px) {
   body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back {
     width: 88px !important;
@@ -8558,7 +8634,8 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card strong {
-    font-size: clamp(26px, 7.5vw, 40px) !important;
+    padding: 12px 14px !important;
+    font-size: clamp(21px, 6vw, 31px) !important;
     line-height: 1.04 !important;
     text-shadow:
       0 2px 8px rgba(0, 0, 0, 0.58),

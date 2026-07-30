@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-khu2-fast-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-khu2-arrows-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -42,6 +42,8 @@
     check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
     capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
   };
+  const PRIMARY_ARROW_COLOR = "rgba(37, 123, 217, 0.94)";
+  const SECONDARY_ARROW_COLOR = "rgba(211, 20, 197, 0.92)";
   const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
@@ -237,8 +239,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-khu2-fast-v1",
-    "/app.js?v=20260730-mobile-khu2-fast-v1",
+    "/styles.css?v=20260730-mobile-khu2-arrows-v1",
+    "/app.js?v=20260730-mobile-khu2-arrows-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -1448,8 +1450,9 @@
       setLobbyMode(LOBBY_MENU_MODE);
       goRoute("match");
     });
-    dom.openAnalysisBtn.addEventListener("click", () => {
-      window.location.href = "/analysis.html";
+    dom.openAnalysisBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      openAnalysisPage();
     });
     dom.openLibraryBtn.addEventListener("click", () => {
       setLibraryTab("menu");
@@ -1574,6 +1577,16 @@
     dom.modal.addEventListener("click", (event) => {
       if (event.target === dom.modal) closeModal();
     });
+  }
+
+  function openAnalysisPage() {
+    const mobile = isCompactMobile();
+    if (mobile) {
+      try {
+        sessionStorage.setItem("dxiangqi-mobile-analysis-entry", "1");
+      } catch {}
+    }
+    window.location.assign(mobile ? "/analysis.html?mobile=1" : "/analysis.html");
   }
 
   async function warmPortalAssets() {
@@ -8378,7 +8391,7 @@
     const pieceRatio = Number.parseFloat(getComputedStyle(dom.reviewBoard).getPropertyValue("--piece-size")) / 100 || 0.086;
     const isMobileBoard = metrics.width <= 460;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(4.2, metrics.width / 160);
+    ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(5.4, metrics.width / 128);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -8387,10 +8400,10 @@
     const stopBeforeTarget = 0;
     const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
     const head = isMobileBoard ? Math.max(34, metrics.width * pieceRatio * 0.82) : Math.max(50, metrics.width / 14.6);
-    const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
+    const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(14, head * 0.25);
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
     const reviewSide = state.reviewGame?.plies?.[currentIndex]?.side || (currentIndex % 2 === 0 ? "w" : "b");
-    const palette = arrowPalette(reviewSide === "w" ? "rgba(118, 190, 82, 0.9)" : "rgba(211, 20, 197, 0.92)");
+    const palette = arrowPalette(reviewSide === "w" ? PRIMARY_ARROW_COLOR : SECONDARY_ARROW_COLOR);
     drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
   }
 
@@ -8717,8 +8730,8 @@
     const halfWidth = Math.max(9, head * 0.2);
     const tip = to;
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
-    ctx.lineWidth = Math.max(3.2, metrics.width / 175);
-    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(205, 72, 255, 0.96)"));
+    ctx.lineWidth = Math.max(4.2, metrics.width / 145);
+    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette(PRIMARY_ARROW_COLOR));
     if (!number) return;
     const labelX = base.x - normal.x * (halfWidth + 12);
     const labelY = base.y - normal.y * (halfWidth + 12);
@@ -10045,7 +10058,7 @@
 
   function parseArrowColor(color) {
     const match = String(color || "").match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
-    if (!match) return { r: 164, g: 55, b: 205, a: 0.94 };
+    if (!match) return { r: 37, g: 123, b: 217, a: 0.94 };
     return {
       r: Number(match[1]),
       g: Number(match[2]),

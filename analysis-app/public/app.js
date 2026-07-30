@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-khu2-fast-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-khu2-arrows-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -109,6 +109,8 @@ const BOARD_EFFECT_ASSETS = {
   check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
   capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
 };
+const PRIMARY_ARROW_COLOR = "rgba(37, 123, 217, 0.94)";
+const SECONDARY_ARROW_COLOR = "rgba(211, 20, 197, 0.92)";
 const ANALYSIS_TOOL_ICON_ASSET_VERSION = "20260729-dxiangqi-brand-v1";
 const analysisToolIconAsset = (file) => `/assets/avtchibi/${file}?v=${ANALYSIS_TOOL_ICON_ASSET_VERSION}`;
 const ANALYSIS_TOOL_ICON_ASSETS = [
@@ -1233,11 +1235,22 @@ async function init() {
 
 function shouldUseFastAnalysisEntry() {
   if (!isCompactMobile()) return false;
+  const mobileEntry = isMobileAnalysisEntry();
   return Boolean(
+    mobileEntry ||
     readStorage(AUTH_TOKEN_STORAGE_KEY) ||
     readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY) ||
     readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)
   );
+}
+
+function isMobileAnalysisEntry() {
+  try {
+    return new URLSearchParams(window.location.search).get("mobile") === "1" ||
+      sessionStorage.getItem("dxiangqi-mobile-analysis-entry") === "1";
+  } catch {
+    return false;
+  }
 }
 
 function startAnalysisAfterAccess({ remote = true } = {}) {
@@ -3645,7 +3658,7 @@ function drawArrowLayer() {
   state.suggestions.forEach((suggestion) => drawArrow(suggestion.move, resolveSuggestionColor(suggestion)));
 }
 
-function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
+function drawArrow(move, color = PRIMARY_ARROW_COLOR) {
   if (!/^[a-i][0-9][a-i][0-9]$/.test(move)) return;
   const from = squareToPixel(uciToSquare(move.slice(0, 2)));
   const toSquare = uciToSquare(move.slice(2, 4));
@@ -3655,7 +3668,7 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const pieceRatio = Number.parseFloat(getComputedStyle(boardEl).getPropertyValue("--piece-size")) / 100 || 0.086;
   const isMobileBoard = metrics.width <= 460;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(4.2, metrics.width / 160);
+  ctx.lineWidth = isMobileBoard ? Math.max(3.8, metrics.width * pieceRatio * 0.072) : Math.max(5.4, metrics.width / 128);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -3664,7 +3677,7 @@ function drawArrow(move, color = "rgba(23, 126, 137, 0.88)") {
   const stopBeforeTarget = 0;
   const tip = { x: to.x - dir.x * stopBeforeTarget, y: to.y - dir.y * stopBeforeTarget };
   const head = isMobileBoard ? Math.max(34, metrics.width * pieceRatio * 0.82) : Math.max(50, metrics.width / 14.6);
-  const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(11, head * 0.21);
+  const halfWidth = isMobileBoard ? Math.max(9, head * 0.22) : Math.max(14, head * 0.25);
   const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
   const palette = arrowPalette(color);
   drawStyledArrow(ctx, from, base, tip, normal, halfWidth, palette);
@@ -3920,7 +3933,7 @@ function buildSuggestionGroup(arrowMoves, board) {
 }
 
 function suggestionArrowColor(side) {
-  return side === "w" ? "rgba(118, 190, 82, 0.9)" : "rgba(211, 20, 197, 0.92)";
+  return side === "w" ? PRIMARY_ARROW_COLOR : SECONDARY_ARROW_COLOR;
 }
 
 function resolveSuggestionColor(suggestion) {
@@ -4504,7 +4517,7 @@ function arrowPalette(color) {
 
 function parseArrowColor(color) {
   const match = String(color || "").match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
-  if (!match) return { r: 23, g: 126, b: 137, a: 0.9 };
+  if (!match) return { r: 37, g: 123, b: 217, a: 0.94 };
   return {
     r: Number(match[1]),
     g: Number(match[2]),

@@ -1,14 +1,14 @@
-const CACHE_NAME = "dxiangqi-shell-v218";
+const CACHE_NAME = "dxiangqi-shell-v219";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260730-mobile-khu2-fast-v1",
+  "/portal.css?v=20260730-mobile-khu2-arrows-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260730-mobile-khu2-fast-v1",
-  "/styles.css?v=20260730-mobile-khu2-fast-v1",
-  "/app.js?v=20260730-mobile-khu2-fast-v1",
+  "/portal.js?v=20260730-mobile-khu2-arrows-v1",
+  "/styles.css?v=20260730-mobile-khu2-arrows-v1",
+  "/app.js?v=20260730-mobile-khu2-arrows-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
