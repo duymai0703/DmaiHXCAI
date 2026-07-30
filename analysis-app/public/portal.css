@@ -8019,3 +8019,152 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     grid-row: 7 !important;
   }
 }
+
+/* Mobile-only dark-fantasy refinements for match menu and opening-book branch choices. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .single-panel-wrap {
+    width: min(760px, calc(100vw - 16px)) !important;
+    max-width: 760px !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-panel {
+    padding: clamp(18px, 4vw, 28px) !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-mode-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(10px, 2.7vw, 18px) !important;
+    padding: clamp(12px, 3vw, 22px) !important;
+    border-radius: 18px !important;
+    border-color: rgba(82, 195, 231, 0.48) !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(55, 189, 233, 0.1), transparent 36%),
+      linear-gradient(180deg, rgba(8, 29, 46, 0.96), rgba(2, 12, 25, 0.98)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -24px 36px rgba(0, 0, 0, 0.22),
+      0 18px 38px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile {
+    min-height: clamp(224px, 48vw, 310px) !important;
+    padding: clamp(12px, 3vw, 18px) 8px clamp(14px, 3vw, 20px) !important;
+    gap: 2px !important;
+    border-radius: 16px !important;
+    border-color: rgba(76, 188, 224, 0.52) !important;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(211, 157, 62, 0.12), transparent 48%),
+      linear-gradient(180deg, rgba(12, 46, 65, 0.96), rgba(4, 19, 34, 0.99)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -20px 30px rgba(0, 0, 0, 0.2),
+      0 12px 24px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile img {
+    width: clamp(138px, 36vw, 220px) !important;
+    height: clamp(138px, 36vw, 220px) !important;
+    max-width: 118% !important;
+    margin-bottom: -6px;
+    filter:
+      saturate(1.08)
+      contrast(1.06)
+      drop-shadow(0 10px 14px rgba(0, 0, 0, 0.36))
+      drop-shadow(0 0 12px rgba(75, 203, 240, 0.16)) !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile span {
+    display: block !important;
+    width: 100% !important;
+    font-size: clamp(15px, 3.9vw, 18px) !important;
+    line-height: 1.12 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    text-wrap: balance;
+    color: #f7fbff !important;
+    text-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.52),
+      0 0 8px rgba(66, 194, 236, 0.18);
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile.active {
+    border-color: rgba(222, 166, 73, 0.72) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(234, 183, 93, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 18px rgba(223, 165, 70, 0.18),
+      0 14px 28px rgba(0, 0, 0, 0.24) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser:not(.hidden) {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    z-index: 360 !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: min(88vw, 370px) !important;
+    max-height: min(74vh, 520px) !important;
+    overflow: auto !important;
+    transform: translate(-50%, -50%) !important;
+    display: grid !important;
+    gap: 12px !important;
+    padding: 22px !important;
+    border-radius: 22px !important;
+    text-align: center !important;
+    color: #f5fdff !important;
+    border: 1px solid rgba(85, 205, 238, 0.58) !important;
+    outline: 1px solid rgba(211, 162, 74, 0.52) !important;
+    outline-offset: 4px !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(71, 196, 229, 0.16), transparent 42%),
+      linear-gradient(180deg, rgba(8, 27, 43, 0.98), rgba(3, 11, 23, 0.99)) !important;
+    box-shadow:
+      0 0 0 100vmax rgba(1, 7, 14, 0.72),
+      0 0 0 1px rgba(5, 13, 24, 0.95),
+      0 0 30px rgba(66, 200, 239, 0.18),
+      0 0 22px rgba(197, 143, 53, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
+      inset 0 -26px 38px rgba(0, 0, 0, 0.28),
+      0 28px 64px rgba(0, 0, 0, 0.62) !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser strong {
+    color: #f8fcff !important;
+    font-size: 20px !important;
+    line-height: 1.28 !important;
+    text-align: center !important;
+    text-shadow:
+      0 0 10px rgba(91, 213, 255, 0.22),
+      0 2px 5px rgba(0, 0, 0, 0.45);
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser button {
+    min-height: 52px !important;
+    justify-content: center !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(78, 190, 226, 0.5) !important;
+    color: #f4fdff !important;
+    background:
+      linear-gradient(180deg, rgba(13, 50, 72, 0.98), rgba(2, 16, 31, 0.99)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 10px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser .secondary-button {
+    border-color: rgba(87, 215, 255, 0.66) !important;
+    background:
+      linear-gradient(180deg, rgba(19, 102, 134, 0.98), rgba(5, 45, 72, 0.99)) !important;
+  }
+
+  body.library-book-mobile-mode[data-route="library"] #openingBookBranchChooser .ghost-button:last-child {
+    border-color: rgba(228, 171, 75, 0.72) !important;
+    color: #fff5d0 !important;
+    background:
+      linear-gradient(180deg, rgba(133, 82, 24, 0.98), rgba(67, 34, 12, 0.99)) !important;
+  }
+}
