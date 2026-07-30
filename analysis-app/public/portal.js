@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-pc-lobby-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-home-fast-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-pc-lobby-v1",
-    "/app.js?v=20260730-mobile-pc-lobby-v1",
+    "/styles.css?v=20260730-mobile-home-fast-v1",
+    "/app.js?v=20260730-mobile-home-fast-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -284,6 +284,15 @@
   ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...LIBRARY_MODE_ASSETS, ...OPENING_BOOK_CONTROL_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
+  const MOBILE_ANALYSIS_SHELL_ASSETS = ANALYSIS_PRELOAD_ASSETS.filter((asset) => (
+    asset === "/analysis.html" ||
+    asset.startsWith("/styles.css") ||
+    asset.startsWith("/app.js")
+  ));
+  const PORTAL_MOBILE_BACKGROUND_ASSETS = [
+    ...MOBILE_ANALYSIS_SHELL_ASSETS,
+    ...PORTAL_BACKGROUND_ASSETS.filter((asset) => !ANALYSIS_PRELOAD_ASSETS.includes(asset))
+  ];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
   const OPENING_BOOK_MOVE_ANIMATION_MS = ROOM_MOVE_ANIMATION_MS;
@@ -1578,8 +1587,9 @@
     }
 
     const blockingAssets = [...new Set(PORTAL_BLOCKING_ASSETS)];
+    const backgroundSource = isCompactMobile() ? PORTAL_MOBILE_BACKGROUND_ASSETS : PORTAL_BACKGROUND_ASSETS;
     const backgroundAssets = [...new Set(
-      PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
+      backgroundSource.filter((asset) => !blockingAssets.includes(asset))
     )];
     if (!blockingAssets.length) {
       void Promise.allSettled([

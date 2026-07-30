@@ -8421,8 +8421,15 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 }
 
+@media (min-width: 761px) {
+  .nav-back .mobile-back-art,
+  .room-mobile-back .mobile-back-art {
+    display: none !important;
+  }
+}
+
 /* Mobile now follows the desktop portal route: home -> khu 1/2/3 -> back. */
-@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+@media (max-width: 760px) {
   body.portal-mobile-mode:not(.mobile-room-entry) .portal-header {
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
@@ -8452,6 +8459,12 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   body.portal-mobile-mode:not(.mobile-room-entry) .profile-button,
   body.portal-mobile-mode:not(.mobile-room-entry) .ghost-chip {
     min-width: 0;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .theme-toggle,
+  body.portal-mobile-mode:not(.mobile-room-entry) #portalBoardSkinBtn,
+  body.portal-mobile-mode:not(.mobile-room-entry) #portalBoardSkinMenu {
+    display: none !important;
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry) .nav-back,
@@ -8533,8 +8546,8 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card.has-poster::before {
-    filter: brightness(0.92) saturate(1.14) contrast(1.04) !important;
-    transform: scale(1.02) !important;
+    filter: blur(1.6px) brightness(0.86) saturate(1.08) contrast(1.04) !important;
+    transform: scale(1.045) !important;
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card.has-poster::after {
@@ -8552,9 +8565,7 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card small {
-    max-width: 25ch;
-    font-size: clamp(12px, 3.2vw, 14px) !important;
-    line-height: 1.35 !important;
+    display: none !important;
   }
 
   body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .single-panel-wrap {

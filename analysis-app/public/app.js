@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-branch-back-fix-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-mobile-home-fast-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -1016,6 +1016,15 @@ async function warmAnalysisAssets() {
     return;
   }
 
+  if (shouldEnterAnalysisWithoutBlockingWarmup()) {
+    state.assetWarmupPending = false;
+    state.assetWarmupProgress = 100;
+    state.assetWarmupText = ANALYSIS_PRELOAD_TEXT.done;
+    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+    renderAssetPreloadOverlay();
+    return;
+  }
+
   const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
   const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
   const totalSteps = Math.max(
@@ -1055,6 +1064,11 @@ async function warmAnalysisAssets() {
   }
 
   return finishBlocking;
+}
+
+function shouldEnterAnalysisWithoutBlockingWarmup() {
+  const userAgent = navigator.userAgent || "";
+  return isCompactMobile() || /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 }
 
 function renderAssetPreloadOverlay() {
