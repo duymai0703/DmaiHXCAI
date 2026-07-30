@@ -33,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260730-mobile-khu2-arrows-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260730-mobile-fast-sw-v1">
   </head>
   <body>
     <header class="app-header">
@@ -285,7 +285,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260730-mobile-khu2-arrows-v1"></script>
+    <script src="/app.js?v=20260730-mobile-fast-sw-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       const mobileBackButton = document.getElementById("mobileBackButton");
@@ -305,16 +305,14 @@
       bindAnalysisBack(backButton);
       bindAnalysisBack(mobileBackButton);
       if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js").then((registration) => {
-            registration.update?.();
-          }).catch(() => {});
-          navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v219";
-            if (sessionStorage.getItem(reloadKey) === "1") return;
-            sessionStorage.setItem(reloadKey, "1");
-            location.reload();
-          });
+        navigator.serviceWorker.register("/service-worker.js").then((registration) => {
+          registration.update?.();
+        }).catch(() => {});
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v221";
+          if (sessionStorage.getItem(reloadKey) === "1") return;
+          sessionStorage.setItem(reloadKey, "1");
+          location.reload();
         });
       }
     </script>

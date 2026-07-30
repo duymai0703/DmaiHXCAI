@@ -1,14 +1,14 @@
-const CACHE_NAME = "dxiangqi-shell-v219";
+const CACHE_NAME = "dxiangqi-shell-v221";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260730-mobile-khu2-arrows-v1",
+  "/portal.css?v=20260730-mobile-fast-sw-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260730-mobile-khu2-arrows-v1",
-  "/styles.css?v=20260730-mobile-khu2-arrows-v1",
-  "/app.js?v=20260730-mobile-khu2-arrows-v1",
+  "/portal.js?v=20260730-mobile-fast-sw-v1",
+  "/styles.css?v=20260730-mobile-fast-sw-v1",
+  "/app.js?v=20260730-mobile-fast-sw-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -160,6 +160,18 @@ const STATIC_ASSETS = [
   "/assets/ranks/source-tinhanh.png?v=20260727-rank-source-v2",
   "/assets/ranks/source-vodich.png?v=20260727-rank-source-v2"
 ];
+const CRITICAL_ASSETS = [
+  "/",
+  "/index.html",
+  "/analysis.html",
+  "/portal.css?v=20260730-mobile-fast-sw-v1",
+  "/portal.js?v=20260730-mobile-fast-sw-v1",
+  "/styles.css?v=20260730-mobile-fast-sw-v1",
+  "/app.js?v=20260730-mobile-fast-sw-v1",
+  "/config.js",
+  "/xiangqi-core.js",
+  "/manifest.webmanifest"
+];
 const OPTIONAL_ASSETS = [
   "/assets/avtchibi/solo.png?v=20260728-match-modes-v2",
   "/assets/avtchibi/danhbot.png?v=20260728-match-modes-v2",
@@ -175,13 +187,21 @@ const OPTIONAL_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => Promise.all([
-      cache.addAll(STATIC_ASSETS),
-      Promise.allSettled(OPTIONAL_ASSETS.map((asset) => cache.add(asset)))
-    ]))
+    caches.open(CACHE_NAME).then((cache) => (
+      cache.addAll(CRITICAL_ASSETS).then(() => {
+        warmOptionalCache(cache);
+      })
+    ))
   );
   self.skipWaiting();
 });
+
+function warmOptionalCache(cache) {
+  const critical = new Set(CRITICAL_ASSETS);
+  const assets = [...new Set([...STATIC_ASSETS, ...OPTIONAL_ASSETS])]
+    .filter((asset) => !critical.has(asset));
+  Promise.allSettled(assets.map((asset) => cache.add(asset))).catch(() => {});
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -189,25 +209,9 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)));
       await self.clients.claim();
-      await refreshPortalClients();
     })()
   );
 });
-
-async function refreshPortalClients() {
-  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  await Promise.all(clients.map((client) => {
-    try {
-      const url = new URL(client.url);
-      const route = String(url.hash || "").replace(/^#/, "");
-      const isPortal = url.origin === self.location.origin && (url.pathname === "/" || url.pathname === "/index.html");
-      if (!isPortal || route === "room") return Promise.resolve();
-      return client.navigate(client.url);
-    } catch {
-      return Promise.resolve();
-    }
-  }));
-}
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
@@ -216,6 +220,10 @@ self.addEventListener("fetch", (event) => {
 
   const isHtml = event.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/";
   if (isHtml) {
+    if (url.pathname === "/analysis.html" && url.searchParams.get("mobile") === "1") {
+      event.respondWith(cacheFirstNavigation(event.request, "/analysis.html"));
+      return;
+    }
     event.respondWith(networkFirst(event.request));
     return;
   }
@@ -232,6 +240,21 @@ async function networkFirst(request) {
   } catch {
     return (await cache.match(request)) || Response.error();
   }
+}
+
+async function cacheFirstNavigation(request, fallbackPath) {
+  const cache = await caches.open(CACHE_NAME);
+  const fallbackRequest = new Request(new URL(fallbackPath, self.location.origin).href);
+  const cached = await cache.match(fallbackRequest) || await cache.match(request);
+  const network = fetch(request).then((response) => {
+    cache.put(fallbackRequest, response.clone());
+    return response;
+  }).catch(() => null);
+  if (cached) {
+    network.catch(() => {});
+    return cached;
+  }
+  return (await network) || Response.error();
 }
 
 async function cacheFirst(request) {
