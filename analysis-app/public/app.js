@@ -1331,7 +1331,7 @@ async function onAnalysisAccessKeySubmit(event) {
     if (accessNameInputEl) accessNameInputEl.value = "";
     startAnalysisAfterAccess();
     showToast(payload.user?.role === "admin" ? "Da mo trang quan tri." : "Da kich hoat Key.");
-    if (payload.user?.role === "admin") window.location.href = "/?mobileRoom=1#admin";
+    if (payload.user?.role === "admin") window.location.href = "/#admin";
   } catch (error) {
     pendingAnalysisAccessKey = "";
     updateAnalysisAccessGateMode(false);
@@ -1353,7 +1353,7 @@ async function onAnalysisAccessKeySubmit(event) {
         if (accessKeyInputEl) accessKeyInputEl.value = "";
         hideAccessGate();
         showToast("Đã mở trang quản trị.");
-        window.location.href = "/?mobileRoom=1#admin";
+        window.location.href = "/#admin";
         return;
       }
       pendingAnalysisAccessKey = key;

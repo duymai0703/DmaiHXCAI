@@ -5208,9 +5208,9 @@ button.action-logo-button {
   }
 
   .mobile-top-toolbar {
-    grid-template-columns: 42px repeat(7, minmax(0, 1fr)) !important;
-    gap: 4px !important;
-    padding: calc(4px + var(--mobile-safe-top)) 5px 4px !important;
+    grid-template-columns: 38px 34px repeat(7, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    padding: calc(4px + var(--mobile-safe-top)) 3px 4px !important;
     min-height: calc(52px + var(--mobile-safe-top)) !important;
     border-bottom: 1px solid rgba(99, 214, 246, 0.48) !important;
     background:
@@ -5319,5 +5319,92 @@ button.action-logo-button {
   .mobile-top-toolbar [data-mobile-icon="cole"] img {
     width: 84% !important;
     height: 84% !important;
+  }
+
+  .mobile-top-toolbar .mobile-toolbar-back {
+    overflow: visible !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-top-toolbar .mobile-toolbar-back::before,
+  .mobile-top-toolbar .mobile-toolbar-back::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .mobile-top-toolbar .mobile-toolbar-back .mobile-back-art {
+    width: 120% !important;
+    height: 120% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    opacity: 1 !important;
+    filter:
+      drop-shadow(0 0 8px rgba(74, 200, 255, 0.26))
+      drop-shadow(0 5px 8px rgba(0, 0, 0, 0.48)) !important;
+  }
+}
+
+/* Use real back artwork on the analysis page so mobile no longer depends on pseudo-elements. */
+#backButton.nav-back,
+#backButton.nav-back:hover,
+#backButton.nav-back:active,
+#backButton.nav-back:focus,
+#backButton.nav-back:focus-visible {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+#backButton.nav-back::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+#backButton.nav-back .mobile-back-art {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  filter:
+    drop-shadow(0 0 10px rgba(74, 200, 255, 0.28))
+    drop-shadow(0 8px 13px rgba(0, 0, 0, 0.42)) !important;
+}
+
+@media (max-width: 760px) {
+  #backButton.nav-back,
+  #backButton.nav-back:hover,
+  #backButton.nav-back:active,
+  #backButton.nav-back:focus,
+  #backButton.nav-back:focus-visible {
+    width: 72px !important;
+    min-width: 72px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    margin: -10px -8px -10px -10px !important;
+    z-index: 1200 !important;
   }
 }

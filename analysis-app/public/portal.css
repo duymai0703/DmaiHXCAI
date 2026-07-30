@@ -8420,3 +8420,205 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     visibility: visible !important;
   }
 }
+
+/* Mobile now follows the desktop portal route: home -> khu 1/2/3 -> back. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  body.portal-mobile-mode:not(.mobile-room-entry) .portal-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 70px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 8px;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .brand {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .brand-copy strong {
+    font-size: clamp(22px, 7vw, 34px);
+    white-space: nowrap;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .header-profile {
+    grid-column: auto;
+    width: auto;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .theme-toggle,
+  body.portal-mobile-mode:not(.mobile-room-entry) .profile-button,
+  body.portal-mobile-mode:not(.mobile-room-entry) .ghost-chip {
+    min-width: 0;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back,
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back:hover,
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back:active,
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back:focus,
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back:focus-visible,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back:hover,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back:active,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back:focus,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back:focus-visible {
+    position: relative !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    max-height: 72px !important;
+    margin: -10px -8px -10px -10px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: visible !important;
+    z-index: 1200 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back::before,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back::before {
+    content: none !important;
+    display: none !important;
+    background: none !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry) .nav-back .mobile-back-art,
+  body.portal-mobile-mode:not(.mobile-room-entry) .room-mobile-back .mobile-back-art {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+    filter:
+      drop-shadow(0 0 10px rgba(74, 200, 255, 0.28))
+      drop-shadow(0 8px 13px rgba(0, 0, 0, 0.42)) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .portal-main {
+    padding: 10px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    min-height: 0 !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card {
+    min-height: clamp(174px, 27vh, 228px) !important;
+    padding: 18px 18px 16px !important;
+    border-radius: 18px !important;
+    border-color: rgba(79, 197, 232, 0.52) !important;
+    overflow: hidden !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 16px 30px rgba(0, 0, 0, 0.34) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card.has-poster::before {
+    filter: brightness(0.92) saturate(1.14) contrast(1.04) !important;
+    transform: scale(1.02) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card.has-poster::after {
+    background:
+      radial-gradient(circle at 55% 20%, rgba(255, 255, 255, 0.08), transparent 34%),
+      linear-gradient(180deg, rgba(0, 7, 18, 0.08), rgba(0, 9, 21, 0.72)) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card strong {
+    font-size: clamp(26px, 7.5vw, 40px) !important;
+    line-height: 1.04 !important;
+    text-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.58),
+      0 0 12px rgba(78, 205, 242, 0.2) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="home"] .launcher-card small {
+    max-width: 25ch;
+    font-size: clamp(12px, 3.2vw, 14px) !important;
+    line-height: 1.35 !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .single-panel-wrap {
+    width: min(760px, calc(100vw - 16px)) !important;
+    max-width: 760px !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .match-panel {
+    padding: clamp(18px, 4vw, 28px) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .match-mode-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(10px, 2.7vw, 18px) !important;
+    padding: clamp(12px, 3vw, 22px) !important;
+    border-radius: 18px !important;
+    border-color: rgba(82, 195, 231, 0.48) !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(55, 189, 233, 0.1), transparent 36%),
+      linear-gradient(180deg, rgba(8, 29, 46, 0.96), rgba(2, 12, 25, 0.98)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -24px 36px rgba(0, 0, 0, 0.22),
+      0 18px 38px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile {
+    min-height: clamp(224px, 48vw, 310px) !important;
+    padding: clamp(12px, 3vw, 18px) 8px clamp(14px, 3vw, 20px) !important;
+    gap: 2px !important;
+    border-radius: 16px !important;
+    border-color: rgba(76, 188, 224, 0.52) !important;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(211, 157, 62, 0.12), transparent 48%),
+      linear-gradient(180deg, rgba(12, 46, 65, 0.96), rgba(4, 19, 34, 0.99)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 -20px 30px rgba(0, 0, 0, 0.2),
+      0 12px 24px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile img {
+    width: clamp(138px, 36vw, 220px) !important;
+    height: clamp(138px, 36vw, 220px) !important;
+    max-width: 118% !important;
+    margin-bottom: -6px;
+    filter:
+      saturate(1.08)
+      contrast(1.06)
+      drop-shadow(0 10px 14px rgba(0, 0, 0, 0.36))
+      drop-shadow(0 0 12px rgba(75, 203, 240, 0.16)) !important;
+  }
+
+  body.portal-mobile-mode:not(.mobile-room-entry)[data-route="match"] #matchHubView.match-mode-menu .match-mode-tile span {
+    display: block !important;
+    width: 100% !important;
+    color: #f7fbff !important;
+    font-size: clamp(15px, 3.9vw, 18px) !important;
+    line-height: 1.12 !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    text-wrap: balance;
+    text-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.52),
+      0 0 8px rgba(66, 194, 236, 0.18);
+  }
+}

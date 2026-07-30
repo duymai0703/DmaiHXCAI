@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-back-img-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-pc-lobby-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-toolbar-metal-v1",
-    "/app.js?v=20260730-mobile-toolbar-metal-v1",
+    "/styles.css?v=20260730-mobile-pc-lobby-v1",
+    "/app.js?v=20260730-mobile-pc-lobby-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -736,19 +736,7 @@
     if (!dom.profileModal?.classList.contains("hidden")) renderLicenseInfo();
   }, 60000);
 
-  const mobileUserAgent = navigator.userAgent || "";
-  const isIpadDesktop = /macintosh/i.test(mobileUserAgent) && Number(navigator.maxTouchPoints || 0) > 1;
-  const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent) || isIpadDesktop;
-  const mobileRoomParams = new URLSearchParams(window.location.search || "");
-  const isMobileRoomEntry = mobileRoomParams.has("mobileRoom");
-  const isMobilePortalEntry = isMobileDevice && isMobileRoomEntry;
-  const initialMobileRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase();
-  const keepPortalOnMobile = ["library", "review", "admin"].includes(initialMobileRoute);
-  if (isMobileDevice && !isMobileRoomEntry && !keepPortalOnMobile) {
-    window.location.replace("/analysis");
-    return;
-  }
-  document.body.classList.toggle("mobile-room-entry", isMobileRoomEntry);
+  document.body.classList.remove("mobile-room-entry");
 
   initThemeControls();
   initPortalBoardSkinControls();
@@ -1593,14 +1581,6 @@
     const backgroundAssets = [...new Set(
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
-    if (isMobilePortalEntry) {
-      writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
-      state.assetWarmupPending = false;
-      state.assetWarmupProgress = 100;
-      state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
-      renderAssetPreloadOverlay();
-      return;
-    }
     if (!blockingAssets.length) {
       void Promise.allSettled([
         cacheStaticAssets(backgroundAssets),
@@ -4060,9 +4040,8 @@
   function syncRoute(replaceIfNeeded) {
     const routeInfo = parseRouteHash(location.hash);
     let route = routeInfo.route;
-    const keepBootRoute = route === "library" || route === "review" || (isMobileRoomEntry && route === "admin");
-    if (isMobileRoomEntry && route === "home") route = state.room ? "room" : "match";
-    if (state.booting && !keepBootRoute) route = isMobileRoomEntry ? "match" : "home";
+    const keepBootRoute = route === "library" || route === "review";
+    if (state.booting && !keepBootRoute) route = "home";
     else if (route === "room" && !state.room) route = "match";
     else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "library";
@@ -4127,29 +4106,17 @@
     reportActivity();
   }
 
-  function exitMobilePortalToAnalysis() {
-    window.location.replace("/analysis");
-  }
-
   function returnToMatchMenu() {
     setLobbyMode(LOBBY_MENU_MODE);
     goMatchMode(LOBBY_MENU_MODE, true);
   }
 
   function handleGlobalBack() {
-    if (isMobileRoomEntry && state.route === "room") {
-      leaveRoomFromMobileBackFast({ target: "analysis" });
-      return;
-    }
-    if (isMobileRoomEntry) {
-      exitMobilePortalToAnalysis();
-      return;
-    }
     handleBack();
   }
 
   function handleRoomMobileBack() {
-    leaveRoomFromMobileBackFast({ target: "match" });
+    handleGlobalBack();
   }
 
   function handleBack() {
@@ -9172,32 +9139,28 @@
     }
   }
 
-  function leaveRoomFromMobileBackFast({ target = "match" } = {}) {
+  function leaveRoomFromMobileBackFast() {
     const room = state.room;
     if (isPuzzleRoom(room)) {
       exitPuzzleRoom();
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     if (isEndgameRoom(room)) {
       exitEndgameRoom();
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     const roomKey = room.key;
     const shouldNotifyServer = room.status !== "finished" && roomKey;
     state.roomActionBusy = false;
     applyRoomState(null, { forceBoard: true, keepSelection: false });
-    if (target === "analysis") exitMobilePortalToAnalysis();
-    else returnToMatchMenu();
+    returnToMatchMenu();
     showToast("\u0110\u00e3 r\u1eddi ph\u00f2ng.");
     if (shouldNotifyServer) {
       void api("/api/rooms/leave", {
@@ -9209,32 +9172,28 @@
     }
   }
 
-  async function leaveRoomFromMobileBack({ target = "match" } = {}) {
+  async function leaveRoomFromMobileBack() {
     const room = state.room;
     if (isPuzzleRoom(room)) {
       exitPuzzleRoom();
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     if (isEndgameRoom(room)) {
       exitEndgameRoom();
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       return;
     }
     const roomKey = room.key;
     const shouldNotifyServer = room.status !== "finished" && roomKey;
     state.roomActionBusy = false;
     applyRoomState(null, { forceBoard: true, keepSelection: false });
-    if (target === "analysis") exitMobilePortalToAnalysis();
-    else returnToMatchMenu();
+    returnToMatchMenu();
     showToast("ÄÃ£ rá»i phÃ²ng.");
     if (shouldNotifyServer) {
       void api("/api/rooms/leave", {
@@ -9263,8 +9222,7 @@
       try {
         await refreshHistory();
       } catch {}
-      if (target === "analysis") exitMobilePortalToAnalysis();
-      else returnToMatchMenu();
+      returnToMatchMenu();
       showToast("Đã rời phòng.");
     }
   }

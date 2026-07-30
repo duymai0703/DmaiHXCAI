@@ -1,14 +1,14 @@
-const CACHE_NAME = "dxiangqi-shell-v215";
+const CACHE_NAME = "dxiangqi-shell-v216";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260730-mobile-back-img-v1",
+  "/portal.css?v=20260730-mobile-pc-lobby-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260730-mobile-toolbar-metal-v1",
-  "/styles.css?v=20260730-mobile-toolbar-metal-v1",
-  "/app.js?v=20260730-mobile-toolbar-metal-v1",
+  "/portal.js?v=20260730-mobile-pc-lobby-v1",
+  "/styles.css?v=20260730-mobile-pc-lobby-v1",
+  "/app.js?v=20260730-mobile-pc-lobby-v1",
   "/config.js",
   "/xiangqi-core.js",
   "/manifest.webmanifest",
@@ -103,6 +103,7 @@ const STATIC_ASSETS = [
   "/assets/pieces/sets/boquan4/black-cannon.png",
   "/assets/pieces/sets/boquan4/black-pawn.png",
   "/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1",
+  "/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1",
   "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1",
   "/assets/avtchibi/setting.png?v=20260730-mobile-controls-restore-v1",
   "/assets/avtchibi/red.png?v=20260730-mobile-controls-restore-v1",

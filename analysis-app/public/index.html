@@ -26,18 +26,6 @@
         document.querySelector('meta[name="theme-color"]').setAttribute("content", "#050914");
       } catch {}
     </script>
-    <script>
-      const ua = navigator.userAgent || "";
-      const isIpadDesktop = /macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
-      const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua) || isIpadDesktop;
-      const params = new URLSearchParams(window.location.search || "");
-      const wantsMobileRoom = params.has("mobileRoom");
-      const initialMobileRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase().split(/[/?]/)[0];
-      const keepPortalOnMobile = ["library", "review", "admin"].includes(initialMobileRoute);
-      if (isMobileDevice && !wantsMobileRoom && !keepPortalOnMobile) {
-        window.location.replace("/analysis");
-      }
-    </script>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1">
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1">
@@ -45,7 +33,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-back-img-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-pc-lobby-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -961,7 +949,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260730-mobile-toolbar-metal-v1"></script>
+    <script src="/portal.js?v=20260730-mobile-pc-lobby-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -969,7 +957,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v215";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v216";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();
