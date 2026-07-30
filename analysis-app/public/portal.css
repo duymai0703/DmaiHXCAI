@@ -7638,6 +7638,10 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
 .room-mobile-back:focus,
 .room-mobile-back:focus-visible {
   position: relative !important;
+  z-index: 50 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
   overflow: visible !important;
   background: transparent !important;
 }

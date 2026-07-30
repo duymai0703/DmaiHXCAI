@@ -136,7 +136,7 @@ const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
 const MOBILE_LIBRARY_ENTRY_URL = "/?mobileRoom=1#library";
-const MOBILE_PORTAL_FAST_ASSET_VERSION = "20260730-mobile-main-back-fast-v1";
+const MOBILE_PORTAL_FAST_ASSET_VERSION = "20260730-mobile-back-split-v1";
 const MOBILE_PORTAL_ENTRY_ASSETS = [
   "/",
   "/index.html",

@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-main-back-fast-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-back-split-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-main-back-fast-v1",
-    "/app.js?v=20260730-mobile-main-back-fast-v1",
+    "/styles.css?v=20260730-mobile-back-split-v1",
+    "/app.js?v=20260730-mobile-back-split-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -1398,11 +1398,31 @@
     openProfileModal();
   }
 
+  function bindBackButton(button, handler) {
+    if (!button || typeof handler !== "function") return;
+    let lastInvokeAt = 0;
+    const invoke = (event) => {
+      const now = performance.now();
+      if (now - lastInvokeAt < 420) {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        return;
+      }
+      lastInvokeAt = now;
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      handler(event);
+    };
+    button.addEventListener("pointerup", invoke);
+    button.addEventListener("touchend", invoke, { passive: false });
+    button.addEventListener("click", invoke);
+  }
+
   function bindEvents() {
     window.addEventListener("resize", scheduleResizeRender, { passive: true });
     window.addEventListener("hashchange", () => syncRoute(false));
-    dom.globalBackBtn.addEventListener("click", handleBack);
-    if (dom.roomMobileBackBtn) dom.roomMobileBackBtn.addEventListener("click", handleBack);
+    bindBackButton(dom.globalBackBtn, handleGlobalBack);
+    bindBackButton(dom.roomMobileBackBtn, handleRoomMobileBack);
     if (dom.roomMobileMenuBtn) dom.roomMobileMenuBtn.addEventListener("click", toggleRoomMobileMenu);
     if (dom.portalBrandMark) {
       dom.portalBrandMark.addEventListener("click", openBrandProfile);
@@ -1455,7 +1475,7 @@
     dom.openingBookBoard?.addEventListener("pointerdown", onOpeningBookPointerDown);
     dom.openingBookRedSideBtn?.addEventListener("click", () => setOpeningBookSide("w"));
     dom.openingBookBlackSideBtn?.addEventListener("click", () => setOpeningBookSide("b"));
-    dom.openingBookBackBtn?.addEventListener("click", exitOpeningBookMobileMode);
+    bindBackButton(dom.openingBookBackBtn, exitOpeningBookMobileMode);
     dom.openingBookPrevBtn?.addEventListener("click", stepOpeningBookBack);
     dom.openingBookNextBtn?.addEventListener("click", openOpeningBookBranchChooser);
     dom.openingBookResetBtn?.addEventListener("click", resetOpeningBookEditor);
@@ -4115,19 +4135,31 @@
     window.location.replace("/analysis");
   }
 
-  function handleBack() {
+  function returnToMatchMenu() {
+    setLobbyMode(LOBBY_MENU_MODE);
+    goMatchMode(LOBBY_MENU_MODE, true);
+  }
+
+  function handleGlobalBack() {
     if (isMobileRoomEntry && state.route === "room") {
-      void leaveRoomFromMobileBack();
+      void leaveRoomFromMobileBack({ target: "analysis" });
       return;
     }
     if (isMobileRoomEntry) {
       exitMobilePortalToAnalysis();
       return;
     }
+    handleBack();
+  }
+
+  function handleRoomMobileBack() {
+    void leaveRoomFromMobileBack({ target: "match" });
+  }
+
+  function handleBack() {
     if (state.route === "match") {
       if (state.lobbyMode !== LOBBY_MENU_MODE) {
-        setLobbyMode(LOBBY_MENU_MODE);
-        goMatchMode(LOBBY_MENU_MODE, true);
+        returnToMatchMenu();
         return;
       }
       goRoute("home", true);
@@ -8713,7 +8745,7 @@
     const tip = to;
     const base = { x: tip.x - dir.x * head, y: tip.y - dir.y * head };
     ctx.lineWidth = Math.max(3.2, metrics.width / 175);
-    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(83, 18, 143, 0.9)"));
+    drawStyledArrow(ctx, from, base, tip, normal, halfWidth, arrowPalette("rgba(205, 72, 255, 0.96)"));
     if (!number) return;
     const labelX = base.x - normal.x * (halfWidth + 12);
     const labelY = base.y - normal.y * (halfWidth + 12);
@@ -9144,21 +9176,24 @@
     }
   }
 
-  async function leaveRoomFromMobileBack() {
+  async function leaveRoomFromMobileBack({ target = "match" } = {}) {
     const room = state.room;
     if (isPuzzleRoom(room)) {
       exitPuzzleRoom();
-      exitMobilePortalToAnalysis();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
       return;
     }
     if (isEndgameRoom(room)) {
       exitEndgameRoom();
-      exitMobilePortalToAnalysis();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
       return;
     }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
-      exitMobilePortalToAnalysis();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
       return;
     }
     if (state.roomActionBusy) return;
@@ -9179,7 +9214,8 @@
       try {
         await refreshHistory();
       } catch {}
-      exitMobilePortalToAnalysis();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
       showToast("Đã rời phòng.");
     }
   }
