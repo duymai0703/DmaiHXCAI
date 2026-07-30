@@ -45,11 +45,11 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-back-hitbox-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260730-mobile-back-img-v1">
   </head>
   <body>
     <header class="portal-header">
-      <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại"></button>
+      <button id="globalBackBtn" class="nav-back" type="button" aria-label="Quay lại"><img class="mobile-back-art" src="/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1" alt="" draggable="false"></button>
 
       <div class="brand">
         <img id="portalBrandMark" class="brand-mark" src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="D-Xiangqi">
@@ -590,7 +590,7 @@
                     </button>
                   </div>
                   <div class="review-controls opening-book-controls">
-                    <button id="openingBookBackBtn" class="secondary-button opening-book-mobile-back" type="button" aria-label="Quay lại">Quay lại</button>
+                    <button id="openingBookBackBtn" class="secondary-button opening-book-mobile-back" type="button" aria-label="Quay lại"><img class="mobile-back-art" src="/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1" alt="" draggable="false"></button>
                     <button id="openingBookPrevBtn" class="secondary-button opening-book-icon-button" type="button" data-mobile-icon="mb2" aria-label="Hoàn tác" data-tooltip="Hoàn tác">
                       <img src="/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1" alt="" draggable="false">
                       <span data-action-label>Hoàn tác</span>
@@ -773,7 +773,7 @@
               <button id="roomMobileProfileBtn" class="room-mobile-profile-btn" type="button" aria-label="Anh dai dien">
                 <span id="roomMobileProfileAvatar" class="avatar">D</span>
               </button>
-              <button id="roomMobileBackBtn" class="room-mobile-back" type="button" aria-label="Quay lại">‹</button>
+              <button id="roomMobileBackBtn" class="room-mobile-back" type="button" aria-label="Quay lại"><img class="mobile-back-art" src="/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1" alt="" draggable="false"></button>
             </div>
 
             <section class="panel-card room-panel" data-room-mobile-panel="control">
@@ -961,7 +961,7 @@
     <script src="/xiangqi-core.js"></script>
     <script src="/puzzle-data.js?v=20260727-puzzle-v1"></script>
     <script src="/endgame-data.js?v=20260728-endgame-v3"></script>
-    <script src="/portal.js?v=20260730-mobile-back-hitbox-v1"></script>
+    <script src="/portal.js?v=20260730-mobile-back-img-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
@@ -969,7 +969,7 @@
             registration.update?.();
           }).catch(() => {});
           navigator.serviceWorker.addEventListener("controllerchange", () => {
-            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v213";
+            const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v214";
             if (sessionStorage.getItem(reloadKey) === "1") return;
             sessionStorage.setItem(reloadKey, "1");
             location.reload();

@@ -8324,7 +8324,7 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     inset: 0 !important;
     width: 116px !important;
     height: 116px !important;
-    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-hitbox-v1") center / 100% 100% no-repeat !important;
+    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1") center / 100% 100% no-repeat !important;
     transform: none !important;
     pointer-events: none !important;
   }
@@ -8370,8 +8370,53 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     inset: 0 !important;
     width: 96px !important;
     height: 96px !important;
-    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-hitbox-v1") center / 100% 100% no-repeat !important;
+    background: url("/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1") center / 100% 100% no-repeat !important;
     transform: none !important;
     pointer-events: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back::before,
+  body.mobile-room-entry.portal-mobile-mode #roomMobileBackBtn.room-mobile-back::before,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before {
+    content: none !important;
+    display: none !important;
+    background: none !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back .mobile-back-art,
+  body.mobile-room-entry.portal-mobile-mode #roomMobileBackBtn.room-mobile-back .mobile-back-art,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn .mobile-back-art {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: contain !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+    filter: none !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:hover,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:active,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:focus,
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back:focus-visible,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:hover,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:active,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus,
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back:focus-visible,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:hover,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:active,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:focus,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn:focus-visible {
+    background: transparent !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 }
