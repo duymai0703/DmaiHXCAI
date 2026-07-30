@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-back-split-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-back-speed-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-back-split-v1",
-    "/app.js?v=20260730-mobile-back-split-v1",
+    "/styles.css?v=20260730-mobile-back-speed-v1",
+    "/app.js?v=20260730-mobile-back-speed-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -1591,14 +1591,7 @@
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
     if (isMobilePortalEntry) {
-      const allAssets = [...new Set([...blockingAssets, ...backgroundAssets])];
-      void Promise.allSettled([
-        cacheStaticAssets(allAssets),
-        decodeImageAssets(allAssets)
-      ]).then(() => {
-        writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
-        void tryPersistBrowserStorage();
-      }).catch(() => {});
+      writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
       state.assetWarmupPending = false;
       state.assetWarmupProgress = 100;
       state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
@@ -4142,7 +4135,7 @@
 
   function handleGlobalBack() {
     if (isMobileRoomEntry && state.route === "room") {
-      void leaveRoomFromMobileBack({ target: "analysis" });
+      leaveRoomFromMobileBackFast({ target: "analysis" });
       return;
     }
     if (isMobileRoomEntry) {
@@ -4153,7 +4146,7 @@
   }
 
   function handleRoomMobileBack() {
-    void leaveRoomFromMobileBack({ target: "match" });
+    leaveRoomFromMobileBackFast({ target: "match" });
   }
 
   function handleBack() {
@@ -9176,6 +9169,43 @@
     }
   }
 
+  function leaveRoomFromMobileBackFast({ target = "match" } = {}) {
+    const room = state.room;
+    if (isPuzzleRoom(room)) {
+      exitPuzzleRoom();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
+      return;
+    }
+    if (isEndgameRoom(room)) {
+      exitEndgameRoom();
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
+      return;
+    }
+    if (!room) {
+      applyRoomState(null, { forceBoard: true, keepSelection: false });
+      if (target === "analysis") exitMobilePortalToAnalysis();
+      else returnToMatchMenu();
+      return;
+    }
+    const roomKey = room.key;
+    const shouldNotifyServer = room.status !== "finished" && roomKey;
+    state.roomActionBusy = false;
+    applyRoomState(null, { forceBoard: true, keepSelection: false });
+    if (target === "analysis") exitMobilePortalToAnalysis();
+    else returnToMatchMenu();
+    showToast("\u0110\u00e3 r\u1eddi ph\u00f2ng.");
+    if (shouldNotifyServer) {
+      void api("/api/rooms/leave", {
+        method: "POST",
+        body: { key: roomKey }
+      }).then(() => refreshHistory()).catch(() => {});
+    } else {
+      void refreshHistory().catch(() => {});
+    }
+  }
+
   async function leaveRoomFromMobileBack({ target = "match" } = {}) {
     const room = state.room;
     if (isPuzzleRoom(room)) {
@@ -9196,6 +9226,22 @@
       else returnToMatchMenu();
       return;
     }
+    const roomKey = room.key;
+    const shouldNotifyServer = room.status !== "finished" && roomKey;
+    state.roomActionBusy = false;
+    applyRoomState(null, { forceBoard: true, keepSelection: false });
+    if (target === "analysis") exitMobilePortalToAnalysis();
+    else returnToMatchMenu();
+    showToast("ÄÃ£ rá»i phÃ²ng.");
+    if (shouldNotifyServer) {
+      void api("/api/rooms/leave", {
+        method: "POST",
+        body: { key: roomKey }
+      }).then(() => refreshHistory()).catch(() => {});
+    } else {
+      void refreshHistory().catch(() => {});
+    }
+    return;
     if (state.roomActionBusy) return;
     state.roomActionBusy = true;
     renderRoomMeta();

@@ -8224,3 +8224,65 @@ body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before 
     min-height: 40px !important;
   }
 }
+
+@media (max-width: 760px) {
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back {
+    width: 88px !important;
+    min-width: 88px !important;
+    height: 88px !important;
+    min-height: 88px !important;
+    margin: -18px -8px -18px -10px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode #globalBackBtn.nav-back::before {
+    inset: 0 !important;
+    transform: none !important;
+    background-size: 100% 100% !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back {
+    display: inline-grid !important;
+    place-items: center !important;
+    flex: 0 0 74px !important;
+    width: 74px !important;
+    min-width: 74px !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode[data-route="room"] #roomMobileBackBtn.room-mobile-back,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn {
+    width: 74px !important;
+    min-width: 74px !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.mobile-room-entry.portal-mobile-mode #roomMobileBackBtn.room-mobile-back::before,
+  body.library-book-mobile-mode[data-route="library"] #openingBookBackBtn::before {
+    inset: 0 !important;
+    transform: none !important;
+    background-size: 100% 100% !important;
+  }
+}
