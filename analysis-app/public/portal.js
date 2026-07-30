@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-smooth-nav-v1";
+  const ASSET_WARMUP_VERSION = "20260730-account-auth-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -314,8 +314,9 @@
   const state = {
     token: initialToken,
     user: initialToken ? readStoredUser() : null,
-    savedAccessKey: readPersistentValue(STORAGE_ACCESS_KEY),
+    savedAccessKey: "",
     sessionSuspended: false,
+    authMode: "login",
     deviceId: initialDeviceId,
     deviceAvatarUrl: initialDeviceAvatar,
     history: readStoredHistory(),
@@ -1541,6 +1542,10 @@
     if (dom.saveAvatarBtn) dom.saveAvatarBtn.addEventListener("click", saveSelectedAvatar);
     if (dom.openAdminBtn) dom.openAdminBtn.addEventListener("click", openAdminPanel);
     if (dom.logoutBtn) dom.logoutBtn.addEventListener("click", logout);
+    dom.loginTab?.addEventListener("click", () => setAuthMode("login"));
+    dom.registerTab?.addEventListener("click", () => setAuthMode("register"));
+    dom.loginForm?.addEventListener("submit", onLoginSubmit);
+    dom.registerForm?.addEventListener("submit", onRegisterSubmit);
     dom.adminRefreshBtn.addEventListener("click", () => {
       void loadAdminUsers(true);
     });
@@ -1781,37 +1786,138 @@
     };
   }
 
+  function setAuthMode(mode) {
+    const nextMode = mode === "register" ? "register" : "login";
+    state.authMode = nextMode;
+    dom.loginTab?.classList.toggle("active", nextMode === "login");
+    dom.registerTab?.classList.toggle("active", nextMode === "register");
+    dom.loginTab?.setAttribute("aria-selected", nextMode === "login" ? "true" : "false");
+    dom.registerTab?.setAttribute("aria-selected", nextMode === "register" ? "true" : "false");
+    dom.loginForm?.classList.toggle("hidden", nextMode !== "login");
+    dom.registerForm?.classList.toggle("hidden", nextMode !== "register");
+    if (dom.authMessage) dom.authMessage.textContent = "";
+    const focusTarget = nextMode === "login" ? dom.loginAccount : dom.registerUsername;
+    window.setTimeout(() => focusTarget?.focus({ preventScroll: true }), 40);
+  }
+
+  function showAuthView(message = "") {
+    hideAccessGate();
+    state.booting = false;
+    document.body.dataset.route = "auth";
+    dom.authView?.classList.remove("hidden");
+    dom.authView?.setAttribute("aria-hidden", "false");
+    dom.homeView?.classList.add("hidden");
+    dom.matchHubView?.classList.add("hidden");
+    dom.libraryView?.classList.add("hidden");
+    dom.adminView?.classList.add("hidden");
+    dom.roomView?.classList.add("hidden");
+    dom.reviewView?.classList.add("hidden");
+    dom.headerProfile?.classList.add("hidden");
+    dom.globalBackBtn?.classList.add("hidden");
+    stopRoomPolling();
+    stopAdminPolling();
+    setAuthMode(state.authMode || "login");
+    if (dom.authMessage) dom.authMessage.textContent = message;
+  }
+
+  function hideAuthView() {
+    dom.authView?.classList.add("hidden");
+    dom.authView?.setAttribute("aria-hidden", "true");
+    dom.headerProfile?.classList.remove("hidden");
+    dom.globalBackBtn?.classList.remove("hidden");
+    if (dom.authMessage) dom.authMessage.textContent = "";
+  }
+
+  async function hydrateAuthenticatedViews() {
+    const [historyPayload, currentRoom] = await Promise.all([
+      api("/api/history"),
+      api("/api/rooms/current")
+    ]);
+    state.history = mergeHistoryLists(historyPayload.history, state.history);
+    renderHistory();
+    if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+  }
+
+  async function finishAuth(payload) {
+    applySession(payload.user, payload.token);
+    hideAuthView();
+    await hydrateAuthenticatedViews();
+    if (isAdmin()) {
+      await loadAdminUsers(true);
+      goRoute("admin", true);
+      showToast("Da mo trang quan tri.");
+    } else {
+      goRoute("home", true);
+      showToast("Da dang nhap.");
+    }
+  }
+
+  async function onLoginSubmit(event) {
+    event.preventDefault();
+    const account = String(dom.loginAccount?.value || "").trim();
+    const password = String(dom.loginPassword?.value || "");
+    if (!account || !password) {
+      if (dom.authMessage) dom.authMessage.textContent = "Nhap ten dang nhap va mat khau.";
+      return;
+    }
+    if (dom.authMessage) dom.authMessage.textContent = "Dang dang nhap...";
+    try {
+      const payload = await api("/api/auth/login", {
+        method: "POST",
+        body: { account, password, deviceId: state.deviceId }
+      });
+      await finishAuth(payload);
+    } catch (error) {
+      state.token = "";
+      writePersistentValue(STORAGE_TOKEN, "");
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+      if (dom.authMessage) dom.authMessage.textContent = error.message || "Sai thong tin dang nhap.";
+    }
+  }
+
+  async function onRegisterSubmit(event) {
+    event.preventDefault();
+    const username = String(dom.registerUsername?.value || "").trim();
+    const password = String(dom.registerPassword?.value || "");
+    if (!username || password.length < 6) {
+      if (dom.authMessage) dom.authMessage.textContent = "Ten dang nhap va mat khau tu 6 ky tu.";
+      return;
+    }
+    if (dom.authMessage) dom.authMessage.textContent = "Dang tao tai khoan...";
+    try {
+      const payload = await api("/api/auth/register", {
+        method: "POST",
+        body: { username, password, deviceId: state.deviceId }
+      });
+      await finishAuth(payload);
+    } catch (error) {
+      state.token = "";
+      writePersistentValue(STORAGE_TOKEN, "");
+      writePersistentValue(LEGACY_STORAGE_TOKEN, "");
+      if (dom.authMessage) dom.authMessage.textContent = error.message || "Khong tao duoc tai khoan.";
+    }
+  }
+
   async function bootstrap() {
     try {
+      writePersistentValue(STORAGE_ACCESS_KEY, "");
       if (!state.token) {
-        if (state.savedAccessKey) {
-          const restored = await restoreSessionFromSavedKey({ silent: true });
-          if (restored) return;
-        }
-        showAccessGate();
+        showAuthView();
         return;
       }
-      const [session, historyPayload, currentRoom] = await Promise.all([
-        api("/api/auth/me"),
-        api("/api/history"),
-        api("/api/rooms/current")
-      ]);
+      const session = await api("/api/auth/me");
       applySession(session.user, session.token);
-      state.history = mergeHistoryLists(historyPayload.history, state.history);
-      renderHistory();
-      if (currentRoom.room) applyRoomState(currentRoom.room, { forceBoard: true, keepSelection: false });
+      hideAuthView();
+      await hydrateAuthenticatedViews();
     } catch (error) {
-      if (isSessionReplacedError(error) && state.savedAccessKey) {
-        const restored = await restoreSessionFromSavedKey({ silent: true });
-        if (restored) return;
-      }
-      if (!/UNAUTHORIZED/i.test(String(error?.message || ""))) throw error;
+      if (!isSessionReplacedError(error) && !/UNAUTHORIZED/i.test(String(error?.message || ""))) throw error;
       writePersistentValue(STORAGE_TOKEN, "");
       writePersistentValue(LEGACY_STORAGE_TOKEN, "");
       writePersistentValue(STORAGE_USER, "");
+      writePersistentValue(STORAGE_ACCESS_KEY, "");
       state.token = "";
       state.user = null;
-      showAccessGate();
+      showAuthView(isSessionReplacedError(error) ? "Tai khoan dang dang nhap o noi khac." : "Phien dang nhap da het han.");
     }
   }
 
@@ -4064,6 +4170,10 @@
   function syncRoute(replaceIfNeeded) {
     const routeInfo = parseRouteHash(location.hash);
     let route = routeInfo.route;
+    if (!state.token || !state.user) {
+      showAuthView();
+      return;
+    }
     const keepBootRoute = route === "library" || route === "review";
     if (state.booting && !keepBootRoute) route = "home";
     else if (route === "room" && !state.room) route = "match";
@@ -4221,7 +4331,10 @@
       writePersistentValue(LEGACY_STORAGE_TOKEN, "");
     }
     persistStoredUser(state.user);
-    if (state.user) hideAccessGate();
+    if (state.user) {
+      hideAccessGate();
+      hideAuthView();
+    }
     if (state.room) patchLocalUserIntoRoom();
     renderProfile();
     renderRankPanel();
@@ -4306,18 +4419,18 @@
     writePersistentValue(STORAGE_TOKEN, "");
     writePersistentValue(LEGACY_STORAGE_TOKEN, "");
     writePersistentValue(STORAGE_USER, "");
+    writePersistentValue(STORAGE_ACCESS_KEY, "");
     localStorage.removeItem(STORAGE_ROOM);
     closeProfileModal();
     renderHistory();
     renderAdminState();
     renderProfile();
-    showAccessGate("Hãy nhập Key kích hoạt để tiếp tục.");
+    showAuthView("Da dang xuat.");
   }
 
   async function logout() {
     clearSession();
-    goRoute("home", true);
-    showToast("Đã thoát phiên Key trên trình duyệt này.");
+    showToast("Da dang xuat.");
   }
 
   function openProfileModal() {
@@ -4372,6 +4485,13 @@
     }
     if (state.user.role === "admin") {
       dom.profileLicenseInfo.innerHTML = `<div><strong>Quản trị viên</strong></div><div>Trạng thái: Đang hoạt động</div>`;
+      return;
+    }
+    if (!license) {
+      dom.profileLicenseInfo.innerHTML = `
+        <div><strong>Tai khoan:</strong> ${escapeHtml(state.user.displayName || state.user.username || "-")}</div>
+        <div><strong>Trang thai:</strong> Dang hoat dong</div>
+      `;
       return;
     }
     dom.profileLicenseInfo.innerHTML = `
@@ -5976,13 +6096,10 @@
     state.adminLoading = true;
     renderAdminState();
     try {
-      const [payload, licensePayload] = await Promise.all([
-        api("/api/admin/users"),
-        api(`/api/admin/licenses${state.adminLicenseFilter ? `?status=${encodeURIComponent(state.adminLicenseFilter)}` : ""}`)
-      ]);
+      const payload = await api("/api/admin/users");
       state.adminUsers = Array.isArray(payload.users) ? payload.users.map(normalizeAdminUserPayload) : [];
-      state.adminLicenses = Array.isArray(licensePayload.licenses) ? licensePayload.licenses : [];
-      state.adminRawKeyAvailable = Boolean(licensePayload.rawKeyAvailable);
+      state.adminLicenses = [];
+      state.adminRawKeyAvailable = false;
       if (!state.adminUsers.some((user) => user.id === state.adminSelectedUserId)) {
         state.adminSelectedUserId = state.adminUsers[0]?.id || "";
       }
@@ -6052,12 +6169,11 @@
       dom.adminLicenseFilter.value = state.adminLicenseFilter;
     }
     dom.adminRefreshBtn.textContent = state.adminLoading ? "Đang tải..." : "Làm mới";
-    const rawKeyNote = state.adminRawKeyAvailable ? "Đang hiển thị key gốc." : "Chưa nhập file key gốc, key đang được che bớt.";
     dom.adminUsersMeta.textContent = state.adminUsers.length
-      ? `${state.adminUsers.length} tài khoản đã đăng ký. ${rawKeyNote}`
+      ? `${state.adminUsers.length} tai khoan da dang ky.`
       : state.adminLoading
-        ? "Đang tải danh sách tài khoản đã đăng ký."
-        : `Chưa có tài khoản nào. ${rawKeyNote}`;
+        ? "Dang tai danh sach tai khoan."
+        : "Chua co tai khoan nao.";
 
     dom.adminUsersList.innerHTML = "";
     if (false && state.adminLicenses.length) {
@@ -6110,9 +6226,7 @@
         const roleLabel = user.role === "admin" ? " • Quản trị" : "";
         detail.textContent = `${user.historyCount || 0} ván${roleLabel}`;
         const keyDetail = document.createElement("span");
-        keyDetail.textContent = user.accessKey
-          ? `${user.accessKey} - ${user.activated ? "Đã kích hoạt" : "Chưa kích hoạt"}`
-          : "";
+        keyDetail.textContent = "Tai khoan dang hoat dong";
         const sessionDetail = document.createElement("span");
         sessionDetail.textContent = `${user.rememberedDeviceCount || 0} thiet bi da ghi nho`;
         const presence = document.createElement("span");
@@ -6129,7 +6243,7 @@
       ? `Lịch sử của ${selected.displayName || selected.username}`
       : "Lịch sử thành viên";
     dom.adminSelectedMeta.textContent = selected
-      ? `${selected.email || `@${selected.username}`} • ${selected.accessKey || "No key"} • ${selected.activated ? "Đã kích hoạt" : "Chưa kích hoạt"}`
+      ? `@${selected.username} - Tai khoan dang hoat dong`
       : "Chọn một tài khoản để xem các ván đã lưu.";
     renderHistoryCollection(dom.adminHistoryList, selected?.history || [], {
       emptyText: selected ? "Tài khoản này chưa có ván nào được lưu." : "Chọn một tài khoản để xem lịch sử đấu.",
@@ -10261,8 +10375,10 @@
     state.token = "";
     writePersistentValue(STORAGE_TOKEN, "");
     writePersistentValue(LEGACY_STORAGE_TOKEN, "");
-    if (dom.accessKeyInput && state.savedAccessKey) dom.accessKeyInput.value = state.savedAccessKey;
-    showAccessGate("Tai khoan dang dang nhap o noi khac.");
+    writePersistentValue(STORAGE_USER, "");
+    writePersistentValue(STORAGE_ACCESS_KEY, "");
+    state.user = null;
+    showAuthView("Tai khoan dang dang nhap o noi khac.");
   }
 
   async function api(url, options = {}, behavior = {}) {

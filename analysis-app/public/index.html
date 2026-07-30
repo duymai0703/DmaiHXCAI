@@ -34,9 +34,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260730-smooth-nav-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260730-smooth-nav-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260730-header-align-v2">
+    <link rel="prefetch" href="/styles.css?v=20260730-account-auth-v1" as="style">
+    <link rel="prefetch" href="/app.js?v=20260730-account-auth-v1" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260730-account-auth-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -119,19 +119,53 @@
 
     <main class="portal-main">
       <section id="authView" class="view auth-view hidden" aria-hidden="true">
-        <div class="hidden">
-          <button id="loginTab" type="button">Đăng nhập</button>
-          <button id="registerTab" type="button">Đăng ký</button>
-          <form id="loginForm">
-            <input id="loginAccount" type="text">
-            <input id="loginPassword" type="password">
-          </form>
-          <form id="registerForm">
-            <input id="registerEmail" type="email">
-            <input id="registerUsername" type="text">
-            <input id="registerPassword" type="password">
-          </form>
-          <p id="authMessage"></p>
+        <div class="login-shell">
+          <div class="login-stage" aria-hidden="true">
+            <img class="login-stage-mark" src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="" draggable="false">
+            <img class="login-stage-wordmark" src="/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2" alt="" draggable="false">
+          </div>
+
+          <section class="login-card" aria-labelledby="loginTitle">
+            <div class="login-card-head">
+              <img src="/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1" alt="" draggable="false">
+              <div>
+                <h1 id="loginTitle">D-Xiangqi</h1>
+                <p>Tài khoản trình duyệt</p>
+              </div>
+            </div>
+
+            <div class="auth-tabs" role="tablist" aria-label="Tài khoản">
+              <button id="loginTab" class="active" type="button" role="tab" aria-selected="true">Đăng nhập</button>
+              <button id="registerTab" type="button" role="tab" aria-selected="false">Đăng ký</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+              <label>
+                <span>Tên đăng nhập</span>
+                <input id="loginAccount" type="text" autocomplete="username" placeholder="Tên đăng nhập" required>
+              </label>
+              <label>
+                <span>Mật khẩu</span>
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" required>
+              </label>
+              <button class="primary-button" type="submit">Vào D-Xiangqi</button>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
+              <input id="registerEmail" class="hidden" type="email" autocomplete="off" tabindex="-1">
+              <label>
+                <span>Tên đăng nhập</span>
+                <input id="registerUsername" type="text" autocomplete="username" placeholder="Tạo tên đăng nhập" required>
+              </label>
+              <label>
+                <span>Mật khẩu</span>
+                <input id="registerPassword" type="password" autocomplete="new-password" placeholder="Tối thiểu 6 ký tự" minlength="6" required>
+              </label>
+              <button class="primary-button" type="submit">Tạo tài khoản</button>
+            </form>
+
+            <p id="authMessage" class="form-message" aria-live="polite"></p>
+          </section>
         </div>
       </section>
 
@@ -656,20 +690,20 @@
             <div class="panel-heading">
               <div>
                 <h2>Thành viên</h2>
-                <p id="adminUsersMeta">Đang tải danh sách tài khoản đã đăng ký.</p>
+                <p id="adminUsersMeta">Đang tải danh sách tài khoản.</p>
               </div>
-              <select id="adminLicenseFilter" class="admin-license-filter" aria-label="Lọc trạng thái license">
+              <select id="adminLicenseFilter" class="admin-license-filter hidden" aria-label="Lọc trạng thái license">
                 <option value="">Tất cả Key</option>
                 <option value="unused">Chưa sử dụng</option>
                 <option value="activated">Đã kích hoạt</option>
                 <option value="expired">Đã hết hạn</option>
               </select>
               <button id="adminRefreshBtn" class="ghost-button" type="button">Làm mới</button>
-              <button id="adminImportKeysBtn" class="ghost-button" type="button">Nhập Key gốc</button>
+              <button id="adminImportKeysBtn" class="ghost-button hidden" type="button">Nhập Key gốc</button>
               <input id="adminImportKeysInput" class="hidden" type="file" accept="application/json,.json">
-              <button id="adminExportBtn" class="ghost-button" type="button">Xuất Key</button>
+              <button id="adminExportBtn" class="ghost-button hidden" type="button">Xuất Key</button>
             </div>
-            <form id="adminKeyLookupForm" class="admin-key-lookup">
+            <form id="adminKeyLookupForm" class="admin-key-lookup hidden">
               <input id="adminKeyLookupInput" type="text" autocomplete="off" placeholder="Nhap Key thanh vien">
               <button class="primary-button" type="submit">Them / xem Key</button>
             </form>
@@ -967,7 +1001,7 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260730-smooth-nav-v1"></script>
+    <script src="/portal.js?v=20260730-account-auth-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {

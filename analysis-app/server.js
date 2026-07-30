@@ -80,11 +80,11 @@ const KYDAO_TARGET_NAMES = [
 const KYDAO_TARGET_ORDER = new Map(KYDAO_TARGET_NAMES.map((name, index) => [normalizeKydaoName(name), index]));
 const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
 const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADTAYDOC0703DUY");
-const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dmaihxcai.local");
-const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "ad");
+const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dxiangqi.local");
+const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "Raito Yagami");
 const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || ADMIN_ACCESS_KEY || "ADTAYDOC0703DUY");
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
-const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || ACCESS_KEYS_CONFIG.adminName || "Admin", "Admin");
+const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "Raito Yagami", "Raito Yagami");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
 const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
 const avtchibiAsset = (file) => `/assets/avtchibi/${file}?v=${AVTCHIBI_ASSET_VERSION}`;
@@ -840,6 +840,15 @@ function normalizeEmail(email) {
 
 function normalizeUsername(username) {
   return String(username || "").trim().toLowerCase();
+}
+
+function accountEmailForUsername(username) {
+  const safeUsername = normalizeUsername(username)
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]+/gu, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .slice(0, 48) || `user-${randomId(4)}`;
+  return `${safeUsername}.${randomId(3)}@accounts.dxiangqi.local`;
 }
 
 function normalizeHistoryEntries(entries) {
@@ -1792,26 +1801,26 @@ function rememberAccessKeyDevice(user, deviceId) {
 }
 
 function claimActiveSession(user, { deviceId = "", action = "" } = {}) {
-  if (!user?.accessKeyHash) return user;
+  if (!user) return user;
   const now = nowIso();
   const sessionId = randomId(12);
   user.activeSessionId = sessionId;
   user.activeDeviceId = sanitizeDeviceId(deviceId);
   user.activeSessionStartedAt = now;
   user.activeSessionSeenAt = now;
-  if (!user.keyActivatedAt) user.keyActivatedAt = now;
   if (!user.lastSeenAt) user.lastSeenAt = now;
+  if (user.accessKeyHash && !user.keyActivatedAt) user.keyActivatedAt = now;
   rememberAccessKeyDevice(user, user.activeDeviceId);
   touchUserActivity(user, {
     route: user.role === "admin" ? "admin" : user.currentActivity?.route || "home",
     roomKey: user.currentActivity?.roomKey || "",
-    action: action || "Dang nhap bang Key"
+    action: action || "Dang nhap"
   });
   return user;
 }
 
 function touchActiveSession(user, payload = {}) {
-  if (!user?.accessKeyHash) return false;
+  if (!user) return false;
   const previousSeen = Date.parse(user.activeSessionSeenAt || 0) || 0;
   const now = nowIso();
   let changed = false;
@@ -1835,8 +1844,8 @@ function touchActiveSession(user, payload = {}) {
 }
 
 function isSessionReplaced(user, payload = {}) {
-  if (!user?.accessKeyHash) return false;
-  if (!payload.sid) return false;
+  if (!user) return false;
+  if (!payload.sid) return Boolean(user.activeSessionId);
   return Boolean(user.activeSessionId && user.activeSessionId !== payload.sid);
 }
 
@@ -2107,6 +2116,7 @@ function restoreAccessKeySessionState(user, payload) {
 function isLicenseSessionValid(user, payload) {
   if (!user) return false;
   if (user.role === "admin") return true;
+  if (!user.accessKeyHash) return true;
   let license = licenseById(payload?.licenseId || user.licenseId) || licenseByHash(user.accessKeyHash);
   if (!license || license.status !== "activated") {
     license = restoreLicenseFromAccessTokenPayload(payload);
@@ -2186,7 +2196,7 @@ function getAuthenticatedUser(req) {
   if (!user && payload.akh) {
     user = restoreUserFromAccessToken(payload);
   }
-  if (!user?.accessKeyHash) {
+  if (!user) {
     req.authErrorCode = "UNAUTHORIZED";
     return null;
   }
@@ -2624,7 +2634,7 @@ function adminUserSummary(user) {
     activeSessionSeenAt: user.activeSessionSeenAt || "",
     activeDeviceId: user.activeDeviceId || "",
     rememberedDeviceCount: Array.isArray(user.rememberedDevices) ? user.rememberedDevices.length : 0,
-    activated: Boolean(license ? license.status === "activated" : user.keyActivatedAt),
+    activated: Boolean(license ? license.status === "activated" : !user.accessKeyHash || user.keyActivatedAt),
     avatarSeed: user.avatarSeed,
     avatarUrl: user.avatarUrl || "",
     rank: publicRankForUser(user, DEFAULT_RANKED_TIME_CONTROL_KEY),
@@ -5842,6 +5852,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname.startsWith("/api/license/") || url.pathname === "/api/auth/key") {
+      json(res, 410, { ok: false, error: "He thong Key da duoc thay bang tai khoan dang nhap.", code: "KEY_AUTH_DISABLED" });
+      return;
+    }
+
     if (url.pathname === "/api/license/check-key" && req.method === "POST") {
       assertLicenseRateLimit(req);
       const body = await readBody(req);
@@ -5905,10 +5920,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (["/api/admin/quick-login", "/api/auth/guest", "/api/auth/register", "/api/auth/login"].includes(url.pathname)) {
-      json(res, 410, { ok: false, error: "Hay nhap Key kich hoat de su dung web." });
-      return;
-    }
     if (url.pathname === "/api/admin/quick-login" && req.method === "POST") {
       const body = await readBody(req);
       const displayName = requireDisplayName(body.displayName || "");
@@ -5962,19 +5973,23 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/auth/register" && req.method === "POST") {
       const body = await readBody(req);
-      const email = normalizeEmail(body.email);
       const username = normalizeUsername(body.username);
+      const email = normalizeEmail(body.email) || accountEmailForUsername(username);
       const password = String(body.password || "");
-      if (!email || !username || password.length < 6) {
-        json(res, 400, { ok: false, error: "Cần email, tên đăng nhập và mật khẩu từ 6 ký tự." });
+      if (!username || password.length < 6) {
+        json(res, 400, { ok: false, error: "Can ten dang nhap va mat khau tu 6 ky tu." });
         return;
       }
-      if (users.some((item) => item.email === email)) {
-        json(res, 400, { ok: false, error: "Email đã được sử dụng." });
+      if (Array.from(username).length > 32) {
+        json(res, 400, { ok: false, error: "Ten dang nhap toi da 32 ky tu." });
         return;
       }
       if (users.some((item) => item.username === username)) {
-        json(res, 400, { ok: false, error: "Tên đăng nhập đã tồn tại." });
+        json(res, 400, { ok: false, error: "Ten dang nhap da ton tai." });
+        return;
+      }
+      if (users.some((item) => item.email === email)) {
+        json(res, 400, { ok: false, error: "Tai khoan da ton tai." });
         return;
       }
       const passwordInfo = hashPassword(password);
@@ -5994,9 +6009,18 @@ const server = http.createServer(async (req, res) => {
         opponentBots: [],
         createdAt: now,
         lastSeenAt: now,
-        currentActivity: { route: "home", roomKey: "", action: "Vừa đăng ký", updatedAt: now }
+        currentActivity: { route: "home", roomKey: "", action: "Vua dang ky", updatedAt: now },
+        activeSessionId: "",
+        activeDeviceId: "",
+        activeSessionStartedAt: "",
+        activeSessionSeenAt: "",
+        rememberedDevices: []
       };
       users.push(user);
+      claimActiveSession(user, {
+        deviceId: body.deviceId || req.headers["x-dmaihxcai-device"] || "",
+        action: "Vua dang ky"
+      });
       await saveUsers();
       json(res, 200, {
         ok: true,
@@ -6015,7 +6039,11 @@ const server = http.createServer(async (req, res) => {
         json(res, 401, { ok: false, error: "Sai thông tin đăng nhập." });
         return;
       }
-      touchUserActivity(user, { route: user.role === "admin" ? "admin" : "home", roomKey: "", action: "Vừa đăng nhập" });
+      claimActiveSession(user, {
+        deviceId: body.deviceId || req.headers["x-dmaihxcai-device"] || "",
+        action: "Vua dang nhap"
+      });
+      await flushUserPersistence();
       json(res, 200, {
         ok: true,
         token: createAuthToken(user),
@@ -6171,11 +6199,11 @@ const server = http.createServer(async (req, res) => {
       requireAdmin(req);
       ensureAccessKeyUsers();
       const list = users
-        .filter((user) => user.role !== "admin" && user.adminTracked)
+        .filter((user) => user.role !== "admin")
         .map((user) => adminUserSummary(user))
         .sort((left, right) => {
-          const leftTracked = Date.parse(left.adminTrackedAt || left.createdAt || 0) || 0;
-          const rightTracked = Date.parse(right.adminTrackedAt || right.createdAt || 0) || 0;
+          const leftTracked = Date.parse(left.lastSeenAt || left.adminTrackedAt || left.createdAt || 0) || 0;
+          const rightTracked = Date.parse(right.lastSeenAt || right.adminTrackedAt || right.createdAt || 0) || 0;
           return rightTracked - leftTracked;
         });
       json(res, 200, { ok: true, users: list });

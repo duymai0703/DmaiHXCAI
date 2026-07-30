@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-smooth-nav-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-account-auth-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -1305,8 +1305,8 @@ function updateVisionQuotaBadge() {
 async function ensureAnalysisAccess() {
   const token = readStorage(AUTH_TOKEN_STORAGE_KEY) || readStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   if (!token) {
-    if (await restoreAnalysisSessionFromStoredKey()) return true;
-    showAccessGate();
+    removeStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
+    window.location.href = "/";
     return false;
   }
   writeStorage(AUTH_TOKEN_STORAGE_KEY, token);
@@ -1317,27 +1317,17 @@ async function ensureAnalysisAccess() {
     hideAccessGate();
     return true;
   } catch (error) {
-    if (isSessionReplacedError(error) && await restoreAnalysisSessionFromStoredKey()) return true;
     removeStorage(AUTH_TOKEN_STORAGE_KEY);
     removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
     removeStorage(AUTH_USER_STORAGE_KEY);
-    showAccessGate("Phiên Key đã hết hạn. Hãy nhập lại Key.");
+    removeStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
+    window.location.href = "/";
     return false;
   }
 }
 
 async function restoreAnalysisSessionFromStoredKey() {
-  const key = readStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
-  if (!key) return false;
-  try {
-    const payload = await api("/api/license/activate", { key, deviceId: authDeviceId }, { suppressSessionReplaced: true });
-    writeStorage(AUTH_TOKEN_STORAGE_KEY, payload.token || "");
-    storeAuthUser(payload.user);
-    hideAccessGate();
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 function showAccessGate(message = "") {
@@ -4606,10 +4596,9 @@ function isSessionReplacedError(error) {
 function handleAnalysisSessionReplaced() {
   removeStorage(AUTH_TOKEN_STORAGE_KEY);
   removeStorage(LEGACY_AUTH_TOKEN_STORAGE_KEY);
-  if (accessKeyInputEl && readStorage(AUTH_ACCESS_KEY_STORAGE_KEY)) {
-    accessKeyInputEl.value = readStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
-  }
-  showAccessGate("Tai khoan dang dang nhap o noi khac.");
+  removeStorage(AUTH_USER_STORAGE_KEY);
+  removeStorage(AUTH_ACCESS_KEY_STORAGE_KEY);
+  window.location.href = "/";
 }
 
 async function api(url, body, behavior = {}) {

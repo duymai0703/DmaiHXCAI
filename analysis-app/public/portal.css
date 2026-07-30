@@ -8807,3 +8807,203 @@ body[data-route="admin"] .portal-header .brand {
     display: none !important;
   }
 }
+
+/* Account gate: replaces the old key gate. */
+body[data-route="auth"] {
+  overflow: hidden;
+}
+
+body[data-route="auth"] .portal-main {
+  width: 100%;
+  min-height: calc(var(--app-vh, 1vh) * 100 - 74px);
+  padding: 0;
+}
+
+.auth-view {
+  min-height: calc(var(--app-vh, 1vh) * 100 - 74px);
+}
+
+.login-shell {
+  min-height: calc(var(--app-vh, 1vh) * 100 - 74px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  align-items: stretch;
+  background:
+    linear-gradient(90deg, rgba(2, 8, 16, 0.28), rgba(2, 8, 16, 0.92) 58%, rgba(2, 8, 16, 0.98)),
+    url("/assets/posters/camap.png?v=20260729-dark-only-v1") center / cover no-repeat;
+}
+
+.login-stage {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.login-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 42% 38%, rgba(83, 218, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(1, 12, 25, 0.1), rgba(0, 2, 7, 0.58));
+}
+
+.login-stage-mark {
+  position: absolute;
+  left: clamp(28px, 5vw, 76px);
+  top: clamp(32px, 6vw, 88px);
+  width: clamp(96px, 12vw, 168px);
+  height: clamp(96px, 12vw, 168px);
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.5));
+}
+
+.login-stage-wordmark {
+  position: absolute;
+  left: clamp(32px, 5vw, 82px);
+  bottom: clamp(36px, 7vw, 100px);
+  width: min(430px, 45vw);
+  max-height: 140px;
+  object-fit: contain;
+  object-position: left center;
+  filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.55));
+}
+
+.login-card {
+  align-self: center;
+  justify-self: center;
+  width: min(440px, calc(100% - 34px));
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid rgba(73, 220, 255, 0.42);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(7, 36, 58, 0.95), rgba(2, 13, 27, 0.98)),
+    radial-gradient(circle at top, rgba(246, 182, 83, 0.12), transparent 38%);
+  color: #f8fbff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 28px 70px rgba(0, 0, 0, 0.56),
+    0 0 32px rgba(38, 184, 232, 0.14);
+}
+
+.login-card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-card-head img {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(125, 226, 255, 0.58);
+}
+
+.login-card h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 31px;
+  line-height: 1.05;
+}
+
+.login-card p {
+  margin: 4px 0 0;
+  color: rgba(186, 232, 255, 0.82);
+}
+
+.login-card .auth-tabs {
+  margin: 0;
+  padding: 5px;
+  border: 1px solid rgba(73, 220, 255, 0.28);
+  border-radius: 14px;
+  background: rgba(2, 14, 28, 0.68);
+}
+
+.login-card .auth-tabs button {
+  min-height: 44px;
+  border-radius: 10px;
+  background: transparent;
+  border-color: transparent;
+  color: rgba(218, 244, 255, 0.72);
+  box-shadow: none;
+}
+
+.login-card .auth-tabs button.active {
+  background: linear-gradient(180deg, #1d9fcb, #07567d);
+  border-color: rgba(117, 231, 255, 0.54);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(2, 9, 18, 0.42);
+}
+
+.login-card .auth-form {
+  gap: 14px;
+}
+
+.login-card .auth-form span {
+  color: rgba(198, 237, 255, 0.86);
+}
+
+.login-card input {
+  min-height: 52px;
+  border-radius: 12px;
+  border-color: rgba(73, 220, 255, 0.28);
+  background: rgba(2, 17, 34, 0.82);
+  color: #ffffff;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.login-card input:focus {
+  border-color: rgba(117, 231, 255, 0.78);
+  box-shadow:
+    0 0 0 3px rgba(39, 197, 242, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.login-card .primary-button {
+  min-height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffc861, #f29a2e);
+  color: #211202;
+  border-color: rgba(255, 220, 132, 0.7);
+  font-weight: 800;
+}
+
+.login-card .form-message {
+  min-height: 22px;
+  color: #ffe39a;
+}
+
+@media (max-width: 860px) {
+  body[data-route="auth"] .portal-header {
+    display: none;
+  }
+
+  body[data-route="auth"] .portal-main,
+  .auth-view,
+  .login-shell {
+    min-height: calc(var(--app-vh, 1vh) * 100);
+  }
+
+  .login-shell {
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+    background:
+      linear-gradient(180deg, rgba(1, 8, 18, 0.58), rgba(1, 8, 18, 0.92)),
+      url("/assets/posters/camap.png?v=20260729-dark-only-v1") center / cover no-repeat;
+  }
+
+  .login-stage {
+    display: none;
+  }
+
+  .login-card {
+    width: min(430px, 100%);
+  }
+}
