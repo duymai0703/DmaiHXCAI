@@ -136,6 +136,15 @@ const ENGINE_SCORE_SENSITIVITY = 2.35;
 const ENGINE_SCORE_DISPLAY_LIMIT = 2200;
 const MOBILE_ROOM_ENTRY_URL = "/?mobileRoom=1#match";
 const MOBILE_LIBRARY_ENTRY_URL = "/?mobileRoom=1#library";
+const MOBILE_PORTAL_FAST_ASSET_VERSION = "20260730-mobile-main-back-fast-v1";
+const MOBILE_PORTAL_ENTRY_ASSETS = [
+  "/",
+  "/index.html",
+  `/portal.css?v=${MOBILE_PORTAL_FAST_ASSET_VERSION}`,
+  `/portal.js?v=${MOBILE_PORTAL_FAST_ASSET_VERSION}`,
+  "/puzzle-data.js?v=20260727-puzzle-v1",
+  "/endgame-data.js?v=20260728-endgame-v3"
+];
 const ANALYSIS_PRELOAD_TEXT = {
   prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
   cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -1197,6 +1206,7 @@ function autoDelay() {
 async function init() {
   syncViewportHeight();
   setupMobileActionStrip();
+  prewarmMobilePortalEntry();
   renderPiecePalette();
   renderMobileSetupPalette();
   renderMobilePanelState();
@@ -1208,6 +1218,18 @@ async function init() {
   const allowed = await ensureAnalysisAccess();
   if (!allowed) return;
   startAnalysisAfterAccess();
+}
+
+function prewarmMobilePortalEntry() {
+  if (!isCompactMobile()) return;
+  const assets = [...new Set(MOBILE_PORTAL_ENTRY_ASSETS)];
+  if ("caches" in window) {
+    void cacheAnalysisAssets(assets).catch(() => {});
+    return;
+  }
+  void Promise.allSettled(
+    assets.map((asset) => fetchWithTimeout(asset, { cache: "force-cache" }, 1400))
+  ).catch(() => {});
 }
 function startAnalysisAfterAccess() {
   hideAccessGate();

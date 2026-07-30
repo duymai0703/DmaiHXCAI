@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-mobile-branch-back-fix-v1";
+  const ASSET_WARMUP_VERSION = "20260730-mobile-main-back-fast-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -237,8 +237,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-mobile-branch-back-fix-v1",
-    "/app.js?v=20260730-mobile-branch-back-fix-v1",
+    "/styles.css?v=20260730-mobile-main-back-fast-v1",
+    "/app.js?v=20260730-mobile-main-back-fast-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -742,6 +742,7 @@
   const isMobileDevice = /android|iphone|ipad|ipod|mobile|windows phone/i.test(mobileUserAgent) || isIpadDesktop;
   const mobileRoomParams = new URLSearchParams(window.location.search || "");
   const isMobileRoomEntry = mobileRoomParams.has("mobileRoom");
+  const isMobilePortalEntry = isMobileDevice && isMobileRoomEntry;
   const initialMobileRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase();
   const keepPortalOnMobile = ["library", "review", "admin"].includes(initialMobileRoute);
   if (isMobileDevice && !isMobileRoomEntry && !keepPortalOnMobile) {
@@ -1569,6 +1570,21 @@
     const backgroundAssets = [...new Set(
       PORTAL_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset))
     )];
+    if (isMobilePortalEntry) {
+      const allAssets = [...new Set([...blockingAssets, ...backgroundAssets])];
+      void Promise.allSettled([
+        cacheStaticAssets(allAssets),
+        decodeImageAssets(allAssets)
+      ]).then(() => {
+        writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
+        void tryPersistBrowserStorage();
+      }).catch(() => {});
+      state.assetWarmupPending = false;
+      state.assetWarmupProgress = 100;
+      state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
+      renderAssetPreloadOverlay();
+      return;
+    }
     if (!blockingAssets.length) {
       void Promise.allSettled([
         cacheStaticAssets(backgroundAssets),
@@ -4095,19 +4111,17 @@
     reportActivity();
   }
 
+  function exitMobilePortalToAnalysis() {
+    window.location.replace("/analysis");
+  }
+
   function handleBack() {
-    const currentHashRoute = String(location.hash || "").replace(/^#/, "").trim().toLowerCase().split(/[/?]/)[0];
-    const currentBodyRoute = String(document.body?.dataset?.route || "").trim().toLowerCase();
-    const matchViewVisible = dom.matchHubView && !dom.matchHubView.classList.contains("hidden");
     if (isMobileRoomEntry && state.route === "room") {
       void leaveRoomFromMobileBack();
       return;
     }
-    if (
-      isMobileRoomEntry
-      && (state.route === "match" || currentHashRoute === "match" || currentBodyRoute === "match" || matchViewVisible)
-    ) {
-      window.location.replace("/analysis");
+    if (isMobileRoomEntry) {
+      exitMobilePortalToAnalysis();
       return;
     }
     if (state.route === "match") {
@@ -9134,15 +9148,17 @@
     const room = state.room;
     if (isPuzzleRoom(room)) {
       exitPuzzleRoom();
+      exitMobilePortalToAnalysis();
       return;
     }
     if (isEndgameRoom(room)) {
       exitEndgameRoom();
+      exitMobilePortalToAnalysis();
       return;
     }
     if (!room) {
       applyRoomState(null, { forceBoard: true, keepSelection: false });
-      goRoute("match", true);
+      exitMobilePortalToAnalysis();
       return;
     }
     if (state.roomActionBusy) return;
@@ -9163,7 +9179,7 @@
       try {
         await refreshHistory();
       } catch {}
-      goRoute("match", true);
+      exitMobilePortalToAnalysis();
       showToast("Đã rời phòng.");
     }
   }
