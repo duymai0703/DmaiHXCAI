@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-opening-book-branches-v2";
+  const ASSET_WARMUP_VERSION = "20260803-mobile-preload-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -47,6 +47,9 @@
   const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
   const PORTAL_ASSET_BLOCK_MS = 1800;
   const PORTAL_ASSET_TIMEOUT_MS = 2400;
+  const PORTAL_MOBILE_ASSET_TIMEOUT_MS = 9000;
+  const PORTAL_ASSET_CONCURRENCY = 10;
+  const PORTAL_MOBILE_ASSET_CONCURRENCY = 5;
   const PORTAL_PRELOAD_TEXT = {
     prepare: "\u0110ang chu\u1ea9n b\u1ecb t\u00e0i nguy\u00ean...",
     cache: "\u0110ang l\u01b0u t\u00e0i nguy\u00ean v\u00e0o tr\u00ecnh duy\u1ec7t...",
@@ -239,8 +242,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260730-smooth-nav-v1",
-    "/app.js?v=20260730-smooth-nav-v1",
+    "/styles.css?v=20260802-lobby-effects-v1",
+    "/app.js?v=20260802-lobby-effects-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -285,16 +288,54 @@
     "/assets/posters/camap.png?v=20260729-dark-only-v1",
     "/assets/posters/phapsu.png?v=20260729-dark-only-v1"
   ];
+  const PORTAL_ENTRY_ASSETS = [
+    "/",
+    "/index.html",
+    "/portal.css?v=20260803-mobile-preload-v1",
+    "/portal.js?v=20260803-mobile-preload-v1",
+    "/config.js",
+    "/xiangqi-core.js",
+    "/manifest.webmanifest",
+    "/assets/avtchibi/backbl.png?v=20260730-mobile-back-img-v1"
+  ];
+  const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
+    "/analysis.html",
+    "/styles.css?v=20260802-lobby-effects-v1",
+    "/app.js?v=20260802-lobby-effects-v1",
+    MOVE_SOUND_SOURCES.move,
+    MOVE_SOUND_SOURCES.capture,
+    MOVE_SOUND_SOURCES.check,
+    MOVE_SOUND_SOURCES.checkmate,
+    BRAND_LOGO,
+    "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2",
+    ...Object.values(BOARD_EFFECT_ASSETS),
+    ...BOARD_SKIN_ASSETS,
+    "/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/tieptheo.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/datlai.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/xoayban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/suaban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/xoaban.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/nhandienanh.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/databook.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/avtchibi/lsu.png?v=20260729-dxiangqi-brand-v1",
+    ...OPENING_BOOK_CONTROL_ASSETS,
+    ...Object.values(PIECE_IMAGES),
+    ...Object.values(MOBILE_RED_PIECE_IMAGES),
+    ...Object.values(CUSTOM_PIECE_IMAGES_BY_SET).flatMap((set) => Object.values(set))
+  ];
   const PORTAL_BLOCKING_ASSETS = [];
   const PORTAL_BACKGROUND_ASSETS = [...ANALYSIS_PRELOAD_ASSETS, ...PORTAL_POSTER_ASSETS, ...THEME_LOGO_ASSETS, ...REVIEW_BADGE_ASSETS, ...MATCH_MODE_ASSETS, ...LIBRARY_MODE_ASSETS, ...OPENING_BOOK_CONTROL_ASSETS, ...BOT_ASSETS, ...RANK_ASSETS, ...DEVICE_AVATARS, ...PUZZLE_MAP_ASSETS];
-  const MOBILE_ANALYSIS_SHELL_ASSETS = ANALYSIS_PRELOAD_ASSETS.filter((asset) => (
-    asset === "/analysis.html" ||
-    asset.startsWith("/styles.css") ||
-    asset.startsWith("/app.js")
-  ));
   const PORTAL_MOBILE_BACKGROUND_ASSETS = [
-    ...MOBILE_ANALYSIS_SHELL_ASSETS,
-    ...PORTAL_BACKGROUND_ASSETS.filter((asset) => !ANALYSIS_PRELOAD_ASSETS.includes(asset))
+    ...PORTAL_ENTRY_ASSETS,
+    ...PORTAL_BACKGROUND_ASSETS
+  ];
+  const PORTAL_MOBILE_BLOCKING_ASSETS = [
+    ...PORTAL_ENTRY_ASSETS,
+    ...PORTAL_POSTER_ASSETS,
+    ...THEME_LOGO_ASSETS,
+    ...ANALYSIS_MOBILE_CRITICAL_ASSETS
   ];
   const ROOM_MOVE_ANIMATION_MS = 190;
   const ROOM_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
@@ -1598,15 +1639,20 @@
   async function warmPortalAssets() {
     const existingVersion = String(readPersistentValue(STORAGE_ASSET_WARMUP_VERSION) || "");
     if (existingVersion === ASSET_WARMUP_VERSION) {
+      void prunePortalRuntimeCaches();
       state.assetWarmupPending = false;
       state.assetWarmupProgress = 100;
       state.assetWarmupText = PORTAL_PRELOAD_TEXT.done;
       renderAssetPreloadOverlay();
       return;
     }
+    void prunePortalRuntimeCaches();
 
-    const blockingAssets = [...new Set(PORTAL_BLOCKING_ASSETS)];
-    const backgroundSource = isCompactMobile() ? PORTAL_MOBILE_BACKGROUND_ASSETS : PORTAL_BACKGROUND_ASSETS;
+    const mobileWarmup = isCompactMobile();
+    const blockingSource = mobileWarmup ? PORTAL_MOBILE_BLOCKING_ASSETS : PORTAL_BLOCKING_ASSETS;
+    const warmupTimeoutMs = mobileWarmup ? PORTAL_MOBILE_ASSET_TIMEOUT_MS : PORTAL_ASSET_TIMEOUT_MS;
+    const blockingAssets = [...new Set(blockingSource)];
+    const backgroundSource = mobileWarmup ? PORTAL_MOBILE_BACKGROUND_ASSETS : PORTAL_BACKGROUND_ASSETS;
     const backgroundAssets = [...new Set(
       backgroundSource.filter((asset) => !blockingAssets.includes(asset))
     )];
@@ -1637,14 +1683,14 @@
     renderAssetPreloadOverlay();
 
     void Promise.allSettled([
-      cacheStaticAssets(backgroundAssets),
-      decodeImageAssets(backgroundAssets)
+      cacheStaticAssets(backgroundAssets, null, PORTAL_ASSET_TIMEOUT_MS, PORTAL_ASSET_CONCURRENCY),
+      decodeImageAssets(backgroundAssets, null, PORTAL_ASSET_TIMEOUT_MS, PORTAL_ASSET_CONCURRENCY)
     ]).catch(() => {});
 
     try {
       await Promise.allSettled([
-        cacheStaticAssets(blockingAssets, tracker),
-        decodeImageAssets(blockingAssets, tracker)
+        cacheStaticAssets(blockingAssets, tracker, warmupTimeoutMs, mobileWarmup ? PORTAL_MOBILE_ASSET_CONCURRENCY : PORTAL_ASSET_CONCURRENCY),
+        decodeImageAssets(blockingAssets, tracker, warmupTimeoutMs, mobileWarmup ? PORTAL_MOBILE_ASSET_CONCURRENCY : PORTAL_ASSET_CONCURRENCY)
       ]);
       writePersistentValue(STORAGE_ASSET_WARMUP_VERSION, ASSET_WARMUP_VERSION);
       tracker.finish(PORTAL_PRELOAD_TEXT.done);
@@ -1670,41 +1716,52 @@
     }
   }
 
-  async function cacheStaticAssets(assets, tracker) {
+  async function cacheStaticAssets(assets, tracker, timeoutMs = PORTAL_ASSET_TIMEOUT_MS, concurrency = PORTAL_ASSET_CONCURRENCY) {
     if (!("caches" in window)) return;
     const cache = await caches.open(`dmaihxcai-portal-runtime-${ASSET_WARMUP_VERSION}`);
-    await Promise.all(assets.map(async (asset) => {
+    await runAssetQueue(assets, concurrency, async (asset) => {
       try {
         const existing = await cache.match(asset);
         if (existing) return;
-        const response = await fetchWithTimeout(asset, { cache: "force-cache" }, PORTAL_ASSET_TIMEOUT_MS);
+        const response = await fetchWithTimeout(asset, { cache: "force-cache" }, timeoutMs);
         if (response && response.ok) await cache.put(asset, response.clone());
       } catch {
       } finally {
         tracker?.step(PORTAL_PRELOAD_TEXT.cache);
       }
-    }));
+    });
   }
 
-  async function decodeImageAssets(assets, tracker) {
+  async function decodeImageAssets(assets, tracker, timeoutMs = PORTAL_ASSET_TIMEOUT_MS, concurrency = PORTAL_ASSET_CONCURRENCY) {
     const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
-    await Promise.all(imageAssets.map(async (asset) => {
+    await runAssetQueue(imageAssets, concurrency, async (asset) => {
       try {
-        await decodeImageAsset(asset);
+        await decodeImageAsset(asset, timeoutMs);
       } finally {
         tracker?.step(PORTAL_PRELOAD_TEXT.decode);
+      }
+    });
+  }
+
+  async function runAssetQueue(items, concurrency, worker) {
+    const queue = [...items];
+    const workerCount = Math.max(1, Math.min(queue.length || 1, Number(concurrency) || 1));
+    await Promise.allSettled(Array.from({ length: workerCount }, async () => {
+      while (queue.length) {
+        const item = queue.shift();
+        await worker(item);
       }
     }));
   }
 
-  function decodeImageAsset(src) {
+  function decodeImageAsset(src, timeoutMs = PORTAL_ASSET_TIMEOUT_MS) {
     return new Promise((resolve) => {
       const image = new Image();
       image.decoding = "async";
       image.loading = "eager";
       image.src = src;
       let done = false;
-      const timer = window.setTimeout(finish, PORTAL_ASSET_TIMEOUT_MS);
+      const timer = window.setTimeout(finish, timeoutMs);
       function finish() {
         if (done) return;
         done = true;
@@ -1762,6 +1819,18 @@
     } catch {
       return false;
     }
+  }
+
+  async function prunePortalRuntimeCaches() {
+    if (!("caches" in window)) return;
+    const prefix = "dmaihxcai-portal-runtime-";
+    const keep = `${prefix}${ASSET_WARMUP_VERSION}`;
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys
+        .filter((key) => key.startsWith(prefix) && key !== keep)
+        .map((key) => caches.delete(key)));
+    } catch {}
   }
 
   function countImageAssets(assets) {
