@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-opening-book-branches-v1";
+  const ASSET_WARMUP_VERSION = "20260803-opening-book-branches-v2";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -4677,6 +4677,8 @@
       startSource: null,
       startOptions: [],
       selectionStage: "",
+      allPaths: [],
+      selectedBranchPaths: [],
       startPath: [],
       bookId: "",
       bookName: "",
@@ -5356,6 +5358,21 @@
     return prefix.every((value, index) => value === path[index]);
   }
 
+  function normalizeOpeningBookBranchSelections(selections) {
+    return Array.isArray(selections)
+      ? selections
+          .map((path) => (Array.isArray(path) ? path.map((value) => Math.max(0, Number(value) || 0)) : []))
+          .filter((path) => path.length)
+      : [];
+  }
+
+  function filterOpeningBookPracticePathsByBranches(paths, selections = []) {
+    const filters = normalizeOpeningBookBranchSelections(selections);
+    const list = Array.isArray(paths) ? paths : [];
+    if (!filters.length) return list;
+    return list.filter((entry) => filters.every((prefix) => openingBookPathStartsWith(entry.indexes, prefix)));
+  }
+
   function openingBookPositionAtPath(startFen, root, path) {
     const parsed = XiangqiCore.parseFenState(startFen || START_FEN);
     let board = parsed.board;
@@ -5435,17 +5452,26 @@
     };
   }
 
-  function showOpeningBookPracticeSelection(source, paths, stage) {
+  function showOpeningBookPracticeSelection(source, paths, stage, selectedBranchPaths = []) {
     const userSide = normalizeOpeningBookSide(source.bookSide);
     const targetSide = stage === "opponent" ? oppositeSide(userSide) : userSide;
-    const options = buildOpeningBookPracticeBranchOptions(source, paths, targetSide, stage);
+    const basePaths = Array.isArray(paths) ? paths : [];
+    const selectedBranches = normalizeOpeningBookBranchSelections(selectedBranchPaths);
+    const options = buildOpeningBookPracticeBranchOptions(source, basePaths, targetSide, stage)
+      .map((option) => ({
+        ...option,
+        paths: filterOpeningBookPracticePathsByBranches(basePaths, [...selectedBranches, option.branchPath])
+      }))
+      .filter((option) => option.paths.length);
     if (!options.length) return false;
     state.openingBookPractice = {
       ...createOpeningBookPracticeState(),
       choosingStart: true,
       startSource: source,
       startOptions: options,
-      selectionStage: stage
+      selectionStage: stage,
+      allPaths: basePaths,
+      selectedBranchPaths: selectedBranches
     };
     setLibraryTab("book-create");
     renderOpeningBookEditor();
@@ -5504,16 +5530,20 @@
   function beginOpeningBookPracticeFromOption(optionIndex = 0) {
     const choosing = state.openingBookPractice;
     const source = choosing?.startSource;
+    const allPaths = Array.isArray(choosing?.allPaths) && choosing.allPaths.length ? choosing.allPaths : [];
+    const selectedBranches = normalizeOpeningBookBranchSelections(choosing?.selectedBranchPaths);
     const option = choosing?.startOptions?.[optionIndex] || choosing?.startOptions?.[0];
     if (!source || !option?.paths?.length) {
       stopOpeningBookPractice({ silent: true });
       showToast("Không tìm thấy biến luyện hợp lệ.");
       return;
     }
+    const nextSelections = normalizeOpeningBookBranchSelections([...selectedBranches, option.branchPath]);
+    const basePaths = allPaths.length ? allPaths : option.paths;
     if ((choosing.selectionStage || option.stage) === "player") {
-      if (showOpeningBookPracticeSelection(source, option.paths, "opponent")) return;
+      if (showOpeningBookPracticeSelection(source, basePaths, "opponent", nextSelections)) return;
     }
-    beginOpeningBookPracticeWithPaths(source, option.paths, option.startPath || []);
+    beginOpeningBookPracticeWithPaths(source, filterOpeningBookPracticePathsByBranches(basePaths, nextSelections), option.startPath || []);
   }
 
   function stopOpeningBookPractice(options = {}) {

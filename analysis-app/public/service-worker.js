@@ -1,4 +1,4 @@
-const CACHE_NAME = "dxiangqi-shell-v227";
+const CACHE_NAME = "dxiangqi-shell-v228";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   "/portal.css?v=20260802-lobby-effects-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260803-opening-book-branches-v1",
+  "/portal.js?v=20260803-opening-book-branches-v2",
   "/styles.css?v=20260802-lobby-effects-v1",
   "/app.js?v=20260802-lobby-effects-v1",
   "/config.js",
@@ -166,7 +166,7 @@ const CRITICAL_ASSETS = [
   "/index.html",
   "/analysis.html",
   "/portal.css?v=20260802-lobby-effects-v1",
-  "/portal.js?v=20260803-opening-book-branches-v1",
+  "/portal.js?v=20260803-opening-book-branches-v2",
   "/styles.css?v=20260802-lobby-effects-v1",
   "/app.js?v=20260802-lobby-effects-v1",
   "/config.js",
