@@ -50,6 +50,8 @@ const MAX_OPPONENT_BOTS = Math.max(5, Math.min(80, Number(process.env.DMAIHXCAI_
 const MAX_CHAT_MESSAGES = 80;
 const MAX_ROOM_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRESENCE_TTL_MS = 1000 * 30;
+const USER_ACTIVITY_PERSIST_INTERVAL_MS = Math.max(30000, Number(process.env.DMAIHXCAI_ACTIVITY_PERSIST_INTERVAL_MS) || 1000 * 60);
+const ACTIVE_SESSION_PERSIST_INTERVAL_MS = Math.max(60000, Number(process.env.DMAIHXCAI_SESSION_PERSIST_INTERVAL_MS) || 1000 * 60 * 2);
 const ROOM_START_DELAY_MS = 2000;
 const ROOM_HIDDEN_CLOCK_BONUS_MS = 30 * 1000;
 const ROOM_TURN_LIMIT_MS = 2 * 60 * 1000;
@@ -144,6 +146,8 @@ const RANKED_QUEUE_TTL_MS = Math.max(30000, Number(process.env.DMAIHXCAI_RANKED_
 const botMoveJobs = new Map();
 const rankedQueue = new Map();
 const licenseRateMap = new Map();
+const userActivityPersistedAt = new Map();
+const activeSessionPersistedAt = new Map();
 
 function sleepMs(ms) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
@@ -395,6 +399,18 @@ function describePostgresConnection() {
     description.parseError = String(error?.message || error);
   }
   return description;
+}
+
+function publicMemoryUsage() {
+  const usage = process.memoryUsage();
+  const toMb = (value) => Math.round((Number(value) || 0) / 1024 / 1024);
+  return {
+    rssMb: toMb(usage.rss),
+    heapUsedMb: toMb(usage.heapUsed),
+    heapTotalMb: toMb(usage.heapTotal),
+    externalMb: toMb(usage.external),
+    arrayBuffersMb: toMb(usage.arrayBuffers)
+  };
 }
 
 function postgresNeedsSsl(uri) {
@@ -1716,18 +1732,32 @@ function sanitizeUserActivity(activity = {}) {
   };
 }
 
+function userActivitySignature(activity = {}) {
+  return [
+    sanitizeActivityRoute(activity.route),
+    sanitizeRoomKey(activity.roomKey),
+    String(activity.action || "").normalize("NFC").replace(/\s+/gu, " ").trim().slice(0, 80)
+  ].join("\u001f");
+}
+
 function touchUserActivity(user, activity = {}) {
   if (!user) return;
-  const previousSeen = Date.parse(user.lastSeenAt || 0) || 0;
+  const nowMs = Date.now();
   const now = nowIso();
+  const previousActivity = user.currentActivity || {};
   const current = sanitizeUserActivity({
-    ...(user.currentActivity || {}),
+    ...previousActivity,
     ...activity,
     updatedAt: now
   });
   user.lastSeenAt = now;
   user.currentActivity = current;
-  if (Date.now() - previousSeen > 8000) saveUsers();
+  const activityChanged = userActivitySignature(previousActivity) !== userActivitySignature(current);
+  const lastPersisted = Number(userActivityPersistedAt.get(user.id) || 0);
+  if (activityChanged || nowMs - lastPersisted >= USER_ACTIVITY_PERSIST_INTERVAL_MS) {
+    userActivityPersistedAt.set(user.id, nowMs);
+    saveUsers();
+  }
 }
 
 function isAdminQuickLoginName(displayName) {
@@ -1821,7 +1851,7 @@ function claimActiveSession(user, { deviceId = "", action = "" } = {}) {
 
 function touchActiveSession(user, payload = {}) {
   if (!user) return false;
-  const previousSeen = Date.parse(user.activeSessionSeenAt || 0) || 0;
+  const nowMs = Date.now();
   const now = nowIso();
   let changed = false;
   if (!user.activeSessionId) {
@@ -1839,7 +1869,11 @@ function touchActiveSession(user, payload = {}) {
     changed = true;
   }
   rememberAccessKeyDevice(user, user.activeDeviceId);
-  if (Date.now() - previousSeen > 8000 || changed) saveUsers();
+  const lastPersisted = Number(activeSessionPersistedAt.get(user.id) || 0);
+  if (changed || nowMs - lastPersisted >= ACTIVE_SESSION_PERSIST_INTERVAL_MS) {
+    activeSessionPersistedAt.set(user.id, nowMs);
+    saveUsers();
+  }
   return changed;
 }
 
@@ -5764,6 +5798,7 @@ const server = http.createServer(async (req, res) => {
         postgresTable: postgresStateStore.tableName,
         postgresError: postgresStateStore.lastError || "",
         postgresConnection: describePostgresConnection(),
+        memory: publicMemoryUsage(),
         mongoEnabled: mongoStateStore.enabled,
         mongoReady: mongoStateStore.ready,
         mongoDatabase: mongoStateStore.dbName,
@@ -6043,7 +6078,7 @@ const server = http.createServer(async (req, res) => {
         deviceId: body.deviceId || req.headers["x-dmaihxcai-device"] || "",
         action: "Vua dang nhap"
       });
-      await flushUserPersistence();
+      await saveUsers();
       json(res, 200, {
         ok: true,
         token: createAuthToken(user),
