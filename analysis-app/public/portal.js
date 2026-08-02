@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260730-account-auth-v1";
+  const ASSET_WARMUP_VERSION = "20260802-lobby-effects-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -302,7 +302,7 @@
   const CHECKMATE_EFFECT_MS = 3000;
   const BOARD_EFFECT_BASE_MS = {
     checkmate: CHECKMATE_EFFECT_MS,
-    check: 720,
+    check: CHECKMATE_EFFECT_MS,
     capture: 360
   };
   const REVIEW_EVAL_BAR_LIMIT = 2000;

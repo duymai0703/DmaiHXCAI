@@ -34,9 +34,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260730-account-auth-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260730-account-auth-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260730-account-auth-v1">
+    <link rel="prefetch" href="/styles.css?v=20260802-lobby-effects-v1" as="style">
+    <link rel="prefetch" href="/app.js?v=20260802-lobby-effects-v1" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260802-lobby-effects-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -172,21 +172,15 @@
       <section id="homeView" class="view launcher-view hidden">
         <div class="launcher-grid">
           <button id="openMatchHub" class="launcher-card has-poster" type="button">
-            <span class="card-eyebrow">Khu 1</span>
             <strong>Phòng đấu</strong>
-            <small>Tạo phòng mới, vào phòng bằng Key, đánh với máy hoặc leo rank.</small>
           </button>
 
           <a id="openAnalysisBtn" class="launcher-card has-poster" href="/analysis.html?mobile=1" role="button">
-            <span class="card-eyebrow">Khu 2</span>
             <strong>Phần mềm phân tích</strong>
-            <small>Mở bàn phân tích hiện tại với Y-Megalodon và cơ sở dữ liệu đám mây.</small>
           </a>
 
           <button id="openLibraryBtn" class="launcher-card has-poster" type="button">
-            <span class="card-eyebrow">Khu 3</span>
             <strong>Thư viện cá nhân</strong>
-            <small>Xem lại các ván gần nhất trên thiết bị này và mở phân tích sau ván.</small>
           </button>
         </div>
       </section>
@@ -1001,14 +995,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260730-account-auth-v1"></script>
+    <script src="/portal.js?v=20260802-lobby-effects-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v225";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v226";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

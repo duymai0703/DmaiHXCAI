@@ -86,7 +86,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260730-account-auth-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260802-lobby-effects-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -128,7 +128,7 @@ const ANALYSIS_TOOL_ICON_ASSETS = [
 const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
 const BOARD_EFFECT_BASE_MS = {
   checkmate: CHECKMATE_EFFECT_MS,
-  check: 720,
+  check: CHECKMATE_EFFECT_MS,
   capture: 360
 };
 const ANALYSIS_NAVIGATION_ANALYSIS_DELAY_MS = 1000;
