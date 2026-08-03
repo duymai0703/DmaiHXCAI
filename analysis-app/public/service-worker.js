@@ -1,12 +1,12 @@
-const CACHE_NAME = "dxiangqi-shell-v230";
+const CACHE_NAME = "dxiangqi-shell-v231";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260803-opening-trace-v1",
+  "/portal.css?v=20260803-opening-practice-branches-v1",
   "/puzzle-data.js?v=20260727-puzzle-v1",
   "/endgame-data.js?v=20260728-endgame-v3",
-  "/portal.js?v=20260803-opening-trace-v1",
+  "/portal.js?v=20260803-opening-practice-branches-v1",
   "/styles.css?v=20260802-lobby-effects-v1",
   "/app.js?v=20260802-lobby-effects-v1",
   "/config.js",
@@ -166,8 +166,8 @@ const CRITICAL_ASSETS = [
   "/",
   "/index.html",
   "/analysis.html",
-  "/portal.css?v=20260803-opening-trace-v1",
-  "/portal.js?v=20260803-opening-trace-v1",
+  "/portal.css?v=20260803-opening-practice-branches-v1",
+  "/portal.js?v=20260803-opening-practice-branches-v1",
   "/styles.css?v=20260802-lobby-effects-v1",
   "/app.js?v=20260802-lobby-effects-v1",
   "/config.js",

@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-opening-trace-v1";
+  const ASSET_WARMUP_VERSION = "20260803-opening-practice-branches-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -292,8 +292,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260803-opening-trace-v1",
-    "/portal.js?v=20260803-opening-trace-v1",
+    "/portal.css?v=20260803-opening-practice-branches-v1",
+    "/portal.js?v=20260803-opening-practice-branches-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -5589,10 +5589,12 @@
     const targetSide = stage === "opponent" ? oppositeSide(userSide) : userSide;
     const basePaths = Array.isArray(paths) ? paths : [];
     const selectedBranches = normalizeOpeningBookBranchSelections(selectedBranchPaths);
+    const displayBranches = stage === "opponent" ? [] : selectedBranches;
     const options = buildOpeningBookPracticeBranchOptions(source, basePaths, targetSide, stage)
       .map((option) => ({
         ...option,
-        paths: filterOpeningBookPracticePathsByBranches(basePaths, [...selectedBranches, option.branchPath])
+        paths: filterOpeningBookPracticePathsByBranches(basePaths, [...displayBranches, option.branchPath]),
+        constrainedPaths: filterOpeningBookPracticePathsByBranches(basePaths, [...selectedBranches, option.branchPath])
       }))
       .filter((option) => option.paths.length);
     if (!options.length) return false;
@@ -5675,7 +5677,15 @@
     if ((choosing.selectionStage || option.stage) === "player") {
       if (showOpeningBookPracticeSelection(source, basePaths, "opponent", nextSelections)) return;
     }
-    beginOpeningBookPracticeWithPaths(source, filterOpeningBookPracticePathsByBranches(basePaths, nextSelections), option.startPath || []);
+    const constrainedPaths = Array.isArray(option.constrainedPaths) && option.constrainedPaths.length
+      ? option.constrainedPaths
+      : filterOpeningBookPracticePathsByBranches(basePaths, nextSelections);
+    if (!constrainedPaths.length) {
+      showToast("Biến này không nằm cùng tuyến với biến bạn đã chọn.");
+      renderOpeningBookEditor();
+      return;
+    }
+    beginOpeningBookPracticeWithPaths(source, constrainedPaths, option.startPath || []);
   }
 
   function stopOpeningBookPractice(options = {}) {
