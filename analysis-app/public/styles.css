@@ -1371,11 +1371,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-default::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-dark-v1");
 }
 
 .piece-skin-swatch-default::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-dark-v1");
 }
 
 .piece-skin-swatch-boquan1::before {
@@ -1387,11 +1387,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-boquan2::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260729-boquan2-smooth-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-dark-v1");
 }
 
 .piece-skin-swatch-boquan2::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260729-boquan2-smooth-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-dark-v1");
 }
 
 .piece-skin-swatch-boquan3::before {
@@ -1408,6 +1408,48 @@ input:not([type]) {
 
 .piece-skin-swatch-boquan4::after {
   background-image: url("/assets/pieces/sets/boquan4/black-king.png");
+}
+
+
+.effect-skin-swatch {
+  position: relative;
+  width: 100%;
+  height: 76px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(105, 208, 255, 0.15), transparent 50%),
+    linear-gradient(145deg, #091523, #020712);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.effect-skin-swatch::before {
+  content: "";
+  position: absolute;
+  inset: -30px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 7px 11px rgba(0, 0, 0, 0.5));
+}
+
+.effect-skin-swatch-hacdieu::before {
+  background-image: url("/assets/effects/satpro.png?v=20260803-effect-themes-v1");
+}
+
+.effect-skin-swatch-bachlong::before {
+  background-image: url("/assets/effects/satpro-bachlong.png?v=20260803-effect-themes-v1");
+}
+
+.effect-skin-swatch-hoaphuong::before {
+  background-image: url("/assets/effects/satpro-hoaphuong.png?v=20260803-effect-themes-v1");
+}
+
+.effect-skin-swatch-thienvuong::before {
+  background-image: url("/assets/effects/satpro-thienvuong.png?v=20260803-effect-themes-v1");
 }
 
 .mobile-score-strip {

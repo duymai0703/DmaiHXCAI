@@ -20,9 +20,12 @@
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
         const pieceSkin = ["boquan1", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
+        const savedEffectSkin = localStorage.getItem("dmaihxcai-effect-skin");
+        const effectSkin = ["bachlong", "hoaphuong", "thienvuong"].includes(savedEffectSkin) ? savedEffectSkin : "hacdieu";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
         document.documentElement.dataset.pieceSkin = pieceSkin;
+        document.documentElement.dataset.effectSkin = effectSkin;
         document.querySelector('meta[name="theme-color"]').setAttribute("content", "#050914");
       } catch {}
     </script>
@@ -33,7 +36,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260802-lobby-effects-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260803-effect-themes-v1">
   </head>
   <body>
     <header class="app-header">
@@ -107,6 +110,23 @@
             <span class="piece-skin-swatch piece-skin-swatch-boquan4" aria-hidden="true"></span>
             Bộ 4
           </button>
+          <div class="skin-menu-title">Hi&#7879;u &#7913;ng</div>
+          <button type="button" data-effect-skin-choice="hacdieu" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-hacdieu" aria-hidden="true"></span>
+            H&#7855;c &#272;i&#7875;u
+          </button>
+          <button type="button" data-effect-skin-choice="bachlong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-bachlong" aria-hidden="true"></span>
+            B&#7841;ch Long
+          </button>
+          <button type="button" data-effect-skin-choice="hoaphuong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-hoaphuong" aria-hidden="true"></span>
+            H&#7887;a Ph&#432;&#7907;ng
+          </button>
+          <button type="button" data-effect-skin-choice="thienvuong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-thienvuong" aria-hidden="true"></span>
+            Thi&#234;n V&#432;&#417;ng
+          </button>
         </div>
         <div id="mobileScoreStrip" class="mobile-score-strip">Độ sâu: ... Điểm: 0 Thời gian: 0s</div>
         <div id="board" class="board" aria-label="Bàn cờ tướng">
@@ -118,7 +138,7 @@
             <div id="capturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
             <div id="movingPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
           </div>
-          <div id="checkmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
+          <div id="checkmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-effect-themes-v1" alt="" draggable="false"></div>
         </div>
         <div id="mobileSetupPanel" class="mobile-setup-panel hidden" aria-label="Xếp hình cờ">
           <div class="mobile-setup-head">
@@ -284,7 +304,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260802-lobby-effects-v1"></script>
+    <script src="/app.js?v=20260803-effect-themes-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       const mobileBrandBackButton = document.getElementById("mobileBrandBackButton");
@@ -313,7 +333,7 @@
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v232";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v233";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

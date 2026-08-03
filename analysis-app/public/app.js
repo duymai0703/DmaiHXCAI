@@ -5,7 +5,7 @@ const PIECE_NAMES = {
   r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
 };
 const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
-const CUSTOM_PIECE_ASSET_VERSION = "20260729-boquan2-smooth-v1";
+const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-dark-v1";
 const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
 const PIECE_IMAGES = {
   R: defaultPieceAsset("red-rook.png"),
@@ -79,6 +79,7 @@ const THEME_PREFERENCE_VERSION_KEY = "dmaihxcai-theme-preference-version";
 const THEME_PREFERENCE_VERSION = "20260729-dark-only-v1";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
 const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
+const EFFECT_SKIN_STORAGE_KEY = "dmaihxcai-effect-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "dmaihxcai-auth-token";
 const AUTH_USER_STORAGE_KEY = "dmaihxcai-auth-user";
@@ -86,7 +87,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260802-lobby-effects-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-effect-themes-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -103,12 +104,33 @@ const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
-const MOVE_EFFECT_ASSET_VERSION = "20260729-move-effects-v1";
-const BOARD_EFFECT_ASSETS = {
-  checkmate: `/assets/effects/satpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
-  check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
-  capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
+const MOVE_EFFECT_ASSET_VERSION = "20260803-effect-themes-v1";
+const BOARD_EFFECT_THEME_KEYS = ["hacdieu", "bachlong", "hoaphuong", "thienvuong"];
+const boardEffectAsset = (file) => `/assets/effects/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
+const BOARD_EFFECT_ASSET_SETS = {
+  hacdieu: {
+    checkmate: boardEffectAsset("satpro.png"),
+    check: boardEffectAsset("chieupro.png"),
+    capture: boardEffectAsset("anpro.png")
+  },
+  bachlong: {
+    checkmate: boardEffectAsset("satpro-bachlong.png"),
+    check: boardEffectAsset("chieupro-bachlong.png"),
+    capture: boardEffectAsset("anpro-bachlong.png")
+  },
+  hoaphuong: {
+    checkmate: boardEffectAsset("satpro-hoaphuong.png"),
+    check: boardEffectAsset("chieupro-hoaphuong.png"),
+    capture: boardEffectAsset("anpro-hoaphuong.png")
+  },
+  thienvuong: {
+    checkmate: boardEffectAsset("satpro-thienvuong.png"),
+    check: boardEffectAsset("chieupro-thienvuong.png"),
+    capture: boardEffectAsset("anpro-thienvuong.png")
+  }
 };
+const BOARD_EFFECT_ASSETS = BOARD_EFFECT_ASSET_SETS.hacdieu;
+const BOARD_EFFECT_ASSET_LIST = [...new Set(Object.values(BOARD_EFFECT_ASSET_SETS).flatMap((set) => Object.values(set)))];
 const PRIMARY_ARROW_COLOR = "rgba(37, 123, 217, 0.94)";
 const SECONDARY_ARROW_COLOR = "rgba(211, 20, 197, 0.92)";
 const ANALYSIS_TOOL_ICON_ASSET_VERSION = "20260729-dxiangqi-brand-v1";
@@ -163,7 +185,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/cole-dark.png",
   "/assets/icons/sosach-dark.png",
   ...BOARD_SKIN_ASSETS,
-  ...Object.values(BOARD_EFFECT_ASSETS),
+  ...BOARD_EFFECT_ASSET_LIST,
   ...ANALYSIS_TOOL_ICON_ASSETS
 ];
 let wakePromise = null;
@@ -299,6 +321,7 @@ const mobileThemeButtons = [...document.querySelectorAll("[data-theme-toggle]")]
 const boardSkinMenuEl = document.getElementById("boardSkinMenu");
 const boardSkinChoiceButtons = [...document.querySelectorAll("[data-board-skin-choice]")];
 const pieceSkinChoiceButtons = [...document.querySelectorAll("[data-piece-skin-choice]")];
+const effectSkinChoiceButtons = [...document.querySelectorAll("[data-effect-skin-choice]")];
 const accessGateEl = document.getElementById("accessGate");
 const accessKeyFormEl = document.getElementById("accessKeyForm");
 const accessKeyInputEl = document.getElementById("accessKeyInput");
@@ -334,6 +357,7 @@ function setActionButtonLabel(button, label) {
 setupThemeControls();
 setupBoardSkinControls();
 setupPieceSkinControls();
+setupEffectSkinControls();
 if (accessKeyFormEl) accessKeyFormEl.addEventListener("submit", onAnalysisAccessKeySubmit);
 window.addEventListener("resize", onViewportResize, { passive: true });
 boardEl.addEventListener("pointerdown", onBoardClick);
@@ -887,6 +911,39 @@ function normalizePieceSkin(skin) {
 
 function currentPieceSkin() {
   return normalizePieceSkin(document.documentElement.dataset.pieceSkin || readPieceSkin());
+}
+
+function readEffectSkin() {
+  return normalizeEffectSkin(readStorage(EFFECT_SKIN_STORAGE_KEY) || document.documentElement.dataset.effectSkin || "hacdieu");
+}
+
+function normalizeEffectSkin(skin) {
+  return BOARD_EFFECT_THEME_KEYS.includes(skin) ? skin : "hacdieu";
+}
+
+function currentBoardEffectAssets() {
+  return BOARD_EFFECT_ASSET_SETS[normalizeEffectSkin(document.documentElement.dataset.effectSkin || readEffectSkin())] || BOARD_EFFECT_ASSETS;
+}
+
+function setupEffectSkinControls() {
+  applyEffectSkin(readEffectSkin());
+  effectSkinChoiceButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyEffectSkin(button.dataset.effectSkinChoice, { persist: true });
+      hideBoardSkinMenu();
+    });
+  });
+}
+
+function applyEffectSkin(skin, { persist = false } = {}) {
+  const normalized = normalizeEffectSkin(skin);
+  document.documentElement.dataset.effectSkin = normalized;
+  if (persist) writeStorage(EFFECT_SKIN_STORAGE_KEY, normalized);
+  effectSkinChoiceButtons.forEach((button) => {
+    const active = normalizeEffectSkin(button.dataset.effectSkinChoice) === normalized;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function applyPieceSkin(skin, { persist = false } = {}) {
@@ -2257,7 +2314,7 @@ function showBoardEffect(kind = "checkmate", { durationMs = 0, playSound = true 
     state.checkmateEffectTimer = 0;
   }
   const img = checkmateBurstEl.querySelector("img");
-  const source = BOARD_EFFECT_ASSETS[effectKind];
+  const source = currentBoardEffectAssets()[effectKind] || BOARD_EFFECT_ASSETS[effectKind];
   if (img) {
     img.src = source;
     img.dataset.effectKind = effectKind;

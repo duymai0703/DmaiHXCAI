@@ -17,10 +17,11 @@
   const THEME_PREFERENCE_VERSION = "20260729-dark-only-v1";
   const STORAGE_BOARD_SKIN = "dmaihxcai-board-skin";
   const STORAGE_PIECE_SKIN = "dmaihxcai-piece-skin";
+  const STORAGE_EFFECT_SKIN = "dmaihxcai-effect-skin";
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-opening-practice-branches-v2";
+  const ASSET_WARMUP_VERSION = "20260803-effect-themes-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -36,12 +37,33 @@
     boardSkinAsset("bancomoi-pink.png"),
     boardSkinAsset("bancomoi-dark.png")
   ];
-  const MOVE_EFFECT_ASSET_VERSION = "20260729-move-effects-v1";
-  const BOARD_EFFECT_ASSETS = {
-    checkmate: `/assets/effects/satpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
-    check: `/assets/effects/chieupro.png?v=${MOVE_EFFECT_ASSET_VERSION}`,
-    capture: `/assets/effects/anpro.png?v=${MOVE_EFFECT_ASSET_VERSION}`
+  const MOVE_EFFECT_ASSET_VERSION = "20260803-effect-themes-v1";
+  const BOARD_EFFECT_THEME_KEYS = ["hacdieu", "bachlong", "hoaphuong", "thienvuong"];
+  const boardEffectAsset = (file) => `/assets/effects/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
+  const BOARD_EFFECT_ASSET_SETS = {
+    hacdieu: {
+      checkmate: boardEffectAsset("satpro.png"),
+      check: boardEffectAsset("chieupro.png"),
+      capture: boardEffectAsset("anpro.png")
+    },
+    bachlong: {
+      checkmate: boardEffectAsset("satpro-bachlong.png"),
+      check: boardEffectAsset("chieupro-bachlong.png"),
+      capture: boardEffectAsset("anpro-bachlong.png")
+    },
+    hoaphuong: {
+      checkmate: boardEffectAsset("satpro-hoaphuong.png"),
+      check: boardEffectAsset("chieupro-hoaphuong.png"),
+      capture: boardEffectAsset("anpro-hoaphuong.png")
+    },
+    thienvuong: {
+      checkmate: boardEffectAsset("satpro-thienvuong.png"),
+      check: boardEffectAsset("chieupro-thienvuong.png"),
+      capture: boardEffectAsset("anpro-thienvuong.png")
+    }
   };
+  const BOARD_EFFECT_ASSETS = BOARD_EFFECT_ASSET_SETS.hacdieu;
+  const BOARD_EFFECT_ASSET_LIST = [...new Set(Object.values(BOARD_EFFECT_ASSET_SETS).flatMap((set) => Object.values(set)))];
   const PRIMARY_ARROW_COLOR = "rgba(37, 123, 217, 0.94)";
   const SECONDARY_ARROW_COLOR = "rgba(211, 20, 197, 0.92)";
   const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
@@ -121,7 +143,7 @@
     "/assets/avtchibi/saved.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/robo.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/setting.png?v=20260730-mobile-controls-restore-v1",
-    "/assets/avtchibi/truybien.png?v=20260803-opening-practice-branches-v2"
+    "/assets/avtchibi/truybien.png?v=20260803-effect-themes-v1"
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -146,7 +168,7 @@
     avtchibiAsset("play8.png")
   ];
   const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
-  const CUSTOM_PIECE_ASSET_VERSION = "20260729-boquan2-smooth-v1";
+  const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-dark-v1";
   const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
   const PIECE_IMAGES = {
     R: defaultPieceAsset("red-rook.png"),
@@ -243,8 +265,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260802-lobby-effects-v1",
-    "/app.js?v=20260802-lobby-effects-v1",
+    "/styles.css?v=20260803-effect-themes-v1",
+    "/app.js?v=20260803-effect-themes-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -260,7 +282,7 @@
     "/assets/icons/sosach-dark.png",
     BRAND_LOGO,
     "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2",
-    ...Object.values(BOARD_EFFECT_ASSETS),
+    ...BOARD_EFFECT_ASSET_LIST,
     ...BOARD_SKIN_ASSETS,
     "/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1",
     "/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1",
@@ -292,8 +314,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260803-opening-practice-branches-v2",
-    "/portal.js?v=20260803-opening-practice-branches-v2",
+    "/portal.css?v=20260803-effect-themes-v1",
+    "/portal.js?v=20260803-effect-themes-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -301,15 +323,15 @@
   ];
   const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260802-lobby-effects-v1",
-    "/app.js?v=20260802-lobby-effects-v1",
+    "/styles.css?v=20260803-effect-themes-v1",
+    "/app.js?v=20260803-effect-themes-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
     MOVE_SOUND_SOURCES.checkmate,
     BRAND_LOGO,
     "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2",
-    ...Object.values(BOARD_EFFECT_ASSETS),
+    ...BOARD_EFFECT_ASSET_LIST,
     ...BOARD_SKIN_ASSETS,
     "/assets/avtchibi/phantich.png?v=20260729-dxiangqi-brand-v1",
     "/assets/avtchibi/hoantac.png?v=20260729-dxiangqi-brand-v1",
@@ -788,6 +810,7 @@
   const portalBoardSkinMenu = byId("portalBoardSkinMenu");
   const portalBoardSkinChoices = [...document.querySelectorAll("[data-portal-board-skin]")];
   const portalPieceSkinChoices = [...document.querySelectorAll("[data-portal-piece-skin]")];
+  const portalEffectSkinChoices = [...document.querySelectorAll("[data-portal-effect-skin]")];
   const rankTimeControlButtons = [...document.querySelectorAll("[data-rank-time-control]")];
   window.setInterval(() => {
     if (!dom.profileModal?.classList.contains("hidden")) renderLicenseInfo();
@@ -798,6 +821,7 @@
   initThemeControls();
   initPortalBoardSkinControls();
   initPortalPieceSkinControls();
+  initPortalEffectSkinControls();
   bindEvents();
   disableLegacyNameInputs();
   preventDoubleTapZoom();
@@ -1271,6 +1295,10 @@
     return normalizePieceSkin(readPersistentValue(STORAGE_PIECE_SKIN) || document.documentElement.dataset.pieceSkin || "default");
   }
 
+  function readPortalEffectSkin() {
+    return normalizeEffectSkin(readPersistentValue(STORAGE_EFFECT_SKIN) || document.documentElement.dataset.effectSkin || "hacdieu");
+  }
+
   function normalizeBoardSkin(skin) {
     return skin === "gold" || skin === "stone" || skin === "pink" || skin === "emerald" || skin === "dark" ? skin : "ice";
   }
@@ -1279,8 +1307,16 @@
     return skin !== "boquan2" && CUSTOM_PIECE_SET_KEYS.includes(skin) ? skin : "default";
   }
 
+  function normalizeEffectSkin(skin) {
+    return BOARD_EFFECT_THEME_KEYS.includes(skin) ? skin : "hacdieu";
+  }
+
   function currentPieceSkin() {
     return normalizePieceSkin(document.documentElement.dataset.pieceSkin || readPortalPieceSkin());
+  }
+
+  function currentBoardEffectAssets() {
+    return BOARD_EFFECT_ASSET_SETS[normalizeEffectSkin(document.documentElement.dataset.effectSkin || readPortalEffectSkin())] || BOARD_EFFECT_ASSETS;
   }
 
   function initPortalBoardSkinControls() {
@@ -1307,6 +1343,16 @@
     portalPieceSkinChoices.forEach((button) => {
       button.addEventListener("click", () => {
         applyPortalPieceSkin(button.dataset.portalPieceSkin, { persist: true });
+        hidePortalBoardSkinMenu();
+      });
+    });
+  }
+
+  function initPortalEffectSkinControls() {
+    applyPortalEffectSkin(readPortalEffectSkin());
+    portalEffectSkinChoices.forEach((button) => {
+      button.addEventListener("click", () => {
+        applyPortalEffectSkin(button.dataset.portalEffectSkin, { persist: true });
         hidePortalBoardSkinMenu();
       });
     });
@@ -1349,6 +1395,17 @@
     if (state.route === "library" && state.libraryTab === "book-create") drawOpeningBookScene(true, true);
     if (state.route === "match" && state.lobbyMode === "opponent") drawOpponentBookScene(true, true);
     if (state.route === "match" && state.lobbyMode === "endgame") renderEndgameTrainingPanel();
+  }
+
+  function applyPortalEffectSkin(skin, { persist = false } = {}) {
+    const normalized = normalizeEffectSkin(skin);
+    document.documentElement.dataset.effectSkin = normalized;
+    if (persist) writePersistentValue(STORAGE_EFFECT_SKIN, normalized);
+    portalEffectSkinChoices.forEach((button) => {
+      const active = normalizeEffectSkin(button.dataset.portalEffectSkin) === normalized;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
   }
 
   function togglePortalBoardSkinMenu() {
@@ -7730,7 +7787,7 @@
       state[timerKey] = 0;
     }
     const img = el.querySelector("img");
-    const source = BOARD_EFFECT_ASSETS[effectKind];
+    const source = currentBoardEffectAssets()[effectKind] || BOARD_EFFECT_ASSETS[effectKind];
     if (img) {
       img.src = source;
       img.dataset.effectKind = effectKind;

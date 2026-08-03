@@ -20,9 +20,12 @@
         const boardSkin = savedBoardSkin === "gold" || savedBoardSkin === "stone" || savedBoardSkin === "pink" || savedBoardSkin === "emerald" || savedBoardSkin === "dark" ? savedBoardSkin : "ice";
         const savedPieceSkin = localStorage.getItem("dmaihxcai-piece-skin");
         const pieceSkin = ["boquan1", "boquan3", "boquan4"].includes(savedPieceSkin) ? savedPieceSkin : "default";
+        const savedEffectSkin = localStorage.getItem("dmaihxcai-effect-skin");
+        const effectSkin = ["bachlong", "hoaphuong", "thienvuong"].includes(savedEffectSkin) ? savedEffectSkin : "hacdieu";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.boardSkin = boardSkin;
         document.documentElement.dataset.pieceSkin = pieceSkin;
+        document.documentElement.dataset.effectSkin = effectSkin;
         document.querySelector('meta[name="theme-color"]').setAttribute("content", "#050914");
       } catch {}
     </script>
@@ -34,9 +37,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260802-lobby-effects-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260802-lobby-effects-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260803-opening-practice-branches-v2">
+    <link rel="prefetch" href="/styles.css?v=20260803-effect-themes-v1" as="style">
+    <link rel="prefetch" href="/app.js?v=20260803-effect-themes-v1" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260803-effect-themes-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -97,6 +100,23 @@
           <button type="button" data-portal-piece-skin="boquan4" role="menuitem">
             <span class="piece-skin-swatch piece-skin-swatch-boquan4" aria-hidden="true"></span>
             Bộ 4
+          </button>
+          <div class="skin-menu-title">Hi&#7879;u &#7913;ng</div>
+          <button type="button" data-portal-effect-skin="hacdieu" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-hacdieu" aria-hidden="true"></span>
+            H&#7855;c &#272;i&#7875;u
+          </button>
+          <button type="button" data-portal-effect-skin="bachlong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-bachlong" aria-hidden="true"></span>
+            B&#7841;ch Long
+          </button>
+          <button type="button" data-portal-effect-skin="hoaphuong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-hoaphuong" aria-hidden="true"></span>
+            H&#7887;a Ph&#432;&#7907;ng
+          </button>
+          <button type="button" data-portal-effect-skin="thienvuong" role="menuitem">
+            <span class="effect-skin-swatch effect-skin-swatch-thienvuong" aria-hidden="true"></span>
+            Thi&#234;n V&#432;&#417;ng
           </button>
         </div>
         <button id="resumeRoomBtn" class="ghost-chip hidden" type="button">Phòng hiện tại</button>
@@ -582,7 +602,7 @@
                     <div id="openingBookMotionLayer" class="motion-layer opening-book-motion-layer" aria-hidden="true">
                       <div id="openingBookMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
-                    <div id="openingBookCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
+                    <div id="openingBookCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-effect-themes-v1" alt="" draggable="false"></div>
                   </div>
                   <div id="openingBookPracticeModal" class="opening-book-practice-modal hidden" aria-live="polite">
                     <div class="opening-book-practice-card">
@@ -631,7 +651,7 @@
                       <span data-action-label>Luyện khai cuộc với máy</span>
                     </button>
                     <button id="openingBookTraceBtn" class="secondary-button opening-book-icon-button opening-book-trace-button" type="button" aria-label="Truy biến" data-tooltip="Truy biến">
-                      <img src="/assets/avtchibi/truybien.png?v=20260803-opening-practice-branches-v2" alt="" draggable="false" onerror="this.hidden=true;this.parentElement.classList.add('missing-icon')">
+                      <img src="/assets/avtchibi/truybien.png?v=20260803-effect-themes-v1" alt="" draggable="false" onerror="this.hidden=true;this.parentElement.classList.add('missing-icon')">
                       <span data-action-label>Truy biến</span>
                     </button>
                     <button id="openingBookPracticeHintBtn" class="secondary-button hidden" type="button">Gợi ý</button>
@@ -744,7 +764,7 @@
                   <div id="roomCapturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                   <div id="roomMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                 </div>
-                <div id="roomCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
+                <div id="roomCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-effect-themes-v1" alt="" draggable="false"></div>
                 <div id="roomBoardOverlay" class="room-board-overlay hidden">
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
@@ -898,7 +918,7 @@
                     <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
                       <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
-                    <div id="reviewCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260729-move-effects-v1" alt="" draggable="false"></div>
+                    <div id="reviewCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-effect-themes-v1" alt="" draggable="false"></div>
                   </div>
                 </div>
 
@@ -999,14 +1019,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260803-opening-practice-branches-v2"></script>
+    <script src="/portal.js?v=20260803-effect-themes-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v232";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v233";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();
