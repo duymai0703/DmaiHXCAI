@@ -46,7 +46,7 @@
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
     <link rel="prefetch" href="/styles.css?v=20260803-board-bright-v1" as="style">
     <link rel="prefetch" href="/app.js?v=20260803-board-bright-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260803-board-bright-v1">
+    <link rel="stylesheet" href="/portal.css?v=20260803-zone-posters-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -1026,14 +1026,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260803-board-bright-v1"></script>
+    <script src="/portal.js?v=20260803-zone-posters-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v236";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v237";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();
