@@ -78,6 +78,8 @@ const THEME_STORAGE_KEY = "dmaihxcai-theme";
 const THEME_PREFERENCE_VERSION_KEY = "dmaihxcai-theme-preference-version";
 const THEME_PREFERENCE_VERSION = "20260729-dark-only-v1";
 const BOARD_SKIN_STORAGE_KEY = "dmaihxcai-board-skin";
+const BOARD_SKIN_DEFAULT_VERSION_KEY = "dmaihxcai-board-skin-default-version";
+const BOARD_SKIN_DEFAULT_VERSION = "20260803-cement-default-v1";
 const PIECE_SKIN_STORAGE_KEY = "dmaihxcai-piece-skin";
 const EFFECT_SKIN_STORAGE_KEY = "dmaihxcai-effect-skin";
 const AUTH_TOKEN_STORAGE_KEY = "license_token";
@@ -87,9 +89,9 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-avtchibi-cutout-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-board-bright-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
-const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
+const BOARD_ASSET_VERSION = "20260803-board-bright-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
 const BOARD_SKIN_ASSETS = [
   boardSkinAsset("bancomoi.png"),
@@ -104,7 +106,7 @@ const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
-const MOVE_EFFECT_ASSET_VERSION = "20260803-avtchibi-cutout-v1";
+const MOVE_EFFECT_ASSET_VERSION = "20260803-board-bright-v1";
 const BOARD_EFFECT_THEME_KEYS = ["hacdieu", "bachlong", "hoaphuong", "thienvuong"];
 const boardEffectAsset = (file) => `/assets/effects/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
 const avtchibiEffectAsset = (file) => `/assets/avtchibi/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
@@ -865,6 +867,11 @@ function setupBoardSkinControls() {
 }
 
 function readBoardSkin() {
+  if (readStorage(BOARD_SKIN_DEFAULT_VERSION_KEY) !== BOARD_SKIN_DEFAULT_VERSION) {
+    writeStorage(BOARD_SKIN_STORAGE_KEY, "ice");
+    writeStorage(BOARD_SKIN_DEFAULT_VERSION_KEY, BOARD_SKIN_DEFAULT_VERSION);
+    return "ice";
+  }
   return normalizeBoardSkin(readStorage(BOARD_SKIN_STORAGE_KEY) || document.documentElement.dataset.boardSkin || "ice");
 }
 
