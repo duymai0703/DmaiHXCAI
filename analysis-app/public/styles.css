@@ -1371,11 +1371,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-default::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-dark-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-blackdark-v1");
 }
 
 .piece-skin-swatch-default::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-dark-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-blackdark-v1");
 }
 
 .piece-skin-swatch-boquan1::before {
@@ -1387,11 +1387,11 @@ input:not([type]) {
 }
 
 .piece-skin-swatch-boquan2::before {
-  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-dark-v1");
+  background-image: url("/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-blackdark-v1");
 }
 
 .piece-skin-swatch-boquan2::after {
-  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-dark-v1");
+  background-image: url("/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-blackdark-v1");
 }
 
 .piece-skin-swatch-boquan3::before {
@@ -1437,19 +1437,19 @@ input:not([type]) {
 }
 
 .effect-skin-swatch-hacdieu::before {
-  background-image: url("/assets/effects/satpro.png?v=20260803-effect-themes-v1");
+  background-image: url("/assets/effects/satpro.png?v=20260803-avtchibi-effects-v1");
 }
 
 .effect-skin-swatch-bachlong::before {
-  background-image: url("/assets/effects/satpro-bachlong.png?v=20260803-effect-themes-v1");
+  background-image: url("/assets/avtchibi/sattrang.png?v=20260803-avtchibi-effects-v1");
 }
 
 .effect-skin-swatch-hoaphuong::before {
-  background-image: url("/assets/effects/satpro-hoaphuong.png?v=20260803-effect-themes-v1");
+  background-image: url("/assets/avtchibi/satdo.png?v=20260803-avtchibi-effects-v1");
 }
 
 .effect-skin-swatch-thienvuong::before {
-  background-image: url("/assets/effects/satpro-thienvuong.png?v=20260803-effect-themes-v1");
+  background-image: url("/assets/avtchibi/satxanh.png?v=20260803-avtchibi-effects-v1");
 }
 
 .mobile-score-strip {

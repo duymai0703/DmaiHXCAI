@@ -36,7 +36,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260803-effect-themes-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260803-avtchibi-effects-v1">
   </head>
   <body>
     <header class="app-header">
@@ -138,7 +138,7 @@
             <div id="capturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
             <div id="movingPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
           </div>
-          <div id="checkmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-effect-themes-v1" alt="" draggable="false"></div>
+          <div id="checkmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-effects-v1" alt="" draggable="false"></div>
         </div>
         <div id="mobileSetupPanel" class="mobile-setup-panel hidden" aria-label="Xếp hình cờ">
           <div class="mobile-setup-head">
@@ -304,7 +304,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260803-effect-themes-v1"></script>
+    <script src="/app.js?v=20260803-avtchibi-effects-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       const mobileBrandBackButton = document.getElementById("mobileBrandBackButton");
@@ -333,7 +333,7 @@
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v233";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v234";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();
