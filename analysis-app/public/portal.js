@@ -20,7 +20,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-opening-practice-branches-v1";
+  const ASSET_WARMUP_VERSION = "20260803-opening-practice-branches-v2";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -121,7 +121,7 @@
     "/assets/avtchibi/saved.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/robo.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/setting.png?v=20260730-mobile-controls-restore-v1",
-    "/assets/avtchibi/truybien.png?v=20260803-opening-trace-v1"
+    "/assets/avtchibi/truybien.png?v=20260803-opening-practice-branches-v2"
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -292,8 +292,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260803-opening-practice-branches-v1",
-    "/portal.js?v=20260803-opening-practice-branches-v1",
+    "/portal.css?v=20260803-opening-practice-branches-v2",
+    "/portal.js?v=20260803-opening-practice-branches-v2",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -5573,6 +5573,21 @@
     return options;
   }
 
+  function buildOpeningBookPracticeAllOption(paths, selectedBranchPaths, stage) {
+    const basePaths = Array.isArray(paths) ? paths : [];
+    const selectedPaths = filterOpeningBookPracticePathsByBranches(basePaths, selectedBranchPaths);
+    const practicePaths = selectedPaths.length ? selectedPaths : basePaths;
+    return {
+      label: "Luyện từ đầu",
+      branchPath: [],
+      startPath: [],
+      paths: practicePaths,
+      constrainedPaths: practicePaths,
+      stage,
+      practiceAll: true
+    };
+  }
+
   function openingBookPracticeSource(book = null) {
     const bookSide = normalizeOpeningBookSide(book?.bookSide || book?.sideChoice || book?.viewSide || book?.side || state.openingBookEditor.bookSide);
     return {
@@ -5590,13 +5605,19 @@
     const basePaths = Array.isArray(paths) ? paths : [];
     const selectedBranches = normalizeOpeningBookBranchSelections(selectedBranchPaths);
     const displayBranches = stage === "opponent" ? [] : selectedBranches;
-    const options = buildOpeningBookPracticeBranchOptions(source, basePaths, targetSide, stage)
+    const branchOptions = buildOpeningBookPracticeBranchOptions(source, basePaths, targetSide, stage)
       .map((option) => ({
         ...option,
         paths: filterOpeningBookPracticePathsByBranches(basePaths, [...displayBranches, option.branchPath]),
-        constrainedPaths: filterOpeningBookPracticePathsByBranches(basePaths, [...selectedBranches, option.branchPath])
+        constrainedPaths: (() => {
+          const strictPaths = filterOpeningBookPracticePathsByBranches(basePaths, [...selectedBranches, option.branchPath]);
+          return strictPaths.length ? strictPaths : filterOpeningBookPracticePathsByBranches(basePaths, [option.branchPath]);
+        })()
       }))
       .filter((option) => option.paths.length);
+    if (!branchOptions.length) return false;
+    const allOption = buildOpeningBookPracticeAllOption(basePaths, selectedBranches, stage);
+    const options = [allOption, ...branchOptions].filter((option) => option.paths.length);
     if (!options.length) return false;
     state.openingBookPractice = {
       ...createOpeningBookPracticeState(),
@@ -5672,14 +5693,16 @@
       showToast("Không tìm thấy biến luyện hợp lệ.");
       return;
     }
-    const nextSelections = normalizeOpeningBookBranchSelections([...selectedBranches, option.branchPath]);
+    const nextSelections = option.practiceAll
+      ? selectedBranches
+      : normalizeOpeningBookBranchSelections([...selectedBranches, option.branchPath]);
     const basePaths = allPaths.length ? allPaths : option.paths;
     if ((choosing.selectionStage || option.stage) === "player") {
       if (showOpeningBookPracticeSelection(source, basePaths, "opponent", nextSelections)) return;
     }
     const constrainedPaths = Array.isArray(option.constrainedPaths) && option.constrainedPaths.length
       ? option.constrainedPaths
-      : filterOpeningBookPracticePathsByBranches(basePaths, nextSelections);
+      : (Array.isArray(option.paths) && option.paths.length ? option.paths : filterOpeningBookPracticePathsByBranches(basePaths, nextSelections));
     if (!constrainedPaths.length) {
       showToast("Biến này không nằm cùng tuyến với biến bạn đã chọn.");
       renderOpeningBookEditor();
