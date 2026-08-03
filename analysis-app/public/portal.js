@@ -21,7 +21,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-avtchibi-effects-v1";
+  const ASSET_WARMUP_VERSION = "20260803-avtchibi-cutout-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -37,7 +37,7 @@
     boardSkinAsset("bancomoi-pink.png"),
     boardSkinAsset("bancomoi-dark.png")
   ];
-  const MOVE_EFFECT_ASSET_VERSION = "20260803-avtchibi-effects-v1";
+  const MOVE_EFFECT_ASSET_VERSION = "20260803-avtchibi-cutout-v1";
   const BOARD_EFFECT_THEME_KEYS = ["hacdieu", "bachlong", "hoaphuong", "thienvuong"];
   const boardEffectAsset = (file) => `/assets/effects/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
   const avtchibiEffectAsset = (file) => `/assets/avtchibi/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
@@ -144,7 +144,7 @@
     "/assets/avtchibi/saved.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/robo.png?v=20260730-mobile-controls-restore-v1",
     "/assets/avtchibi/setting.png?v=20260730-mobile-controls-restore-v1",
-    "/assets/avtchibi/truybien.png?v=20260803-avtchibi-effects-v1"
+    "/assets/avtchibi/truybien.png?v=20260803-avtchibi-cutout-v1"
   ];
   const OPPONENT_SIM_STRENGTHS = [
     { key: "normal", label: "Bình thường", depth: 1 },
@@ -169,7 +169,7 @@
     avtchibiAsset("play8.png")
   ];
   const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
-  const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-blackdark-v1";
+  const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-blacksharp-v1";
   const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
   const PIECE_IMAGES = {
     R: defaultPieceAsset("red-rook.png"),
@@ -266,8 +266,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260803-avtchibi-effects-v1",
-    "/app.js?v=20260803-avtchibi-effects-v1",
+    "/styles.css?v=20260803-avtchibi-cutout-v1",
+    "/app.js?v=20260803-avtchibi-cutout-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -315,8 +315,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260803-avtchibi-effects-v1",
-    "/portal.js?v=20260803-avtchibi-effects-v1",
+    "/portal.css?v=20260803-avtchibi-cutout-v1",
+    "/portal.js?v=20260803-avtchibi-cutout-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -324,8 +324,8 @@
   ];
   const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260803-avtchibi-effects-v1",
-    "/app.js?v=20260803-avtchibi-effects-v1",
+    "/styles.css?v=20260803-avtchibi-cutout-v1",
+    "/app.js?v=20260803-avtchibi-cutout-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,

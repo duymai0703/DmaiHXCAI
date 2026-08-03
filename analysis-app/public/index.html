@@ -37,9 +37,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260803-avtchibi-effects-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260803-avtchibi-effects-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260803-avtchibi-effects-v1">
+    <link rel="prefetch" href="/styles.css?v=20260803-avtchibi-cutout-v1" as="style">
+    <link rel="prefetch" href="/app.js?v=20260803-avtchibi-cutout-v1" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260803-avtchibi-cutout-v1">
   </head>
   <body>
     <header class="portal-header">
@@ -602,7 +602,7 @@
                     <div id="openingBookMotionLayer" class="motion-layer opening-book-motion-layer" aria-hidden="true">
                       <div id="openingBookMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
-                    <div id="openingBookCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-effects-v1" alt="" draggable="false"></div>
+                    <div id="openingBookCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-cutout-v1" alt="" draggable="false"></div>
                   </div>
                   <div id="openingBookPracticeModal" class="opening-book-practice-modal hidden" aria-live="polite">
                     <div class="opening-book-practice-card">
@@ -651,7 +651,7 @@
                       <span data-action-label>Luyện khai cuộc với máy</span>
                     </button>
                     <button id="openingBookTraceBtn" class="secondary-button opening-book-icon-button opening-book-trace-button" type="button" aria-label="Truy biến" data-tooltip="Truy biến">
-                      <img src="/assets/avtchibi/truybien.png?v=20260803-avtchibi-effects-v1" alt="" draggable="false" onerror="this.hidden=true;this.parentElement.classList.add('missing-icon')">
+                      <img src="/assets/avtchibi/truybien.png?v=20260803-avtchibi-cutout-v1" alt="" draggable="false" onerror="this.hidden=true;this.parentElement.classList.add('missing-icon')">
                       <span data-action-label>Truy biến</span>
                     </button>
                     <button id="openingBookPracticeHintBtn" class="secondary-button hidden" type="button">Gợi ý</button>
@@ -764,7 +764,7 @@
                   <div id="roomCapturePiece" class="motion-piece capture-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                   <div id="roomMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                 </div>
-                <div id="roomCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-effects-v1" alt="" draggable="false"></div>
+                <div id="roomCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-cutout-v1" alt="" draggable="false"></div>
                 <div id="roomBoardOverlay" class="room-board-overlay hidden">
                   <div class="room-overlay-card">
                     <strong id="roomOverlayTitle"></strong>
@@ -918,7 +918,7 @@
                     <div id="reviewMotionLayer" class="motion-layer" aria-hidden="true">
                       <div id="reviewMotionPiece" class="motion-piece moving-piece" aria-hidden="true"><img class="piece-skin" alt="" draggable="false"></div>
                     </div>
-                    <div id="reviewCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-effects-v1" alt="" draggable="false"></div>
+                    <div id="reviewCheckmateBurst" class="checkmate-burst effect-checkmate" aria-hidden="true"><img src="/assets/effects/satpro.png?v=20260803-avtchibi-cutout-v1" alt="" draggable="false"></div>
                   </div>
                 </div>
 
@@ -1019,14 +1019,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260803-avtchibi-effects-v1"></script>
+    <script src="/portal.js?v=20260803-avtchibi-cutout-v1"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v234";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v235";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

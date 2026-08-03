@@ -5,7 +5,7 @@ const PIECE_NAMES = {
   r: "\u8eca", n: "\u99ac", b: "\u8c61", a: "\u58eb", k: "\u5c07", c: "\u7832", p: "\u5352"
 };
 const DEFAULT_PIECE_ASSET_VERSION = "20260726-mobile-pieces-v1";
-const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-blackdark-v1";
+const CUSTOM_PIECE_ASSET_VERSION = "20260803-boquan2-blacksharp-v1";
 const defaultPieceAsset = (file) => `assets/pieces/${file}?v=${DEFAULT_PIECE_ASSET_VERSION}`;
 const PIECE_IMAGES = {
   R: defaultPieceAsset("red-rook.png"),
@@ -87,7 +87,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-avtchibi-effects-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-avtchibi-cutout-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260729-bancomoi-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -104,7 +104,7 @@ const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
-const MOVE_EFFECT_ASSET_VERSION = "20260803-avtchibi-effects-v1";
+const MOVE_EFFECT_ASSET_VERSION = "20260803-avtchibi-cutout-v1";
 const BOARD_EFFECT_THEME_KEYS = ["hacdieu", "bachlong", "hoaphuong", "thienvuong"];
 const boardEffectAsset = (file) => `/assets/effects/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
 const avtchibiEffectAsset = (file) => `/assets/avtchibi/${file}?v=${MOVE_EFFECT_ASSET_VERSION}`;
