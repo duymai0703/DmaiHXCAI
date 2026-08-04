@@ -89,7 +89,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v2";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260804-mobile-smooth-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260803-board-bright-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -265,12 +265,15 @@ const state = {
   assetWarmupText: ANALYSIS_PRELOAD_TEXT.prepare,
   moveAnimation: null,
   moveAnimationTimer: 0,
+  moveAnimationPlayer: null,
   moveAnimationRunning: false,
   lastAnimatedMoveKey: "",
   activeMoveSlotEl: null,
   manualMoveFrame: 0,
   lastCheckmateEffectKey: "",
   checkmateEffectTimer: 0,
+  checkmateEffectPlayer: null,
+  checkmateEffectImagePlayer: null,
   analysisClockStartedAt: 0,
   analysisClockTimer: 0,
   analysisClockRequest: 0,
@@ -1870,6 +1873,33 @@ function clearManualMoveFrame() {
   state.manualMoveFrame = 0;
 }
 
+function supportsCompositorAnimation() {
+  return typeof Element !== "undefined" && typeof Element.prototype.animate === "function";
+}
+
+function shouldUseMobileCompositorAnimation() {
+  return isCompactMobile() && supportsCompositorAnimation();
+}
+
+function cancelAnimationPlayer(key) {
+  const player = state[key];
+  if (!player) return;
+  try {
+    player.onfinish = null;
+    player.cancel();
+  } catch {}
+  state[key] = null;
+}
+
+function cancelMoveAnimationPlayer() {
+  cancelAnimationPlayer("moveAnimationPlayer");
+}
+
+function cancelBoardEffectPlayers() {
+  cancelAnimationPlayer("checkmateEffectPlayer");
+  cancelAnimationPlayer("checkmateEffectImagePlayer");
+}
+
 function toggleAuto() {
   cancelScheduledAnalysisRefresh();
   stopScoreAnimation();
@@ -2329,7 +2359,9 @@ function hideMoveAnimationElements({
   resetMovingPiece = true,
   resetCapturePiece = true
 } = {}) {
+  cancelMoveAnimationPlayer();
   if (resetActiveSlot && state.activeMoveSlotEl) {
+    state.activeMoveSlotEl.classList.remove("analysis-moving-piece");
     state.activeMoveSlotEl.style.transition = "none";
     state.activeMoveSlotEl.style.transform = pieceRestTransform();
   }
@@ -2358,12 +2390,16 @@ function normalizeBoardEffectKind(kind) {
 function hideCheckmateEffect({ onlyCheckmate = false } = {}) {
   if (!checkmateBurstEl) return;
   if (onlyCheckmate && checkmateBurstEl.dataset.effectKind && checkmateBurstEl.dataset.effectKind !== "checkmate") return;
+  cancelBoardEffectPlayers();
   if (state.checkmateEffectTimer) {
     clearTimeout(state.checkmateEffectTimer);
     state.checkmateEffectTimer = 0;
   }
   checkmateBurstEl.classList.remove("show", ...BOARD_EFFECT_CLASSES);
   checkmateBurstEl.style.removeProperty("--burst-duration");
+  checkmateBurstEl.style.removeProperty("opacity");
+  checkmateBurstEl.style.removeProperty("visibility");
+  checkmateBurstEl.style.removeProperty("transform");
   checkmateBurstEl.setAttribute("aria-hidden", "true");
   delete checkmateBurstEl.dataset.effectKind;
 }
@@ -2391,13 +2427,47 @@ function showBoardEffect(kind = "checkmate", { durationMs = 0, playSound = true 
   checkmateBurstEl.classList.remove("show", ...BOARD_EFFECT_CLASSES);
   checkmateBurstEl.style.setProperty("--burst-duration", `${Math.round(effectMs)}ms`);
   checkmateBurstEl.dataset.effectKind = effectKind;
-  void checkmateBurstEl.offsetWidth;
-  checkmateBurstEl.setAttribute("aria-hidden", "false");
-  checkmateBurstEl.classList.add(`effect-${effectKind}`, "show");
+  if (shouldUseMobileCompositorAnimation()) {
+    runMobileBoardEffectAnimation(effectKind, effectMs, img);
+  } else {
+    void checkmateBurstEl.offsetWidth;
+    checkmateBurstEl.setAttribute("aria-hidden", "false");
+    checkmateBurstEl.classList.add(`effect-${effectKind}`, "show");
+  }
   state.checkmateEffectTimer = window.setTimeout(() => {
     hideCheckmateEffect();
   }, effectMs + 50);
   return effectMs;
+}
+
+function runMobileBoardEffectAnimation(effectKind, effectMs, img) {
+  cancelBoardEffectPlayers();
+  checkmateBurstEl.classList.add(`effect-${effectKind}`);
+  checkmateBurstEl.style.visibility = "visible";
+  checkmateBurstEl.style.opacity = "0";
+  checkmateBurstEl.setAttribute("aria-hidden", "false");
+  const duration = Math.max(120, Math.round(effectMs));
+  state.checkmateEffectPlayer = checkmateBurstEl.animate([
+    { opacity: 0, transform: "translate(-50%, -50%) scale(0.72) rotate(-3deg)", offset: 0 },
+    { opacity: 1, transform: "translate(-50%, -50%) scale(1.03) rotate(0deg)", offset: 0.1 },
+    { opacity: 0.95, transform: "translate(-50%, -50%) scale(1)", offset: 0.28 },
+    { opacity: 0, transform: "translate(-50%, -50%) scale(1.06)", offset: 1 }
+  ], {
+    duration,
+    easing: "cubic-bezier(0.18, 0.84, 0.22, 1)",
+    fill: "forwards"
+  });
+  if (img) {
+    state.checkmateEffectImagePlayer = img.animate([
+      { transform: "translateY(8px) scale(0.97)", offset: 0 },
+      { transform: "translateY(0) scale(1)", offset: 0.16 },
+      { transform: "translateY(-8px) scale(1.02)", offset: 1 }
+    ], {
+      duration,
+      easing: "cubic-bezier(0.16, 0.86, 0.18, 1)",
+      fill: "forwards"
+    });
+  }
 }
 
 function playOrShowMoveSoundWithEffect(kind, durationMs) {
@@ -2513,6 +2583,7 @@ function finalizeMoveAnimation(animation) {
     renderHistory();
     drawArrowLayer();
     if (activeSlotEl) {
+      activeSlotEl.classList.remove("analysis-moving-piece");
       activeSlotEl.style.transition = "none";
       activeSlotEl.style.transform = pieceRestTransform();
     }
@@ -2556,8 +2627,47 @@ function startMoveAnimation(animation, { prepared = false } = {}) {
   if (isCompactMobile()) {
     paintMotionPiece(movingPieceEl, animation.piece);
   }
+  movingSlotEl.classList.add("analysis-moving-piece");
   movingSlotEl.style.transition = "none";
   movingSlotEl.style.transform = pieceRestTransform();
+
+  if (shouldUseMobileCompositorAnimation()) {
+    if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) {
+      clearMoveAnimation({ preserveKey: true });
+      return false;
+    }
+    const duration = analysisMoveDurationMs();
+    if (!animation.suppressMoveSound) {
+      playOrShowMoveSoundWithEffect(animation.soundKind || (animation.capturedPiece ? "capture" : "move"), duration);
+    }
+    cancelMoveAnimationPlayer();
+    state.moveAnimationPlayer = movingSlotEl.animate([
+      { transform: pieceRestTransform() },
+      { transform: moveAnimationTravelTransform(animation) }
+    ], {
+      duration,
+      easing: ANALYSIS_MOVE_EASING,
+      fill: "forwards"
+    });
+    state.moveAnimationRunning = true;
+    let completed = false;
+    const finishAnimation = () => {
+      if (completed) return;
+      completed = true;
+      if (state.moveAnimationPlayer) {
+        const player = state.moveAnimationPlayer;
+        state.moveAnimationPlayer = null;
+        try {
+          player.onfinish = null;
+          player.cancel();
+        } catch {}
+      }
+      finalizeMoveAnimation(animation);
+    };
+    state.moveAnimationPlayer.onfinish = finishAnimation;
+    state.moveAnimationTimer = window.setTimeout(finishAnimation, duration + 64);
+    return true;
+  }
 
   void movingSlotEl.offsetWidth;
   if (!state.moveAnimation || state.moveAnimation.moveKey !== animation.moveKey) {
@@ -3678,7 +3788,7 @@ function ensureBoardSlots() {
       const image = document.createElement("img");
       image.className = "piece-skin";
       image.alt = "";
-      image.decoding = "sync";
+      image.decoding = "async";
       image.loading = "eager";
       image.fetchPriority = "high";
       image.draggable = false;
@@ -4486,6 +4596,8 @@ function geometry() {
     rect: metrics.rect,
     offsetX: metrics.offsetX,
     offsetY: metrics.offsetY,
+    width: metrics.width,
+    height: metrics.height,
     x: (file) => padX + (state.flipped ? 8 - file : file) * stepX,
     y: (rank) => padY + (state.flipped ? rank : 9 - rank) * stepY
   };
@@ -4530,7 +4642,7 @@ function eventToSquare(event) {
       }
     }
   }
-  return bestDistance < boardMetrics(boardEl).width / 9.4 ? best : null;
+  return bestDistance < g.width / 9.4 ? best : null;
 }
 
 function squareToUci(square) {

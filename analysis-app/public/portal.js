@@ -23,7 +23,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260804-book-mobile-layout-v1";
+  const ASSET_WARMUP_VERSION = "20260804-mobile-smooth-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -268,8 +268,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260804-mobile-khu2-v2",
-    "/app.js?v=20260804-mobile-khu2-v2",
+    "/styles.css?v=20260804-mobile-smooth-v1",
+    "/app.js?v=20260804-mobile-smooth-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -318,8 +318,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260804-book-mobile-layout-v1",
-    "/portal.js?v=20260804-book-mobile-layout-v1",
+    "/portal.css?v=20260804-mobile-smooth-v1",
+    "/portal.js?v=20260804-mobile-smooth-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -327,8 +327,8 @@
   ];
   const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260804-mobile-khu2-v2",
-    "/app.js?v=20260804-mobile-khu2-v2",
+    "/styles.css?v=20260804-mobile-smooth-v1",
+    "/app.js?v=20260804-mobile-smooth-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -422,6 +422,7 @@
     openingBookSlotLayoutKey: "",
     openingBookAnimation: null,
     openingBookAnimationTimer: 0,
+    openingBookAnimationPlayer: null,
     openingBookAnimationEndCleanup: null,
     openingBookAnimationRunning: false,
     activeOpeningBookMoveSlotEl: null,
@@ -491,6 +492,7 @@
     reviewDrawForce: false,
     reviewAnimation: null,
     reviewAnimationTimer: 0,
+    reviewAnimationPlayer: null,
     lastAnimatedReviewMoveKey: "",
     lastChatSignature: "",
     resizeTimer: null,
@@ -509,6 +511,7 @@
     mobileAnalysisRedirectQueued: false,
     roomAnimation: null,
     roomAnimationTimer: 0,
+    roomAnimationPlayer: null,
     roomAnimationRunning: false,
     lastAnimatedRoomMoveKey: "",
     activeRoomMoveSlotEl: null,
@@ -516,9 +519,15 @@
     roomCheckmateEffectKey: "",
     roomCheckSoundKey: "",
     roomCheckmateEffectTimer: 0,
+    roomCheckmateEffectTimerPlayer: null,
+    roomCheckmateEffectTimerImagePlayer: null,
     reviewCheckmateEffectKey: "",
     reviewCheckSoundKey: "",
     reviewCheckmateEffectTimer: 0,
+    reviewCheckmateEffectTimerPlayer: null,
+    reviewCheckmateEffectTimerImagePlayer: null,
+    openingBookCheckmateEffectTimerPlayer: null,
+    openingBookCheckmateEffectTimerImagePlayer: null,
     selectedAvatarUrl: "",
     audioContext: null,
     moveSoundElements: null,
@@ -2283,6 +2292,62 @@
 
   function isCompactMobile() {
     return window.matchMedia("(max-width: 760px)").matches;
+  }
+
+  function supportsCompositorAnimation() {
+    return typeof Element !== "undefined" && typeof Element.prototype.animate === "function";
+  }
+
+  function shouldUseMobileCompositorAnimation() {
+    return isCompactMobile() && supportsCompositorAnimation();
+  }
+
+  function cancelAnimationPlayer(key) {
+    const player = state[key];
+    if (!player) return;
+    try {
+      player.onfinish = null;
+      player.cancel();
+    } catch {}
+    state[key] = null;
+  }
+
+  function cancelBoardBurstPlayers(timerKey) {
+    cancelAnimationPlayer(`${timerKey}Player`);
+    cancelAnimationPlayer(`${timerKey}ImagePlayer`);
+  }
+
+  function startCompositorSlotAnimation(playerKey, timerKey, element, fromTransform, toTransform, duration, finish) {
+    cancelAnimationPlayer(playerKey);
+    const player = element.animate([
+      { transform: fromTransform },
+      { transform: toTransform }
+    ], {
+      duration,
+      easing: ROOM_MOVE_EASING,
+      fill: "forwards"
+    });
+    state[playerKey] = player;
+    let completed = false;
+    const finishAnimation = () => {
+      if (completed) return;
+      completed = true;
+      if (state[timerKey]) {
+        clearTimeout(state[timerKey]);
+        state[timerKey] = 0;
+      }
+      if (state[playerKey]) {
+        const activePlayer = state[playerKey];
+        state[playerKey] = null;
+        try {
+          activePlayer.onfinish = null;
+          activePlayer.cancel();
+        } catch {}
+      }
+      finish();
+    };
+    player.onfinish = finishAnimation;
+    state[timerKey] = window.setTimeout(finishAnimation, duration + 64);
   }
 
   function lockRoomViewportHeight({ force = false } = {}) {
@@ -6078,6 +6143,7 @@
     resetActiveSlot = true,
     resetMovingPiece = true
   } = {}) {
+    cancelAnimationPlayer("openingBookAnimationPlayer");
     if (state.activeOpeningBookMoveSlotEl) {
       if (resetActiveSlot) {
         state.activeOpeningBookMoveSlotEl.classList.remove("opening-book-moving-piece");
@@ -6228,6 +6294,26 @@
     movingSlotEl.setAttribute("aria-hidden", "false");
     if (useOpeningBookMobileHandoff() && dom.openingBookMotionPiece) {
       paintRoomMotionPiece(dom.openingBookMotionPiece, animation.piece);
+    }
+
+    if (shouldUseMobileCompositorAnimation()) {
+      if (!state.openingBookAnimation || state.openingBookAnimation.moveKey !== animation.moveKey) {
+        movingSlotEl.classList.remove("opening-book-moving-piece");
+        movingSlotEl.style.opacity = "";
+        hideOpeningBookAnimationElements({ resetActiveSlot: false });
+        return;
+      }
+      state.openingBookAnimationRunning = true;
+      startCompositorSlotAnimation(
+        "openingBookAnimationPlayer",
+        "openingBookAnimationTimer",
+        movingSlotEl,
+        roomPieceRestTransform(),
+        directionalAnimationTravelTransform(animation, openingBookSquareToPixel, roomPieceRestTransform()),
+        OPENING_BOOK_MOVE_ANIMATION_MS,
+        () => finalizeOpeningBookMoveAnimation(animation)
+      );
+      return;
     }
 
     void movingSlotEl.offsetWidth;
@@ -6963,7 +7049,9 @@
   }
 
   function hideReviewMoveAnimationElements() {
+    cancelAnimationPlayer("reviewAnimationPlayer");
     if (state.activeReviewMoveSlotEl) {
+      state.activeReviewMoveSlotEl.classList.remove("review-moving-piece");
       state.activeReviewMoveSlotEl.style.transition = "none";
       state.activeReviewMoveSlotEl.style.transform = "translate(-50%, -50%)";
     }
@@ -7031,8 +7119,26 @@
     const movingSlotEl = slots[animation.fromIndex];
     if (!movingSlotEl) return;
     state.activeReviewMoveSlotEl = movingSlotEl;
+    movingSlotEl.classList.add("review-moving-piece");
     movingSlotEl.style.transition = "none";
     movingSlotEl.style.transform = "translate(-50%, -50%)";
+
+    if (shouldUseMobileCompositorAnimation()) {
+      if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
+      if (!animation.suppressMoveSound) {
+        playOrShowMoveSoundWithEffect(dom.reviewCheckmateBurst, "reviewCheckmateEffectTimer", animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+      }
+      startCompositorSlotAnimation(
+        "reviewAnimationPlayer",
+        "reviewAnimationTimer",
+        movingSlotEl,
+        "translate(-50%, -50%)",
+        directionalAnimationTravelTransform(animation, reviewSquareToPixel),
+        ROOM_MOVE_ANIMATION_MS,
+        () => finalizeReviewMoveAnimation(animation)
+      );
+      return;
+    }
 
     void movingSlotEl.offsetWidth;
     if (!state.reviewAnimation || state.reviewAnimation.moveKey !== animation.moveKey) return;
@@ -7577,6 +7683,7 @@
     resetMovingPiece = true,
     resetCapturePiece = true
   } = {}) {
+    cancelAnimationPlayer("roomAnimationPlayer");
     if (resetActiveSlot && state.activeRoomMoveSlotEl) {
       state.activeRoomMoveSlotEl.classList.remove("room-moving-piece");
       state.activeRoomMoveSlotEl.style.transition = "none";
@@ -7793,6 +7900,29 @@
       paintRoomMotionPiece(dom.roomMotionPiece, animation.piece);
     }
 
+    if (shouldUseMobileCompositorAnimation()) {
+      if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) {
+        movingSlotEl.classList.remove("room-moving-piece");
+        movingSlotEl.style.opacity = "";
+        hideRoomAnimationElements({ resetActiveSlot: false });
+        return;
+      }
+      if (!animation.suppressMoveSound) {
+        playOrShowMoveSoundWithEffect(dom.roomCheckmateBurst, "roomCheckmateEffectTimer", animation.soundKind || (animation.capturedPiece ? "capture" : "move"), ROOM_MOVE_ANIMATION_MS);
+      }
+      state.roomAnimationRunning = true;
+      startCompositorSlotAnimation(
+        "roomAnimationPlayer",
+        "roomAnimationTimer",
+        movingSlotEl,
+        roomPieceRestTransform(),
+        directionalAnimationTravelTransform(animation, squareToPixel, roomPieceRestTransform()),
+        ROOM_MOVE_ANIMATION_MS,
+        () => finalizeRoomMoveAnimation(animation)
+      );
+      return;
+    }
+
     void movingSlotEl.offsetWidth;
     if (!state.roomAnimation || state.roomAnimation.moveKey !== animation.moveKey) {
       movingSlotEl.classList.remove("room-moving-piece");
@@ -7819,12 +7949,16 @@
   function hideBoardBurst(el, timerKey, { onlyCheckmate = false } = {}) {
     if (!el) return;
     if (onlyCheckmate && el.dataset.effectKind && el.dataset.effectKind !== "checkmate") return;
+    cancelBoardBurstPlayers(timerKey);
     if (state[timerKey]) {
       clearTimeout(state[timerKey]);
       state[timerKey] = 0;
     }
     el.classList.remove("show", ...BOARD_EFFECT_CLASSES);
     el.style.removeProperty("--burst-duration");
+    el.style.removeProperty("opacity");
+    el.style.removeProperty("visibility");
+    el.style.removeProperty("transform");
     el.setAttribute("aria-hidden", "true");
     delete el.dataset.effectKind;
   }
@@ -7847,13 +7981,47 @@
     el.classList.remove("show", ...BOARD_EFFECT_CLASSES);
     el.style.setProperty("--burst-duration", `${Math.round(effectMs)}ms`);
     el.dataset.effectKind = effectKind;
-    void el.offsetWidth;
-    el.setAttribute("aria-hidden", "false");
-    el.classList.add(`effect-${effectKind}`, "show");
+    if (shouldUseMobileCompositorAnimation()) {
+      runMobileBoardBurstAnimation(el, img, timerKey, effectKind, effectMs);
+    } else {
+      void el.offsetWidth;
+      el.setAttribute("aria-hidden", "false");
+      el.classList.add(`effect-${effectKind}`, "show");
+    }
     state[timerKey] = window.setTimeout(() => {
       hideBoardBurst(el, timerKey);
     }, effectMs + 50);
     return effectMs;
+  }
+
+  function runMobileBoardBurstAnimation(el, img, timerKey, effectKind, effectMs) {
+    cancelBoardBurstPlayers(timerKey);
+    el.classList.add(`effect-${effectKind}`);
+    el.style.visibility = "visible";
+    el.style.opacity = "0";
+    el.setAttribute("aria-hidden", "false");
+    const duration = Math.max(120, Math.round(effectMs));
+    state[`${timerKey}Player`] = el.animate([
+      { opacity: 0, transform: "translate(-50%, -50%) scale(0.72) rotate(-3deg)", offset: 0 },
+      { opacity: 1, transform: "translate(-50%, -50%) scale(1.03) rotate(0deg)", offset: 0.1 },
+      { opacity: 0.95, transform: "translate(-50%, -50%) scale(1)", offset: 0.28 },
+      { opacity: 0, transform: "translate(-50%, -50%) scale(1.06)", offset: 1 }
+    ], {
+      duration,
+      easing: "cubic-bezier(0.18, 0.84, 0.22, 1)",
+      fill: "forwards"
+    });
+    if (img) {
+      state[`${timerKey}ImagePlayer`] = img.animate([
+        { transform: "translateY(8px) scale(0.97)", offset: 0 },
+        { transform: "translateY(0) scale(1)", offset: 0.16 },
+        { transform: "translateY(-8px) scale(1.02)", offset: 1 }
+      ], {
+        duration,
+        easing: "cubic-bezier(0.16, 0.86, 0.18, 1)",
+        fill: "forwards"
+      });
+    }
   }
 
   function playOrShowMoveSoundWithEffect(el, timerKey, kind, durationMs) {
@@ -8502,7 +8670,7 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "sync";
+        image.decoding = "async";
         image.loading = "eager";
         image.fetchPriority = "high";
         image.draggable = false;
@@ -8575,7 +8743,7 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "sync";
+        image.decoding = "async";
         image.loading = "eager";
         image.fetchPriority = "high";
         image.draggable = false;
@@ -8989,7 +9157,7 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "sync";
+        image.decoding = "async";
         image.loading = "eager";
         image.fetchPriority = "high";
         image.draggable = false;
@@ -9145,7 +9313,7 @@
         const image = document.createElement("img");
         image.className = "piece-skin";
         image.alt = "";
-        image.decoding = "sync";
+        image.decoding = "async";
         image.loading = "eager";
         image.draggable = false;
         piece.appendChild(image);
@@ -10364,6 +10532,8 @@
       rect: metrics.rect,
       offsetX: metrics.offsetX,
       offsetY: metrics.offsetY,
+      width: metrics.width,
+      height: metrics.height,
       x: (file) => padX + (flipped ? 8 - file : file) * stepX,
       y: (rank) => padY + (flipped ? rank : 9 - rank) * stepY
     };
@@ -10442,7 +10612,7 @@
         }
       }
     }
-    return bestDistance < boardMetrics(dom.roomBoard).width / 9.4 ? best : null;
+    return bestDistance < g.width / 9.4 ? best : null;
   }
 
   function eventToOpeningBookSquare(event) {
@@ -10460,7 +10630,7 @@
         }
       }
     }
-    return bestDistance < boardMetrics(dom.openingBookBoard).width / 9.4 ? best : null;
+    return bestDistance < g.width / 9.4 ? best : null;
   }
 
   function eventToOpponentBookSquare(event) {
@@ -10478,7 +10648,7 @@
         }
       }
     }
-    return bestDistance < boardMetrics(dom.opponentBookBoard).width / 9.4 ? best : null;
+    return bestDistance < g.width / 9.4 ? best : null;
   }
 
   function line(ctx, x1, y1, x2, y2) {

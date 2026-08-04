@@ -9361,3 +9361,80 @@ body[data-route="auth"] .portal-main {
     grid-row: 8 !important;
   }
 }
+
+/* Mobile board performance: piece motion and burst logos stay on the compositor. */
+@media (max-width: 760px) {
+  body.portal-mobile-mode .room-board,
+  body.portal-mobile-mode .review-board,
+  body.portal-mobile-mode .opening-book-board,
+  body.portal-mobile-mode #roomPieces,
+  body.portal-mobile-mode #reviewPieces,
+  body.portal-mobile-mode #openingBookPieces,
+  body.portal-mobile-mode #roomMotionLayer,
+  body.portal-mobile-mode #reviewMotionLayer,
+  body.portal-mobile-mode #openingBookMotionLayer {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+
+  body.portal-mobile-mode #roomPieces,
+  body.portal-mobile-mode #reviewPieces,
+  body.portal-mobile-mode #openingBookPieces,
+  body.portal-mobile-mode #roomMotionLayer,
+  body.portal-mobile-mode #reviewMotionLayer,
+  body.portal-mobile-mode #openingBookMotionLayer,
+  body.portal-mobile-mode .checkmate-burst {
+    contain: layout paint style !important;
+  }
+
+  body.portal-mobile-mode .room-board .piece,
+  body.portal-mobile-mode .review-board .piece,
+  body.portal-mobile-mode .opening-book-board .piece,
+  body.portal-mobile-mode .room-board .motion-piece,
+  body.portal-mobile-mode .review-board .motion-piece,
+  body.portal-mobile-mode .opening-book-board .motion-piece {
+    transform-style: flat !important;
+    -webkit-transform-style: flat !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: auto !important;
+  }
+
+  body.portal-mobile-mode .room-board .piece.room-moving-piece,
+  body.portal-mobile-mode .opening-book-board .piece.opening-book-moving-piece,
+  body.portal-mobile-mode .review-board .piece.review-moving-piece,
+  body.portal-mobile-mode .motion-piece.is-visible {
+    z-index: 6 !important;
+    will-change: transform !important;
+  }
+
+  body.portal-mobile-mode .room-board .piece.room-moving-piece .piece-skin,
+  body.portal-mobile-mode .opening-book-board .piece.opening-book-moving-piece .piece-skin,
+  body.portal-mobile-mode .review-board .piece.review-moving-piece .piece-skin,
+  body.portal-mobile-mode .motion-piece.is-visible .piece-skin {
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.24)) !important;
+  }
+
+  body.portal-mobile-mode .checkmate-burst {
+    will-change: transform, opacity !important;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.36)) !important;
+  }
+
+  body.portal-mobile-mode .checkmate-burst.show img {
+    animation-name: satBurstFloatMobileLite !important;
+  }
+}
+
+@keyframes satBurstFloatMobileLite {
+  0% {
+    transform: translateY(8px) scale(0.97);
+  }
+  16% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}

@@ -5491,3 +5491,62 @@ button.action-logo-button {
     pointer-events: none !important;
   }
 }
+
+/* Mobile board performance: keep piece moves and burst effects on the compositor. */
+@media (max-width: 760px) {
+  .board,
+  #pieces,
+  #motionLayer {
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+  }
+
+  #pieces,
+  #motionLayer,
+  #checkmateBurst {
+    contain: layout paint style !important;
+  }
+
+  .piece,
+  .motion-piece {
+    transform-style: flat !important;
+    -webkit-transform-style: flat !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    will-change: auto !important;
+  }
+
+  .piece.analysis-moving-piece,
+  .motion-piece.is-visible {
+    z-index: 6 !important;
+    will-change: transform !important;
+  }
+
+  .piece.analysis-moving-piece .piece-skin,
+  .motion-piece.is-visible .piece-skin {
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.24)) !important;
+  }
+
+  .checkmate-burst {
+    will-change: transform, opacity !important;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.36)) !important;
+  }
+
+  .checkmate-burst.show img {
+    animation-name: satBurstFloatMobileLite !important;
+  }
+}
+
+@keyframes satBurstFloatMobileLite {
+  0% {
+    transform: translateY(8px) scale(0.97);
+  }
+  16% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
