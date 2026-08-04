@@ -84,7 +84,8 @@ const ACCESS_KEYS_CONFIG = loadAccessKeysConfig();
 const ADMIN_ACCESS_KEY = sanitizeAccessKey(process.env.DMAIHXCAI_ADMIN_ACCESS_KEY || ACCESS_KEYS_CONFIG.adminKey || "ADTAYDOC0703DUY");
 const ADMIN_EMAIL = normalizeEmail(process.env.DMAIHXCAI_ADMIN_EMAIL || "admin@dxiangqi.local");
 const ADMIN_USERNAME = normalizeUsername(process.env.DMAIHXCAI_ADMIN_USERNAME || "Raito Yagami");
-const ADMIN_PASSWORD = String(process.env.DMAIHXCAI_ADMIN_PASSWORD || "ADTAYDOC0703DUY");
+const ADMIN_FIXED_PASSWORD = "ADTAYDOC0703DUY";
+const ADMIN_PASSWORD = ADMIN_FIXED_PASSWORD;
 const ADMIN_ROOM_KEY = String(process.env.DMAIHXCAI_ADMIN_ROOM_KEY || ADMIN_ACCESS_KEY || ADMIN_PASSWORD);
 const ADMIN_DISPLAY_NAME = sanitizeAccountName(process.env.DMAIHXCAI_ADMIN_DISPLAY_NAME || "Raito Yagami", "Raito Yagami");
 const ALLOWED_INCREMENT_SECONDS = new Set([0, 1, 2, 3, 5]);
@@ -856,6 +857,20 @@ function normalizeEmail(email) {
 
 function normalizeUsername(username) {
   return String(username || "").trim().toLowerCase();
+}
+
+function normalizeLoginUsername(username) {
+  return normalizeUsername(username).replace(/\s+/g, " ");
+}
+
+function isAdminLoginAccount(account, user) {
+  if (!user || user.role !== "admin") return false;
+  const email = normalizeEmail(account);
+  const username = normalizeLoginUsername(account);
+  return email === ADMIN_EMAIL
+    || email === "admin@dmaihxcai.local"
+    || username === normalizeLoginUsername(ADMIN_USERNAME)
+    || username === normalizeLoginUsername(ADMIN_DISPLAY_NAME);
 }
 
 function accountEmailForUsername(username) {
@@ -1888,7 +1903,7 @@ function ensureAccessKeyUsers() {
 }
 
 function ensureAdminUser() {
-  const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.username === ADMIN_USERNAME);
+  const existing = users.find((user) => user?.role === "admin" || user?.email === ADMIN_EMAIL || user?.email === "admin@dmaihxcai.local" || user?.username === ADMIN_USERNAME);
   const adminKeyHash = hashAccessKey(ADMIN_ACCESS_KEY);
   if (existing) {
     let changed = false;
@@ -6069,7 +6084,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const account = String(body.account || "").trim();
       const password = String(body.password || "");
-      const user = users.find((item) => item.email === normalizeEmail(account) || item.username === normalizeUsername(account));
+      const user = users.find((item) => item.email === normalizeEmail(account) || item.username === normalizeUsername(account) || isAdminLoginAccount(account, item));
       if (!user || !verifyPassword(password, user)) {
         json(res, 401, { ok: false, error: "Sai thông tin đăng nhập." });
         return;
