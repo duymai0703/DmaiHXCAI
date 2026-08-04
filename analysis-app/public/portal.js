@@ -23,7 +23,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v2";
+  const ASSET_WARMUP_VERSION = "20260804-book-mobile-layout-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -318,8 +318,8 @@
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260804-mobile-khu2-v2",
-    "/portal.js?v=20260804-mobile-khu2-v2",
+    "/portal.css?v=20260804-book-mobile-layout-v1",
+    "/portal.js?v=20260804-book-mobile-layout-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
