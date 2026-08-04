@@ -5250,7 +5250,7 @@ button.action-logo-button {
   }
 
   .mobile-top-toolbar {
-    grid-template-columns: 38px 34px repeat(7, minmax(0, 1fr)) !important;
+    grid-template-columns: 38px repeat(8, minmax(0, 1fr)) !important;
     gap: 2px !important;
     padding: calc(4px + var(--mobile-safe-top)) 3px 4px !important;
     min-height: calc(52px + var(--mobile-safe-top)) !important;
@@ -5358,6 +5358,7 @@ button.action-logo-button {
 
   .mobile-top-toolbar [data-mobile-icon="mb1"] img,
   .mobile-top-toolbar [data-mobile-icon="sosach"] img,
+  .mobile-top-toolbar [data-mobile-icon="guom"] img,
   .mobile-top-toolbar [data-mobile-icon="cole"] img {
     width: 84% !important;
     height: 84% !important;
@@ -5458,7 +5459,7 @@ button.action-logo-button {
 
 @media (max-width: 760px) {
   .mobile-top-toolbar {
-    grid-template-columns: 44px repeat(7, minmax(0, 1fr)) !important;
+    grid-template-columns: 44px repeat(8, minmax(0, 1fr)) !important;
   }
 
   .mobile-toolbar-brand {

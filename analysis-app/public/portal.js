@@ -23,7 +23,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260803-zone-posters-v1";
+  const ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v1";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -268,8 +268,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260803-board-bright-v1",
-    "/app.js?v=20260803-board-bright-v1",
+    "/styles.css?v=20260804-mobile-khu2-v1",
+    "/app.js?v=20260804-mobile-khu2-v1",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -283,6 +283,7 @@
     "/assets/icons/mb5-dark.png",
     "/assets/icons/cole-dark.png",
     "/assets/icons/sosach-dark.png",
+    "/assets/icons/guom-dark.png",
     BRAND_LOGO,
     "/assets/avtchibi/lgnew.png?v=20260730-brand-wordmark-v2",
     ...BOARD_EFFECT_ASSET_LIST,
@@ -310,15 +311,15 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/khu1.png?v=20260803-zone-posters-v1",
-    "/assets/posters/khu2.png?v=20260803-zone-posters-v1",
-    "/assets/posters/khu3.png?v=20260803-zone-posters-v1"
+    "/assets/posters/khu1.png?v=20260804-mobile-khu2-v1",
+    "/assets/posters/khu2.png?v=20260804-mobile-khu2-v1",
+    "/assets/posters/khu3.png?v=20260804-mobile-khu2-v1"
   ];
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260803-zone-posters-v1",
-    "/portal.js?v=20260803-zone-posters-v1",
+    "/portal.css?v=20260804-mobile-khu2-v1",
+    "/portal.js?v=20260804-mobile-khu2-v1",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -326,8 +327,8 @@
   ];
   const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260803-board-bright-v1",
-    "/app.js?v=20260803-board-bright-v1",
+    "/styles.css?v=20260804-mobile-khu2-v1",
+    "/app.js?v=20260804-mobile-khu2-v1",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,
@@ -346,6 +347,7 @@
     "/assets/avtchibi/nhandienanh.png?v=20260729-dxiangqi-brand-v1",
     "/assets/avtchibi/databook.png?v=20260729-dxiangqi-brand-v1",
     "/assets/avtchibi/lsu.png?v=20260729-dxiangqi-brand-v1",
+    "/assets/icons/guom-dark.png",
     ...OPENING_BOOK_CONTROL_ASSETS,
     ...Object.values(PIECE_IMAGES),
     ...Object.values(MOBILE_RED_PIECE_IMAGES),
@@ -504,6 +506,7 @@
     assetWarmupPending: false,
     assetWarmupProgress: 0,
     assetWarmupText: PORTAL_PRELOAD_TEXT.prepare,
+    mobileAnalysisRedirectQueued: false,
     roomAnimation: null,
     roomAnimationTimer: 0,
     roomAnimationRunning: false,
@@ -845,8 +848,9 @@
     .finally(() => {
       state.booting = false;
       syncRoute(true);
+      queueMobileAnalysisEntry();
     });
-  assetWarmupPromise.catch(() => {});
+  assetWarmupPromise.then(queueMobileAnalysisEntry).catch(() => {});
 
   function byId(id) {
     return document.getElementById(id);
@@ -1695,14 +1699,36 @@
     });
   }
 
-  function openAnalysisPage() {
+  function openAnalysisPage(options = {}) {
     const mobile = isCompactMobile();
     if (mobile) {
       try {
         sessionStorage.setItem("dxiangqi-mobile-analysis-entry", "1");
       } catch {}
     }
-    window.location.assign(mobile ? "/analysis.html?mobile=1" : "/analysis.html");
+    const target = mobile ? "/analysis.html?mobile=1" : "/analysis.html";
+    if (options?.replace) window.location.replace(target);
+    else window.location.assign(target);
+  }
+
+  function shouldRouteMobileHomeToAnalysis() {
+    return isCompactMobile()
+      && Boolean(state.token && state.user)
+      && state.route === "home"
+      && !state.assetWarmupPending;
+  }
+
+  function queueMobileAnalysisEntry() {
+    if (!shouldRouteMobileHomeToAnalysis()) return;
+    if (state.mobileAnalysisRedirectQueued) return;
+    state.mobileAnalysisRedirectQueued = true;
+    window.setTimeout(() => {
+      if (shouldRouteMobileHomeToAnalysis()) {
+        openAnalysisPage({ replace: true });
+        return;
+      }
+      state.mobileAnalysisRedirectQueued = false;
+    }, 20);
   }
 
   async function warmPortalAssets() {
@@ -4317,6 +4343,11 @@
     else if (route === "room" && !state.room) route = "match";
     else if (route === "admin" && !isAdmin()) route = "home";
     else if (route === "review" && !state.reviewGame) route = "library";
+    if (route === "home" && isCompactMobile() && state.token && state.user && !state.booting && !state.assetWarmupPending) {
+      state.route = "home";
+      queueMobileAnalysisEntry();
+      return;
+    }
 
     state.route = route;
     document.body.dataset.route = route;
@@ -4376,6 +4407,7 @@
     renderProfile();
     renderRoomMobilePanels();
     reportActivity();
+    queueMobileAnalysisEntry();
   }
 
   function returnToMatchMenu() {
@@ -4392,9 +4424,14 @@
   }
 
   function handleBack() {
+    const mobile = isCompactMobile();
     if (state.route === "match") {
       if (state.lobbyMode !== LOBBY_MENU_MODE) {
         returnToMatchMenu();
+        return;
+      }
+      if (mobile) {
+        openAnalysisPage({ replace: true });
         return;
       }
       goRoute("home", true);
@@ -4403,6 +4440,10 @@
     if (state.route === "library") {
       if (state.libraryTab !== "menu") {
         setLibraryTab("menu");
+        return;
+      }
+      if (mobile) {
+        openAnalysisPage({ replace: true });
         return;
       }
       goRoute("home", true);
@@ -5640,8 +5681,9 @@
 
   function buildOpeningBookPracticeAllOption(paths, selectedBranchPaths, stage) {
     const basePaths = Array.isArray(paths) ? paths : [];
-    const selectedPaths = filterOpeningBookPracticePathsByBranches(basePaths, selectedBranchPaths);
-    const practicePaths = selectedPaths.length ? selectedPaths : basePaths;
+    const selectedBranches = normalizeOpeningBookBranchSelections(selectedBranchPaths);
+    const selectedPaths = filterOpeningBookPracticePathsByBranches(basePaths, selectedBranches);
+    const practicePaths = selectedBranches.length ? selectedPaths : basePaths;
     return {
       label: "Luyện từ đầu",
       branchPath: [],

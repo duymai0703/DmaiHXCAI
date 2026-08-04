@@ -43,7 +43,7 @@
     <link rel="preload" href="/assets/sounds/an.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
-    <link rel="stylesheet" href="/styles.css?v=20260803-board-bright-v1">
+    <link rel="stylesheet" href="/styles.css?v=20260804-mobile-khu2-v1">
   </head>
   <body>
     <header class="app-header">
@@ -72,6 +72,7 @@
           <button class="mobile-action-btn" type="button" data-mobile-action="flip" data-mobile-icon="mb5" title="Xoay bàn" aria-label="Xoay bàn"><img src="/assets/icons/mb5-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="reset" data-mobile-icon="mb1" title="Đặt lại" aria-label="Đặt lại"><img src="/assets/icons/mb1-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="setup" data-mobile-icon="sosach" title="Xếp hình cờ" aria-label="Xếp hình cờ"><img src="/assets/icons/sosach-dark.png" alt="" draggable="false"></button>
+          <button class="mobile-action-btn" type="button" data-mobile-action="library" data-mobile-icon="guom" title="Thư viện cá nhân" aria-label="Thư viện cá nhân"><img src="/assets/icons/guom-dark.png" alt="" draggable="false"></button>
           <button class="mobile-action-btn" type="button" data-mobile-action="cole" data-mobile-icon="cole" title="Chọn bàn cờ" aria-label="Chọn bàn cờ"><img src="/assets/icons/cole-dark.png" alt="" draggable="false"></button>
         </div>
         <div id="boardSkinMenu" class="board-skin-menu hidden" role="menu" aria-label="Chọn màu bàn cờ">
@@ -311,7 +312,7 @@
       </div>
     </div>
     <script src="/config.js"></script>
-    <script src="/app.js?v=20260803-board-bright-v1"></script>
+    <script src="/app.js?v=20260804-mobile-khu2-v1"></script>
     <script>
       const backButton = document.getElementById("backButton");
       const mobileBrandBackButton = document.getElementById("mobileBrandBackButton");
@@ -320,7 +321,11 @@
         button.addEventListener("click", () => {
           const mobileEntry = window.matchMedia("(max-width: 760px)").matches || new URLSearchParams(location.search).get("mobile") === "1";
           if (mobileEntry) {
-            location.assign("/#home");
+            if (typeof window.DXiangqiAnalysisHome === "function") {
+              window.DXiangqiAnalysisHome();
+              return;
+            }
+            location.replace("/analysis.html?mobile=1");
             return;
           }
           try {
@@ -340,7 +345,7 @@
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v236";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v238";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();

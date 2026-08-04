@@ -89,7 +89,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260803-board-bright-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v1";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260803-board-bright-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -103,6 +103,9 @@ const BOARD_SKIN_ASSETS = [
 ];
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
+const ANALYSIS_MOBILE_ASSET_TIMEOUT_MS = 9000;
+const ANALYSIS_ASSET_CONCURRENCY = 10;
+const ANALYSIS_MOBILE_ASSET_CONCURRENCY = 5;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
 const ANALYSIS_MOVE_EASING = "cubic-bezier(0.16, 0.84, 0.22, 1)";
 const CHECKMATE_EFFECT_MS = 3000;
@@ -187,6 +190,7 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/mb5-dark.png",
   "/assets/icons/cole-dark.png",
   "/assets/icons/sosach-dark.png",
+  "/assets/icons/guom-dark.png",
   ...BOARD_SKIN_ASSETS,
   ...BOARD_EFFECT_ASSET_LIST,
   ...ANALYSIS_TOOL_ICON_ASSETS
@@ -1085,17 +1089,12 @@ async function warmAnalysisAssets() {
     return;
   }
 
-  if (shouldEnterAnalysisWithoutBlockingWarmup()) {
-    state.assetWarmupPending = false;
-    state.assetWarmupProgress = 100;
-    state.assetWarmupText = ANALYSIS_PRELOAD_TEXT.done;
-    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
-    renderAssetPreloadOverlay();
-    return;
-  }
-
-  const blockingAssets = [...new Set(ANALYSIS_BLOCKING_ASSETS)];
-  const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS)];
+  const fullWarmup = shouldUseFullAnalysisWarmup();
+  const blockingAssets = [...new Set(fullWarmup
+    ? [...ANALYSIS_BLOCKING_ASSETS, ...ANALYSIS_BACKGROUND_ASSETS]
+    : ANALYSIS_BLOCKING_ASSETS
+  )];
+  const backgroundAssets = [...new Set(ANALYSIS_BACKGROUND_ASSETS.filter((asset) => !blockingAssets.includes(asset)))];
   const totalSteps = Math.max(
     1,
     ("caches" in window ? blockingAssets.length : 0) +
@@ -1113,9 +1112,10 @@ async function warmAnalysisAssets() {
     decodeAnalysisAssets(backgroundAssets)
   ]).catch(() => {});
 
+  const timeoutMs = fullWarmup ? ANALYSIS_MOBILE_ASSET_TIMEOUT_MS : ANALYSIS_ASSET_TIMEOUT_MS;
   const finishBlocking = Promise.allSettled([
-    cacheAnalysisAssets(blockingAssets, tracker),
-    decodeAnalysisAssets(blockingAssets, tracker)
+    cacheAnalysisAssets(blockingAssets, tracker, timeoutMs),
+    decodeAnalysisAssets(blockingAssets, tracker, timeoutMs)
   ]).then(() => {
     writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
     tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
@@ -1123,10 +1123,13 @@ async function warmAnalysisAssets() {
   }).catch(() => {});
 
   try {
-    await Promise.race([
-      finishBlocking,
-      delay(ANALYSIS_ASSET_BLOCK_MS)
-    ]);
+    if (fullWarmup) await finishBlocking;
+    else {
+      await Promise.race([
+        finishBlocking,
+        delay(ANALYSIS_ASSET_BLOCK_MS)
+      ]);
+    }
   } finally {
     state.assetWarmupPending = false;
     renderAssetPreloadOverlay();
@@ -1135,9 +1138,9 @@ async function warmAnalysisAssets() {
   return finishBlocking;
 }
 
-function shouldEnterAnalysisWithoutBlockingWarmup() {
+function shouldUseFullAnalysisWarmup() {
   const userAgent = navigator.userAgent || "";
-  return isCompactMobile() || /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+  return isMobileAnalysisEntry() || isCompactMobile() || /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 }
 
 function renderAssetPreloadOverlay() {
@@ -1154,41 +1157,53 @@ function renderAssetPreloadOverlay() {
   }
 }
 
-async function cacheAnalysisAssets(assets, tracker) {
+async function cacheAnalysisAssets(assets, tracker, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
   if (!("caches" in window)) return;
   const cache = await caches.open(`dmaihxcai-analysis-runtime-${ANALYSIS_ASSET_WARMUP_VERSION}`);
-  await Promise.all(assets.map(async (asset) => {
+  await runAnalysisAssetQueue(assets, async (asset) => {
     try {
       const existing = await cache.match(asset);
       if (existing) return;
-      const response = await fetchWithTimeout(asset, { cache: "force-cache" }, ANALYSIS_ASSET_TIMEOUT_MS);
+      const response = await fetchWithTimeout(asset, { cache: "force-cache" }, timeoutMs);
       if (response && response.ok) await cache.put(asset, response.clone());
     } catch {
     } finally {
       tracker?.step(ANALYSIS_PRELOAD_TEXT.cache);
     }
-  }));
+  });
 }
 
-async function decodeAnalysisAssets(assets, tracker) {
+async function decodeAnalysisAssets(assets, tracker, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
   const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
-  await Promise.all(imageAssets.map(async (asset) => {
+  await runAnalysisAssetQueue(imageAssets, async (asset) => {
     try {
-      await decodeAnalysisAsset(asset);
+      await decodeAnalysisAsset(asset, timeoutMs);
     } finally {
       tracker?.step(ANALYSIS_PRELOAD_TEXT.decode);
+    }
+  });
+}
+
+async function runAnalysisAssetQueue(items, worker) {
+  const queue = Array.isArray(items) ? items.slice() : [];
+  const concurrency = shouldUseFullAnalysisWarmup() ? ANALYSIS_MOBILE_ASSET_CONCURRENCY : ANALYSIS_ASSET_CONCURRENCY;
+  const workerCount = Math.max(1, Math.min(queue.length || 1, Number(concurrency) || 1));
+  await Promise.allSettled(Array.from({ length: workerCount }, async () => {
+    while (queue.length) {
+      const item = queue.shift();
+      await worker(item);
     }
   }));
 }
 
-function decodeAnalysisAsset(src) {
+function decodeAnalysisAsset(src, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
   return new Promise((resolve) => {
     const image = new Image();
     image.decoding = "async";
     image.loading = "eager";
     image.src = src;
     let done = false;
-    const timer = window.setTimeout(finish, ANALYSIS_ASSET_TIMEOUT_MS);
+    const timer = window.setTimeout(finish, timeoutMs);
     function finish() {
       if (done) return;
       done = true;
@@ -1571,6 +1586,12 @@ function handleMobileAction(action) {
     case "setup":
       startMobileSetup();
       break;
+    case "library":
+      try {
+        sessionStorage.setItem("dxiangqi-mobile-library-entry", "1");
+      } catch {}
+      window.location.assign("/#library");
+      break;
     case "flip":
       toggleFlipBoard();
       break;
@@ -1581,6 +1602,11 @@ function handleMobileAction(action) {
       break;
   }
 }
+
+window.DXiangqiAnalysisHome = () => {
+  hideBoardSkinMenu();
+  setMobilePanel("analysis");
+};
 
 function toggleFlipBoard() {
   state.flipped = !state.flipped;

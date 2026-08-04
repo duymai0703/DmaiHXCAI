@@ -5868,27 +5868,27 @@ textarea:focus {
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/khu1.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu1.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/khu2.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu2.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="dark"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/khu3.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu3.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(1) {
-  --poster-image: url("/assets/posters/khu1.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu1.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(2) {
-  --poster-image: url("/assets/posters/khu2.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu2.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="light"] .launcher-card:nth-child(3) {
-  --poster-image: url("/assets/posters/khu3.png?v=20260803-zone-posters-v1");
+  --poster-image: url("/assets/posters/khu3.png?v=20260804-mobile-khu2-v1");
 }
 
 :root[data-theme="light"] {
