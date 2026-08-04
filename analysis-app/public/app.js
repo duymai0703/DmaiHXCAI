@@ -89,7 +89,7 @@ const AUTH_ACCESS_KEY_STORAGE_KEY = "dmaihxcai-access-key";
 const AUTH_DEVICE_ID_STORAGE_KEY = "dmaihxcai-device-id";
 const authDeviceId = readOrCreateAuthDeviceId();
 const ANALYSIS_ASSET_WARMUP_KEY = "dmaihxcai-analysis-assets-version";
-const ANALYSIS_ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v1";
+const ANALYSIS_ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v2";
 const BRAND_LOGO = "/assets/avtchibi/logoblue.png?v=20260730-logoblue-controls-v1";
 const BOARD_ASSET_VERSION = "20260803-board-bright-v1";
 const boardSkinAsset = (file) => `/assets/board/${file}?v=${BOARD_ASSET_VERSION}`;
@@ -103,7 +103,7 @@ const BOARD_SKIN_ASSETS = [
 ];
 const ANALYSIS_ASSET_BLOCK_MS = 1800;
 const ANALYSIS_ASSET_TIMEOUT_MS = 2400;
-const ANALYSIS_MOBILE_ASSET_TIMEOUT_MS = 9000;
+const ANALYSIS_MOBILE_ASSET_TIMEOUT_MS = 30000;
 const ANALYSIS_ASSET_CONCURRENCY = 10;
 const ANALYSIS_MOBILE_ASSET_CONCURRENCY = 5;
 const ANALYSIS_MOVE_ANIMATION_MS = 190;
@@ -153,6 +153,19 @@ const ANALYSIS_TOOL_ICON_ASSETS = [
   analysisToolIconAsset("databook.png"),
   analysisToolIconAsset("lsu.png")
 ];
+const ANALYSIS_CSS_VISUAL_ASSETS = [
+  "/assets/pieces/sets/boquan2/red-king.png?v=20260803-boquan2-blacksharp-v1",
+  "/assets/pieces/sets/boquan2/black-king.png?v=20260803-boquan2-blacksharp-v1",
+  "/assets/pieces/sets/boquan1/red-king.png",
+  "/assets/pieces/sets/boquan1/black-king.png",
+  "/assets/pieces/sets/boquan3/red-king.png",
+  "/assets/pieces/sets/boquan3/black-king.png",
+  "/assets/pieces/sets/boquan4/red-king.png",
+  "/assets/pieces/sets/boquan4/black-king.png",
+  "/assets/avtchibi/backbl.png?v=20260729-dxiangqi-brand-v1",
+  "/assets/avtchibi/backbl.png?v=20260730-logoblue-controls-v1",
+  "/assets/avtchibi/backbl.png?v=20260730-opening-icons-v1"
+];
 const BOARD_EFFECT_CLASSES = Object.keys(BOARD_EFFECT_ASSETS).map((kind) => `effect-${kind}`);
 const BOARD_EFFECT_BASE_MS = {
   checkmate: CHECKMATE_EFFECT_MS,
@@ -193,7 +206,8 @@ const ANALYSIS_BACKGROUND_ASSETS = [
   "/assets/icons/guom-dark.png",
   ...BOARD_SKIN_ASSETS,
   ...BOARD_EFFECT_ASSET_LIST,
-  ...ANALYSIS_TOOL_ICON_ASSETS
+  ...ANALYSIS_TOOL_ICON_ASSETS,
+  ...ANALYSIS_CSS_VISUAL_ASSETS
 ];
 let wakePromise = null;
 
@@ -1116,9 +1130,18 @@ async function warmAnalysisAssets() {
   const finishBlocking = Promise.allSettled([
     cacheAnalysisAssets(blockingAssets, tracker, timeoutMs),
     decodeAnalysisAssets(blockingAssets, tracker, timeoutMs)
-  ]).then(() => {
-    writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
-    tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
+  ]).then((results) => {
+    const failedCount = results.reduce((total, result) => {
+      if (result.status === "rejected") return total + 1;
+      return total + (Number(result.value?.failed) || 0);
+    }, 0);
+    if (failedCount > 0) {
+      removeStorage(ANALYSIS_ASSET_WARMUP_KEY);
+      tracker.finish("Một vài tài nguyên chưa tải đủ, trình duyệt sẽ thử lại.");
+    } else {
+      writeStorage(ANALYSIS_ASSET_WARMUP_KEY, ANALYSIS_ASSET_WARMUP_VERSION);
+      tracker.finish(ANALYSIS_PRELOAD_TEXT.done);
+    }
     void tryPersistBrowserStorage();
   }).catch(() => {});
 
@@ -1158,30 +1181,39 @@ function renderAssetPreloadOverlay() {
 }
 
 async function cacheAnalysisAssets(assets, tracker, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
-  if (!("caches" in window)) return;
+  if (!("caches" in window)) return { failed: 0 };
+  let failed = 0;
   const cache = await caches.open(`dmaihxcai-analysis-runtime-${ANALYSIS_ASSET_WARMUP_VERSION}`);
   await runAnalysisAssetQueue(assets, async (asset) => {
+    let ok = true;
     try {
       const existing = await cache.match(asset);
       if (existing) return;
       const response = await fetchWithTimeout(asset, { cache: "force-cache" }, timeoutMs);
       if (response && response.ok) await cache.put(asset, response.clone());
+      else ok = false;
     } catch {
+      ok = false;
     } finally {
+      if (!ok) failed += 1;
       tracker?.step(ANALYSIS_PRELOAD_TEXT.cache);
     }
   });
+  return { failed };
 }
 
 async function decodeAnalysisAssets(assets, tracker, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
   const imageAssets = assets.filter((asset) => /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(asset));
+  let failed = 0;
   await runAnalysisAssetQueue(imageAssets, async (asset) => {
     try {
-      await decodeAnalysisAsset(asset, timeoutMs);
+      const ok = await decodeAnalysisAsset(asset, timeoutMs);
+      if (!ok) failed += 1;
     } finally {
       tracker?.step(ANALYSIS_PRELOAD_TEXT.decode);
     }
   });
+  return { failed };
 }
 
 async function runAnalysisAssetQueue(items, worker) {
@@ -1203,25 +1235,25 @@ function decodeAnalysisAsset(src, timeoutMs = ANALYSIS_ASSET_TIMEOUT_MS) {
     image.loading = "eager";
     image.src = src;
     let done = false;
-    const timer = window.setTimeout(finish, timeoutMs);
-    function finish() {
+    const timer = window.setTimeout(() => finish(false), timeoutMs);
+    function finish(ok = true) {
       if (done) return;
       done = true;
       window.clearTimeout(timer);
-      resolve();
+      resolve(Boolean(ok));
     }
     if (typeof image.decode === "function") {
-      image.decode().then(finish).catch(() => {
-        if (image.complete) finish();
+      image.decode().then(() => finish(true)).catch(() => {
+        if (image.complete && image.naturalWidth !== 0) finish(true);
         else {
-          image.onload = finish;
-          image.onerror = finish;
+          image.onload = () => finish(true);
+          image.onerror = () => finish(false);
         }
       });
       return;
     }
-    image.onload = finish;
-    image.onerror = finish;
+    image.onload = () => finish(true);
+    image.onerror = () => finish(false);
   });
 }
 
@@ -1298,7 +1330,8 @@ async function init() {
   updateEditorUi();
   updateVisionQuotaBadge();
   wakeBackend();
-  void assetWarmupPromise.catch(() => {});
+  if (shouldUseFullAnalysisWarmup()) await assetWarmupPromise.catch(() => {});
+  else void assetWarmupPromise.catch(() => {});
   draw();
   const fastEntry = shouldUseFastAnalysisEntry();
   if (fastEntry) {

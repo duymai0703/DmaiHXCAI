@@ -285,6 +285,13 @@ body.asset-preload-active {
   overflow: hidden;
 }
 
+body.asset-preload-active > .app-header,
+body.asset-preload-active > .shell,
+body.asset-preload-active > .access-gate {
+  opacity: 0;
+  pointer-events: none;
+}
+
 button,
 input,
 select,

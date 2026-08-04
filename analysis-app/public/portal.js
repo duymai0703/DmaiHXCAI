@@ -23,7 +23,7 @@
   const DEVICE_AVATAR_VERSION = "20260728-chibi-v1";
   const AVTCHIBI_ASSET_VERSION = "20260728-chibi-v1";
   const PUZZLE_MAP_ASSET_VERSION = "20260728-puzzle-map-v1";
-  const ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v1";
+  const ASSET_WARMUP_VERSION = "20260804-mobile-khu2-v2";
   const MATCH_MODE_ASSET_VERSION = "20260728-match-modes-v2";
   const LIBRARY_MODE_ASSET_VERSION = "20260729-library-modes-v1";
   const LOBBY_MENU_MODE = "menu";
@@ -268,8 +268,8 @@
   const DEFAULT_RANK_TIME_CONTROL = "rapid10";
   const ANALYSIS_PRELOAD_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260804-mobile-khu2-v1",
-    "/app.js?v=20260804-mobile-khu2-v1",
+    "/styles.css?v=20260804-mobile-khu2-v2",
+    "/app.js?v=20260804-mobile-khu2-v2",
     "/puzzle-data.js?v=20260727-puzzle-v1",
     ENDGAME_DATA_ASSET,
     MOVE_SOUND_SOURCES.move,
@@ -311,15 +311,15 @@
   ];
   const REVIEW_BADGE_ASSETS = Object.values(REVIEW_BADGES).map((badge) => badge.image).filter(Boolean);
   const PORTAL_POSTER_ASSETS = [
-    "/assets/posters/khu1.png?v=20260804-mobile-khu2-v1",
-    "/assets/posters/khu2.png?v=20260804-mobile-khu2-v1",
-    "/assets/posters/khu3.png?v=20260804-mobile-khu2-v1"
+    "/assets/posters/khu1.png?v=20260804-mobile-khu2-v2",
+    "/assets/posters/khu2.png?v=20260804-mobile-khu2-v2",
+    "/assets/posters/khu3.png?v=20260804-mobile-khu2-v2"
   ];
   const PORTAL_ENTRY_ASSETS = [
     "/",
     "/index.html",
-    "/portal.css?v=20260804-mobile-khu2-v1",
-    "/portal.js?v=20260804-mobile-khu2-v1",
+    "/portal.css?v=20260804-mobile-khu2-v2",
+    "/portal.js?v=20260804-mobile-khu2-v2",
     "/config.js",
     "/xiangqi-core.js",
     "/manifest.webmanifest",
@@ -327,8 +327,8 @@
   ];
   const ANALYSIS_MOBILE_CRITICAL_ASSETS = [
     "/analysis.html",
-    "/styles.css?v=20260804-mobile-khu2-v1",
-    "/app.js?v=20260804-mobile-khu2-v1",
+    "/styles.css?v=20260804-mobile-khu2-v2",
+    "/app.js?v=20260804-mobile-khu2-v2",
     MOVE_SOUND_SOURCES.move,
     MOVE_SOUND_SOURCES.capture,
     MOVE_SOUND_SOURCES.check,

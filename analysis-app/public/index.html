@@ -44,9 +44,9 @@
     <link rel="preload" href="/assets/sounds/chieu.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="preload" href="/assets/sounds/tuyetsat1.mp3?v=20260713-audio-v9" as="audio" type="audio/mpeg">
     <link rel="prefetch" href="/analysis.html?mobile=1" as="document">
-    <link rel="prefetch" href="/styles.css?v=20260804-mobile-khu2-v1" as="style">
-    <link rel="prefetch" href="/app.js?v=20260804-mobile-khu2-v1" as="script">
-    <link rel="stylesheet" href="/portal.css?v=20260804-mobile-khu2-v1">
+    <link rel="prefetch" href="/styles.css?v=20260804-mobile-khu2-v2" as="style">
+    <link rel="prefetch" href="/app.js?v=20260804-mobile-khu2-v2" as="script">
+    <link rel="stylesheet" href="/portal.css?v=20260804-mobile-khu2-v2">
   </head>
   <body>
     <header class="portal-header">
@@ -1026,14 +1026,14 @@
         }, { capture: true });
       })();
     </script>
-    <script src="/portal.js?v=20260804-mobile-khu2-v1"></script>
+    <script src="/portal.js?v=20260804-mobile-khu2-v2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js").then((registration) => {
           registration.update?.();
         }).catch(() => {});
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v238";
+          const reloadKey = "dmaihxcai-sw-reloaded-dxiangqi-shell-v239";
           if (sessionStorage.getItem(reloadKey) === "1") return;
           sessionStorage.setItem(reloadKey, "1");
           location.reload();
